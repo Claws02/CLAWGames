@@ -99,7 +99,7 @@ function _showResult(type) {
     const info = Catalog.MG_INFO[type];
     document.getElementById('wr-icon').textContent = info.icon;
     document.getElementById('wr-title').textContent = info.title;
-    document.getElementById('wr-desc').textContent = info.desc.split(/(?<=[.!?])\s/)[0];
+    document.getElementById('wr-desc').textContent = Catalog.descOf(type).split(/(?<=[.!?])\s/)[0];
     const veto = document.getElementById('btn-wheel-veto');
     veto.textContent = `VETO (${_vetoes})`;
     veto.disabled = _vetoes <= 0 || _slices.length < 2;

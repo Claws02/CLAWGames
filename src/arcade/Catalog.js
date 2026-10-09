@@ -9,6 +9,10 @@ import * as MinigameLayout from '../claw-core/config/MinigameLayout.js';
 export { MG_INFO, MG_GENRES };
 export const allTypes = () => MG_TYPES.filter(t => MG_INFO[t]);
 export const genreOf = type => profileOf(type).genre;
+// The rules as the arcade tells them: coin games carry board payout copy
+// ("REAL money, everybody keeps it") that is not true here, and a plain
+// version beside it.
+export const descOf = type => (MG_INFO[type] && (MG_INFO[type].descPlain || MG_INFO[type].desc)) || '';
 
 // Why `type` can't seat `n` players on this screen, or '' if it can.
 export function whyNot(type, n) {
