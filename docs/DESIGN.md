@@ -118,7 +118,7 @@ This is the one feature that changes what the product is: it goes from a static 
 |---|---|---|
 | **0 · Extract** ✅ code done | claw-core split behind AppHost, HundredBlockDash switched to core with no behavior change. *Submodule pending the repo.* | HundredBlockDash `npm run smoke` + full `qa/` suite still pass |
 | **1 · Arcade shell** 🟡 v0 built | Home, seat setup, Arcade grid, Spin the wheel, bot tiers, same device | Every eligible game launches and finishes from the grid at 2 and 4 seats (Playwright). *v0: 5 games verified by `qa/smoke.js`; full sweep pending.* |
-| **2 · Party** | Playlist, Wheel, Draft, standings, podium, phones-in-room | A 4-phone, best-of-5 party finishes in two browser contexts per seat |
+| **2 · Party** 🟡 party done | Playlist (3/5/7), Wheel, Shuffle, Draft, Host picks, standings, podium ✅ · phones-in-room ⏳ | A 4-phone, best-of-5 party finishes in two browser contexts per seat. *Party: `qa/party.js` plays a 3-game party with each picker at 3 seats.* |
 | **3 · Online** | Accounts, friends, invites, TURN | Two networks, invite → game → result |
 | **4 · Ship** | Store art, privacy, Capacitor builds | TestFlight / internal track |
 | **ongoing** | New 3–4 seat games (or revived archived ones) | 4-player pool ≥ 20 |
@@ -141,3 +141,10 @@ This is the one feature that changes what the product is: it goes from a static 
 - **Tabletop mirror mode is off** (the DualRead stub), so every card is shown once, upright.
 - **The minigame markup is duplicated** in `index.html` and HundredBlockDash's `index.html`. It belongs in a core-mounted fragment.
 - Long names get clipped on wheel slices.
+
+## 9. Party scoring (as built)
+- Points by place: **2P 3/0 · 3P 4/2/0 · 4P 4/2/1/0**. Tied seats share the places they occupy, the same rule as the core's coin ladder.
+- Seven 3–4 seat games report every seat's score, so they're ranked properly. For the rest only the winner is known, so the winner takes 1st and the others share the remaining places. A draw shares everything.
+- The core's standalone `onComplete(winnerId, standings)` now passes `standings` through. That was a HundredBlockDash change with no effect on HBD.
+- No game repeats within a party until the eligible pool runs out. A 7-game party at 4 seats can run out, since only 9 games seat 4.
+- The final ranking goes by points, then game wins. Seats that are equal on both share the place, and the podium says "SHARED CROWN!".

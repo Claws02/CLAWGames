@@ -7,9 +7,17 @@ import * as Catalog from './Catalog.js';
 import * as Stats from './Stats.js';
 import { seats } from './Seats.js';
 
-let _genre = 'all', _onPick = null;
+let _genre = 'all', _onPick = null, _pool = null;
 
-export function open(onPick) { _onPick = onPick; _chips(); _render(); }
+// pool: optional () => [types] that may be picked; others grey out as already
+// played. A party passes its not-yet-played games.
+export function open(onPick, pool = null) { _onPick = onPick; _pool = pool; _chips(); _render(); }
+
+function _why(type) {
+    const why = Catalog.whyNot(type, seats.count);
+    if (why || !_pool) return why;
+    return _pool().includes(type) ? '' : 'Played this party';
+}
 
 function _chips() {
     const host = document.getElementById('genre-chips');
@@ -31,7 +39,7 @@ function _chips() {
 
 function _card(type) {
     const info = Catalog.MG_INFO[type], g = Catalog.genreOf(type);
-    const why = Catalog.whyNot(type, seats.count);
+    const why = _why(type);
     const el = document.createElement('div');
     el.className = 'card' + (why ? ' blocked' : '');
     el.dataset.type = type;
@@ -63,12 +71,12 @@ function _render() {
     const grid = document.getElementById('game-grid');
     grid.innerHTML = '';
     const all = Catalog.allTypes().filter(t => _genre === 'all' || Catalog.genreOf(t) === _genre);
-    const ok = all.filter(t => !Catalog.whyNot(t, seats.count));
-    const no = all.filter(t => Catalog.whyNot(t, seats.count));
+    const ok = all.filter(t => !_why(t));
+    const no = all.filter(t => _why(t));
     if (_genre === 'all') {
         _section(grid, '⭐ Favourites', Stats.favorites().filter(t => ok.includes(t)));
         _section(grid, '🕒 Recently played', Stats.recent().filter(t => ok.includes(t)));
     }
     _section(grid, `🎮 ${ok.length} ready for ${seats.count} players`, ok);
-    _section(grid, `🚫 Not for ${seats.count} players`, no);
+    _section(grid, _pool ? '🚫 Not available' : `🚫 Not for ${seats.count} players`, no);
 }

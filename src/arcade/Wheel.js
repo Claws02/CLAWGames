@@ -12,10 +12,12 @@ const MAX_SLICES = 12;
 const COLORS = ['#ff5fa2', '#ffd23f', '#2ec4b6', '#8b5cf6', '#ff9f1c', '#3b9dff', '#2fd67b', '#ef4444'];
 const SPIN_MS = 3800;
 
-let _slices = [], _angle = 0, _vetoes = 0, _pick = null, _spinning = false, _onPlay = null;
+let _slices = [], _angle = 0, _vetoes = 0, _pick = null, _spinning = false, _onPlay = null, _pool = null;
 
-export function open(onPlay) {
+// pool: optional () => [types]; a party passes its not-yet-played games.
+export function open(onPlay, pool = null) {
     _onPlay = onPlay;
+    _pool = pool;
     _vetoes = humans();
     _deal();
     _hideResult();
@@ -24,7 +26,7 @@ export function open(onPlay) {
 
 // A fresh wheel: up to MAX_SLICES random eligible games.
 function _deal() {
-    const pool = Catalog.eligible(seats.count).slice();
+    const pool = (_pool ? _pool() : Catalog.eligible(seats.count)).slice();
     for (let i = pool.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]];
     }
@@ -49,7 +51,7 @@ function _draw() {
         ctx.font = `${Math.min(30, 240 / n + 8)}px 'Bebas Neue', sans-serif`;
         ctx.fillStyle = '#2b1240';
         const t = Catalog.MG_INFO[type].title;
-        ctx.fillText(t.length > 14 ? t.slice(0, 13) + '…' : t, R - 82, 0);
+        ctx.fillText(t.length > 12 ? t.slice(0, 11) + '…' : t, R - 82, 0);
         ctx.restore();
     });
     ctx.restore();

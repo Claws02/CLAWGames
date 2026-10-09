@@ -34,7 +34,7 @@
             <div class="home-btns">
                 <button class="big-btn b-quick"  data-go="quick"><span class="ico">🎮</span><span class="lbl bfont">Quick Play</span><span class="sub">Pick any game</span></button>
                 <button class="big-btn b-wheel"  data-go="wheel"><span class="ico">🎡</span><span class="lbl bfont">Spin the Wheel</span><span class="sub">Let fate decide</span></button>
-                <button class="big-btn b-party"  disabled><span class="ico">🏆</span><span class="lbl bfont">Party</span><span class="sub">Best-of playlists</span><span class="soon">SOON</span></button>
+                <button class="big-btn b-party"  data-go="party"><span class="ico">🏆</span><span class="lbl bfont">Party</span><span class="sub">Best-of playlists</span></button>
                 <button class="big-btn b-online" disabled><span class="ico">📱</span><span class="lbl bfont">Play Together</span><span class="sub">Phones in a room</span><span class="soon">SOON</span></button>
             </div>
             <div class="home-stats" id="home-stats"></div>
@@ -77,6 +77,45 @@
                     <button class="go-btn bfont" id="btn-wheel-play">PLAY IT →</button>
                     <button class="veto-btn bfont" id="btn-wheel-veto">VETO</button>
                 </div>
+            </div>
+        </section>
+        <section class="screen" id="scr-party" data-screen="party" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Party setup</h2>
+                <span class="who" id="party-who"></span></header>
+            <div class="panel">
+                <div class="panel-h bfont">How many games?</div>
+                <div class="seg big" id="party-len"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-h bfont">How do we pick each game?</div>
+                <div class="pickers" id="party-pickers"></div>
+            </div>
+            <p class="hint" id="party-hint"></p>
+            <button class="go-btn bfont" id="btn-party-start">START PARTY 🎉</button>
+        </section>
+
+        <section class="screen" id="scr-draft" data-screen="draft" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">The Draft</h2></header>
+            <div class="draft-turn bfont" id="draft-turn"></div>
+            <div class="grid draft-grid" id="draft-grid"></div>
+        </section>
+
+        <section class="screen" id="scr-standings" data-screen="standings" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont" id="st-title">Standings</h2></header>
+            <div class="last-game" id="st-last"></div>
+            <div class="standings" id="st-rows"></div>
+            <div class="up-next" id="st-next" hidden></div>
+            <button class="go-btn bfont" id="btn-st-go">NEXT GAME →</button>
+        </section>
+
+        <section class="screen" id="scr-podium" data-screen="podium" hidden>
+            <div class="confetti" aria-hidden="true"></div>
+            <h2 class="podium-h bfont" id="podium-h">PARTY CHAMPION!</h2>
+            <div class="podium" id="podium"></div>
+            <div class="standings" id="podium-rows"></div>
+            <div class="wr-btns">
+                <button class="go-btn bfont" id="btn-podium-again">PLAY AGAIN</button>
+                <button class="veto-btn bfont" id="btn-podium-home">HOME</button>
             </div>
         </section>
     </main>

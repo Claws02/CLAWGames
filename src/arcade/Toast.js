@@ -3,7 +3,7 @@ export function show(msg, color) {
     const host = document.getElementById('toast-host');
     if (!host) return;
     const t = document.createElement('div');
-    t.className = 'toast';
+    t.className = 'claw-toast';
     if (color) t.style.background = color;
     t.textContent = msg;
     host.appendChild(t);
