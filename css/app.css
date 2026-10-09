@@ -293,3 +293,42 @@ button:disabled { cursor: default; }
 .net-grid { width: 100%; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
 .net-card { margin-top: 4vh; }
 .bar-note { font-weight: 900; }
+
+/* ---------- minigame chrome, party-themed ----------
+   Overrides for claw-core's intro card, countdown and scoreboard, which the
+   shared sheet styles dark for HundredBlockDash. Scoped to body.arcade so
+   nothing here can leak into the shared sheet's own rules. */
+body.arcade #mg-intro-overlay {
+    background:
+        radial-gradient(circle at 15% 20%, rgba(255,255,255,.3) 0 50px, transparent 51px),
+        linear-gradient(160deg, #ffd23f 0%, #ff9f1c 35%, #ff5fa2 70%, #8b5cf6 100%);
+    color: var(--ink);
+}
+body.arcade #mg-page-info, body.arcade #mg-page-hold {
+    background: var(--paper); border: var(--line); border-radius: 26px; box-shadow: 0 8px 0 var(--ink);
+    padding: 22px 18px; margin: 0 4px;
+    animation: pop-in .35s cubic-bezier(.2, 1.6, .4, 1);
+}
+body.arcade .mg-intro-title, body.arcade .orient-name { color: var(--pink); text-shadow: 0 3px 0 var(--ink); -webkit-text-stroke: 1.5px var(--ink); paint-order: stroke fill; }
+body.arcade .mg-intro-desc, body.arcade #mg-intro-desc { color: var(--ink) !important; font-weight: 700; }
+body.arcade .orient-subtitle, body.arcade .orient-instructions { color: var(--ink); opacity: .8; font-weight: 700; }
+body.arcade .mg-step { background: rgba(43,18,64,.25); height: 6px; }
+body.arcade .mg-step.done { background: var(--ink); }
+body.arcade .btn-close.primary {
+    background: var(--green); color: var(--ink); border: var(--line); border-radius: 18px;
+    box-shadow: 0 5px 0 var(--ink); font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: .04em;
+}
+body.arcade .btn-close.primary:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
+body.arcade #mg-countdown { color: var(--yellow); -webkit-text-stroke: 6px var(--ink); paint-order: stroke fill; text-shadow: 0 10px 0 var(--ink); }
+
+body.arcade .mg-score-screen { background: linear-gradient(160deg, #ffd23f 0%, #ff9f1c 35%, #ff5fa2 70%, #8b5cf6 100%); }
+body.arcade .mg-sc-head { color: #fff; -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; text-shadow: 0 4px 0 var(--ink); font-size: 40px; }
+body.arcade .mg-sc-sub { color: var(--ink); font-weight: 800; opacity: .8; }
+body.arcade .mg-sc-card { background: var(--paper); border: var(--line); box-shadow: 0 4px 0 var(--ink); color: var(--ink); }
+body.arcade .mg-sc-card.mg-sc-win { background: var(--yellow); border-color: var(--ink); }
+body.arcade .mg-sc-rank.mg-sc-first { color: var(--ink); }
+body.arcade .mg-sc-rank.mg-sc-second { color: rgba(43,18,64,.55); }
+body.arcade .mg-sc-line, body.arcade .mg-sc-dim, body.arcade .mg-sc-dim b { color: var(--ink); }
+body.arcade .mg-sc-line b { color: var(--pink); }
+body.arcade .mg-sc-btn { background: var(--green); color: var(--ink); border: var(--line); box-shadow: 0 4px 0 var(--ink); font-size: 22px; }
+body.arcade .mg-sc-coins { color: var(--ink); }

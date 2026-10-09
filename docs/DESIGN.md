@@ -135,7 +135,7 @@ This is the one feature that changes what the product is: it goes from a static 
 - Name and mascot for the app. Should the HundredBlockDash characters appear as the playable roster?
 
 ## 8. Arcade v0: known gaps
-- **Intro, ready and result cards** still use HundredBlockDash's dark style (`css/core-minigame.css`). They should get the party theme once the minigame CSS moves into claw-core.
+- ~~Intro, ready and result cards in HBD's dark style~~. They're now party-themed by overrides in `app.css` scoped to `body.arcade`. The shared sheet itself still lives in HBD.
 - **The empty-scenery stub:** stages that borrow board props get an empty `THREE.Group` per prop, so their roadside dressing is missing. The fix is to move `PROP_KIT` and its builders out of the board's `Renderer.js` into the core.
 - **Bot difficulty is per table, not per seat.** The core asks for one `Bot.skill()`.
 - **Tabletop mirror mode is off** (the DualRead stub), so every card is shown once, upright.
