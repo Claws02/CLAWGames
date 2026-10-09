@@ -37,7 +37,10 @@
                 <button class="big-btn b-party"  data-go="party"><span class="ico">🏆</span><span class="lbl bfont">Party</span><span class="sub">Best-of playlists</span></button>
                 <button class="big-btn b-online" data-go="together"><span class="ico">📱</span><span class="lbl bfont">Play Together</span><span class="sub">Phones in a room</span></button>
             </div>
-            <button class="trophy-btn bfont" data-go="trophies"><span>🏆 Trophies</span><span class="n" id="home-trophies-n"></span></button>
+            <div class="home-row">
+                <button class="trophy-btn bfont" data-go="players"><span>😀 Players</span><span class="n" id="home-players-n"></span></button>
+                <button class="trophy-btn bfont" data-go="trophies"><span>🏆 Trophies</span><span class="n" id="home-trophies-n"></span></button>
+            </div>
             <div class="home-stats" id="home-stats"></div>
         </section>
 
@@ -45,6 +48,26 @@
             <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Trophies</h2></header>
             <p class="trophy-sum" id="trophy-sum"></p>
             <div class="trophy-list" id="trophy-list"></div>
+        </section>
+
+        <section class="screen" id="scr-players" data-screen="players" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Players</h2></header>
+            <p class="trophy-sum" id="players-sum"></p>
+            <div class="player-list" id="player-list"></div>
+        </section>
+
+        <section class="screen" id="scr-player" data-screen="player" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Player</h2></header>
+            <div class="pf-head">
+                <div id="pf-face"></div>
+                <input id="pf-name" class="pf-name bfont" maxlength="14" aria-label="Name" autocomplete="off">
+            </div>
+            <div class="pf-chars" id="pf-chars"></div>
+            <div class="pf-stats" id="pf-stats"></div>
+            <p class="trophy-sum" id="pf-best"></p>
+            <h3 class="pf-h bfont">Rivals</h3>
+            <div class="pf-rivals" id="pf-rivals"></div>
+            <button class="veto-btn bfont" id="btn-pf-delete">DELETE PLAYER</button>
         </section>
 
         <section class="screen" id="scr-seats" data-screen="seats" hidden>

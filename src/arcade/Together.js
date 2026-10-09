@@ -12,6 +12,7 @@ import { MG_INFO, MG_NET_INFO, MG_PARALLEL } from '../claw-core/config/MinigameR
 import { pointsFor } from './Party.js';
 import { SEAT_STYLE } from '../host/ArcadeState.js';
 import * as Store from './Store.js';
+import * as Profiles from './Profiles.js';
 import * as Toast from './Toast.js';
 import * as Stats from './Stats.js';
 import * as Trophies from './Trophies.js';
@@ -26,10 +27,16 @@ let _playing = false;
 // coin is REAL money"). There's no money in the arcade.
 const descOf = type => (MG_NET_INFO[type] || MG_INFO[type].desc).replace(/^\S+ PAYDAY — [^.]*\.\s*/, '');
 
+// The name used last time; failing that, the first player made on this phone.
+export function prefill() {
+    const el = $('net-name');
+    if (!el.value) el.value = Store.load('netName', '') || Profiles.list()[0]?.name || '';
+}
+
 export function init(show, goHome) {
     _show = show; _home = goHome;
     Room.setScorer(pointsFor);
-    $('net-name').value = Store.load('netName', '');
+    prefill();
 
     $('btn-net-host').addEventListener('click', async () => {
         _hint('Opening a room…');

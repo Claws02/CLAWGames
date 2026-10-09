@@ -22,6 +22,8 @@ import * as PartyScreens from './arcade/PartyScreens.js';
 import { MG_INFO } from './arcade/Catalog.js';
 import * as Together from './arcade/Together.js';
 import * as Confirm from './arcade/Confirm.js';
+import * as Profiles from './arcade/Profiles.js';
+import * as PlayersScreen from './arcade/PlayersScreen.js';
 import { isHost as Room_isHost } from './net/Room.js';
 
 MinigameManager.init(null);
@@ -41,6 +43,13 @@ function show(name, push = true) {
     ['grid-who', 'wheel-who', 'party-who'].forEach(_paintWho);
     if (name === 'home') _paintHome();
     if (name === 'trophies') _paintTrophies();
+    if (name === 'players') PlayersScreen.paintList();
+    if (name === 'together') Together.prefill();
+}
+
+function openProfile(id) {
+    show('player');
+    PlayersScreen.paintProfile(id, () => show(_history.pop() || 'home', false));
 }
 
 async function back() {
@@ -71,6 +80,7 @@ function _paintWho(id) {
 function _paintHome() {
     const c = Trophies.count();
     $('home-trophies-n').textContent = `${c.earned} / ${c.total}`;
+    $('home-players-n').textContent = Profiles.list().length || '';
     const t = Stats.totals();
     $('home-stats').textContent = t.plays
         ? `🎲 ${t.plays} games played · 🏆 ${t.humanWins} won by humans · 🤖 ${t.botWins} by bots`
@@ -97,15 +107,18 @@ function _paintTrophies() {
 function play(type, onDone, via = 'quick') {
     const { count, bots, tier } = Seats.seats;
     const table = bots.slice(0, count);
+    const who = Seats.table();
     state.botDifficulty = tier;
+    Seats.applyToState();
     $('arcade').hidden = true;
     MinigameManager.triggerStandalone(type, table[1], count, {
         bots: table,
         onComplete: (winnerId, standings) => {
             Stats.record(type, winnerId, table, { tier, via });
-            const who = winnerId < 0 ? null : state.players[winnerId];
-            Toast.show(who ? `${table[winnerId] ? '🤖' : '🏆'} ${who.name} wins ${MG_INFO[type].title}!` : '🤝 Draw!',
-                who ? SEAT_STYLE[winnerId].hex : null);
+            Profiles.record(type, winnerId, who, table);
+            const won = winnerId < 0 ? null : state.players[winnerId];
+            Toast.show(won ? `${table[winnerId] ? '🤖' : '🏆'} ${won.name} wins ${MG_INFO[type].title}!` : '🤝 Draw!',
+                won ? SEAT_STYLE[winnerId].hex : null);
             Trophies.announce();
             (onDone || (() => show(_current, false)))(winnerId, standings);
         },
@@ -122,7 +135,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', 
     const mode = b.dataset.go;
     // One phone, one player: Play Together has no local seat setup.
     if (mode === 'together') return show('together');
-    if (mode === 'trophies') return show('trophies');
+    if (mode === 'trophies' || mode === 'players') return show(mode);
     show('seats');
     Seats.open(() => MODES[mode]());
 }));
@@ -164,9 +177,10 @@ $('btn-podium-again').addEventListener('click', () => { Party.start(); showStand
 $('btn-podium-home').addEventListener('click', goHome);
 
 // Test hook for qa/: the shell's state, not the game's.
-window.__claw = { show, play, seats: Seats.seats, state, party: Party.party };
+window.__claw = { show, play, seats: Seats.seats, state, party: Party.party, openProfile };
 
 Seats.init();
+PlayersScreen.init(openProfile);
 Together.init(show, goHome);
 // Builds hosted where peer-to-peer connections are blocked set CLAW_NO_P2P:
 // Play Together is then shown as app-only rather than failing on tap.

@@ -366,3 +366,76 @@ body.arcade .mg-sc-coins { color: var(--ink); }
 }
 .confirm-q { font-weight: 900; font-size: 18px; margin-bottom: 14px; }
 button:focus-visible { outline: 4px solid var(--blue); outline-offset: 2px; }
+
+/* ---------- players ---------- */
+.home-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.home-row .trophy-btn { font-size: 22px; padding: 10px 12px; gap: 6px; }
+.face { width: 100%; height: 100%; object-fit: contain; display: block; }
+.face.emoji { display: grid; place-items: center; font-size: 26px; }
+.face.sm { width: 44px; height: 44px; flex: none; }
+.seat .dot, .pl-card .dot, .pf-head .dot, .pd-dot { position: relative; overflow: visible; }
+.seat .dot .face, .pl-card .dot .face, .pf-head .dot .face { border-radius: 50%; }
+.bot-tag {
+    position: absolute; right: -8px; bottom: -6px; font-style: normal; font-size: 16px; line-height: 1;
+    background: #fff; border: 3px solid var(--ink); border-radius: 50%; padding: 2px;
+}
+.seat-who {
+    border: 0; background: none; padding: 0; color: inherit; font: inherit;
+    display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; max-width: 100%;
+}
+.seat .nm { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seat-who .swap { font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; opacity: .6; }
+.seat .dot, .pl-card .dot { width: 64px; height: 64px; }
+.st-dot .face, .pd-dot .face { border-radius: 50%; }
+
+.pick-card { max-height: calc(100% - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.pick-card .confirm-q { margin: 0; }
+.pick-list { display: flex; flex-direction: column; gap: 8px; }
+.pick-row {
+    display: flex; align-items: center; gap: 10px; border: 3px solid var(--ink); border-radius: 16px;
+    background: #fff; padding: 4px 12px 4px 4px; font-weight: 900; font-size: 17px; text-align: left; color: var(--ink);
+}
+.pick-row.sel { background: var(--yellow); }
+.pick-row .pr-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-row em { font-style: normal; font-size: 11px; font-weight: 900; color: #fff; border: 2px solid var(--ink); border-radius: 99px; padding: 2px 8px; }
+.pick-new { display: flex; gap: 8px; }
+.pick-new input, .pf-name {
+    flex: 1; min-width: 0; border: var(--line); border-radius: 16px; padding: 8px 12px; font-size: 18px; font-weight: 800;
+    background: #fff; color: var(--ink);
+}
+.pick-new .go-btn { font-size: 22px; padding: 6px 14px; }
+.pick-card .wr-btns { justify-content: center; }
+
+.player-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.pl-card {
+    border: var(--line); border-radius: var(--radius); box-shadow: var(--pop); background: #fff; color: var(--ink);
+    padding: 14px 10px; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0;
+}
+.pl-card:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--ink); }
+.pl-card .dot { border-radius: 50%; border: var(--line); display: grid; place-items: center; }
+.pl-card b { font-size: 26px; line-height: 1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-card small { font-size: 12px; font-weight: 800; opacity: .75; }
+.pl-add { background: var(--paper); border-style: dashed; }
+.pl-add .dot { font-size: 34px; font-weight: 900; background: #fff; }
+
+.pf-head { display: flex; align-items: center; gap: 14px; }
+.pf-head .dot.big { width: 96px; height: 96px; flex: none; border-radius: 50%; border: var(--line); display: grid; place-items: center; box-shadow: var(--pop); }
+.pf-name { font-size: 32px; padding: 6px 12px; }
+.pf-chars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ch-pick {
+    border: 3px solid var(--ink); border-radius: 16px; background: #fff; color: var(--ink); padding: 6px 4px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; font-weight: 900; font-size: 13px;
+}
+.ch-pick .face.sm { width: 56px; height: 56px; }
+.ch-pick.sel { background: var(--yellow); box-shadow: 0 4px 0 var(--ink); }
+.pf-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.pf-stat { border: 3px solid var(--ink); border-radius: 16px; background: #fff; text-align: center; padding: 8px 4px; }
+.pf-stat b { display: block; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+.pf-stat small { font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; opacity: .7; }
+.pf-h { font-size: 26px; margin: 4px 0 0; }
+.pf-rivals { display: flex; flex-direction: column; gap: 6px; }
+.rv-row { display: flex; align-items: center; gap: 10px; border: 3px solid var(--ink); border-radius: 14px; background: #fff; padding: 8px 12px; font-weight: 900; }
+.rv-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-rec { font-size: 24px; font-variant-numeric: tabular-nums; }
+.rv-rec.up { color: #12a35a; }
+.rv-rec.down { color: var(--pink); }

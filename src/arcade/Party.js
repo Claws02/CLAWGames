@@ -12,7 +12,7 @@
 // ============================================================
 import * as Catalog from './Catalog.js';
 import * as Store from './Store.js';
-import { seats } from './Seats.js';
+import { seats, seatName as _seatName } from './Seats.js';
 import { SEAT_STYLE } from '../host/ArcadeState.js';
 
 export const LENGTHS = [3, 5, 7];
@@ -105,4 +105,5 @@ export function ranking() {
     });
 }
 
-export const seatName = i => (seats.bots[i] ? `Bot ${SEAT_STYLE[i].name}` : `Player ${i + 1}`);
+// A profile's name when one sits there; "Player N" or "Bot Colour" otherwise.
+export const seatName = _seatName;
