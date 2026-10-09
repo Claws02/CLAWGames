@@ -13,6 +13,8 @@ import { pointsFor } from './Party.js';
 import { SEAT_STYLE } from '../host/ArcadeState.js';
 import * as Store from './Store.js';
 import * as Toast from './Toast.js';
+import * as Stats from './Stats.js';
+import * as Trophies from './Trophies.js';
 
 const $ = id => document.getElementById(id);
 const MEDALS = ['🥇', '🥈', '🥉', '4️⃣'];
@@ -149,10 +151,14 @@ function _abortGame() {
     $('arcade').hidden = false;
 }
 
+// A result can be re-sent (a late phone, a repaint); count each round once.
+let _countedRound = null;
+
 function _showResult(r) {
     // Decided while this phone was still playing (it started late, or the
     // host's grace period ran out): take the game down first.
     _abortGame();
+    if (r.n !== _countedRound) { _countedRound = r.n; Stats.recordTogether(); Trophies.announce(600); }
     _show('netresult', false);
     const me = Room.mySeat();
     $('nr-title').textContent = r.winner < 0 ? 'A TIE!' : r.winner === me ? 'YOU WIN!' : `${r.names[r.winner]} WINS!`;

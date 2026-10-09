@@ -83,6 +83,30 @@ button:disabled { cursor: default; }
 .b-online { background: var(--purple); color: #fff; }
 .home-stats { text-align: center; font-weight: 800; font-size: 14px; opacity: .85; }
 
+/* ---------- trophies ---------- */
+.trophy-btn {
+    display: flex; justify-content: space-between; align-items: center;
+    border: var(--line); border-radius: var(--radius); box-shadow: var(--pop); background: #fff;
+    font-size: 26px; padding: 10px 18px; color: var(--ink);
+}
+.trophy-btn .n { font-size: 22px; opacity: .7; }
+.trophy-btn:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--ink); }
+.trophy-sum { font-weight: 800; text-align: center; color: var(--ink); }
+.trophy-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.trophy {
+    display: flex; gap: 12px; align-items: center; min-width: 0;
+    background: rgba(255,255,255,.55); border: var(--line); border-radius: 18px; padding: 10px 12px;
+}
+.trophy .t-ico { font-size: 34px; filter: grayscale(1); opacity: .45; }
+.trophy.got { background: #fff; box-shadow: 0 4px 0 var(--ink); }
+.trophy.got .t-ico { filter: none; opacity: 1; }
+.trophy .t-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.trophy b { font-size: 22px; line-height: 1; }
+.trophy small { font-size: 13px; font-weight: 700; opacity: .8; }
+.trophy em { font-style: normal; font-size: 12px; font-weight: 800; opacity: .7; }
+.trophy .t-bar { display: block; height: 8px; border-radius: 99px; background: rgba(0,0,0,.12); overflow: hidden; margin-top: 3px; }
+.trophy .t-bar i { display: block; height: 100%; background: var(--green); }
+
 /* ---------- shared bars ---------- */
 .bar { display: flex; align-items: center; gap: 12px; }
 .bar h2 { font-size: 36px; color: #fff; -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; text-shadow: 0 4px 0 var(--ink); flex: 1; }
