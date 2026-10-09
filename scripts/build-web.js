@@ -2,7 +2,7 @@
 // as HundredBlockDash's: the repo root IS the web build (no bundler), so this
 // is a copy that leaves dev-only folders behind and then proves nothing
 // shipped imports something that was left behind.
-// usage: node scripts/build-web.js   (run scripts/sync-core.sh first)
+// usage: node scripts/build-web.js   (run `npm run setup` first)
 const fs = require('fs');
 const path = require('path');
 
@@ -12,7 +12,7 @@ const SHIP = ['index.html', 'css', 'src', 'vendor', 'assets'];
 const SKIP = [/\/archived(\/|$)/, /\/\./, /\.md$/, /_template(3d)?\.js$/];
 
 if (!fs.existsSync(path.join(ROOT, 'src/claw-core/minigames/MinigameManager.js'))) {
-    console.error('src/claw-core is missing: run `npm run sync` first.');
+    console.error('src/claw-core is empty: run `git submodule update --init` (or `npm run setup`).');
     process.exit(1);
 }
 fs.rmSync(OUT, { recursive: true, force: true });

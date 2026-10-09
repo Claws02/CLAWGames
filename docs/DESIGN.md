@@ -116,7 +116,7 @@ This is the one feature that changes what the product is: it goes from a static 
 
 | Phase | Scope | Exit test |
 |---|---|---|
-| **0 · Extract** ✅ code done | claw-core split behind AppHost, HundredBlockDash switched to core with no behavior change. *Submodule pending the repo.* | HundredBlockDash `npm run smoke` + full `qa/` suite still pass |
+| **0 · Extract** ✅ code done | claw-core split behind AppHost, HundredBlockDash switched to core with no behavior change. Core is now [claws02/claw-core](https://github.com/Claws02/claw-core), a submodule at `src/claw-core/` in both apps. | HundredBlockDash `npm run smoke` + full `qa/` suite still pass |
 | **1 · Arcade shell** 🟡 v0 built | Home, seat setup, Arcade grid, Spin the wheel, bot tiers, same device | Every eligible game launches and finishes from the grid at 2 and 4 seats (Playwright). *v0: 5 games verified by `qa/smoke.js`; full sweep pending.* |
 | **2 · Party** ✅ v1 | Playlist (3/5/7), Wheel, Shuffle, Draft, Host picks, standings, podium · Play Together (phones in a room) | `qa/party.js` (each picker, 3 seats) · `qa/together.js` (host + guest, 2 rounds, leave) |
 | **3 · Online** | Accounts, friends, invites, TURN | Two networks, invite → game → result |
@@ -159,7 +159,7 @@ This is the one feature that changes what the product is: it goes from a static 
   - There's no live score rail during a round.
   - Late joiners are refused while a round is running.
   - The host can't kick a player.
-- **Fixed on the way:** the shared loopback's `leave()` set `closed` before posting "bye", so peers never heard an explicit leave. It's a two-line fix in claw-core (HundredBlockDash branch).
+- **Fixed on the way:** the shared loopback's `leave()` set `closed` before posting "bye", so peers never heard an explicit leave. It's a two-line fix, now in claw-core `main`.
 
 ## 11. Packaging
 - `npm run build:web` copies the app into `www/` and fails if any shipped import points outside it. `npm run android` / `npm run ios` then works the same as in HundredBlockDash (Capacitor 8).
