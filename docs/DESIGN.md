@@ -160,3 +160,8 @@ This is the one feature that changes what the product is: it goes from a static 
   - Late joiners are refused while a round is running.
   - The host can't kick a player.
 - **Fixed on the way:** the shared loopback's `leave()` set `closed` before posting "bye", so peers never heard an explicit leave. It's a two-line fix in claw-core (HundredBlockDash branch).
+
+## 11. Packaging
+- `npm run build:web` copies the app into `www/` and fails if any shipped import points outside it. `npm run android` / `npm run ios` then works the same as in HundredBlockDash (Capacitor 8).
+- **To confirm before any store submission:** the app ID is a placeholder, `com.clawgames.arcade`. It can't be changed once an app is published, so pick a reverse-DNS name you control.
+- Not done yet: icons and splash art (`resources/`), the native `android/` and `ios/` projects (`npx cap add`), and a privacy page. A privacy page is required because Play Together uses public signaling relays (HBD's RELEASE_AUDIT RA-02 covers the same issue).
