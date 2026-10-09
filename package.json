@@ -4,7 +4,7 @@
   "private": true,
   "description": "CLAW Games \u2014 every HundredBlockDash minigame in one arcade, against friends or bots.",
   "scripts": {
-    "setup": "git submodule update --init && npm run sync",
+    "setup": "git submodule update --init",
     "sync": "bash scripts/sync-assets.sh ../HundredBlockDash",
     "serve": "npx --yes http-server -p 8140 -c-1 .",
     "smoke": "node qa/smoke.js",

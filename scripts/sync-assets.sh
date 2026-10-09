@@ -3,8 +3,9 @@
 # Copy the runtime assets claw-core needs from a HundredBlockDash checkout:
 # three.js, cannon.js and Trystero, the fonts, the minigame stylesheet and the
 # biome colours. The core itself is the src/claw-core submodule
-# (github.com/Claws02/claw-core) and is NOT touched here. Everything this
-# script writes is gitignored.
+# (github.com/Claws02/claw-core) and is NOT touched here. What this writes is
+# committed, so a fresh clone and GitHub Pages run without it: use it only to
+# take newer copies from HundredBlockDash.
 #
 # usage: bash scripts/sync-assets.sh ../HundredBlockDash
 # ============================================================
@@ -18,7 +19,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 mkdir -p "$ROOT/vendor" "$ROOT/assets/fonts"
 cp "$HBD/vendor/three.min.js" "$HBD/vendor/cannon.min.js" "$ROOT/vendor/"
 # Trystero (MIT): WebRTC signaling for Play Together, loaded only when a room opens.
-cp "$HBD"/vendor/trystero-*.min.js "$HBD/vendor/TRYSTERO-LICENSE" "$ROOT/vendor/"
+cp "$HBD"/vendor/trystero-*.min.js "$HBD/vendor/TRYSTERO-LICENSE" "$HBD/vendor/README-trystero.md" "$ROOT/vendor/"
 cp "$HBD"/assets/fonts/* "$ROOT/assets/fonts/"
 # The minigame overlays are styled by HBD's sheet. Temporary: the minigame
 # rules move into claw-core/ui/minigame.css and this copy goes away.
