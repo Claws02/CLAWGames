@@ -4,7 +4,8 @@
 // ============================================================
 import * as Party from './Party.js';
 import * as Catalog from './Catalog.js';
-import { seats, humans } from './Seats.js';
+import { seats, humans, seatChar } from './Seats.js';
+import { faceHTML } from './Characters.js';
 import { SEAT_STYLE } from '../host/ArcadeState.js';
 
 const $ = id => document.getElementById(id);
@@ -119,7 +120,7 @@ function _rows(host) {
         const gained = last ? last.pay[x.seat] : 0;
         return `<div class="st-row" data-seat="${x.seat}">` +
             `<span class="st-place">${MEDALS[x.place] || x.place + 1}</span>` +
-            `<span class="st-dot" style="background:${x.style.hex}">${x.bot ? '🤖' : '😀'}</span>` +
+            `<span class="st-dot" style="background:${x.style.hex}">${faceHTML(seatChar(x.seat), x.style.color)}</span>` +
             `<span class="st-name">${Party.seatName(x.seat)}</span>` +
             `<span class="st-bar"><i style="width:${(x.points / top) * 100}%;background:${x.style.hex}"></i></span>` +
             `<span class="st-pts bfont">${x.points}${gained ? `<small>+${gained}</small>` : ''}</span></div>`;
@@ -154,7 +155,7 @@ export function paintPodium() {
     const steps = [1, 0, 2].map(k => r[k]).filter(Boolean);
     $('podium').innerHTML = steps.map(x =>
         `<div class="step p${Math.min(x.place, 2) + 1}">` +
-        `<div class="pd-dot" style="background:${x.style.hex}">${x.bot ? '🤖' : '😀'}</div>` +
+        `<div class="pd-dot" style="background:${x.style.hex}">${faceHTML(seatChar(x.seat), x.style.color)}${x.bot ? '<i class="bot-tag">🤖</i>' : ''}</div>` +
         `<div class="pd-name">${Party.seatName(x.seat)}</div>` +
         `<div class="pd-block bfont">${MEDALS[x.place]}<br>${x.points}</div></div>`).join('');
     _rows($('podium-rows'));
