@@ -9,6 +9,7 @@
     "serve": "npx --yes http-server -p 8140 -c-1 .",
     "smoke": "node qa/smoke.js",
     "build:web": "node scripts/build-web.js",
+    "build:artifact": "node scripts/build-artifact.js",
     "cap:sync": "npm run build:web && npx cap sync",
     "android": "npm run cap:sync && npx cap open android",
     "ios": "npm run cap:sync && npx cap open ios"

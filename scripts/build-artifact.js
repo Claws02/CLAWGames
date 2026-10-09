@@ -2,9 +2,12 @@
 // wraps the page in its own <html>/<body>, so the outer tags are stripped and
 // body's class is set from script instead. Peer-to-peer is blocked there, so
 // Play Together is marked app-only (CLAW_NO_P2P).
-// usage: node scripts/build-web.js && node scripts/build-artifact.js
+// usage: node scripts/build-artifact.js   (rebuilds www/ first)
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..'), WWW = path.join(ROOT, 'www'), OUT = path.join(ROOT, 'dist-artifact');
+// Always from a fresh www/: packaging a stale one shipped a page without the
+// change it was rebuilt for.
+require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'build-web.js')], { stdio: 'inherit' });
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.cpSync(WWW, OUT, { recursive: true });
 let html = fs.readFileSync(path.join(OUT, 'index.html'), 'utf8');
