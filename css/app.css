@@ -332,3 +332,13 @@ body.arcade .mg-sc-line, body.arcade .mg-sc-dim, body.arcade .mg-sc-dim b { colo
 body.arcade .mg-sc-line b { color: var(--pink); }
 body.arcade .mg-sc-btn { background: var(--green); color: var(--ink); border: var(--line); box-shadow: 0 4px 0 var(--ink); font-size: 22px; }
 body.arcade .mg-sc-coins { color: var(--ink); }
+
+/* ---------- in-app confirm ---------- */
+.confirm-wrap { position: fixed; inset: 0; z-index: 3000; background: rgba(43,18,64,.55); display: grid; place-items: center; padding: 16px; }
+.confirm-card {
+    max-width: 360px; width: 100%; border: var(--line); border-radius: var(--radius); box-shadow: var(--pop);
+    background: var(--paper); color: var(--ink); padding: 20px 16px; text-align: center;
+    animation: pop-in .3s cubic-bezier(.2, 1.6, .4, 1);
+}
+.confirm-q { font-weight: 900; font-size: 18px; margin-bottom: 14px; }
+button:focus-visible { outline: 4px solid var(--blue); outline-offset: 2px; }

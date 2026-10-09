@@ -20,6 +20,7 @@ import * as Party from './arcade/Party.js';
 import * as PartyScreens from './arcade/PartyScreens.js';
 import { MG_INFO } from './arcade/Catalog.js';
 import * as Together from './arcade/Together.js';
+import * as Confirm from './arcade/Confirm.js';
 import { isHost as Room_isHost } from './net/Room.js';
 
 MinigameManager.init(null);
@@ -40,16 +41,16 @@ function show(name, push = true) {
     if (name === 'home') _paintHome();
 }
 
-function back() {
+async function back() {
     // Backing out of the room leaves it (a host leaving closes it for everyone).
     if (['room', 'netcard', 'netresult'].includes(_current)) {
-        if (Room_isHost() && !confirm('Close the room for everyone?')) return;
+        if (Room_isHost() && !(await Confirm.ask('Close the room for everyone?', 'CLOSE IT'))) return;
         Together.leave();
         return goHome();
     }
     // Leaving a party mid-way asks first; it can't be resumed.
     if (Party.party.active && ['standings', 'draft', 'wheel', 'grid'].includes(_current)
-        && !confirm('Quit this party? The scores will be lost.')) return;
+        && !(await Confirm.ask('Quit this party? The scores will be lost.', 'QUIT'))) return;
     if (Party.party.active && _current !== 'party') { Party.party.active = false; return goHome(); }
     show(_history.pop() || 'home', false);
 }
@@ -143,5 +144,12 @@ window.__claw = { show, play, seats: Seats.seats, state, party: Party.party };
 
 Seats.init();
 Together.init(show, goHome);
+// Builds hosted where peer-to-peer connections are blocked set CLAW_NO_P2P:
+// Play Together is then shown as app-only rather than failing on tap.
+if (window.CLAW_NO_P2P) {
+    const b = document.querySelector('.b-online');
+    b.disabled = true;
+    b.querySelector('.sub').textContent = 'In the phone app';
+}
 Wheel.init();
 show('home', false);
