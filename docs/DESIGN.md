@@ -32,7 +32,7 @@ What's in the HundredBlockDash repo now:
 | Build | No bundler: ES modules served static, vendored three.js + cannon.js, Capacitor 8 |
 | QA | About 100 Playwright test scripts in `qa/` |
 
-**Risk to watch first:** the 4-player library is thin. With 3–4 people at the table, only 9 games are playable today. Every mode below filters by seat count, so in a 4-player party the wheel and the playlist keep drawing from those 9. **Converting more games to `live` is product work, not polish.**
+**Risk to watch first:** the 4-player library is thin, and that's by design. With 3–4 people at the table, only 9 games are playable. The registry says the other 34 are 1v1 **on purpose** ("what is left at two is left at two on purpose", `blockedReason` in `MinigameRegistry.js`), so they aren't waiting to be converted. Every mode filters by seat count, so a 4-player party keeps drawing from those 9. **Growing the 3–4 player pool means new games built for 3–4 from the start.** The 64 archived games are the cheapest source to look at first.
 
 **How tied the games are to the board game:** loosely. The games import `GameState` (`state.mgActive` ×97, `state.players` ×48, plus a few `mgType` and `mgBag` reads), `MinigameManager`, `AudioManager` and the `Stage*` engine files. They don't touch board logic. That makes them extractable.
 
@@ -116,12 +116,12 @@ This is the one feature that changes what the product is: it goes from a static 
 
 | Phase | Scope | Exit test |
 |---|---|---|
-| **0 · Extract** | claw-core split, GameStateShim, HundredBlockDash switched to core with no behavior change | HundredBlockDash `npm run smoke` + full `qa/` suite still pass |
-| **1 · Arcade shell** | Home, seat setup, Arcade grid, Quick Play, bot tiers, same device | Every eligible game launches and finishes from the grid at 2 and 4 seats (Playwright) |
+| **0 · Extract** ✅ code done | claw-core split behind AppHost, HundredBlockDash switched to core with no behavior change. *Submodule pending the repo.* | HundredBlockDash `npm run smoke` + full `qa/` suite still pass |
+| **1 · Arcade shell** 🟡 v0 built | Home, seat setup, Arcade grid, Spin the wheel, bot tiers, same device | Every eligible game launches and finishes from the grid at 2 and 4 seats (Playwright). *v0: 5 games verified by `qa/smoke.js`; full sweep pending.* |
 | **2 · Party** | Playlist, Wheel, Draft, standings, podium, phones-in-room | A 4-phone, best-of-5 party finishes in two browser contexts per seat |
 | **3 · Online** | Accounts, friends, invites, TURN | Two networks, invite → game → result |
 | **4 · Ship** | Store art, privacy, Capacitor builds | TestFlight / internal track |
-| **ongoing** | Convert 1v1 games to `live` 3–4 seat | 4-player pool ≥ 20 |
+| **ongoing** | New 3–4 seat games (or revived archived ones) | 4-player pool ≥ 20 |
 
 ## 6. Phase 0: how the core is mounted (as built)
 
@@ -133,3 +133,11 @@ This is the one feature that changes what the product is: it goes from a static 
 
 ## 7. Open questions
 - Name and mascot for the app. Should the HundredBlockDash characters appear as the playable roster?
+
+## 8. Arcade v0: known gaps
+- **Intro, ready and result cards** still use HundredBlockDash's dark style (`css/core-minigame.css`). They should get the party theme once the minigame CSS moves into claw-core.
+- **The empty-scenery stub:** stages that borrow board props get an empty `THREE.Group` per prop, so their roadside dressing is missing. The fix is to move `PROP_KIT` and its builders out of the board's `Renderer.js` into the core.
+- **Bot difficulty is per table, not per seat.** The core asks for one `Bot.skill()`.
+- **Tabletop mirror mode is off** (the DualRead stub), so every card is shown once, upright.
+- **The minigame markup is duplicated** in `index.html` and HundredBlockDash's `index.html`. It belongs in a core-mounted fragment.
+- Long names get clipped on wheel slices.
