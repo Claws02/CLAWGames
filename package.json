@@ -1,0 +1,11 @@
+{
+  "name": "claw-games",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CLAW Games — every HundredBlockDash minigame in one arcade, against friends or bots.",
+  "scripts": {
+    "sync": "bash scripts/sync-core.sh ../HundredBlockDash",
+    "serve": "npx --yes http-server -p 8140 -c-1 .",
+    "smoke": "node qa/smoke.js"
+  }
+}

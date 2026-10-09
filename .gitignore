@@ -1,0 +1,9 @@
+# Synced from HundredBlockDash by scripts/sync-core.sh until claw-core is a submodule
+src/claw-core/
+src/host/biomes.js
+vendor/three.min.js
+vendor/cannon.min.js
+assets/fonts/
+css/core-minigame.css
+node_modules/
+www/

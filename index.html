@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#ff5fa2">
+    <title>CLAW Games</title>
+    <script src="vendor/three.min.js"></script>
+    <script src="vendor/cannon.min.js"></script>
+    <link rel="preload" href="assets/fonts/Nunito-Variable.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="assets/fonts/BebasNeue-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    <style>
+        @font-face { font-family: 'Nunito'; font-weight: 200 1000; font-display: swap;
+            src: local('Nunito'), url('assets/fonts/Nunito-Variable.woff2') format('woff2'); }
+        @font-face { font-family: 'Bebas Neue'; font-display: swap;
+            src: local('Bebas Neue'), url('assets/fonts/BebasNeue-Regular.woff2') format('woff2'); }
+    </style>
+    <!-- Minigame overlays are styled by the shared sheet; the arcade's own
+         screens by app.css, loaded second so it wins on shared selectors. -->
+    <link rel="stylesheet" href="css/core-minigame.css">
+    <link rel="stylesheet" href="css/app.css">
+</head>
+<body class="arcade">
+
+    <!-- ===== ARCADE SCREENS ===== -->
+    <main id="arcade">
+
+        <section class="screen" id="scr-home" data-screen="home">
+            <div class="logo">
+                <div class="logo-claw">🦀</div>
+                <h1 class="bfont">CLAW <span>GAMES</span></h1>
+                <p class="tag">43 minigames · 1–4 players · friends or bots</p>
+            </div>
+            <div class="home-btns">
+                <button class="big-btn b-quick"  data-go="quick"><span class="ico">🎮</span><span class="lbl bfont">Quick Play</span><span class="sub">Pick any game</span></button>
+                <button class="big-btn b-wheel"  data-go="wheel"><span class="ico">🎡</span><span class="lbl bfont">Spin the Wheel</span><span class="sub">Let fate decide</span></button>
+                <button class="big-btn b-party"  disabled><span class="ico">🏆</span><span class="lbl bfont">Party</span><span class="sub">Best-of playlists</span><span class="soon">SOON</span></button>
+                <button class="big-btn b-online" disabled><span class="ico">📱</span><span class="lbl bfont">Play Together</span><span class="sub">Phones in a room</span><span class="soon">SOON</span></button>
+            </div>
+            <div class="home-stats" id="home-stats"></div>
+        </section>
+
+        <section class="screen" id="scr-seats" data-screen="seats" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Who's playing?</h2></header>
+            <div class="seat-count" role="radiogroup" aria-label="Players">
+                <button data-n="2">2</button><button data-n="3">3</button><button data-n="4">4</button>
+            </div>
+            <div class="seats" id="seat-list"></div>
+            <div class="tier-row">
+                <span class="tier-lbl">Bot difficulty</span>
+                <div class="seg" id="tier-seg"></div>
+            </div>
+            <p class="hint" id="seat-hint"></p>
+            <button class="go-btn bfont" id="btn-seats-go">LET'S GO →</button>
+        </section>
+
+        <section class="screen" id="scr-grid" data-screen="grid" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Pick a game</h2>
+                <span class="who" id="grid-who"></span></header>
+            <div class="chips" id="genre-chips"></div>
+            <div class="grid" id="game-grid"></div>
+        </section>
+
+        <section class="screen" id="scr-wheel" data-screen="wheel" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Spin the Wheel</h2>
+                <span class="who" id="wheel-who"></span></header>
+            <div class="wheel-wrap">
+                <div class="wheel-pin">▼</div>
+                <canvas id="wheel" width="640" height="640"></canvas>
+                <button class="spin-btn bfont" id="btn-spin">SPIN!</button>
+            </div>
+            <div class="wheel-result" id="wheel-result" hidden>
+                <div class="wr-icon" id="wr-icon"></div>
+                <div class="wr-title bfont" id="wr-title"></div>
+                <div class="wr-desc" id="wr-desc"></div>
+                <div class="wr-btns">
+                    <button class="go-btn bfont" id="btn-wheel-play">PLAY IT →</button>
+                    <button class="veto-btn bfont" id="btn-wheel-veto">VETO</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="toast-host"></div>
+
+    <!-- ===== CLAW-CORE MINIGAME SCAFFOLD =====
+         The DOM contract claw-core's MinigameManager drives. Same ids and
+         structure as HundredBlockDash's index.html; keep them in step until
+         the core mounts its own markup. -->
+    <div id="ui-layer" hidden></div>
+    <div id="mg-select-overlay" hidden></div>
+
+    <div id="mg-intro-overlay">
+        <div id="mg-intro-steps">
+            <div class="mg-step" id="mg-step-0"></div>
+            <div class="mg-step" id="mg-step-1"></div>
+            <div class="mg-step" id="mg-step-2"></div>
+        </div>
+        <div id="mg-intro-content">
+            <div id="mg-page-info">
+                <div style="font-size:56px;margin-bottom:10px;" id="mg-intro-icon">🎮</div>
+                <div class="mg-intro-title bfont" id="mg-intro-title">SELECTING...</div>
+                <div class="mg-intro-desc" id="mg-intro-desc" style="font-family:'Nunito';color:rgba(255,255,255,.8);font-size:16px;max-width:340px;margin:0 auto 20px;line-height:1.5;"></div>
+                <button class="btn-close primary" id="btn-mg-intro-next">GOT IT →</button>
+            </div>
+            <div id="mg-page-hold" style="display:none;">
+                <div class="orient-name bfont" id="orient-name">FACE-OFF</div>
+                <div class="orient-subtitle" id="orient-subtitle">Both players hold one end</div>
+                <div class="phone-diagram-wrap">
+                    <div class="phone-diagram" id="phone-diagram"></div>
+                </div>
+                <div class="orient-instructions" id="orient-instructions"></div>
+                <button class="btn-close primary" id="btn-mg-launch">WE'RE READY →</button>
+            </div>
+        </div>
+        <div id="mg-countdown" class="bfont">3</div>
+    </div>
+
+    <div id="minigame-layer">
+        <div class="mg-zone" id="mg-p2">
+            <button class="mg-ready-btn bfont" id="mg-ready-2">READY</button>
+        </div>
+        <div id="mg-neutral" class="bfont">MINIGAME TIME</div>
+        <div id="mg-neutral-mirror" class="bfont" aria-hidden="true">MINIGAME TIME</div>
+        <div class="mg-zone" id="mg-p1">
+            <button class="mg-ready-btn bfont" id="mg-ready-1">READY</button>
+        </div>
+    </div>
+
+    <div id="boot-error" style="display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:24px;background:#2a1050;color:#fff;font-family:Nunito,sans-serif;">
+        <div style="font-size:24px;font-weight:900;margin-bottom:10px;">Couldn't load the game engine</div>
+        <button onclick="location.reload()" style="margin-top:16px;padding:12px 28px;border:none;border-radius:12px;background:#ffc928;font-weight:900;font-size:16px;">🔄 RELOAD</button>
+    </div>
+    <script>
+        if (typeof window.THREE === 'undefined' || typeof window.CANNON === 'undefined') {
+            document.getElementById('boot-error').style.display = 'flex';
+        } else {
+            const m = document.createElement('script');
+            m.type = 'module'; m.src = 'src/main.js';
+            document.body.appendChild(m);
+        }
+    </script>
+</body>
+</html>
