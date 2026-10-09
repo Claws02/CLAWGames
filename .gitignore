@@ -3,6 +3,8 @@ src/claw-core/
 src/host/biomes.js
 vendor/three.min.js
 vendor/cannon.min.js
+vendor/trystero-*.min.js
+vendor/TRYSTERO-LICENSE
 assets/fonts/
 css/core-minigame.css
 node_modules/

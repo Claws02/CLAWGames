@@ -42,3 +42,9 @@ export function setBoardPaused() {}
 // Payouts are only read on the board path; the arcade keeps its own tally.
 export const MINIGAME_REWARD = 0;
 export const MINIGAME_PLACE_COINS = { 2: [0, 0], 3: [0, 0, 0], 4: [0, 0, 0, 0] };
+
+// Play Together. Rooms signal in their own namespace so an arcade room can
+// never collide with a HundredBlockDash match. turnServers empty = public STUN
+// only, which roughly one network in ten cannot get through (see DESIGN §4).
+export const NET_APP_ID = 'claw-games';
+export const RELEASE = { version: '0.1.0', turnServers: [] };

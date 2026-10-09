@@ -275,3 +275,21 @@ button:disabled { cursor: default; }
 }
 @keyframes confetti { to { background-position: 0 440px, 60px 360px, -40px 520px, 30px 480px; } }
 #scr-podium > *:not(.confetti) { position: relative; z-index: 1; }
+
+/* ---------- play together ---------- */
+.lead { font-weight: 800; text-align: center; }
+.field {
+    width: 100%; border: var(--line); border-radius: 14px; padding: 10px 14px; font: inherit; font-weight: 900;
+    font-size: 20px; background: #fff; color: var(--ink); user-select: text; -webkit-user-select: text; touch-action: manipulation;
+}
+.field.code { font-family: 'Bebas Neue', sans-serif; font-size: 34px; letter-spacing: .3em; text-align: center; text-transform: uppercase; }
+.join-row { display: flex; gap: 10px; width: 100%; }
+.room-code {
+    border: var(--line); border-radius: var(--radius); box-shadow: var(--pop); background: var(--yellow);
+    display: flex; flex-direction: column; align-items: center; padding: 10px;
+}
+.rc-k { font-weight: 900; font-size: 12px; letter-spacing: .15em; }
+.rc-v { font-size: 64px; letter-spacing: .2em; line-height: 1; }
+.net-grid { width: 100%; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+.net-card { margin-top: 4vh; }
+.bar-note { font-weight: 900; }

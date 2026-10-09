@@ -19,6 +19,8 @@ import * as Toast from './arcade/Toast.js';
 import * as Party from './arcade/Party.js';
 import * as PartyScreens from './arcade/PartyScreens.js';
 import { MG_INFO } from './arcade/Catalog.js';
+import * as Together from './arcade/Together.js';
+import { isHost as Room_isHost } from './net/Room.js';
 
 MinigameManager.init(null);
 Audio.setMusicGate(() => !state.mgActive);
@@ -39,6 +41,12 @@ function show(name, push = true) {
 }
 
 function back() {
+    // Backing out of the room leaves it (a host leaving closes it for everyone).
+    if (['room', 'netcard', 'netresult'].includes(_current)) {
+        if (Room_isHost() && !confirm('Close the room for everyone?')) return;
+        Together.leave();
+        return goHome();
+    }
     // Leaving a party mid-way asks first; it can't be resumed.
     if (Party.party.active && ['standings', 'draft', 'wheel', 'grid'].includes(_current)
         && !confirm('Quit this party? The scores will be lost.')) return;
@@ -92,6 +100,8 @@ const MODES = {
 };
 document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => {
     const mode = b.dataset.go;
+    // One phone, one player: Play Together has no local seat setup.
+    if (mode === 'together') return show('together');
     show('seats');
     Seats.open(() => MODES[mode]());
 }));
@@ -132,5 +142,6 @@ $('btn-podium-home').addEventListener('click', goHome);
 window.__claw = { show, play, seats: Seats.seats, state, party: Party.party };
 
 Seats.init();
+Together.init(show, goHome);
 Wheel.init();
 show('home', false);

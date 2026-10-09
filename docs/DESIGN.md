@@ -118,7 +118,7 @@ This is the one feature that changes what the product is: it goes from a static 
 |---|---|---|
 | **0 · Extract** ✅ code done | claw-core split behind AppHost, HundredBlockDash switched to core with no behavior change. *Submodule pending the repo.* | HundredBlockDash `npm run smoke` + full `qa/` suite still pass |
 | **1 · Arcade shell** 🟡 v0 built | Home, seat setup, Arcade grid, Spin the wheel, bot tiers, same device | Every eligible game launches and finishes from the grid at 2 and 4 seats (Playwright). *v0: 5 games verified by `qa/smoke.js`; full sweep pending.* |
-| **2 · Party** 🟡 party done | Playlist (3/5/7), Wheel, Shuffle, Draft, Host picks, standings, podium ✅ · phones-in-room ⏳ | A 4-phone, best-of-5 party finishes in two browser contexts per seat. *Party: `qa/party.js` plays a 3-game party with each picker at 3 seats.* |
+| **2 · Party** ✅ v1 | Playlist (3/5/7), Wheel, Shuffle, Draft, Host picks, standings, podium · Play Together (phones in a room) | `qa/party.js` (each picker, 3 seats) · `qa/together.js` (host + guest, 2 rounds, leave) |
 | **3 · Online** | Accounts, friends, invites, TURN | Two networks, invite → game → result |
 | **4 · Ship** | Store art, privacy, Capacitor builds | TestFlight / internal track |
 | **ongoing** | New 3–4 seat games (or revived archived ones) | 4-player pool ≥ 20 |
@@ -148,3 +148,15 @@ This is the one feature that changes what the product is: it goes from a static 
 - The core's standalone `onComplete(winnerId, standings)` now passes `standings` through. That was a HundredBlockDash change with no effect on HBD.
 - No game repeats within a party until the eligible pool runs out. A 7-game party at 4 seats can run out, since only 9 games seat 4.
 - The final ranking goes by points, then game wins. Seats that are equal on both share the place, and the podium says "SHARED CROWN!".
+
+## 10. Play Together (as built)
+- **Mechanism:** every phone plays the **same seeded challenge at the same moment, alone**, and scores are compared. These are claw-core's *parallel* games: **Snap Strike, Odd One Out, Steady Hand, Loot Catch, Tree Climb** (5). That's all the library supports across phones today. Sumo, Tank Clash and the other shared-arena games have no real-time cross-phone sync in either app.
+- **Transport:** claw-core's `NetTransport` (Trystero WebRTC, Nostr then torrent signaling), namespace `claw-games`. `?net=local` uses a BroadcastChannel loopback for testing.
+- **Session:** `src/net/Room.js`, host-authoritative. The protocol is HELLO / ROSTER / ROUND / READY / GO / SCORE / RESULT. Points use the Party ladder, and totals run for as long as the room is open.
+- **Failure handling:** a phone that never reports is scored 0 after 90 s plus an 8 s grace period. A guest leaving mid-round is dropped from the wait. If the host leaves, the room closes for everyone.
+- **Gaps:**
+  - There's no TURN relay, so about 1 network in 10 can't connect peer-to-peer.
+  - There's no live score rail during a round.
+  - Late joiners are refused while a round is running.
+  - The host can't kick a player.
+- **Fixed on the way:** the shared loopback's `leave()` set `closed` before posting "bye", so peers never heard an explicit leave. It's a two-line fix in claw-core (HundredBlockDash branch).

@@ -35,7 +35,7 @@
                 <button class="big-btn b-quick"  data-go="quick"><span class="ico">🎮</span><span class="lbl bfont">Quick Play</span><span class="sub">Pick any game</span></button>
                 <button class="big-btn b-wheel"  data-go="wheel"><span class="ico">🎡</span><span class="lbl bfont">Spin the Wheel</span><span class="sub">Let fate decide</span></button>
                 <button class="big-btn b-party"  data-go="party"><span class="ico">🏆</span><span class="lbl bfont">Party</span><span class="sub">Best-of playlists</span></button>
-                <button class="big-btn b-online" disabled><span class="ico">📱</span><span class="lbl bfont">Play Together</span><span class="sub">Phones in a room</span><span class="soon">SOON</span></button>
+                <button class="big-btn b-online" data-go="together"><span class="ico">📱</span><span class="lbl bfont">Play Together</span><span class="sub">Phones in a room</span></button>
             </div>
             <div class="home-stats" id="home-stats"></div>
         </section>
@@ -117,6 +117,55 @@
                 <button class="go-btn bfont" id="btn-podium-again">PLAY AGAIN</button>
                 <button class="veto-btn bfont" id="btn-podium-home">HOME</button>
             </div>
+        </section>
+        <section class="screen" id="scr-together" data-screen="together" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Play Together</h2></header>
+            <p class="lead">Everyone on their own phone, same room. One phone hosts and the rest join with the code.</p>
+            <div class="panel">
+                <label class="panel-h bfont" for="net-name">Your name</label>
+                <input class="field" id="net-name" maxlength="16" autocomplete="off" placeholder="Player">
+            </div>
+            <button class="go-btn bfont" id="btn-net-host">HOST A ROOM</button>
+            <div class="panel">
+                <label class="panel-h bfont" for="net-code">Join with a code</label>
+                <div class="join-row">
+                    <input class="field code" id="net-code" maxlength="4" autocomplete="off" autocapitalize="characters" placeholder="ABCD">
+                    <button class="veto-btn bfont" id="btn-net-join">JOIN</button>
+                </div>
+            </div>
+            <p class="hint" id="net-hint"></p>
+        </section>
+
+        <section class="screen" id="scr-room" data-screen="room" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Room</h2></header>
+            <div class="room-code"><span class="rc-k">ROOM CODE</span><span class="rc-v bfont" id="room-code">····</span></div>
+            <div class="standings" id="room-seats"></div>
+            <div class="panel" id="room-host-panel">
+                <div class="panel-h bfont">Pick the next game</div>
+                <div class="grid net-grid" id="room-games"></div>
+            </div>
+            <p class="hint" id="room-hint"></p>
+        </section>
+
+        <section class="screen" id="scr-netcard" data-screen="netcard" hidden>
+            <header class="bar"><button class="back" data-back aria-label="Leave room">‹</button><span class="bar-note">Leave room</span></header>
+            <div class="wheel-result net-card">
+                <div class="un-k" id="nc-round"></div>
+                <div class="wr-icon" id="nc-icon"></div>
+                <div class="wr-title bfont" id="nc-title"></div>
+                <div class="wr-desc" id="nc-desc"></div>
+                <button class="go-btn bfont" id="btn-nc-ready">I'M READY</button>
+                <p class="hint" id="nc-wait"></p>
+            </div>
+        </section>
+
+        <section class="screen" id="scr-netresult" data-screen="netresult" hidden>
+            <header class="bar"><button class="back" data-back aria-label="Leave room">‹</button><span class="bar-note">Leave room</span></header>
+            <h2 class="podium-h bfont" id="nr-title">Results</h2>
+            <div class="last-game" id="nr-game"></div>
+            <div class="standings" id="nr-rows"></div>
+            <button class="go-btn bfont" id="btn-nr-next">NEXT GAME →</button>
+            <p class="hint" id="nr-wait"></p>
         </section>
     </main>
 

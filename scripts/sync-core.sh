@@ -18,6 +18,8 @@ mkdir -p "$ROOT/src/claw-core" "$ROOT/vendor" "$ROOT/assets/fonts"
 cp -R "$HBD/src/claw-core/." "$ROOT/src/claw-core/"
 rm -rf "$ROOT/src/claw-core/minigames/archived"
 cp "$HBD/vendor/three.min.js" "$HBD/vendor/cannon.min.js" "$ROOT/vendor/"
+# Trystero (MIT): WebRTC signaling for Play Together, loaded only when a room opens.
+cp "$HBD"/vendor/trystero-*.min.js "$HBD/vendor/TRYSTERO-LICENSE" "$ROOT/vendor/"
 cp "$HBD"/assets/fonts/* "$ROOT/assets/fonts/"
 # The minigame overlays are styled by HBD's sheet. Temporary: the minigame
 # rules move into claw-core/ui/minigame.css and this copy goes away.
