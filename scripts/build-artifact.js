@@ -21,16 +21,22 @@ html = html
     // wrapped it yet.
     .replace('<main id="arcade">', '<main id="arcade"><script>document.body.classList.add("arcade"); window.CLAW_NO_P2P = true;</script>')
     .replace(/<\/body>\s*/i, '');
-// The host serves libraries and fonts only from known CDNs, so load the same
-// versions from there and ship neither copy: three.js r128 and cannon.js 0.6.2
-// (the vendored builds), Nunito and Bebas Neue from Google Fonts.
+// three.js and cannon.js ship WITH the page, as published files beside it:
+// loading them from a CDN made the page depend on that CDN being reachable
+// from wherever it is opened, and when it was not the boot check showed
+// "Couldn't load the game engine". Fonts still come from Google Fonts (the
+// one font host the page may use); every face has a fallback stack.
 html = html
-    .replace('<script src="vendor/three.min.js"></script>', '<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>')
-    .replace('<script src="vendor/cannon.min.js"></script>', '<script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>')
     .replace(/<link rel="preload"[^>]*woff2[^>]*>\s*/g, '')
     .replace(/<style>\s*@font-face[\s\S]*?<\/style>/, '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;700;800;900&display=swap">');
-for (const s of ['vendor/three.min.js', 'vendor/cannon.min.js']) if (html.includes(s)) throw new Error('still references ' + s);
-fs.rmSync(path.join(OUT, 'vendor'), { recursive: true, force: true });
+for (const s of ['vendor/three.min.js', 'vendor/cannon.min.js']) {
+    if (!html.includes(`<script src="${s}"></script>`)) throw new Error('index.html no longer loads ' + s);
+    if (!fs.existsSync(path.join(OUT, s))) throw new Error('missing ' + s);
+}
+// Play Together is off on the hosted page, so its signaling bundles stay home.
+for (const f of fs.readdirSync(path.join(OUT, 'vendor'))) {
+    if (!['three.min.js', 'cannon.min.js'].includes(f)) fs.rmSync(path.join(OUT, 'vendor', f));
+}
 fs.rmSync(path.join(OUT, 'assets'), { recursive: true, force: true });
 fs.writeFileSync(path.join(OUT, 'index.html'), html);
 const files = [];

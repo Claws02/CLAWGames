@@ -6,10 +6,10 @@ Design and roadmap: [`docs/DESIGN.md`](docs/DESIGN.md).
 
 ## Run it
 
-The minigames live in **[claw-core](https://github.com/Claws02/claw-core)**, which HundredBlockDash and this app share. It's a git submodule at `src/claw-core/`. The runtime assets it needs (three.js, cannon.js, Trystero, the fonts and the minigame stylesheet) are copied from a HundredBlockDash checkout next to this one:
+The minigames live in **[claw-core](https://github.com/Claws02/claw-core)**, which HundredBlockDash and this app share. It's a git submodule at `src/claw-core/`. The runtime assets the core needs (three.js, cannon.js, Trystero, the fonts and the minigame stylesheet) are committed under `vendor/`, `assets/fonts/` and `css/`; `npm run sync` refreshes them from a HundredBlockDash checkout next to this one.
 
 ```bash
-npm run setup         # = git submodule update --init && bash scripts/sync-assets.sh ../HundredBlockDash
+npm run setup         # = git submodule update --init
 npm run serve         # http://127.0.0.1:8140
 npm run smoke         # plays 5 games end to end in headless Chromium
 node qa/party.js      # a 3-game party with each picker (wheel, shuffle, draft, host picks)

@@ -217,10 +217,13 @@
 
     <div id="boot-error" style="display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:24px;background:#2a1050;color:#fff;font-family:Nunito,sans-serif;">
         <div style="font-size:24px;font-weight:900;margin-bottom:10px;">Couldn't load the game engine</div>
+        <div id="boot-error-why" style="font-size:14px;opacity:.8;max-width:320px;"></div>
         <button onclick="location.reload()" style="margin-top:16px;padding:12px 28px;border:none;border-radius:12px;background:#ffc928;font-weight:900;font-size:16px;">🔄 RELOAD</button>
     </div>
     <script>
         if (typeof window.THREE === 'undefined' || typeof window.CANNON === 'undefined') {
+            const missing = [typeof window.THREE === 'undefined' && 'three.js', typeof window.CANNON === 'undefined' && 'cannon.js'].filter(Boolean);
+            document.getElementById('boot-error-why').textContent = missing.join(' and ') + ' did not load (vendor/). Check your connection and reload.';
             document.getElementById('boot-error').style.display = 'flex';
         } else {
             const m = document.createElement('script');
