@@ -1,0 +1,27 @@
+{
+  "name": "claw-games",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CLAW Games \u2014 every HundredBlockDash minigame in one arcade, against friends or bots.",
+  "scripts": {
+    "setup": "git submodule update --init && npm run sync",
+    "sync": "bash scripts/sync-assets.sh ../HundredBlockDash",
+    "serve": "npx --yes http-server -p 8140 -c-1 .",
+    "smoke": "node qa/smoke.js",
+    "build:web": "node scripts/build-web.js",
+    "build:artifact": "node scripts/build-artifact.js",
+    "cap:sync": "npm run build:web && npx cap sync",
+    "android": "npm run cap:sync && npx cap open android",
+    "ios": "npm run cap:sync && npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.2"
+  }
+}

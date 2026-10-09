@@ -1,0 +1,11 @@
+# Copied from HundredBlockDash by scripts/sync-assets.sh (src/claw-core is a submodule)
+src/host/biomes.js
+vendor/three.min.js
+vendor/cannon.min.js
+vendor/trystero-*.min.js
+vendor/TRYSTERO-LICENSE
+assets/fonts/
+css/core-minigame.css
+node_modules/
+www/
+dist-artifact/

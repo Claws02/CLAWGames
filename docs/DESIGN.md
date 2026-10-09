@@ -32,7 +32,7 @@ What's in the HundredBlockDash repo now:
 | Build | No bundler: ES modules served static, vendored three.js + cannon.js, Capacitor 8 |
 | QA | About 100 Playwright test scripts in `qa/` |
 
-**Risk to watch first:** the 4-player library is thin. With 3–4 people at the table, only 9 games are playable today. Every mode below filters by seat count, so in a 4-player party the wheel and the playlist keep drawing from those 9. **Converting more games to `live` is product work, not polish.**
+**Risk to watch first:** the 4-player library is thin, and that's by design. With 3–4 people at the table, only 9 games are playable. The registry says the other 34 are 1v1 **on purpose** ("what is left at two is left at two on purpose", `blockedReason` in `MinigameRegistry.js`), so they aren't waiting to be converted. Every mode filters by seat count, so a 4-player party keeps drawing from those 9. **Growing the 3–4 player pool means new games built for 3–4 from the start.** The 64 archived games are the cheapest source to look at first.
 
 **How tied the games are to the board game:** loosely. The games import `GameState` (`state.mgActive` ×97, `state.players` ×48, plus a few `mgType` and `mgBag` reads), `MinigameManager`, `AudioManager` and the `Stage*` engine files. They don't touch board logic. That makes them extractable.
 
@@ -116,12 +116,12 @@ This is the one feature that changes what the product is: it goes from a static 
 
 | Phase | Scope | Exit test |
 |---|---|---|
-| **0 · Extract** | claw-core split, GameStateShim, HundredBlockDash switched to core with no behavior change | HundredBlockDash `npm run smoke` + full `qa/` suite still pass |
-| **1 · Arcade shell** | Home, seat setup, Arcade grid, Quick Play, bot tiers, same device | Every eligible game launches and finishes from the grid at 2 and 4 seats (Playwright) |
-| **2 · Party** | Playlist, Wheel, Draft, standings, podium, phones-in-room | A 4-phone, best-of-5 party finishes in two browser contexts per seat |
+| **0 · Extract** ✅ code done | claw-core split behind AppHost, HundredBlockDash switched to core with no behavior change. Core is now [claws02/claw-core](https://github.com/Claws02/claw-core), a submodule at `src/claw-core/` in both apps. | HundredBlockDash `npm run smoke` + full `qa/` suite still pass |
+| **1 · Arcade shell** 🟡 v0 built | Home, seat setup, Arcade grid, Spin the wheel, bot tiers, same device | Every eligible game launches and finishes from the grid at 2 and 4 seats (Playwright). *v0: 5 games verified by `qa/smoke.js`; full sweep pending.* |
+| **2 · Party** ✅ v1 | Playlist (3/5/7), Wheel, Shuffle, Draft, Host picks, standings, podium · Play Together (phones in a room) | `qa/party.js` (each picker, 3 seats) · `qa/together.js` (host + guest, 2 rounds, leave) |
 | **3 · Online** | Accounts, friends, invites, TURN | Two networks, invite → game → result |
 | **4 · Ship** | Store art, privacy, Capacitor builds | TestFlight / internal track |
-| **ongoing** | Convert 1v1 games to `live` 3–4 seat | 4-player pool ≥ 20 |
+| **ongoing** | New 3–4 seat games (or revived archived ones) | 4-player pool ≥ 20 |
 
 ## 6. Phase 0: how the core is mounted (as built)
 
@@ -133,3 +133,35 @@ This is the one feature that changes what the product is: it goes from a static 
 
 ## 7. Open questions
 - Name and mascot for the app. Should the HundredBlockDash characters appear as the playable roster?
+
+## 8. Arcade v0: known gaps
+- ~~Intro, ready and result cards in HBD's dark style~~. They're now party-themed by overrides in `app.css` scoped to `body.arcade`. The shared sheet itself still lives in HBD.
+- **The empty-scenery stub:** stages that borrow board props get an empty `THREE.Group` per prop, so their roadside dressing is missing. The fix is to move `PROP_KIT` and its builders out of the board's `Renderer.js` into the core.
+- **Bot difficulty is per table, not per seat.** The core asks for one `Bot.skill()`.
+- **Tabletop mirror mode is off** (the DualRead stub), so every card is shown once, upright.
+- **The minigame markup is duplicated** in `index.html` and HundredBlockDash's `index.html`. It belongs in a core-mounted fragment.
+- Long names get clipped on wheel slices.
+
+## 9. Party scoring (as built)
+- Points by place: **2P 3/0 · 3P 4/2/0 · 4P 4/2/1/0**. Tied seats share the places they occupy, the same rule as the core's coin ladder.
+- Seven 3–4 seat games report every seat's score, so they're ranked properly. For the rest only the winner is known, so the winner takes 1st and the others share the remaining places. A draw shares everything.
+- The core's standalone `onComplete(winnerId, standings)` now passes `standings` through. That was a HundredBlockDash change with no effect on HBD.
+- No game repeats within a party until the eligible pool runs out. A 7-game party at 4 seats can run out, since only 9 games seat 4.
+- The final ranking goes by points, then game wins. Seats that are equal on both share the place, and the podium says "SHARED CROWN!".
+
+## 10. Play Together (as built)
+- **Mechanism:** every phone plays the **same seeded challenge at the same moment, alone**, and scores are compared. These are claw-core's *parallel* games: **Snap Strike, Odd One Out, Steady Hand, Loot Catch, Tree Climb** (5). That's all the library supports across phones today. Sumo, Tank Clash and the other shared-arena games have no real-time cross-phone sync in either app.
+- **Transport:** claw-core's `NetTransport` (Trystero WebRTC, Nostr then torrent signaling), namespace `claw-games`. `?net=local` uses a BroadcastChannel loopback for testing.
+- **Session:** `src/net/Room.js`, host-authoritative. The protocol is HELLO / ROSTER / ROUND / READY / GO / SCORE / RESULT. Points use the Party ladder, and totals run for as long as the room is open.
+- **Failure handling:** a phone that never reports is scored 0 after 90 s plus an 8 s grace period. A guest leaving mid-round is dropped from the wait. If the host leaves, the room closes for everyone.
+- **Gaps:**
+  - There's no TURN relay, so about 1 network in 10 can't connect peer-to-peer.
+  - There's no live score rail during a round.
+  - Late joiners are refused while a round is running.
+  - The host can't kick a player.
+- **Fixed on the way:** the shared loopback's `leave()` set `closed` before posting "bye", so peers never heard an explicit leave. It's a two-line fix, now in claw-core `main`.
+
+## 11. Packaging
+- `npm run build:web` copies the app into `www/` and fails if any shipped import points outside it. `npm run android` / `npm run ios` then works the same as in HundredBlockDash (Capacitor 8).
+- **To confirm before any store submission:** the app ID is a placeholder, `com.clawgames.arcade`. It can't be changed once an app is published, so pick a reverse-DNS name you control.
+- Not done yet: icons and splash art (`resources/`), the native `android/` and `ios/` projects (`npx cap add`), and a privacy page. A privacy page is required because Play Together uses public signaling relays (HBD's RELEASE_AUDIT RA-02 covers the same issue).

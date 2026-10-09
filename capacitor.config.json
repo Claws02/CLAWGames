@@ -1,0 +1,26 @@
+{
+  "appId": "com.clawgames.arcade",
+  "appName": "CLAW Games",
+  "webDir": "www",
+  "backgroundColor": "#ff7eb6",
+  "android": {
+    "backgroundColor": "#ff7eb6",
+    "allowMixedContent": false
+  },
+  "ios": {
+    "backgroundColor": "#ff7eb6",
+    "contentInset": "never"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1000,
+      "launchAutoHide": true,
+      "backgroundColor": "#ff7eb6",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "overlaysWebView": true,
+      "style": "LIGHT"
+    }
+  }
+}
