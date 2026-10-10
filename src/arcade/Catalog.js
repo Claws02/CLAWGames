@@ -17,11 +17,14 @@ export const descOf = type => (MG_INFO[type] && (MG_INFO[type].descPlain || MG_I
 // Why `type` can't seat `n` players on this screen, or '' if it can.
 export function whyNot(type, n) {
     if (n <= 2) return '';
-    if (!surfacesOf(type).sharedMany) return blockedReason(type, 'many') || '1v1 only';
-    // Same rule as HundredBlockDash's arcade: three always fits a phone; four
-    // needs the screen to have room for four split zones.
+    const s = surfacesOf(type);
+    if (!s.sharedMany) return blockedReason(type, 'many') || '1v1 only';
+    // Same rule as HundredBlockDash's arcade: a game that shares one scene and
+    // only splits the controls plays 3-4 on any screen; a game that gives each
+    // player a playfield of their own (manyDevice 'tablet') needs room for one
+    // each, which a phone has at neither three nor four.
+    if (s.manyDevice !== 'tablet') return '';
     const w = Math.max(window.innerWidth || 0, 320), h = Math.max(window.innerHeight || 0, 480);
-    if (n >= 4 && !MinigameLayout.frameFor(MinigameLayout.SHAPES.SPLIT, 4, w, h).ok) return 'Needs a tablet at 4 — try 3';
-    return '';
+    return MinigameLayout.frameFor(MinigameLayout.SHAPES.SPLIT, n, w, h).ok ? '' : `Needs a tablet at ${n}`;
 }
 export const eligible = n => allTypes().filter(t => !whyNot(t, n));
