@@ -1,22 +1,13 @@
 // ============================================================
-// CHARACTERS — the cast a player can pick, the same nine figures and names
-// HundredBlockDash uses (its GameConfig CHAR_NAMES / CHAR_ICONS), and their
-// portraits: the real 3D meshes, rendered offscreen once and cached.
+// CHARACTERS — the cast a player can pick, straight from claw-core's CAST so
+// CLAWGames and HundredBlockDash offer the same twelve, and their portraits:
+// the real 3D meshes, rendered offscreen once and cached.
 // ============================================================
-import { createCharacterMesh } from '../claw-core/engine/CharacterModels.js';
+import { createCharacterMesh, CAST, playableChar } from '../claw-core/engine/CharacterModels.js';
 
-export const CHARS = [
-    { id: 'slime',     name: 'Bloop',     icon: '💧' },
-    { id: 'ghost',     name: 'Spook',     icon: '👻' },
-    { id: 'boxy',      name: 'Crate',     icon: '🧊' },
-    { id: 'bunny',     name: 'Thumper',   icon: '🐰' },
-    { id: 'cabbie',    name: 'Cabbie',    icon: '🚕' },
-    { id: 'vendor',    name: 'Vendor',    icon: '🌮' },
-    { id: 'banker',    name: 'Banker',    icon: '💼' },
-    { id: 'bodyguard', name: 'Bodyguard', icon: '🦺' },
-    { id: 'investor',  name: 'Investor',  icon: '📈' },
-];
-export const charOf = id => CHARS.find(c => c.id === id) || CHARS[0];
+export const CHARS = CAST;
+export { playableChar };
+export const charOf = id => CHARS.find(c => c.id === playableChar(id)) || CHARS[0];
 
 // type|color → data URL. A portrait is a ~10 kB PNG; there are at most
 // 9 characters × 4 seat colours, so the cache never needs evicting.

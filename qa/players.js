@@ -137,14 +137,14 @@ const ok = (name, cond, detail = '') => (cond ? pass : fail).push(`${name}${deta
     ok('profile shows the record', (await page.textContent('#pf-stats')).replace(/\s+/g, '').startsWith('1Played'));
     await page.fill('#pf-name', 'Samantha');
     await page.press('#pf-name', 'Tab');
-    await page.click('#pf-chars [data-char="investor"]');
-    ok('nine characters to pick from, the new one selected', await page.evaluate(() =>
-        document.querySelectorAll('#pf-chars .ch-pick').length === 9 && document.querySelector('#pf-chars .sel').dataset.char === 'investor'));
+    await page.click('#pf-chars [data-char="penguin"]');
+    ok('twelve characters to pick from, the new one selected', await page.evaluate(() =>
+        document.querySelectorAll('#pf-chars .ch-pick').length === 12 && document.querySelector('#pf-chars .sel').dataset.char === 'penguin'));
     ok('profile screen fits a phone', await noSideScroll());
     await page.screenshot({ path: `${SHOTS}/shot-profile.png`, fullPage: true }).catch(() => {});
     await boot();
     const kept = await page.evaluate(async () => (await import('/src/arcade/Profiles.js')).list().map(p => `${p.name}:${p.char}`));
-    ok('rename and character survive a reload', kept.includes('Samantha:investor'), JSON.stringify(kept));
+    ok('rename and character survive a reload', kept.includes('Samantha:penguin'), JSON.stringify(kept));
     ok('and the seat still holds her', await page.evaluate(async () => (await import('/src/arcade/Seats.js')).seatName(0)) === 'Samantha');
 
     await page.click('[data-go="players"]');

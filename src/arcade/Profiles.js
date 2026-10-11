@@ -9,11 +9,17 @@
 // a bot taking the game is not a win for either.
 // ============================================================
 import * as Store from './Store.js';
-import { CHARS } from './Characters.js';
+import { CHARS, playableChar } from './Characters.js';
 
 const MAX_NAME = 14;
 let data = Store.load('profiles', null) || { list: [], stats: {}, lastId: 0 };
 const _save = () => Store.save('profiles', data);
+// A profile saved with a character that has since been retired keeps a
+// character: the one that replaced it.
+if (data.list.some(p => playableChar(p.char) !== p.char)) {
+    data.list.forEach(p => { p.char = playableChar(p.char); });
+    _save();
+}
 
 const _blankStats = () => ({ plays: 0, wins: 0, botWins: 0, games: {}, h2h: {} });
 
