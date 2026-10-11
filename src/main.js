@@ -19,6 +19,8 @@ import * as Trophies from './arcade/Trophies.js';
 import * as Toast from './arcade/Toast.js';
 import * as Party from './arcade/Party.js';
 import * as PartyScreens from './arcade/PartyScreens.js';
+import * as Rotation from './arcade/Rotation.js';
+import * as Vetoes from './arcade/Vetoes.js';
 import { MG_INFO } from './arcade/Catalog.js';
 import * as Together from './arcade/Together.js';
 import * as Confirm from './arcade/Confirm.js';
@@ -115,6 +117,7 @@ function play(type, onDone, via = 'quick') {
         bots: table,
         onComplete: (winnerId, standings) => {
             Stats.record(type, winnerId, table, { tier, via });
+            Rotation.mark(type, count);
             Profiles.record(type, winnerId, who, table);
             const won = winnerId < 0 ? null : state.players[winnerId];
             Toast.show(won ? `${table[winnerId] ? '🤖' : '🏆'} ${won.name} wins ${MG_INFO[type].title}!` : '🤝 Draw!',
@@ -128,9 +131,15 @@ function play(type, onDone, via = 'quick') {
 // ---- quick play & wheel ----------------------------------------------------------
 const MODES = {
     quick: () => { show('grid'); Grid.open(t => play(t)); },
-    wheel: () => { show('wheel'); Wheel.open(t => play(t, null, 'wheel')); },
+    wheel: () => { Vetoes.reset(); show('wheel'); openQuickWheel(); },
     party: () => { show('party'); PartyScreens.paintSetup(); },
 };
+// Back from a wheel game to a freshly dealt wheel: the game just played has
+// left the rotation. The session's vetoes carry on.
+function openQuickWheel() {
+    Wheel.open(t => play(t, () => { show('wheel', false); openQuickWheel(); }, 'wheel'));
+}
+
 document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => {
     const mode = b.dataset.go;
     // One phone, one player: Play Together has no local seat setup.
@@ -162,10 +171,21 @@ function showStandings() {
     PartyScreens.paintStandings(_nextType);
 }
 
+const partyMeta = () => `GAME ${Party.party.round + 1} OF ${Party.party.length}` + (Party.finalNext() ? ' · ⚡ x2' : '');
+
+// Shuffle names the next game on the standings card; a veto swaps it.
+$('btn-st-veto').addEventListener('click', () => {
+    if (!_nextType || !Vetoes.use()) return;
+    Party.veto(_nextType);
+    _nextType = Party.shuffleNext();
+    try { Audio.sfx('land_bad'); Audio.haptic([80]); } catch (e) {}
+    PartyScreens.paintStandings(_nextType);
+});
+
 function pickNext() {
     switch (Party.party.picker) {
         case 'shuffle': return playPartyGame(_nextType || Party.shuffleNext());
-        case 'wheel':   show('wheel', false); return Wheel.open(t => playPartyGame(t, 'wheel'), Party.pool);
+        case 'wheel':   show('wheel', false); return Wheel.open(t => playPartyGame(t, 'wheel'), Party.pool, partyMeta);
         case 'draft':   show('draft', false); return PartyScreens.startDraft(playPartyGame);
         case 'pick':    show('grid', false);  return Grid.open(playPartyGame, Party.pool);
     }
@@ -190,4 +210,5 @@ if (window.CLAW_NO_P2P) {
     b.querySelector('.sub').textContent = 'In the phone app';
 }
 Wheel.init();
+PartyScreens.initDraft();
 show('home', false);

@@ -49,6 +49,7 @@ const GAMES = 3;
                 else if (screen === 'draft') {
                     const t = document.getElementById('draft-turn').textContent;
                     if (/tap a game/.test(t)) document.querySelector('#draft-grid .card:not(.banned)')?.click();
+                    if (vis(document.getElementById('draft-btns'))) document.getElementById('btn-draft-play').click();
                 } else if (screen === 'wheel') {
                     const r = document.getElementById('wheel-result');
                     if (!r.hidden) document.getElementById('btn-wheel-play').click();

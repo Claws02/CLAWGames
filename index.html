@@ -91,21 +91,26 @@
             <div class="grid" id="game-grid"></div>
         </section>
 
-        <section class="screen" id="scr-wheel" data-screen="wheel" hidden>
+        <section class="screen wheel-screen" id="scr-wheel" data-screen="wheel" hidden>
             <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Spin the Wheel</h2>
                 <span class="who" id="wheel-who"></span></header>
-            <div class="wheel-wrap">
-                <div class="wheel-pin">▼</div>
-                <canvas id="wheel" width="640" height="640"></canvas>
-                <button class="spin-btn bfont" id="btn-spin">SPIN!</button>
-            </div>
-            <div class="wheel-result" id="wheel-result" hidden>
-                <div class="wr-icon" id="wr-icon"></div>
-                <div class="wr-title bfont" id="wr-title"></div>
-                <div class="wr-desc" id="wr-desc"></div>
-                <div class="wr-btns">
-                    <button class="go-btn bfont" id="btn-wheel-play">PLAY IT →</button>
-                    <button class="veto-btn bfont" id="btn-wheel-veto">VETO</button>
+            <div class="wheel-meta bfont" id="wheel-meta"></div>
+            <div class="wheel-stage" id="wheel-stage">
+                <div class="wheel-wrap" id="wheel-wrap">
+                    <div class="wheel-pin" id="wheel-pin">▼</div>
+                    <canvas id="wheel" width="640" height="640"></canvas>
+                    <button class="spin-btn bfont" id="btn-spin">SPIN!</button>
+                </div>
+                <div class="wheel-result" id="wheel-result" hidden>
+                    <div class="wheel-confetti" id="wheel-confetti" aria-hidden="true"></div>
+                    <div class="wr-kicker bfont">IT'S…</div>
+                    <div class="wr-icon" id="wr-icon"></div>
+                    <div class="wr-title bfont" id="wr-title"></div>
+                    <div class="wr-desc" id="wr-desc"></div>
+                    <div class="wr-btns">
+                        <button class="go-btn bfont" id="btn-wheel-play">PLAY IT →</button>
+                        <button class="veto-btn bfont" id="btn-wheel-veto">VETO</button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -128,14 +133,22 @@
             <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">The Draft</h2></header>
             <div class="draft-turn bfont" id="draft-turn"></div>
             <div class="grid draft-grid" id="draft-grid"></div>
+            <div class="wr-btns" id="draft-btns" hidden>
+                <button class="go-btn bfont" id="btn-draft-play">PLAY IT →</button>
+                <button class="veto-btn bfont" id="btn-draft-veto">VETO</button>
+            </div>
         </section>
 
         <section class="screen" id="scr-standings" data-screen="standings" hidden>
             <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont" id="st-title">Standings</h2></header>
             <div class="last-game" id="st-last"></div>
             <div class="standings" id="st-rows"></div>
+            <div class="hype" id="st-hype"></div>
             <div class="up-next" id="st-next" hidden></div>
-            <button class="go-btn bfont" id="btn-st-go">NEXT GAME →</button>
+            <div class="wr-btns st-btns">
+                <button class="go-btn bfont" id="btn-st-go">NEXT GAME →</button>
+                <button class="veto-btn bfont" id="btn-st-veto" hidden>VETO</button>
+            </div>
         </section>
 
         <section class="screen" id="scr-podium" data-screen="podium" hidden>
