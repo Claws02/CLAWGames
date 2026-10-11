@@ -42,8 +42,9 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
     ok('rotation: the deck is saved between visits', rot.saved && Array.isArray(rot.saved.played), JSON.stringify(rot.saved).slice(0, 80));
 
     // ---- the wheel: two vetoes per session, then none ----
-    await page.click('[data-go="wheel"]');
+    await page.click('[data-go="quick"]');
     await page.click('#btn-seats-go');
+    await page.click('#btn-grid-spin', { force: true });
     const spinAndWait = async () => {
         await page.waitForFunction(() => !document.getElementById('btn-spin').disabled, null, { timeout: 15000 });
         await page.evaluate(() => document.getElementById('btn-spin').click());
@@ -72,8 +73,9 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
 
     // A new session from the home screen has two again.
     await page.evaluate(() => window.__claw.show('home', false));
-    await page.click('[data-go="wheel"]');
+    await page.click('[data-go="quick"]');
     await page.click('#btn-seats-go');
+    await page.click('#btn-grid-spin', { force: true });
     await spinAndWait();
     ok('wheel: a new session starts with two again', /VETO \(2\)/.test(await page.textContent('#btn-wheel-veto')));
 
