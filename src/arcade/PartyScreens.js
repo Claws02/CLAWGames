@@ -4,6 +4,9 @@
 // ============================================================
 import * as Party from './Party.js';
 import * as Catalog from './Catalog.js';
+import * as Rotation from './Rotation.js';
+import * as Vetoes from './Vetoes.js';
+import { sfx, haptic } from '../claw-core/engine/AudioManager.js';
 import { seats, humans, seatChar } from './Seats.js';
 import { faceHTML } from './Characters.js';
 import { SEAT_STYLE } from '../host/ArcadeState.js';
@@ -32,10 +35,10 @@ export function paintSetup() {
         b.addEventListener('click', () => { Party.party.picker = id; Party.savePrefs(); paintSetup(); });
         pk.appendChild(b);
     });
-    const pool = Catalog.eligible(seats.count).length;
+    const pool = Catalog.eligible(seats.count).length, left = Rotation.fresh(seats.count).length;
     $('party-hint').textContent = pool < Party.party.length
         ? `Only ${pool} games seat ${seats.count}, so some will repeat.`
-        : `${pool} games to draw from at ${seats.count} players.`;
+        : `🔄 ${left} of ${pool} games still to come round at ${seats.count} players · 🚫 ${Vetoes.PER_SESSION} vetoes for the table · ⚡ final game counts double`;
 }
 
 // ---- draft --------------------------------------------------------------------
@@ -77,21 +80,48 @@ function _ban(type) {
     setTimeout(_nextBan, 250);
 }
 
+// The app picks from what survived; the table can still veto it (a shared
+// veto from the party's two), which picks again.
 function _finishDraft() {
     const d = _draft;
     d.done = true;
-    const alive = _alive();
-    const pick = alive[Math.floor(Math.random() * alive.length)];
-    d.picked = pick;
+    _repick();
+}
+function _repick() {
+    const d = _draft;
+    let alive = _alive();
+    if (!alive.length) {                        // all vetoed: deal one from the pool
+        alive = Party.pool().filter(t => !d.hand.includes(t));
+        if (!alive.length) alive = Party.pool();
+        d.hand.push(alive[0]);
+    }
+    d.picked = alive[Math.floor(Math.random() * alive.length)];
+    try { sfx('mg_win'); } catch (e) {}
     _paintDraft();
-    setTimeout(() => { if (d === _draft) d.onPicked(pick); }, 1200);
+}
+function _draftVeto() {
+    const d = _draft;
+    if (!d.done || !Vetoes.use()) return;
+    try { sfx('land_bad'); haptic([80]); } catch (e) {}
+    Party.veto(d.picked);
+    d.banned.add(d.picked);
+    _repick();
+}
+export function initDraft() {
+    $('btn-draft-play').addEventListener('click', () => { if (_draft?.done && _draft.picked) { try { sfx('go'); } catch (e) {} _draft.onPicked(_draft.picked); } });
+    $('btn-draft-veto').addEventListener('click', _draftVeto);
 }
 
 function _paintDraft() {
     const d = _draft, t = $('draft-turn');
+    const btns = $('draft-btns');
+    btns.hidden = !d.done;
     if (d.done) {
-        t.innerHTML = `🎲 Picked: <b>${Catalog.MG_INFO[d.picked].title}</b>`;
+        t.innerHTML = `🎲 IT'S <b>${Catalog.MG_INFO[d.picked].title}</b>!`;
         t.style.background = '#2fd67b';
+        const v = $('btn-draft-veto');
+        v.textContent = Vetoes.label();
+        v.disabled = Vetoes.left() <= 0;
     } else {
         const s = SEAT_STYLE[d.turn];
         t.style.background = s.hex;
@@ -123,7 +153,7 @@ function _rows(host) {
             `<span class="st-dot" style="background:${x.style.hex}">${faceHTML(seatChar(x.seat), x.style.color)}</span>` +
             `<span class="st-name">${Party.seatName(x.seat)}</span>` +
             `<span class="st-bar"><i style="width:${(x.points / top) * 100}%;background:${x.style.hex}"></i></span>` +
-            `<span class="st-pts bfont">${x.points}${gained ? `<small>+${gained}</small>` : ''}</span></div>`;
+            `<span class="st-pts bfont">${x.points}${gained ? `<small${last.double ? ' class="x2"' : ''}>+${gained}${last.double ? ' x2' : ''}</small>` : ''}</span></div>`;
     }).join('');
 }
 
@@ -136,12 +166,21 @@ export function paintStandings(nextType) {
           (last.winnerId >= 0 ? `${Party.seatName(last.winnerId)} wins!` : 'a draw!')
         : `${Party.PICKERS[p.picker].icon} ${Party.PICKERS[p.picker].label} party · ${seats.count} players`;
     _rows($('st-rows'));
+    const final = Party.finalNext();
+    const hype = (p.round ? p.hype : []).slice();
+    if (!p.round && final) hype.push('⚡ FINAL GAME · DOUBLE POINTS!');
+    $('st-hype').innerHTML = hype.map(h => `<div class="bfont${/DOUBLE/.test(h) ? ' final' : ''}">${h}</div>`).join('');
     const nx = $('st-next');
     if (nextType) {
         const info = Catalog.MG_INFO[nextType];
-        nx.innerHTML = `<span class="un-k">UP NEXT</span><span class="un-i">${info.icon}</span><span class="un-t bfont">${info.title}</span>`;
+        nx.innerHTML = `<span class="un-k">${final ? 'FINAL · x2' : 'UP NEXT'}</span><span class="un-i">${info.icon}</span><span class="un-t bfont">${info.title}</span>`;
         nx.hidden = false;
     } else nx.hidden = true;
+    // Shuffle's pick can be vetoed right here.
+    const v = $('btn-st-veto');
+    v.hidden = !nextType;
+    v.textContent = Vetoes.label();
+    v.disabled = Vetoes.left() <= 0;
     $('btn-st-go').textContent = nextType ? "LET'S PLAY →"
         : ({ wheel: 'SPIN FOR NEXT →', draft: 'START THE DRAFT →', pick: 'PICK NEXT GAME →' }[p.picker] || 'NEXT GAME →');
 }

@@ -16,7 +16,7 @@ export function open(onPick, pool = null) { _onPick = onPick; _pool = pool; _chi
 function _why(type) {
     const why = Catalog.whyNot(type, seats.count);
     if (why || !_pool) return why;
-    return _pool().includes(type) ? '' : 'Played this party';
+    return _pool().includes(type) ? '' : 'Played this rotation';
 }
 
 function _chips() {

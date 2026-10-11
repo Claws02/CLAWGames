@@ -179,32 +179,88 @@ button:disabled { cursor: default; }
 .g-aim { background: var(--blue); } .g-push { background: #ef4444; } .g-race { background: var(--teal); } .g-brain { background: #16a34a; }
 
 /* ---------- wheel ---------- */
-.wheel-wrap { position: relative; width: min(88vw, 440px); aspect-ratio: 1; margin: 8px auto 0; }
-#wheel { width: 100%; height: 100%; border-radius: 50%; border: 6px solid var(--ink); box-shadow: 0 8px 0 var(--ink); background: #fff; }
+/* The wheel screen fills the whole display: the stage takes every pixel
+   below the header, the wheel is sized to it in Wheel.js. */
+.wheel-screen { max-width: none; overflow: hidden; gap: 8px; }
+.wheel-screen > .bar { width: 100%; max-width: 980px; margin: 0 auto; }
+.wheel-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 10px; font-size: 18px; }
+.wheel-meta:empty { display: none; }
+.wheel-meta span { background: rgba(255,255,255,.7); border: 3px solid var(--ink); border-radius: 999px; padding: 1px 12px; }
+.wheel-stage {
+    flex: 1 1 auto !important; min-height: 0; position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+}
+.wheel-wrap {
+    position: relative; width: min(88vw, 440px); aspect-ratio: 1; max-width: 100%; container-type: inline-size;
+    transition: width .55s cubic-bezier(.2, 1.3, .4, 1);
+}
+#wheel { width: 100%; height: 100%; border-radius: 50%; border: 6px solid var(--ink); box-shadow: 0 10px 0 var(--ink); background: #2b1240; display: block; }
 .wheel-pin {
-    position: absolute; top: -18px; left: 50%; transform: translateX(-50%); z-index: 2;
-    font-size: 44px; color: var(--ink); text-shadow: 0 3px 0 #fff;
+    position: absolute; top: -6%; left: 50%; transform: translateX(-50%); transform-origin: 50% 20%; z-index: 2;
+    font-size: clamp(34px, 9%, 64px); line-height: 1; color: var(--ink); text-shadow: 0 3px 0 #fff, 0 -2px 0 #fff;
 }
 .spin-btn {
-    position: absolute; inset: 0; margin: auto; width: 28%; height: 28%; border-radius: 50%;
-    border: var(--line); background: var(--yellow); box-shadow: 0 5px 0 var(--ink); font-size: clamp(22px, 6vw, 34px);
+    position: absolute; inset: 0; margin: auto; width: 26%; height: 26%; border-radius: 50%;
+    border: var(--line); background: var(--yellow); box-shadow: 0 5px 0 var(--ink);
+    font-size: clamp(18px, 7cqw, 52px);
+    animation: spin-beg 1.6s ease-in-out infinite;
 }
-.spin-btn:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
-.spin-btn:disabled { opacity: .8; }
+@keyframes spin-beg { 50% { transform: scale(1.07); } }
+.spin-btn:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); animation: none; }
+.spin-btn:disabled { opacity: .9; animation: none; }
+.landed .spin-btn { font-size: clamp(14px, 6cqw, 30px); }
+
 .wheel-result {
+    position: relative; width: min(100%, 620px);
     border: var(--line); border-radius: var(--radius); box-shadow: var(--pop); background: var(--paper);
-    padding: 16px; text-align: center; animation: pop-in .35s cubic-bezier(.2, 1.6, .4, 1);
+    padding: 14px 18px 20px; text-align: center;
 }
+.wheel-result.show { animation: card-in .5s cubic-bezier(.2, 1.5, .4, 1); }
+@keyframes card-in { from { transform: translateY(60px) scale(.6); opacity: 0; } }
 @keyframes pop-in { from { transform: scale(.6); opacity: 0; } }
-.wr-icon { font-size: 52px; }
-.wr-title { font-size: 40px; line-height: 1; }
-.wr-desc { font-size: 14px; font-weight: 700; opacity: .8; margin: 6px 0 12px; }
+.wr-kicker { font-size: 22px; letter-spacing: .2em; color: var(--pink); }
+.show .wr-kicker { animation: pop-in .3s .05s both; }
+.wr-icon { font-size: clamp(56px, 16vw, 96px); line-height: 1.1; }
+.show .wr-icon { animation: icon-bounce .7s .15s both cubic-bezier(.2, 1.8, .4, 1); }
+@keyframes icon-bounce { from { transform: scale(0) rotate(-40deg); } }
+.wr-title { font-size: clamp(40px, 12vw, 72px); line-height: .95; color: var(--ink); }
+.show .wr-title { animation: slam .45s .3s both cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes slam { from { transform: scale(2.4); opacity: 0; } }
+.wr-desc { font-size: clamp(14px, 3.6vw, 18px); font-weight: 700; opacity: .8; margin: 6px 0 14px; }
 .wr-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.wheel-result .go-btn { font-size: clamp(28px, 8vw, 40px); padding: 10px 28px; }
+.wheel-result .veto-btn { font-size: clamp(22px, 6vw, 30px); }
+.show .wr-btns { animation: pop-in .35s .55s both cubic-bezier(.2, 1.6, .4, 1); }
 .veto-btn {
     border: var(--line); border-radius: var(--radius); box-shadow: var(--pop); background: #fff;
     font-size: 26px; padding: 10px 18px;
 }
+.veto-btn:active:not(:disabled) { transform: translateY(5px); box-shadow: 0 1px 0 var(--ink); }
 .veto-btn:disabled { opacity: .45; }
+
+/* Paper bursting out from behind the card. */
+.wheel-confetti { position: absolute; left: 50%; top: 40%; width: 0; height: 0; z-index: -1; pointer-events: none; }
+.wheel-confetti i {
+    position: absolute; width: 10px; height: 16px; border-radius: 2px; border: 2px solid var(--ink);
+    animation: burst 1.3s cubic-bezier(.15, .8, .4, 1) both;
+}
+@keyframes burst {
+    to { transform: translate(var(--dx), calc(var(--dy) + 260px)) rotate(var(--r)); opacity: 0; }
+}
+
+/* ---------- party hype ---------- */
+.hype { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.hype:empty { display: none; }
+.hype div {
+    background: var(--ink); color: var(--yellow); border-radius: 999px; padding: 4px 16px;
+    font-size: clamp(18px, 5vw, 26px); text-align: center; box-shadow: 0 4px 0 rgba(43,18,64,.35);
+    animation: pop-in .4s both cubic-bezier(.2, 1.6, .4, 1);
+}
+.hype div:nth-child(2) { animation-delay: .15s; } .hype div:nth-child(3) { animation-delay: .3s; }
+.hype .final { background: var(--pink); color: #fff; animation: pop-in .4s .3s both, pulse 1s .8s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.06); } }
+.st-btns { margin-top: 4px; }
+.st-pts small.x2 { color: var(--pink); }
 
 /* ---------- toast ---------- */
 #toast-host { position: fixed; left: 0; right: 0; top: calc(env(safe-area-inset-top) + 12px); z-index: 2000; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
