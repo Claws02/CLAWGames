@@ -26,6 +26,7 @@ import * as Together from './arcade/Together.js';
 import * as Confirm from './arcade/Confirm.js';
 import * as Profiles from './arcade/Profiles.js';
 import * as PlayersScreen from './arcade/PlayersScreen.js';
+import { faceHTML, portraits } from './arcade/Characters.js';
 import { isHost as Room_isHost } from './net/Room.js';
 
 MinigameManager.init(null);
@@ -83,10 +84,35 @@ function _paintHome() {
     const c = Trophies.count();
     $('home-trophies-n').textContent = `${c.earned} / ${c.total}`;
     $('home-players-n').textContent = Profiles.list().length || '';
+    _paintCrew();
     const t = Stats.totals();
     $('home-stats').textContent = t.plays
         ? `🎲 ${t.plays} games played · 🏆 ${t.humanWins} won by humans · 🤖 ${t.botWins} by bots`
-        : 'Tap Quick Play to start!';
+        : 'Tap PARTY to start!';
+}
+
+// The crew on the home screen: everyone saved on this phone, tap to edit,
+// + to add. Each wears a seat colour by position, as on the Players screen.
+function _paintCrew() {
+    const host = $('home-crew'), profs = Profiles.list();
+    SEAT_STYLE.forEach((s, k) => portraits([...new Set(profs.filter((_, i) => i % 4 === k).map(p => p.char))], s.color));
+    host.innerHTML = '';
+    profs.forEach((p, i) => {
+        const s = SEAT_STYLE[i % SEAT_STYLE.length];
+        const b = document.createElement('button');
+        b.className = 'crew-face';
+        b.dataset.id = p.id;
+        b.innerHTML = `<span class="dot" style="background:${s.hex}">${faceHTML(p.char, s.color)}</span><span class="nm"></span>`;
+        b.querySelector('.nm').textContent = p.name;
+        b.addEventListener('click', () => openProfile(p.id));
+        host.appendChild(b);
+    });
+    const add = document.createElement('button');
+    add.className = 'crew-face add';
+    add.id = 'btn-crew-add';
+    add.innerHTML = `<span class="dot">＋</span><span class="nm">Add</span>`;
+    add.addEventListener('click', () => openProfile(Profiles.create('', Profiles.freeChar())));
+    host.appendChild(add);
 }
 
 function _paintTrophies() {
@@ -130,10 +156,20 @@ function play(type, onDone, via = 'quick') {
 
 // ---- quick play & wheel ----------------------------------------------------------
 const MODES = {
-    quick: () => { show('grid'); Grid.open(t => play(t)); },
+    quick: () => { show('grid'); openQuickGrid(); },
     wheel: () => { Vetoes.reset(); show('wheel'); openQuickWheel(); },
     party: () => { show('party'); PartyScreens.paintSetup(); },
 };
+// Quick Play: the grid, with the wheel one tap away (the SPIN chip).
+function openQuickGrid() {
+    $('btn-grid-spin').hidden = false;
+    Grid.open(t => play(t));
+}
+$('btn-grid-spin').addEventListener('click', () => {
+    if (Party.party.active) return;
+    Vetoes.reset(); show('wheel'); openQuickWheel();
+});
+
 // Back from a wheel game to a freshly dealt wheel: the game just played has
 // left the rotation. The session's vetoes carry on.
 function openQuickWheel() {
@@ -187,7 +223,7 @@ function pickNext() {
         case 'shuffle': return playPartyGame(_nextType || Party.shuffleNext());
         case 'wheel':   show('wheel', false); return Wheel.open(t => playPartyGame(t, 'wheel'), Party.pool, partyMeta);
         case 'draft':   show('draft', false); return PartyScreens.startDraft(playPartyGame);
-        case 'pick':    show('grid', false);  return Grid.open(playPartyGame, Party.pool);
+        case 'pick':    show('grid', false);  $('btn-grid-spin').hidden = true; return Grid.open(playPartyGame, Party.pool);
     }
 }
 

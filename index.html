@@ -31,14 +31,22 @@
                 <h1 class="bfont">CLAW <span>GAMES</span></h1>
                 <p class="tag">43 minigames · 1–4 players · friends or bots</p>
             </div>
+            <button class="party-hero" data-go="party">
+                <span class="ph-ico">🏆</span>
+                <span class="ph-lbl bfont">PARTY</span>
+                <span class="ph-sub">Best-of playlists · wheel, shuffle or draft</span>
+                <span class="ph-go bfont">START A PARTY →</span>
+            </button>
             <div class="home-btns">
-                <button class="big-btn b-quick"  data-go="quick"><span class="ico">🎮</span><span class="lbl bfont">Quick Play</span><span class="sub">Pick any game</span></button>
-                <button class="big-btn b-wheel"  data-go="wheel"><span class="ico">🎡</span><span class="lbl bfont">Spin the Wheel</span><span class="sub">Let fate decide</span></button>
-                <button class="big-btn b-party"  data-go="party"><span class="ico">🏆</span><span class="lbl bfont">Party</span><span class="sub">Best-of playlists</span></button>
-                <button class="big-btn b-online" data-go="together"><span class="ico">📱</span><span class="lbl bfont">Play Together</span><span class="sub">Phones in a room</span></button>
+                <button class="big-btn b-quick"  data-go="quick"><span class="ico">🎮</span><span class="lbl bfont">Quick Play</span><span class="sub">Pick a game · or 🎡 spin</span></button>
+                <button class="big-btn b-online" data-go="together"><span class="ico">📱</span><span class="lbl bfont">Together</span><span class="sub">Phones in a room</span></button>
+            </div>
+            <div class="crew">
+                <div class="crew-h"><span class="bfont">Your crew</span>
+                    <button class="crew-all" data-go="players">All players <span class="n" id="home-players-n"></span> ›</button></div>
+                <div class="crew-faces" id="home-crew"></div>
             </div>
             <div class="home-row">
-                <button class="trophy-btn bfont" data-go="players"><span>😀 Players</span><span class="n" id="home-players-n"></span></button>
                 <button class="trophy-btn bfont" data-go="trophies"><span>🏆 Trophies</span><span class="n" id="home-trophies-n"></span></button>
             </div>
             <div class="home-stats" id="home-stats"></div>
@@ -86,6 +94,7 @@
 
         <section class="screen" id="scr-grid" data-screen="grid" hidden>
             <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Pick a game</h2>
+                <button class="spin-chip bfont" id="btn-grid-spin">🎡 SPIN</button>
                 <span class="who" id="grid-who"></span></header>
             <div class="chips" id="genre-chips"></div>
             <div class="grid" id="game-grid"></div>
