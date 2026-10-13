@@ -26,6 +26,8 @@ import * as Together from './arcade/Together.js';
 import * as Confirm from './arcade/Confirm.js';
 import * as Profiles from './arcade/Profiles.js';
 import * as PlayersScreen from './arcade/PlayersScreen.js';
+import * as Golf from './arcade/Golf.js';
+import { lastRound as golfRound } from './claw-core/minigames/MiniGolf.js';
 import { faceHTML, portraits } from './arcade/Characters.js';
 import { isHost as Room_isHost } from './net/Room.js';
 
@@ -43,7 +45,7 @@ function show(name, push = true) {
     _current = name;
     document.querySelectorAll('.screen').forEach(s => { s.hidden = s.dataset.screen !== name; });
     $('arcade').hidden = false;
-    ['grid-who', 'wheel-who', 'party-who'].forEach(_paintWho);
+    ['grid-who', 'wheel-who', 'party-who', 'golf-who'].forEach(_paintWho);
     if (name === 'home') _paintHome();
     if (name === 'trophies') _paintTrophies();
     if (name === 'players') PlayersScreen.paintList();
@@ -145,6 +147,11 @@ function play(type, onDone, via = 'quick') {
             Stats.record(type, winnerId, table, { tier, via });
             Rotation.mark(type, count);
             Profiles.record(type, winnerId, who, table);
+            // Any round of mini golf — a party's three holes or a full course — goes on the golf record.
+            if (type === 'minigolf') {
+                const g = Golf.record(golfRound(), table.map((_, i) => state.players[i]?.name || `P${i + 1}`), table);
+                if (g?.newBest) setTimeout(() => Toast.show(`⛳ New best on ${g.newBest.holes} holes: ${g.newBest.strokes} by ${g.newBest.name}!`, '#2fd67b'), 1600);
+            }
             const won = winnerId < 0 ? null : state.players[winnerId];
             Toast.show(won ? `${table[winnerId] ? '🤖' : '🏆'} ${won.name} wins ${MG_INFO[type].title}!` : '🤝 Draw!',
                 won ? SEAT_STYLE[winnerId].hex : null);
@@ -159,7 +166,10 @@ const MODES = {
     quick: () => { show('grid'); openQuickGrid(); },
     wheel: () => { Vetoes.reset(); show('wheel'); openQuickWheel(); },
     party: () => { show('party'); PartyScreens.paintSetup(); },
+    golf: () => { show('golf'); paintGolf(); },
 };
+// Mini Golf: the clubhouse — course, holes, turns or chaos — and back to it after the round.
+function paintGolf() { Golf.paint(() => play('minigolf', () => { show('golf', false); paintGolf(); }, 'golf')); }
 // Quick Play: the grid, with the wheel one tap away (the SPIN chip).
 function openQuickGrid() {
     $('btn-grid-spin').hidden = false;
@@ -236,6 +246,7 @@ $('btn-podium-home').addEventListener('click', goHome);
 window.__claw = { show, play, seats: Seats.seats, state, party: Party.party, openProfile };
 
 Seats.init();
+Golf.init();
 PlayersScreen.init(openProfile);
 Together.init(show, goHome);
 // Builds hosted where peer-to-peer connections are blocked set CLAW_NO_P2P:

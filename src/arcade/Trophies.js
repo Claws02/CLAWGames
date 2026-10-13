@@ -7,6 +7,7 @@ import * as Store from './Store.js';
 import * as Stats from './Stats.js';
 import { allTypes, MG_GENRES } from './Catalog.js';
 import * as Toast from './Toast.js';
+import * as Golf from './Golf.js';
 
 const n = o => Object.keys(o).length;
 const tot = o => Object.values(o).reduce((a, b) => a + b, 0);
@@ -27,6 +28,10 @@ export const TROPHIES = [
     { id: 'party',      icon: '🎉', name: 'Party Animal',    how: 'Finish a party.',                              rule: s => [s.parties, 1] },
     { id: 'party_win',  icon: '🏆', name: 'Party Champion',  how: 'Win a party (a human in first place).',        rule: s => [s.partyWins, 1] },
     { id: 'together',   icon: '📱', name: 'Better Together', how: 'Play a round of Play Together.',               rule: s => [s.together, 1] },
+    { id: 'golf_ace',   icon: '⛳', name: 'Hole in One',     how: 'Sink a hole in one in Mini Golf.',             rule: () => [Golf.stats().aces, 1] },
+    { id: 'golf_round', icon: '🏌️', name: 'Full Round',      how: 'Play all nine holes of a Mini Golf course.',   rule: () => [Golf.stats().fullRounds, 1] },
+    { id: 'golf_under', icon: '🐦', name: 'Under Par',       how: 'Finish a Mini Golf course under par.',         rule: () => [Golf.stats().underPar, 1] },
+    { id: 'golf_tour',  icon: '🌍', name: 'World Tour',      how: 'Set a best round on every Mini Golf course.',  rule: () => [['backyard', 'pirate', 'candy', 'space'].filter(c => Golf.best(c, 9)).length, 4] },
 ];
 
 let earned = Store.load('trophies', {});   // id → ISO date earned

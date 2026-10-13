@@ -41,6 +41,11 @@
                 <button class="big-btn b-quick"  data-go="quick"><span class="ico">🎮</span><span class="lbl bfont">Quick Play</span><span class="sub">Pick a game · or 🎡 spin</span></button>
                 <button class="big-btn b-online" data-go="together"><span class="ico">📱</span><span class="lbl bfont">Together</span><span class="sub">Phones in a room</span></button>
             </div>
+            <button class="golf-hero" data-go="golf">
+                <span class="gh-ico">⛳</span>
+                <span class="gh-txt"><span class="gh-lbl bfont">MINI GOLF</span><span class="gh-sub">4 courses · 36 holes · par &amp; a scorecard</span></span>
+                <span class="gh-go bfont">TEE OFF ›</span>
+            </button>
             <div class="crew">
                 <div class="crew-h"><span class="bfont">Your crew</span>
                     <button class="crew-all" data-go="players">All players <span class="n" id="home-players-n"></span> ›</button></div>
@@ -136,6 +141,28 @@
             </div>
             <p class="hint" id="party-hint"></p>
             <button class="go-btn bfont" id="btn-party-start">START PARTY 🎉</button>
+        </section>
+
+        <section class="screen" id="scr-golf" data-screen="golf" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Mini Golf</h2>
+                <span class="who" id="golf-who"></span></header>
+            <div class="golf-last" id="golf-last" hidden></div>
+            <div class="panel">
+                <div class="panel-h bfont">Pick a course</div>
+                <div class="golf-courses" id="golf-courses"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-h bfont">How many holes?</div>
+                <div class="seg big" id="golf-holes"></div>
+                <p class="hint" id="golf-holes-hint"></p>
+            </div>
+            <div class="panel">
+                <div class="panel-h bfont">How do we play?</div>
+                <div class="seg big" id="golf-mode"></div>
+                <p class="hint" id="golf-mode-hint"></p>
+                <p class="hint">Parties play mini golf this way too.</p>
+            </div>
+            <button class="go-btn bfont" id="btn-golf-start">TEE OFF ⛳</button>
         </section>
 
         <section class="screen" id="scr-draft" data-screen="draft" hidden>

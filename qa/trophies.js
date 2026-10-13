@@ -26,7 +26,7 @@ const ok = (name, cond, detail = '') => (cond ? pass : fail).push(`${name}${deta
     await page.goto(BASE);
     await page.evaluate(() => localStorage.clear());
     await boot();
-    ok('a fresh arcade has no trophies', (await page.textContent('#home-trophies-n')).trim() === '0 / 15',
+    ok('a fresh arcade has no trophies', (await page.textContent('#home-trophies-n')).trim() === '0 / 19',
         await page.textContent('#home-trophies-n'));
 
     // ---- the rules ----------------------------------------------------------
@@ -66,7 +66,7 @@ const ok = (name, cond, detail = '') => (cond ? pass : fail).push(`${name}${deta
     });
     ok('earned trophies survive a reload', after.count === 8, `earned ${after.count}`);
     ok('and are not announced a second time', after.again === 0, `check() gave ${after.again}`);
-    ok('the home button shows the count', (await page.textContent('#home-trophies-n')).trim() === '8 / 15');
+    ok('the home button shows the count', (await page.textContent('#home-trophies-n')).trim() === '8 / 19');
 
     // ---- the screen ------------------------------------------------------------
     await page.click('[data-go="trophies"]');
@@ -76,7 +76,7 @@ const ok = (name, cond, detail = '') => (cond ? pass : fail).push(`${name}${deta
         return { n: cards.length, earnedFirst: cards.slice(0, 8).every(c => c.classList.contains('got')) && !cards[8].classList.contains('got'),
                  overflow: s.scrollWidth > s.clientWidth + 1, sum: document.getElementById('trophy-sum').textContent };
     });
-    ok('the screen lists all 15, earned first', scr.n === 15 && scr.earnedFirst, JSON.stringify(scr));
+    ok('the screen lists all 19, earned first', scr.n === 19 && scr.earnedFirst, JSON.stringify(scr));
     ok('and fits a 412 px phone without sideways scroll', !scr.overflow);
     await page.screenshot({ path: '/tmp/claude-0/-home-user/feef9cb7-b3ea-5463-a3fa-376dc616dfcb/scratchpad/shot-trophies.png', fullPage: false }).catch(() => {});
 
