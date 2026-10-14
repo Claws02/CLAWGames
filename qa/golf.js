@@ -8,6 +8,7 @@
 //   4. The course and holes were for that round only (a party after it plays
 //      a sampler); the mode is a setting and stays.
 //   5. Eighteen holes is the course and the next one.
+//   6. Turns is played upright; chaos sideways.
 // usage: node qa/golf.js            (static server on :8140)
 // ============================================================
 const fs = require('fs');
@@ -28,7 +29,7 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
     await page.waitForFunction(() => !!window.__claw);
     const G = (fn, ...a) => page.evaluate(async ([fn, a]) => { const m = await import('/src/claw-core/minigames/MiniGolf.js'); return m[fn](...a); }, [fn, a]);
     const screen = () => page.evaluate(() => document.getElementById('arcade').hidden ? 'GAME' : [...document.querySelectorAll('.screen')].find(s => !s.hidden)?.dataset.screen);
-    const throughGates = async (ms = 30000) => {
+    const throughGates = async (ms = 30000, want = () => true) => {
         const t0 = Date.now();
         while (Date.now() - t0 < ms) {
             const s = await page.evaluate(async () => {
@@ -37,7 +38,7 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
                 const m = await import('/src/claw-core/minigames/MiniGolf.js');
                 return m._debugState();
             });
-            if (s && s.phase === 'play' && s.hole >= 0) return s;
+            if (s && s.phase === 'play' && s.hole >= 0 && want(s)) return s;
             await page.waitForTimeout(250);
         }
         return G('_debugState');
@@ -92,6 +93,14 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
     await page.evaluate(() => window.__claw.play('minigolf'));
     s = await throughGates();
     ok('mini golf in a party or Quick Play: a three-hole sampler, in the saved mode', s.holes.length === 3 && s.mode === 'chaos', `${s.holes.length} ${s.mode}`);
+    await page.evaluate(async () => { const MM = await import('/src/claw-core/minigames/MinigameManager.js'); MM.forceEndMinigame(); });
+
+    // Turns is played upright (the phone passed round); chaos was sideways.
+    await page.evaluate(() => window.__claw.show('golf', false));
+    await page.evaluate(async () => { const G = await import('/src/arcade/Golf.js'); G.setMode('turns'); });
+    await page.evaluate(() => window.__claw.play('minigolf'));
+    s = await throughGates(30000, st => st.mode === 'turns');
+    ok('turns: played upright, not turned sideways', s.mode === 'turns' && s.turned === false, `${s.mode} turned=${s.turned}`);
     await page.evaluate(async () => { const MM = await import('/src/claw-core/minigames/MinigameManager.js'); MM.forceEndMinigame(); });
 
     ok('no page errors', !errs.length, errs.slice(0, 3).join(' | '));

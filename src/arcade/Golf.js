@@ -102,8 +102,8 @@ export function paint(onStart) {
     seg('golf-holes', HOLES.map(n => [n, `${n} holes`]), _s.holes, v => { _s.holes = v; _save(); });
     seg('golf-mode', [['turns', '🏌️ Take turns'], ['chaos', '💥 Chaos']], _s.mode, v => setMode(v));
     $('golf-mode-hint').textContent = _s.mode === 'turns'
-        ? 'Proper golf: one ball at a time, the camera follows it. Furthest from the cup goes next.'
-        : 'Everyone at once on one view, a strip of the screen each. Putt again as soon as your ball stops.';
+        ? 'Proper golf, phone upright: pass it to whoever\'s up. One ball at a time, the camera behind it; furthest from the cup goes next.'
+        : 'Phone sideways, everyone at once on one view, a strip of the screen each. Putt again as soon as your ball stops.';
     const cur = list.find(c => c.key === _s.course);
     const next = list[(list.indexOf(cur) + 1) % list.length];
     $('golf-holes-hint').textContent = _s.holes === 18 ? `${cur.name} then ${next.name}.` : _s.holes === 3 ? `Three holes from ${cur.name}. Bests count on full courses.` : `All nine holes of ${cur.name}.`;
