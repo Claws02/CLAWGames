@@ -165,3 +165,10 @@ This is the one feature that changes what the product is: it goes from a static 
 - `npm run build:web` copies the app into `www/` and fails if any shipped import points outside it. `npm run android` / `npm run ios` then works the same as in HundredBlockDash (Capacitor 8).
 - **To confirm before any store submission:** the app ID is a placeholder, `com.clawgames.arcade`. It can't be changed once an app is published, so pick a reverse-DNS name you control.
 - Not done yet: icons and splash art (`resources/`), the native `android/` and `ios/` projects (`npx cap add`), and a privacy page. A privacy page is required because Play Together uses public signaling relays (HBD's RELEASE_AUDIT RA-02 covers the same issue).
+
+## 12. Trophies (as built)
+- **15 trophies**, each a rule over the stats that returns progress and a goal (`src/arcade/Trophies.js`). They cover first win, games played (10 and 50), variety (10 different games, every game), beating each bot tier, Hard bots in 10 different games, a win in every genre, 3 wins over bots in a row, 10 wheel picks, finishing a party, winning a party, and a Play Together round.
+- **A "win" means a human seat won.** Bot trophies need a bot at the table, so beating a friend doesn't count as beating a bot. A loss to a bot resets the streak; draws and human-only games don't.
+- **Earned is permanent.** The date a trophy was earned is stored, so changing a rule later never takes one away, and nothing is announced twice.
+- **Stats are per phone, in `localStorage`.** Saves from before trophies existed are upgraded when they load. Per-friend stats (the design's "per friend") aren't built yet, because seats have no identities beyond Player 1–4.
+- A toast announces each new trophy after the game's result. The home screen shows `earned / 15` and opens the list, earned trophies first, locked ones with a progress bar.

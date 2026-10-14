@@ -12,7 +12,10 @@ import { MG_INFO, MG_NET_INFO, MG_PARALLEL } from '../claw-core/config/MinigameR
 import { pointsFor } from './Party.js';
 import { SEAT_STYLE } from '../host/ArcadeState.js';
 import * as Store from './Store.js';
+import * as Profiles from './Profiles.js';
 import * as Toast from './Toast.js';
+import * as Stats from './Stats.js';
+import * as Trophies from './Trophies.js';
 
 const $ = id => document.getElementById(id);
 const MEDALS = ['🥇', '🥈', '🥉', '4️⃣'];
@@ -24,10 +27,16 @@ let _playing = false;
 // coin is REAL money"). There's no money in the arcade.
 const descOf = type => (MG_NET_INFO[type] || MG_INFO[type].desc).replace(/^\S+ PAYDAY — [^.]*\.\s*/, '');
 
+// The name used last time; failing that, the first player made on this phone.
+export function prefill() {
+    const el = $('net-name');
+    if (!el.value) el.value = Store.load('netName', '') || Profiles.list()[0]?.name || '';
+}
+
 export function init(show, goHome) {
     _show = show; _home = goHome;
     Room.setScorer(pointsFor);
-    $('net-name').value = Store.load('netName', '');
+    prefill();
 
     $('btn-net-host').addEventListener('click', async () => {
         _hint('Opening a room…');
@@ -149,10 +158,14 @@ function _abortGame() {
     $('arcade').hidden = false;
 }
 
+// A result can be re-sent (a late phone, a repaint); count each round once.
+let _countedRound = null;
+
 function _showResult(r) {
     // Decided while this phone was still playing (it started late, or the
     // host's grace period ran out): take the game down first.
     _abortGame();
+    if (r.n !== _countedRound) { _countedRound = r.n; Stats.recordTogether(); Trophies.announce(600); }
     _show('netresult', false);
     const me = Room.mySeat();
     $('nr-title').textContent = r.winner < 0 ? 'A TIE!' : r.winner === me ? 'YOU WIN!' : `${r.names[r.winner]} WINS!`;

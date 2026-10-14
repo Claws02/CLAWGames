@@ -15,6 +15,7 @@ npm run smoke         # plays 5 games end to end in headless Chromium
 node qa/party.js      # a 3-game party with each picker (wheel, shuffle, draft, host picks)
 node qa/party-points.mjs   # party scoring rules, no browser
 node qa/together.js   # two phones in one room over the loopback transport
+node qa/trophies.js   # trophy rules, persistence, old saves, the screen, a real game
 ```
 
 There's no build step: the app is ES modules served as static files, with vendored three.js and cannon.js.
@@ -24,5 +25,5 @@ There's no build step: the app is ES modules served as static files, with vendor
 - `src/claw-core/`: shared games, stage engine and game registry (the claw-core submodule). A change there is a commit in claw-core, then a pointer bump here and in HundredBlockDash; take the latest with `git submodule update --remote src/claw-core`.
 - `src/AppHost.js`: the 14 names the core imports from its host (listed in claw-core's README). This is CLAWGames' side of the contract.
 - `src/host/`: the arcade's `state`, bot tiers and a generated biome-data snapshot.
-- `src/arcade/`: the shell screens (seats, grid, wheel, party, play together, stats) and the game catalog.
+- `src/arcade/`: the shell screens (seats, grid, wheel, party, play together, trophies), stats, trophy rules and the game catalog.
 - `src/net/Room.js`: the Play Together session protocol, running on claw-core's `NetTransport`.

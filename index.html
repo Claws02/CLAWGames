@@ -31,19 +31,62 @@
                 <h1 class="bfont">CLAW <span>GAMES</span></h1>
                 <p class="tag">43 minigames · 1–4 players · friends or bots</p>
             </div>
+            <button class="party-hero" data-go="party">
+                <span class="ph-ico">🏆</span>
+                <span class="ph-lbl bfont">PARTY</span>
+                <span class="ph-sub">Best-of playlists · wheel, shuffle or draft</span>
+                <span class="ph-go bfont">START A PARTY →</span>
+            </button>
             <div class="home-btns">
-                <button class="big-btn b-quick"  data-go="quick"><span class="ico">🎮</span><span class="lbl bfont">Quick Play</span><span class="sub">Pick any game</span></button>
-                <button class="big-btn b-wheel"  data-go="wheel"><span class="ico">🎡</span><span class="lbl bfont">Spin the Wheel</span><span class="sub">Let fate decide</span></button>
-                <button class="big-btn b-party"  data-go="party"><span class="ico">🏆</span><span class="lbl bfont">Party</span><span class="sub">Best-of playlists</span></button>
-                <button class="big-btn b-online" data-go="together"><span class="ico">📱</span><span class="lbl bfont">Play Together</span><span class="sub">Phones in a room</span></button>
+                <button class="big-btn b-quick"  data-go="quick"><span class="ico">🎮</span><span class="lbl bfont">Quick Play</span><span class="sub">Pick a game · or 🎡 spin</span></button>
+                <button class="big-btn b-online" data-go="together"><span class="ico">📱</span><span class="lbl bfont">Together</span><span class="sub">Phones in a room</span></button>
+            </div>
+            <button class="golf-hero" data-go="golf">
+                <span class="gh-ico">⛳</span>
+                <span class="gh-txt"><span class="gh-lbl bfont">MINI GOLF</span><span class="gh-sub">4 courses · 36 holes · par &amp; a scorecard</span></span>
+                <span class="gh-go bfont">TEE OFF ›</span>
+            </button>
+            <div class="crew">
+                <div class="crew-h"><span class="bfont">Your crew</span>
+                    <button class="crew-all" data-go="players">All players <span class="n" id="home-players-n"></span> ›</button></div>
+                <div class="crew-faces" id="home-crew"></div>
+            </div>
+            <div class="home-row">
+                <button class="trophy-btn bfont" data-go="trophies"><span>🏆 Trophies</span><span class="n" id="home-trophies-n"></span></button>
             </div>
             <div class="home-stats" id="home-stats"></div>
+        </section>
+
+        <section class="screen" id="scr-trophies" data-screen="trophies" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Trophies</h2></header>
+            <p class="trophy-sum" id="trophy-sum"></p>
+            <div class="trophy-list" id="trophy-list"></div>
+        </section>
+
+        <section class="screen" id="scr-players" data-screen="players" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Players</h2></header>
+            <p class="trophy-sum" id="players-sum"></p>
+            <div class="player-list" id="player-list"></div>
+        </section>
+
+        <section class="screen" id="scr-player" data-screen="player" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Player</h2></header>
+            <div class="pf-head">
+                <div id="pf-face"></div>
+                <input id="pf-name" class="pf-name bfont" maxlength="14" aria-label="Name" autocomplete="off">
+            </div>
+            <div class="pf-chars" id="pf-chars"></div>
+            <div class="pf-stats" id="pf-stats"></div>
+            <p class="trophy-sum" id="pf-best"></p>
+            <h3 class="pf-h bfont">Rivals</h3>
+            <div class="pf-rivals" id="pf-rivals"></div>
+            <button class="veto-btn bfont" id="btn-pf-delete">DELETE PLAYER</button>
         </section>
 
         <section class="screen" id="scr-seats" data-screen="seats" hidden>
             <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Who's playing?</h2></header>
             <div class="seat-count" role="radiogroup" aria-label="Players">
-                <button data-n="2">2</button><button data-n="3">3</button><button data-n="4">4</button>
+                <button data-n="1" hidden>1</button><button data-n="2">2</button><button data-n="3">3</button><button data-n="4">4</button>
             </div>
             <div class="seats" id="seat-list"></div>
             <div class="tier-row">
@@ -56,26 +99,32 @@
 
         <section class="screen" id="scr-grid" data-screen="grid" hidden>
             <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Pick a game</h2>
+                <button class="spin-chip bfont" id="btn-grid-spin">🎡 SPIN</button>
                 <span class="who" id="grid-who"></span></header>
             <div class="chips" id="genre-chips"></div>
             <div class="grid" id="game-grid"></div>
         </section>
 
-        <section class="screen" id="scr-wheel" data-screen="wheel" hidden>
+        <section class="screen wheel-screen" id="scr-wheel" data-screen="wheel" hidden>
             <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Spin the Wheel</h2>
                 <span class="who" id="wheel-who"></span></header>
-            <div class="wheel-wrap">
-                <div class="wheel-pin">▼</div>
-                <canvas id="wheel" width="640" height="640"></canvas>
-                <button class="spin-btn bfont" id="btn-spin">SPIN!</button>
-            </div>
-            <div class="wheel-result" id="wheel-result" hidden>
-                <div class="wr-icon" id="wr-icon"></div>
-                <div class="wr-title bfont" id="wr-title"></div>
-                <div class="wr-desc" id="wr-desc"></div>
-                <div class="wr-btns">
-                    <button class="go-btn bfont" id="btn-wheel-play">PLAY IT →</button>
-                    <button class="veto-btn bfont" id="btn-wheel-veto">VETO</button>
+            <div class="wheel-meta bfont" id="wheel-meta"></div>
+            <div class="wheel-stage" id="wheel-stage">
+                <div class="wheel-wrap" id="wheel-wrap">
+                    <div class="wheel-pin" id="wheel-pin">▼</div>
+                    <canvas id="wheel" width="640" height="640"></canvas>
+                    <button class="spin-btn bfont" id="btn-spin">SPIN!</button>
+                </div>
+                <div class="wheel-result" id="wheel-result" hidden>
+                    <div class="wheel-confetti" id="wheel-confetti" aria-hidden="true"></div>
+                    <div class="wr-kicker bfont">IT'S…</div>
+                    <div class="wr-icon" id="wr-icon"></div>
+                    <div class="wr-title bfont" id="wr-title"></div>
+                    <div class="wr-desc" id="wr-desc"></div>
+                    <div class="wr-btns">
+                        <button class="go-btn bfont" id="btn-wheel-play">PLAY IT →</button>
+                        <button class="veto-btn bfont" id="btn-wheel-veto">VETO</button>
+                    </div>
                 </div>
             </div>
         </section>
@@ -94,18 +143,48 @@
             <button class="go-btn bfont" id="btn-party-start">START PARTY 🎉</button>
         </section>
 
+        <section class="screen" id="scr-golf" data-screen="golf" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Mini Golf</h2>
+                <span class="who" id="golf-who"></span></header>
+            <div class="golf-last" id="golf-last" hidden></div>
+            <div class="panel">
+                <div class="panel-h bfont">Pick a course</div>
+                <div class="golf-courses" id="golf-courses"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-h bfont">How many holes?</div>
+                <div class="seg big" id="golf-holes"></div>
+                <p class="hint" id="golf-holes-hint"></p>
+            </div>
+            <div class="panel">
+                <div class="panel-h bfont">How do we play?</div>
+                <div class="seg big" id="golf-mode"></div>
+                <p class="hint" id="golf-mode-hint"></p>
+                <p class="hint">Parties play mini golf this way too.</p>
+            </div>
+            <button class="go-btn bfont" id="btn-golf-start">TEE OFF ⛳</button>
+        </section>
+
         <section class="screen" id="scr-draft" data-screen="draft" hidden>
             <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">The Draft</h2></header>
             <div class="draft-turn bfont" id="draft-turn"></div>
             <div class="grid draft-grid" id="draft-grid"></div>
+            <div class="wr-btns" id="draft-btns" hidden>
+                <button class="go-btn bfont" id="btn-draft-play">PLAY IT →</button>
+                <button class="veto-btn bfont" id="btn-draft-veto">VETO</button>
+            </div>
         </section>
 
         <section class="screen" id="scr-standings" data-screen="standings" hidden>
             <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont" id="st-title">Standings</h2></header>
             <div class="last-game" id="st-last"></div>
             <div class="standings" id="st-rows"></div>
+            <div class="hype" id="st-hype"></div>
             <div class="up-next" id="st-next" hidden></div>
-            <button class="go-btn bfont" id="btn-st-go">NEXT GAME →</button>
+            <div class="wr-btns st-btns">
+                <button class="go-btn bfont" id="btn-st-go">NEXT GAME →</button>
+                <button class="veto-btn bfont" id="btn-st-veto" hidden>VETO</button>
+            </div>
         </section>
 
         <section class="screen" id="scr-podium" data-screen="podium" hidden>
@@ -157,6 +236,16 @@
                 <button class="go-btn bfont" id="btn-nc-ready">I'M READY</button>
                 <p class="hint" id="nc-wait"></p>
             </div>
+        </section>
+
+        <section class="screen" id="scr-soloresult" data-screen="soloresult" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Solo</h2></header>
+            <div class="last-game" id="so-game"></div>
+            <div class="so-score bfont" id="so-score">0</div>
+            <div class="so-note bfont" id="so-note"></div>
+            <div class="so-table" id="so-table"></div>
+            <button class="go-btn bfont" id="btn-so-again">PLAY AGAIN</button>
+            <button class="ghost-btn bfont" id="btn-so-other">ANOTHER GAME</button>
         </section>
 
         <section class="screen" id="scr-netresult" data-screen="netresult" hidden>
