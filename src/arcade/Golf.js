@@ -1,0 +1,119 @@
+// ============================================================
+// GOLF — the Mini Golf mode: pick a course, 3, 9 or 18 holes, turns or chaos.
+//
+// The game itself is claw-core's MiniGolf; this is the clubhouse round it:
+// the course cards with each one's best round, the setting for how a round is
+// played (which parties use too), and the records kept after each round.
+//
+//   init()                    apply the saved turns/chaos setting to the game
+//   paint(onStart)            the setup screen; onStart() once START is pressed
+//   configureNext()           hand the chosen course and holes to the game
+//   record(round, names, bots) after any round of mini golf (party or mode):
+//                             aces and rounds counted, bests kept for full
+//                             courses played by a human. Returns what's new.
+//   stats()                   { rounds, aces, fullRounds, underPar } for trophies
+// ============================================================
+import * as Store from './Store.js';
+import * as MiniGolf from '../claw-core/minigames/MiniGolf.js';
+
+const HOLES = [3, 9, 18];
+const ICON = { backyard: '🏡', pirate: '🏴‍☠️', candy: '🍭', space: '🚀' };
+
+let _s = Store.load('golf', null) || {};
+_s = { course: 'backyard', holes: 9, mode: 'turns', best: {}, rounds: 0, aces: 0, fullRounds: 0, underPar: 0, last: null, ..._s };
+const _save = () => Store.save('golf', _s);
+
+const $ = id => document.getElementById(id);
+const _fmt = d => (d === 0 ? 'E' : d > 0 ? `+${d}` : `${d}`);
+
+export function init() { MiniGolf.configure({ mode: _s.mode }); }
+export const settings = () => ({ course: _s.course, holes: _s.holes, mode: _s.mode });
+export const stats = () => ({ rounds: _s.rounds, aces: _s.aces, fullRounds: _s.fullRounds, underPar: _s.underPar });
+export const best = (course, holes) => _s.best[`${course}:${holes}`] || null;
+
+export function setMode(m) { _s.mode = m === 'chaos' ? 'chaos' : 'turns'; _save(); MiniGolf.configure({ mode: _s.mode }); }
+
+/** The chosen course and length go to the game for its next round only. */
+export function configureNext() {
+    MiniGolf.configure({ course: _s.course, holes: _s.holes === 3 ? 'sampler' : _s.holes, mode: _s.mode });
+}
+
+/**
+ * After any round of mini golf. `names` and `bots` are the table, by seat.
+ * Returns { newBest, aces } so the screen can say so.
+ */
+export function record(round, names, bots) {
+    if (!round) return null;
+    _s.rounds++;
+    const humanAces = round.aces.reduce((a, n, i) => a + (bots[i] ? 0 : n), 0);
+    _s.aces += humanAces;
+    let newBest = null;
+    if (round.full) {
+        _s.fullRounds++;
+        const holes = round.holes.length;
+        const key = `${round.course}:${holes}`;
+        round.totals.forEach((t, i) => {
+            if (bots[i]) return;
+            if (round.toPar[i] < 0) _s.underPar++;
+            const cur = _s.best[key];
+            if (!cur || t < cur.strokes) {
+                _s.best[key] = { strokes: t, toPar: round.toPar[i], name: names[i], date: new Date().toISOString().slice(0, 10) };
+                newBest = { ..._s.best[key], course: round.course, holes };
+            }
+        });
+    }
+    _s.last = {
+        course: round.course, courseName: round.courseName, holes: round.holes.length, winner: round.winner,
+        rows: round.totals.map((t, i) => ({ name: names[i], bot: !!bots[i], strokes: t, toPar: round.toPar[i], aces: round.aces[i] }))
+            .sort((a, b) => a.strokes - b.strokes),
+        newBest: !!newBest,
+    };
+    _save();
+    return { newBest, aces: humanAces };
+}
+
+/** The setup screen. */
+export function paint(onStart) {
+    const list = MiniGolf.COURSE_LIST;
+    const cards = $('golf-courses');
+    cards.innerHTML = '';
+    list.forEach(c => {
+        const b = document.createElement('button');
+        b.className = `golf-course gc-${c.key}` + (c.key === _s.course ? ' sel' : '');
+        b.dataset.course = c.key;
+        const bst = best(c.key, 9), b18 = best(c.key, 18);
+        b.innerHTML = `<span class="gc-ico">${ICON[c.key] || '⛳'}</span>
+            <span class="gc-body"><b class="bfont"></b><small></small>
+            <em>${c.holes} HOLES · PAR ${c.par}${bst ? ` · BEST ${bst.strokes} (${_fmt(bst.toPar)}) ${bst.name.toUpperCase()}` : ''}${b18 ? ` · 18: ${b18.strokes}` : ''}</em></span>`;
+        b.querySelector('b').textContent = c.name;
+        b.querySelector('small').textContent = c.blurb;
+        b.addEventListener('click', () => { _s.course = c.key; _save(); paint(onStart); });
+        cards.appendChild(b);
+    });
+    const seg = (id, opts, cur, set) => {
+        const el = $(id); el.innerHTML = '';
+        opts.forEach(([v, label]) => {
+            const b = document.createElement('button');
+            b.textContent = label; b.className = v === cur ? 'sel' : ''; b.dataset.v = v;
+            b.addEventListener('click', () => { set(v); paint(onStart); });
+            el.appendChild(b);
+        });
+    };
+    seg('golf-holes', HOLES.map(n => [n, `${n} holes`]), _s.holes, v => { _s.holes = v; _save(); });
+    seg('golf-mode', [['turns', '🏌️ Take turns'], ['chaos', '💥 Chaos']], _s.mode, v => setMode(v));
+    $('golf-mode-hint').textContent = _s.mode === 'turns'
+        ? 'Proper golf: one ball at a time, the camera follows it. Furthest from the cup goes next.'
+        : 'Everyone at once on one view, a strip of the screen each. Putt again as soon as your ball stops.';
+    const cur = list.find(c => c.key === _s.course);
+    const next = list[(list.indexOf(cur) + 1) % list.length];
+    $('golf-holes-hint').textContent = _s.holes === 18 ? `${cur.name} then ${next.name}.` : _s.holes === 3 ? `Three holes from ${cur.name}. Bests count on full courses.` : `All nine holes of ${cur.name}.`;
+    // The round just played.
+    const L = _s.last, el = $('golf-last');
+    el.hidden = !L;
+    if (L) {
+        el.innerHTML = `<div class="gl-h bfont">LAST ROUND · ${L.courseName} · ${L.holes} HOLES${L.newBest ? ' · <span class="gl-best">NEW BEST!</span>' : ''}</div>` +
+            L.rows.map((r, i) => `<div class="gl-row"><span>${i === 0 ? '👑' : i + 1}</span><b></b><span>${r.strokes}</span><span class="${r.toPar < 0 ? 'under' : r.toPar > 0 ? 'over' : ''}">${_fmt(r.toPar)}</span><span>${r.aces ? '⛳×' + r.aces : ''}</span></div>`).join('');
+        el.querySelectorAll('.gl-row b').forEach((b, i) => { b.textContent = (L.rows[i].bot ? '🤖 ' : '') + L.rows[i].name; });
+    }
+    $('btn-golf-start').onclick = () => { configureNext(); onStart(); };
+}
