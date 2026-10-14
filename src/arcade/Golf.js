@@ -38,7 +38,7 @@ export function setMode(m) { _s.mode = ['solo', 'chaos'].includes(m) ? m : 'turn
 
 /** The chosen course and length go to the game for its next round only. */
 export function configureNext() {
-    MiniGolf.configure({ course: _s.course, holes: _s.holes === 3 ? 'sampler' : _s.holes, mode: _gameMode(_s.mode) });
+    MiniGolf.configure({ course: _s.course, holes: _s.holes === 3 ? 'sampler' : _s.holes, mode: _gameMode(_s.mode), round: true });
 }
 
 /**

@@ -125,15 +125,21 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
     await page.evaluate(() => window.__claw.show('home', false));
     await page.evaluate(() => window.__claw.play('minigolf'));
     s = await throughGates();
-    ok('mini golf in a party or Quick Play: a three-hole sampler, in the saved mode', s.holes.length === 3 && s.mode === 'chaos', `${s.holes.length} ${s.mode}`);
+    ok('mini golf in a party or Quick Play: a three-hole sampler of par-3s, always chaos', s.holes.length === 3 && s.mode === 'chaos' && s.par.every(p => p <= 3), `${s.holes.length} ${s.mode} par ${s.par}`);
     await page.evaluate(async () => { const MM = await import('/src/claw-core/minigames/MinigameManager.js'); MM.forceEndMinigame(); });
 
-    // Turns is played upright (the phone passed round); chaos was sideways.
-    await page.evaluate(() => window.__claw.show('golf', false));
+    // With Take turns saved, a party's golf is still chaos; the mode's own round is turns, upright.
+    await page.waitForTimeout(800);
     await page.evaluate(async () => { const G = await import('/src/arcade/Golf.js'); G.setMode('turns'); });
     await page.evaluate(() => window.__claw.play('minigolf'));
+    s = await throughGates(30000, st => st.gl);
+    ok('a party\'s golf stays chaos with Take turns saved', s.mode === 'chaos' && s.turned === true, `${s.mode} turned=${s.turned}`);
+    await page.evaluate(async () => { const MM = await import('/src/claw-core/minigames/MinigameManager.js'); MM.forceEndMinigame(); });
+    await page.waitForTimeout(800);
+    await page.evaluate(async () => { const G = await import('/src/arcade/Golf.js'); G.configureNext(); });
+    await page.evaluate(() => window.__claw.play('minigolf'));
     s = await throughGates(30000, st => st.mode === 'turns');
-    ok('turns: played upright, not turned sideways', s.mode === 'turns' && s.turned === false, `${s.mode} turned=${s.turned}`);
+    ok('turns (the Mini Golf mode): played upright, not turned sideways', s.mode === 'turns' && s.turned === false, `${s.mode} turned=${s.turned}`);
     await page.evaluate(async () => { const MM = await import('/src/claw-core/minigames/MinigameManager.js'); MM.forceEndMinigame(); });
 
     ok('no page errors', !errs.length, errs.slice(0, 3).join(' | '));
