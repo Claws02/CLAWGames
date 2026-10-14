@@ -108,7 +108,7 @@ export function paint(onStart, onChange) {
         ? 'Just you and the course, phone upright. Beat par, and your best round goes on the board.'
         : _s.mode === 'turns'
         ? 'Proper golf, phone upright: pass it to whoever\'s up. One ball at a time, the camera behind it; furthest from the cup goes next.'
-        : 'Phone sideways, everyone at once on one view, a strip of the screen each. Putt again as soon as your ball stops.';
+        : 'Phone upright, everyone at once: the screen splits across the middle, P1 drags in the bottom half (a band each for 3–4). Putt again as soon as your ball stops.';
     const cur = list.find(c => c.key === _s.course);
     const next = list[(list.indexOf(cur) + 1) % list.length];
     $('golf-holes-hint').textContent = _s.holes === 18 ? `${cur.name} then ${next.name}.` : _s.holes === 3 ? `Three holes from ${cur.name}. Bests count on full courses.` : `All nine holes of ${cur.name}.`;

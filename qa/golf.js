@@ -133,7 +133,7 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
     await page.evaluate(async () => { const G = await import('/src/arcade/Golf.js'); G.setMode('turns'); });
     await page.evaluate(() => window.__claw.play('minigolf'));
     s = await throughGates(30000, st => st.gl);
-    ok('a party\'s golf stays chaos with Take turns saved', s.mode === 'chaos' && s.turned === true, `${s.mode} turned=${s.turned}`);
+    ok('a party\'s golf stays chaos (upright, a band each) with Take turns saved', s.mode === 'chaos' && s.turned === false, `${s.mode} turned=${s.turned}`);
     await page.evaluate(async () => { const MM = await import('/src/claw-core/minigames/MinigameManager.js'); MM.forceEndMinigame(); });
     await page.waitForTimeout(800);
     await page.evaluate(async () => { const G = await import('/src/arcade/Golf.js'); G.configureNext(); });
