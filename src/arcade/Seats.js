@@ -58,16 +58,22 @@ export function applyToState() {
 }
 
 let _onGo = null;
-export function open(onGo) { _onGo = onGo; tidy(); _render(); }
+// Solo: a mode that can be played alone (Mini Golf) offers "1" as well. It's
+// that mode's setting, not the table's: the saved count stays 2–4 for the rest.
+let _solo = null;   // null: not offered; else { on, set(on) }
+export function open(onGo, solo = null) { _onGo = onGo; _solo = solo; tidy(); _render(); }
+const _count = () => (_solo?.on ? 1 : seats.count);
 
 function _render() {
-    document.querySelectorAll('.seat-count button').forEach(b =>
-        b.classList.toggle('sel', +b.dataset.n === seats.count));
+    document.querySelectorAll('.seat-count button').forEach(b => {
+        b.classList.toggle('sel', +b.dataset.n === _count());
+        if (b.dataset.n === '1') b.hidden = !_solo;
+    });
 
     const list = document.getElementById('seat-list');
     list.innerHTML = '';
-    for (let i = 0; i < seats.count; i++) {
-        const s = SEAT_STYLE[i], bot = seats.bots[i];
+    for (let i = 0; i < _count(); i++) {
+        const s = SEAT_STYLE[i], bot = !_solo?.on && seats.bots[i];
         const el = document.createElement('div');
         el.className = 'seat' + (bot ? ' is-bot' : '');
         el.dataset.seat = i;
@@ -77,8 +83,8 @@ function _render() {
                 `<span class="nm"></span>` +
                 (bot ? '' : `<span class="swap">${profileAt(i) ? 'change' : 'tap to pick'}</span>`) +
             `</button>` +
-            `<div class="kind"><button data-k="human" class="${bot ? '' : 'sel'}">HUMAN</button>` +
-            `<button data-k="bot" class="${bot ? 'sel' : ''}">BOT</button></div>`;
+            (_solo?.on ? '' : `<div class="kind"><button data-k="human" class="${bot ? '' : 'sel'}">HUMAN</button>` +
+            `<button data-k="bot" class="${bot ? 'sel' : ''}">BOT</button></div>`);
         el.querySelector('.nm').textContent = seatName(i);
         el.querySelector('.seat-who').addEventListener('click', () => pick(i));
         el.querySelectorAll('.kind button').forEach(b => b.addEventListener('click', () => {
@@ -95,14 +101,14 @@ function _render() {
         b.textContent = `${t.icon} ${t.label}`;
         b.dataset.tier = id;
         b.className = id === seats.tier ? 'sel' : '';
-        b.disabled = !anyBots();
+        b.disabled = !anyBots() || !!_solo?.on;
         b.addEventListener('click', () => { seats.tier = id; _persist(); _render(); });
         seg.appendChild(b);
     });
 
-    const ok = humans() > 0;
+    const ok = _solo?.on || humans() > 0;
     document.getElementById('btn-seats-go').disabled = !ok;
-    document.getElementById('seat-hint').textContent = ok
+    document.getElementById('seat-hint').textContent = _solo?.on ? 'Just you against par.' : ok
         ? (seats.count > 2 ? `${seats.count} players: only games that seat everyone will light up.` : '')
         : 'Somebody has to be human!';
 }
@@ -158,11 +164,13 @@ function pick(seat) {
 
 export function init() {
     document.querySelectorAll('.seat-count button').forEach(b => b.addEventListener('click', () => {
-        seats.count = Math.max(MIN_SEATS, Math.min(MAX_SEATS, +b.dataset.n));
+        const n = +b.dataset.n;
+        if (_solo) { _solo.on = n === 1; _solo.set(_solo.on); }
+        if (n >= MIN_SEATS) seats.count = Math.max(MIN_SEATS, Math.min(MAX_SEATS, n));
         _persist(); _render();
     }));
     document.getElementById('btn-seats-go').addEventListener('click', () => {
-        if (humans() > 0 && _onGo) _onGo();
+        if ((_solo?.on || humans() > 0) && _onGo) _onGo();
     });
 }
 

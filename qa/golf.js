@@ -48,6 +48,7 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
     // 1. Home → seats → the clubhouse.
     ok('home: the MINI GOLF banner', await page.isVisible('.golf-hero'));
     await page.click('.golf-hero');
+    ok('seats: Mini Golf offers 1 player (solo)', await page.isVisible('.seat-count [data-n="1"]'));
     await page.click('#btn-seats-go');
     ok('it opens the clubhouse after seats', await screen() === 'golf');
     const pick = await page.evaluate(() => ({ courses: [...document.querySelectorAll('.golf-course')].map(b => b.dataset.course),
@@ -90,7 +91,15 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
 
     // Solo: one ball against par, upright, no pass card; the best counts.
     await page.waitForTimeout(600);
-    await page.click('#golf-mode button[data-v="solo"]');
+    // Picked the way a player would: 1 on the seats screen.
+    await page.evaluate(() => window.__claw.show('home', false));
+    await page.click('.golf-hero');
+    await page.click('.seat-count [data-n="1"]');
+    const seatsSolo = await page.evaluate(() => document.querySelectorAll('#seat-list .seat').length);
+    await page.click('#btn-seats-go');
+    await backTo('golf');
+    const soloSel = await page.evaluate(() => document.querySelector('#golf-mode button.sel')?.dataset.v);
+    ok('seats: 1 is one seat, and the clubhouse opens on Solo', seatsSolo === 1 && soloSel === 'solo', `seats ${seatsSolo} mode ${soloSel}`);
     await page.click('.golf-course[data-course="backyard"]');
     await page.click('#golf-holes button[data-v="9"]');
     await page.click('#btn-golf-start');
@@ -106,19 +115,31 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
     await page.click('#golf-mode button[data-v="chaos"]');
 
 
+    // Other modes never offer 1, and the table is still the saved one.
+    await page.evaluate(() => window.__claw.show('home', false));
+    await page.click('[data-go="party"]');
+    const party1 = await page.isVisible('.seat-count [data-n="1"]'), partyN = await page.evaluate(() => document.querySelectorAll('#seat-list .seat').length);
+    ok('seats: a party never offers 1; the saved table is back', !party1 && partyN >= 2, `1 visible ${party1}, seats ${partyN}`);
+
     // 4. A party's mini golf is a sampler again, in the saved mode.
     await page.evaluate(() => window.__claw.show('home', false));
     await page.evaluate(() => window.__claw.play('minigolf'));
     s = await throughGates();
-    ok('mini golf in a party or Quick Play: a three-hole sampler, in the saved mode', s.holes.length === 3 && s.mode === 'chaos', `${s.holes.length} ${s.mode}`);
+    ok('mini golf in a party or Quick Play: a three-hole sampler of par-3s, always chaos', s.holes.length === 3 && s.mode === 'chaos' && s.par.every(p => p <= 3), `${s.holes.length} ${s.mode} par ${s.par}`);
     await page.evaluate(async () => { const MM = await import('/src/claw-core/minigames/MinigameManager.js'); MM.forceEndMinigame(); });
 
-    // Turns is played upright (the phone passed round); chaos was sideways.
-    await page.evaluate(() => window.__claw.show('golf', false));
+    // With Take turns saved, a party's golf is still chaos; the mode's own round is turns, upright.
+    await page.waitForTimeout(800);
     await page.evaluate(async () => { const G = await import('/src/arcade/Golf.js'); G.setMode('turns'); });
     await page.evaluate(() => window.__claw.play('minigolf'));
+    s = await throughGates(30000, st => st.gl);
+    ok('a party\'s golf stays chaos (upright, a band each) with Take turns saved', s.mode === 'chaos' && s.turned === false, `${s.mode} turned=${s.turned}`);
+    await page.evaluate(async () => { const MM = await import('/src/claw-core/minigames/MinigameManager.js'); MM.forceEndMinigame(); });
+    await page.waitForTimeout(800);
+    await page.evaluate(async () => { const G = await import('/src/arcade/Golf.js'); G.configureNext(); });
+    await page.evaluate(() => window.__claw.play('minigolf'));
     s = await throughGates(30000, st => st.mode === 'turns');
-    ok('turns: played upright, not turned sideways', s.mode === 'turns' && s.turned === false, `${s.mode} turned=${s.turned}`);
+    ok('turns (the Mini Golf mode): played upright, not turned sideways', s.mode === 'turns' && s.turned === false, `${s.mode} turned=${s.turned}`);
     await page.evaluate(async () => { const MM = await import('/src/claw-core/minigames/MinigameManager.js'); MM.forceEndMinigame(); });
 
     ok('no page errors', !errs.length, errs.slice(0, 3).join(' | '));
