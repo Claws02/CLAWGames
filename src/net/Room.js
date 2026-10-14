@@ -16,6 +16,7 @@
 // A phone that leaves mid-round is scored 0; a host that leaves ends the room.
 // ============================================================
 import * as T from '../claw-core/net/NetTransport.js';
+import { soloRoundMs } from '../claw-core/config/MinigameRegistry.js';
 
 export const MAX_SEATS = 4;
 const V = 1;
@@ -129,7 +130,7 @@ function _hostReady(peer) {
         r.started = true;
         _send(MSG.GO, { n: r.n });
         _emit('go', { type: r.type, seed: r.seed });
-        r.timer = setTimeout(() => _finishRound(), ROUND_CAP_MS + GRACE_MS);
+        r.timer = setTimeout(() => _finishRound(), soloRoundMs(r.type, ROUND_CAP_MS) + GRACE_MS);   // golf brings a longer round
     }
 }
 

@@ -578,3 +578,17 @@ button:focus-visible { outline: 4px solid var(--blue); outline-offset: 2px; }
 .golf-last .under { color: #15803d; }
 .golf-last .over { color: #b91c1c; }
 .panel .golf-courses { width: 100%; }
+
+/* ---------- solo: beat the high score ---------- */
+.so-score { text-align: center; font-size: clamp(56px, 18vw, 88px); line-height: 1; color: #fff; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 6px 0 var(--ink); animation: pop-in .5s cubic-bezier(.2, 1.6, .4, 1); }
+.so-note { text-align: center; font-size: 20px; }
+.so-note.hot { color: #e11d48; animation: pop-in .6s cubic-bezier(.2, 1.6, .4, 1) .2s backwards; }
+.so-table { background: #fffaf0; border: var(--line); border-radius: 18px; padding: 8px 12px; box-shadow: 0 4px 0 var(--ink); }
+.so-table:empty { display: none; }
+.so-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto 78px; gap: 8px; align-items: center; font-weight: 800; padding: 4px 0; border-top: 2px dashed rgba(43,18,64,.15); font-variant-numeric: tabular-nums; }
+.so-row:first-child { border-top: 0; }
+.so-row b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.so-row small { opacity: .6; text-align: right; }
+.so-row.me { background: var(--yellow); border-radius: 10px; padding-inline: 6px; margin-inline: -6px; }
+.ghost-btn { border: var(--line); border-radius: var(--radius); background: #fff; box-shadow: 0 4px 0 var(--ink); font-size: 24px; padding: 8px 16px; color: var(--ink); }
+.ghost-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }

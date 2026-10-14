@@ -6,14 +6,17 @@
 import * as Catalog from './Catalog.js';
 import * as Stats from './Stats.js';
 import { seats } from './Seats.js';
+import * as Solo from './Solo.js';
 
-let _genre = 'all', _onPick = null, _pool = null;
+let _genre = 'all', _onPick = null, _pool = null, _solo = false;
 
 // pool: optional () => [types] that may be picked; others grey out as already
 // played. A party passes its not-yet-played games.
-export function open(onPick, pool = null) { _onPick = onPick; _pool = pool; _chips(); _render(); }
+// solo: Quick Play for one — only the games that play alone, each with its best.
+export function open(onPick, pool = null, { solo = false } = {}) { _onPick = onPick; _pool = pool; _solo = solo; _chips(); _render(); }
 
 function _why(type) {
+    if (_solo) return Solo.isSoloGame(type) ? '' : 'Not a solo game yet';
     const why = Catalog.whyNot(type, seats.count);
     if (why || !_pool) return why;
     return _pool().includes(type) ? '' : 'Played this rotation';
@@ -50,13 +53,18 @@ function _card(type) {
         `<span class="ci">${info.icon}</span>` +
         `<span class="cn">${info.title}</span>` +
         `<span class="cg g-${g}">${Catalog.MG_GENRES[g]?.name || g}</span>` +
-        `<span class="cs">${why || (n ? `played ${n}×` : 'new!')}</span>`;
+        `<span class="cs">${why || (_solo ? _bestLine(type) : n ? `played ${n}×` : 'new!')}</span>`;
     el.querySelector('.fav').addEventListener('click', e => {
         e.stopPropagation();
         e.currentTarget.classList.toggle('on', Stats.toggleFav(type));
     });
     el.addEventListener('click', () => { if (!why && _onPick) _onPick(type); });
     return el;
+}
+
+function _bestLine(type) {
+    const b = Solo.best(type);
+    return b ? `🏆 ${Solo.fmt(type, b.score)} · ${b.name}` : 'no score yet';
 }
 
 function _section(grid, title, types) {
@@ -76,6 +84,11 @@ function _render() {
     if (_genre === 'all') {
         _section(grid, '⭐ Favourites', Stats.favorites().filter(t => ok.includes(t)));
         _section(grid, '🕒 Recently played', Stats.recent().filter(t => ok.includes(t)));
+    }
+    if (_solo) {
+        _section(grid, `🎯 ${ok.length} solo games · beat the high score`, ok);
+        _section(grid, '🚫 Need somebody to play against', no);
+        return;
     }
     _section(grid, `🎮 ${ok.length} ready for ${seats.count} players`, ok);
     _section(grid, _pool ? '🚫 Not available' : `🚫 Not for ${seats.count} players`, no);

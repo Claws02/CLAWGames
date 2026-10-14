@@ -86,7 +86,7 @@
         <section class="screen" id="scr-seats" data-screen="seats" hidden>
             <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Who's playing?</h2></header>
             <div class="seat-count" role="radiogroup" aria-label="Players">
-                <button data-n="2">2</button><button data-n="3">3</button><button data-n="4">4</button>
+                <button data-n="1" hidden>1</button><button data-n="2">2</button><button data-n="3">3</button><button data-n="4">4</button>
             </div>
             <div class="seats" id="seat-list"></div>
             <div class="tier-row">
@@ -236,6 +236,16 @@
                 <button class="go-btn bfont" id="btn-nc-ready">I'M READY</button>
                 <p class="hint" id="nc-wait"></p>
             </div>
+        </section>
+
+        <section class="screen" id="scr-soloresult" data-screen="soloresult" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Solo</h2></header>
+            <div class="last-game" id="so-game"></div>
+            <div class="so-score bfont" id="so-score">0</div>
+            <div class="so-note bfont" id="so-note"></div>
+            <div class="so-table" id="so-table"></div>
+            <button class="go-btn bfont" id="btn-so-again">PLAY AGAIN</button>
+            <button class="ghost-btn bfont" id="btn-so-other">ANOTHER GAME</button>
         </section>
 
         <section class="screen" id="scr-netresult" data-screen="netresult" hidden>
