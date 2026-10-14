@@ -5,7 +5,7 @@
 // the course cards with each one's best round, the setting for how a round is
 // played (which parties use too), and the records kept after each round.
 //
-//   init()                    apply the saved turns/chaos setting to the game
+//   init()                    apply the saved solo/turns/chaos setting to the game
 //   paint(onStart)            the setup screen; onStart() once START is pressed
 //   configureNext()           hand the chosen course and holes to the game
 //   record(round, names, bots) after any round of mini golf (party or mode):
@@ -26,16 +26,18 @@ const _save = () => Store.save('golf', _s);
 const $ = id => document.getElementById(id);
 const _fmt = d => (d === 0 ? 'E' : d > 0 ? `+${d}` : `${d}`);
 
-export function init() { MiniGolf.configure({ mode: _s.mode }); }
+export function init() { MiniGolf.configure({ mode: _gameMode(_s.mode) }); }
 export const settings = () => ({ course: _s.course, holes: _s.holes, mode: _s.mode });
 export const stats = () => ({ rounds: _s.rounds, aces: _s.aces, fullRounds: _s.fullRounds, underPar: _s.underPar });
 export const best = (course, holes) => _s.best[`${course}:${holes}`] || null;
 
-export function setMode(m) { _s.mode = m === 'chaos' ? 'chaos' : 'turns'; _save(); MiniGolf.configure({ mode: _s.mode }); }
+// Solo is this screen's own: the game plays it as turns with one seat (see main.js play()).
+const _gameMode = m => (m === 'chaos' ? 'chaos' : 'turns');
+export function setMode(m) { _s.mode = ['solo', 'chaos'].includes(m) ? m : 'turns'; _save(); MiniGolf.configure({ mode: _gameMode(_s.mode) }); }
 
 /** The chosen course and length go to the game for its next round only. */
 export function configureNext() {
-    MiniGolf.configure({ course: _s.course, holes: _s.holes === 3 ? 'sampler' : _s.holes, mode: _s.mode });
+    MiniGolf.configure({ course: _s.course, holes: _s.holes === 3 ? 'sampler' : _s.holes, mode: _gameMode(_s.mode) });
 }
 
 /**
@@ -100,8 +102,10 @@ export function paint(onStart) {
         });
     };
     seg('golf-holes', HOLES.map(n => [n, `${n} holes`]), _s.holes, v => { _s.holes = v; _save(); });
-    seg('golf-mode', [['turns', '🏌️ Take turns'], ['chaos', '💥 Chaos']], _s.mode, v => setMode(v));
-    $('golf-mode-hint').textContent = _s.mode === 'turns'
+    seg('golf-mode', [['solo', '⛳ Solo'], ['turns', '🏌️ Take turns'], ['chaos', '💥 Chaos']], _s.mode, v => setMode(v));
+    $('golf-mode-hint').textContent = _s.mode === 'solo'
+        ? 'Just you and the course, phone upright. Beat par, and your best round goes on the board.'
+        : _s.mode === 'turns'
         ? 'Proper golf, phone upright: pass it to whoever\'s up. One ball at a time, the camera behind it; furthest from the cup goes next.'
         : 'Phone sideways, everyone at once on one view, a strip of the screen each. Putt again as soon as your ball stops.';
     const cur = list.find(c => c.key === _s.course);
