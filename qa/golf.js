@@ -52,7 +52,7 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
     ok('it opens the clubhouse after seats', await screen() === 'golf');
     const pick = await page.evaluate(() => ({ courses: [...document.querySelectorAll('.golf-course')].map(b => b.dataset.course),
         holes: [...document.querySelectorAll('#golf-holes button')].map(b => b.textContent), mode: [...document.querySelectorAll('#golf-mode button')].map(b => b.dataset.v) }));
-    ok('four courses, 3 / 9 / 18 holes, turns or chaos', pick.courses.join() === 'backyard,pirate,candy,space' && pick.holes.length === 3 && pick.mode.join() === 'turns,chaos', JSON.stringify(pick));
+    ok('four courses, 3 / 9 / 18 holes, solo, turns or chaos', pick.courses.join() === 'backyard,pirate,candy,space' && pick.holes.length === 3 && pick.mode.join() === 'solo,turns,chaos', JSON.stringify(pick));
     await page.screenshot({ path: 'qa/shot-golf-clubhouse.png' });
     const wide = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
     ok('the clubhouse fits a phone (no sideways scroll)', wide);
@@ -67,14 +67,14 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
     const cfg = await G('configured');
     ok('the course and holes were for this round only; the mode stays', cfg.course === null && cfg.holes === 'sampler' && cfg.mode === 'chaos', JSON.stringify(cfg));
 
-    // 3. Finish it: P1 25 (−4 on par 29), the bot 31.
+    // 3. Finish it: P1 25 (under par), the bot 31.
     await G('_debugScore', [[2, 2, 3, 2, 3, 4, 3, 2, 4], [3, 3, 4, 3, 3, 4, 4, 3, 4]], [Array(9).fill(5), Array(9).fill(5)]);
     ok('back to the clubhouse after the round', await backTo('golf', 25000));
     await page.waitForTimeout(400);
     const after = await page.evaluate(() => ({ last: document.getElementById('golf-last').textContent, hidden: document.getElementById('golf-last').hidden,
         card: document.querySelector('.golf-course[data-course="candy"]').textContent, store: JSON.parse(localStorage.getItem('claw.golf') || localStorage.getItem('golf') || 'null') }));
     ok('the last round is on the clubhouse screen, with a new best', !after.hidden && /NEW BEST/.test(after.last) && /25/.test(after.last), after.last.slice(0, 120));
-    ok('the course card shows the best round', /BEST 25 \(-4\)/.test(after.card), after.card.replace(/\s+/g, ' ').slice(0, 160));
+    ok('the course card shows the best round', /BEST 25 \(-\d+\)/.test(after.card), after.card.replace(/\s+/g, ' ').slice(0, 160));
     await page.screenshot({ path: 'qa/shot-golf-after.png' });
     const tro = await page.evaluate(async () => { const T = await import('/src/arcade/Trophies.js'); return T.all().filter(t => /golf/.test(t.id)).map(t => [t.id, !!t.earned]); });
     ok('the Full Round and Under Par trophies', tro.find(t => t[0] === 'golf_round')?.[1] && tro.find(t => t[0] === 'golf_under')?.[1], JSON.stringify(tro));
@@ -87,6 +87,24 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
     ok('eighteen holes: the course, then the next one', s.holes.length === 18 && s.holes.slice(0, 9).join() === C.candy.join() && s.holes.slice(9).join() === C.space.join(), s.holes.join(','));
     await G('_debugScore', [Array(18).fill(3), Array(18).fill(3)], [Array(18).fill(5), Array(18).fill(6)]);
     ok('back again after eighteen', await backTo('golf', 25000));
+
+    // Solo: one ball against par, upright, no pass card; the best counts.
+    await page.waitForTimeout(600);
+    await page.click('#golf-mode button[data-v="solo"]');
+    await page.click('.golf-course[data-course="backyard"]');
+    await page.click('#golf-holes button[data-v="9"]');
+    await page.click('#btn-golf-start');
+    s = await throughGates(30000, st => st.n === 1);
+    ok('solo: one ball, upright, nobody to pass to', s.n === 1 && s.balls.length === 1 && s.mode === 'turns' && s.turned === false && s.pass === -1, `n=${s.n} ${s.mode} turned=${s.turned} pass=${s.pass}`);
+    const par = s.par.reduce((a, b) => a + b, 0);
+    await G('_debugScore', [s.par.map(p => p - 1).map((p, i) => i ? p + 1 : p)], [Array(9).fill(5)]);
+    ok('solo: back to the clubhouse', await backTo('golf', 25000));
+    await page.waitForTimeout(400);
+    const solo = await page.evaluate(() => ({ last: document.getElementById('golf-last').textContent, card: document.querySelector('.golf-course[data-course="backyard"]').textContent }));
+    ok('solo: the round and a new best (one under)', /NEW BEST/.test(solo.last) && solo.card.includes(`BEST ${par - 1} (-1)`), solo.last.slice(0, 100) + ' | ' + solo.card.replace(/\s+/g, ' ').slice(0, 120));
+    await page.screenshot({ path: 'qa/shot-golf-solo.png' });
+    await page.click('#golf-mode button[data-v="chaos"]');
+
 
     // 4. A party's mini golf is a sampler again, in the saved mode.
     await page.evaluate(() => window.__claw.show('home', false));

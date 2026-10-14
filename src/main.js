@@ -134,15 +134,17 @@ function _paintTrophies() {
 // ---- play ------------------------------------------------------------------
 // One entry point for every mode. onDone(winnerId, standings) runs after the
 // result has been recorded and toasted.
-function play(type, onDone, via = 'quick') {
-    const { count, bots, tier } = Seats.seats;
+function play(type, onDone, via = 'quick', opts = {}) {
+    const { bots, tier } = Seats.seats;
+    // Solo (Mini Golf only): the first seat alone, against par.
+    const count = opts.solo ? 1 : Seats.seats.count;
     const table = bots.slice(0, count);
     const who = Seats.table();
     state.botDifficulty = tier;
     Seats.applyToState();
     $('arcade').hidden = true;
     MinigameManager.triggerStandalone(type, table[1], count, {
-        bots: table,
+        bots: table, solo: !!opts.solo,
         onComplete: (winnerId, standings) => {
             Stats.record(type, winnerId, table, { tier, via });
             Rotation.mark(type, count);
@@ -153,7 +155,11 @@ function play(type, onDone, via = 'quick') {
                 if (g?.newBest) setTimeout(() => Toast.show(`⛳ New best on ${g.newBest.holes} holes: ${g.newBest.strokes} by ${g.newBest.name}!`, '#2fd67b'), 1600);
             }
             const won = winnerId < 0 ? null : state.players[winnerId];
-            Toast.show(won ? `${table[winnerId] ? '🤖' : '🏆'} ${won.name} wins ${MG_INFO[type].title}!` : '🤝 Draw!',
+            const gr = opts.solo && type === 'minigolf' ? golfRound() : null;
+            if (gr) {
+                const d = gr.toPar[0];
+                Toast.show(`⛳ ${gr.totals[0]} strokes · ${d === 0 ? 'level par' : d < 0 ? `${-d} under par` : `${d} over par`}`, SEAT_STYLE[0].hex);
+            } else Toast.show(won ? `${table[winnerId] ? '🤖' : '🏆'} ${won.name} wins ${MG_INFO[type].title}!` : '🤝 Draw!',
                 won ? SEAT_STYLE[winnerId].hex : null);
             Trophies.announce();
             (onDone || (() => show(_current, false)))(winnerId, standings);
@@ -169,7 +175,7 @@ const MODES = {
     golf: () => { show('golf'); paintGolf(); },
 };
 // Mini Golf: the clubhouse — course, holes, turns or chaos — and back to it after the round.
-function paintGolf() { Golf.paint(() => play('minigolf', () => { show('golf', false); paintGolf(); }, 'golf')); }
+function paintGolf() { Golf.paint(() => play('minigolf', () => { show('golf', false); paintGolf(); }, 'golf', { solo: Golf.settings().mode === 'solo' })); }
 // Quick Play: the grid, with the wheel one tap away (the SPIN chip).
 function openQuickGrid() {
     $('btn-grid-spin').hidden = false;
