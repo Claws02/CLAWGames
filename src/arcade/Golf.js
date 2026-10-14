@@ -6,7 +6,8 @@
 // played (which parties use too), and the records kept after each round.
 //
 //   init()                    apply the saved solo/turns/chaos setting to the game
-//   paint(onStart)            the setup screen; onStart() once START is pressed
+//   paint(onStart, onChange)  the setup screen; onStart() once START is pressed,
+//                             onChange() after every repaint (the seats strip follows Solo)
 //   configureNext()           hand the chosen course and holes to the game
 //   record(round, names, bots) after any round of mini golf (party or mode):
 //                             aces and rounds counted, bests kept for full
@@ -75,7 +76,7 @@ export function record(round, names, bots) {
 }
 
 /** The setup screen. */
-export function paint(onStart) {
+export function paint(onStart, onChange) {
     const list = MiniGolf.COURSE_LIST;
     const cards = $('golf-courses');
     cards.innerHTML = '';
@@ -89,7 +90,7 @@ export function paint(onStart) {
             <em>${c.holes} HOLES · PAR ${c.par}${bst ? ` · BEST ${bst.strokes} (${_fmt(bst.toPar)}) ${bst.name.toUpperCase()}` : ''}${b18 ? ` · 18: ${b18.strokes}` : ''}</em></span>`;
         b.querySelector('b').textContent = c.name;
         b.querySelector('small').textContent = c.blurb;
-        b.addEventListener('click', () => { _s.course = c.key; _save(); paint(onStart); });
+        b.addEventListener('click', () => { _s.course = c.key; _save(); paint(onStart, onChange); });
         cards.appendChild(b);
     });
     const seg = (id, opts, cur, set) => {
@@ -97,7 +98,7 @@ export function paint(onStart) {
         opts.forEach(([v, label]) => {
             const b = document.createElement('button');
             b.textContent = label; b.className = v === cur ? 'sel' : ''; b.dataset.v = v;
-            b.addEventListener('click', () => { set(v); paint(onStart); });
+            b.addEventListener('click', () => { set(v); paint(onStart, onChange); });
             el.appendChild(b);
         });
     };
@@ -120,4 +121,5 @@ export function paint(onStart) {
         el.querySelectorAll('.gl-row b').forEach((b, i) => { b.textContent = (L.rows[i].bot ? '🤖 ' : '') + L.rows[i].name; });
     }
     $('btn-golf-start').onclick = () => { configureNext(); onStart(); };
+    onChange?.();
 }

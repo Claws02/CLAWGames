@@ -77,7 +77,8 @@ document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click'
 function _paintWho(id) {
     const el = $(id);
     if (!el) return;
-    const { count, bots } = Seats.seats;
+    const solo = id === 'golf-who' && Golf.settings().mode === 'solo';
+    const bots = solo ? [false] : Seats.seats.bots, count = solo ? 1 : Seats.seats.count;
     el.innerHTML = SEAT_STYLE.slice(0, count)
         .map((s, i) => `<i style="background:${s.hex}" title="${bots[i] ? 'Bot' : 'Human'}">${bots[i] ? '🤖' : ''}</i>`).join('');
 }
@@ -138,7 +139,7 @@ function play(type, onDone, via = 'quick', opts = {}) {
     const { bots, tier } = Seats.seats;
     // Solo (Mini Golf only): the first seat alone, against par.
     const count = opts.solo ? 1 : Seats.seats.count;
-    const table = bots.slice(0, count);
+    const table = opts.solo ? [false] : bots.slice(0, count);
     const who = Seats.table();
     state.botDifficulty = tier;
     Seats.applyToState();
@@ -175,7 +176,7 @@ const MODES = {
     golf: () => { show('golf'); paintGolf(); },
 };
 // Mini Golf: the clubhouse — course, holes, turns or chaos — and back to it after the round.
-function paintGolf() { Golf.paint(() => play('minigolf', () => { show('golf', false); paintGolf(); }, 'golf', { solo: Golf.settings().mode === 'solo' })); }
+function paintGolf() { Golf.paint(() => play('minigolf', () => { show('golf', false); paintGolf(); }, 'golf', { solo: Golf.settings().mode === 'solo' }), () => _paintWho('golf-who')); }
 // Quick Play: the grid, with the wheel one tap away (the SPIN chip).
 function openQuickGrid() {
     $('btn-grid-spin').hidden = false;
@@ -198,7 +199,9 @@ document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', 
     if (mode === 'together') return show('together');
     if (mode === 'trophies' || mode === 'players') return show(mode);
     show('seats');
-    Seats.open(() => MODES[mode]());
+    // Mini Golf can be played alone: "1" on the seats screen is its Solo mode.
+    const solo = mode === 'golf' ? { on: Golf.settings().mode === 'solo', set: on => Golf.setMode(on ? 'solo' : 'turns') } : null;
+    Seats.open(() => MODES[mode](), solo);
 }));
 
 // ---- party -------------------------------------------------------------------------
