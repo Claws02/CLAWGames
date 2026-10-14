@@ -27,9 +27,14 @@ import * as Confirm from './arcade/Confirm.js';
 import * as Profiles from './arcade/Profiles.js';
 import * as PlayersScreen from './arcade/PlayersScreen.js';
 import * as Golf from './arcade/Golf.js';
+import * as Solo from './arcade/Solo.js';
+import * as Store from './arcade/Store.js';
 import { lastRound as golfRound } from './claw-core/minigames/MiniGolf.js';
 import { faceHTML, portraits } from './arcade/Characters.js';
 import { isHost as Room_isHost } from './net/Room.js';
+
+// Quick Play for one: "1" on Quick Play's seats screen (kept between visits).
+let _quickSolo = !!Store.load('quickSolo', false);
 
 MinigameManager.init(null);
 Audio.setMusicGate(() => !state.mgActive);
@@ -77,7 +82,7 @@ document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click'
 function _paintWho(id) {
     const el = $(id);
     if (!el) return;
-    const solo = id === 'golf-who' && Golf.settings().mode === 'solo';
+    const solo = (id === 'golf-who' && Golf.settings().mode === 'solo') || (id === 'grid-who' && _quickSolo);
     const bots = solo ? [false] : Seats.seats.bots, count = solo ? 1 : Seats.seats.count;
     el.innerHTML = SEAT_STYLE.slice(0, count)
         .map((s, i) => `<i style="background:${s.hex}" title="${bots[i] ? 'Bot' : 'Human'}">${bots[i] ? '🤖' : ''}</i>`).join('');
@@ -170,7 +175,7 @@ function play(type, onDone, via = 'quick', opts = {}) {
 
 // ---- quick play & wheel ----------------------------------------------------------
 const MODES = {
-    quick: () => { show('grid'); openQuickGrid(); },
+    quick: () => { show('grid'); _quickSolo ? openSoloGrid() : openQuickGrid(); },
     wheel: () => { Vetoes.reset(); show('wheel'); openQuickWheel(); },
     party: () => { show('party'); PartyScreens.paintSetup(); },
     golf: () => { show('golf'); paintGolf(); },
@@ -180,7 +185,22 @@ function paintGolf() { Golf.paint(() => play('minigolf', () => { show('golf', fa
 // Quick Play: the grid, with the wheel one tap away (the SPIN chip).
 function openQuickGrid() {
     $('btn-grid-spin').hidden = false;
+    _paintWho('grid-who');
     Grid.open(t => play(t));
+}
+// Quick Play for one ("1" on the seats screen): no bots, the high-score table.
+function openSoloGrid() {
+    $('btn-grid-spin').hidden = true;
+    _paintWho('grid-who');
+    Grid.open(playSolo, null, { solo: true });
+}
+function playSolo(type) {
+    Seats.applyToState();
+    Solo.play(type, Seats.seatName(0), res => {
+        show('soloresult');
+        Solo.paintResult(res, () => playSolo(type), () => { show('grid', false); openSoloGrid(); });
+        if (res.isBest) Toast.show(`🏆 New high score on ${MG_INFO[type].title}!`, '#2fd67b');
+    });
 }
 $('btn-grid-spin').addEventListener('click', () => {
     if (Party.party.active) return;
@@ -199,8 +219,10 @@ document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', 
     if (mode === 'together') return show('together');
     if (mode === 'trophies' || mode === 'players') return show(mode);
     show('seats');
-    // Mini Golf can be played alone: "1" on the seats screen is its Solo mode.
-    const solo = mode === 'golf' ? { on: Golf.settings().mode === 'solo', set: on => Golf.setMode(on ? 'solo' : 'turns') } : null;
+    // Mini Golf and Quick Play can be played alone: "1" on the seats screen.
+    const solo = mode === 'golf' ? { on: Golf.settings().mode === 'solo', set: on => Golf.setMode(on ? 'solo' : 'turns') }
+        : mode === 'quick' ? { on: _quickSolo, set: on => { _quickSolo = on; Store.save('quickSolo', on); } }
+        : null;
     Seats.open(() => MODES[mode](), solo);
 }));
 
