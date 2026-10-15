@@ -43,6 +43,8 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
         }
         return G('_debugState');
     };
+    // Poll a node-side check (page.waitForFunction can't wait on an async predicate: a Promise is truthy).
+    const until = async (fn, ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await fn()) return true; await page.waitForTimeout(200); } return false; };
     const backTo = async (name, ms = 20000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await screen() === name) return true; await page.waitForTimeout(200); } return false; };
 
     // 1. Home → seats → the clubhouse.
@@ -141,6 +143,36 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
     s = await throughGates(30000, st => st.mode === 'turns');
     ok('turns (the Mini Golf mode): played upright, not turned sideways', s.mode === 'turns' && s.turned === false, `${s.mode} turned=${s.turned}`);
     await page.evaluate(async () => { const MM = await import('/src/claw-core/minigames/MinigameManager.js'); MM.forceEndMinigame(); });
+
+    // Trick shots: twelve cards; three misses is a miss, stopping in the box is a win.
+    await page.waitForTimeout(800);
+    // The force-ended round above leaves its layer up; a real round ends through the game.
+    await page.evaluate(() => { document.getElementById('minigame-layer').style.display = 'none'; document.getElementById('arcade').hidden = false; window.__claw.show('home', false); });
+    await page.click('.golf-hero');
+    await page.click('#btn-seats-go');
+    await backTo('golf');
+    const cards = await page.evaluate(() => [...document.querySelectorAll('#golf-tricks .golf-trick')].map(b => b.dataset.trick));
+    ok('trick shots: twelve on the clubhouse screen', cards.length === 12, cards.join(','));
+    await page.click('#golf-tricks .golf-trick[data-trick="kegs"]');
+    s = await throughGates(30000, st => st.chal === 'kegs' && st.sub === 'play' && st.turn === 'aim' && st.balls[0].on);
+    ok('a trick shot is one ball, from its spot', s.chal === 'kegs' && s.n === 1 && s.balls[0].on && Math.abs(s.balls[0].x) < 0.01, JSON.stringify({ chal: s.chal, n: s.n, ball: s.balls[0] }));
+    for (let i = 0; i < 3; i++) {
+        await page.waitForTimeout(400);
+        await G('_debugShoot', 0, 0, 1, 0.08);     // a dribble sideways: a miss
+        await until(async () => { const st = await G('_debugState'); return (st.turn === 'aim' && st.strokes[0][0] === i + 1) || st.phase === 'over'; }, 20000);
+    }
+    await until(async () => !!(await G('lastRound'))?.challenge, 30000);
+    let r = await G('lastRound');
+    ok('three misses: not this time, no stars', r && r.challenge === 'kegs' && r.success === false && r.stars === 0, JSON.stringify(r && { s: r.success, st: r.stars, t: r.tries }));
+    ok('back to the clubhouse after a trick shot', await backTo('golf', 25000));
+    await page.click('#golf-tricks .golf-trick[data-trick="kegs"]');
+    s = await throughGates(30000, st => st.chal === 'kegs' && st.sub === 'play' && st.turn === 'aim' && st.balls[0].on);
+    await G('_debugBall', 0, 23, 0);               // as if it ran up into the box …
+    await G('_debugShoot', 0, 1, 0, 0.05);        // … and a tap to stop it there
+    await backTo('golf', 25000);
+    r = await G('lastRound');
+    const card = await page.evaluate(() => document.querySelector('#golf-tricks .golf-trick[data-trick="kegs"] .gt-stars')?.textContent);
+    ok('stopped in the box first go: three stars, kept on the card', r && r.success && r.stars === 3 && card === '★★★', `${JSON.stringify(r && { s: r.success, st: r.stars })} card ${card}`);
 
     ok('no page errors', !errs.length, errs.slice(0, 3).join(' | '));
     await browser.close();
