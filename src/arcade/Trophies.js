@@ -32,6 +32,8 @@ export const TROPHIES = [
     { id: 'golf_round', icon: '🏌️', name: 'Full Round',      how: 'Play all nine holes of a Mini Golf course.',   rule: () => [Golf.stats().fullRounds, 1] },
     { id: 'golf_under', icon: '🐦', name: 'Under Par',       how: 'Finish a Mini Golf course under par.',         rule: () => [Golf.stats().underPar, 1] },
     { id: 'golf_tour',  icon: '🌍', name: 'World Tour',      how: 'Set a best round on every Mini Golf course.',  rule: () => [['backyard', 'pirate', 'candy', 'space'].filter(c => Golf.best(c, 9)).length, 4] },
+    { id: 'golf_trick', icon: '🎯', name: 'Trick Shot',      how: 'Sink a Mini Golf trick shot.',                   rule: () => [Golf.stats().tricksDone, 1] },
+    { id: 'golf_trickall', icon: '🌟', name: 'Trick Shot Master', how: 'Three stars on every Mini Golf trick shot.', rule: () => [Golf.stats().trickStars, Math.max(1, Golf.stats().tricks * 3)] },
 ];
 
 let earned = Store.load('trophies', {});   // id → ISO date earned

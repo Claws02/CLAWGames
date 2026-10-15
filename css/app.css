@@ -592,3 +592,12 @@ button:focus-visible { outline: 4px solid var(--blue); outline-offset: 2px; }
 .so-row.me { background: var(--yellow); border-radius: 10px; padding-inline: 6px; margin-inline: -6px; }
 .ghost-btn { border: var(--line); border-radius: var(--radius); background: #fff; box-shadow: 0 4px 0 var(--ink); font-size: 24px; padding: 8px 16px; color: var(--ink); }
 .ghost-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+
+/* ---------- golf: trick shots ---------- */
+.golf-tricks { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.golf-trick { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 4px 8px; text-align: left; border: var(--line); border-radius: 16px; background: #fff; box-shadow: 0 4px 0 var(--ink); padding: 8px 10px; color: var(--ink); }
+.golf-trick:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ink); }
+.golf-trick .gt-ico { grid-row: span 2; font-size: 26px; text-align: center; }
+.golf-trick b { font-size: 15px; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; }
+.golf-trick .gt-stars { font-size: 14px; letter-spacing: 1px; color: #f59e0b; }
+.golf-trick.done { background: #fff7d6; }
