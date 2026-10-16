@@ -162,7 +162,9 @@ function play(type, onDone, via = 'quick', opts = {}) {
             }
             const won = winnerId < 0 ? null : state.players[winnerId];
             const gr = opts.solo && type === 'minigolf' ? golfRound() : null;
-            if (gr) {
+            if (gr?.challenge) {
+                Toast.show(gr.success ? `🎯 Trick shot! ${'★'.repeat(gr.stars)}${'☆'.repeat(3 - gr.stars)}` : '🎯 Missed it — have another go', gr.success ? '#2fd67b' : null);
+            } else if (gr) {
                 const d = gr.toPar[0];
                 Toast.show(`⛳ ${gr.totals[0]} strokes · ${d === 0 ? 'level par' : d < 0 ? `${-d} under par` : `${d} over par`}`, SEAT_STYLE[0].hex);
             } else Toast.show(won ? `${table[winnerId] ? '🤖' : '🏆'} ${won.name} wins ${MG_INFO[type].title}!` : '🤝 Draw!',
@@ -181,7 +183,12 @@ const MODES = {
     golf: () => { show('golf'); paintGolf(); },
 };
 // Mini Golf: the clubhouse — course, holes, turns or chaos — and back to it after the round.
-function paintGolf() { Golf.paint(() => play('minigolf', () => { show('golf', false); paintGolf(); }, 'golf', { solo: Golf.settings().mode === 'solo' }), () => _paintWho('golf-who')); }
+function paintGolf() {
+    const back = () => { show('golf', false); paintGolf(); };
+    Golf.paint(() => play('minigolf', back, 'golf', { solo: Golf.settings().mode === 'solo' }), () => _paintWho('golf-who'),
+        // A trick shot is played alone, whoever is at the table.
+        () => play('minigolf', back, 'golf', { solo: true }));
+}
 // Quick Play: the grid, with the wheel one tap away (the SPIN chip).
 function openQuickGrid() {
     $('btn-grid-spin').hidden = false;

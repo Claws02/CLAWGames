@@ -21,7 +21,8 @@ const HOLES = [3, 9, 18];
 const ICON = { backyard: '🏡', pirate: '🏴‍☠️', candy: '🍭', space: '🚀' };
 
 let _s = Store.load('golf', null) || {};
-_s = { course: 'backyard', holes: 9, mode: 'turns', best: {}, rounds: 0, aces: 0, fullRounds: 0, underPar: 0, last: null, ..._s };
+_s = { course: 'backyard', holes: 9, mode: 'turns', best: {}, rounds: 0, aces: 0, fullRounds: 0, underPar: 0, last: null, tricks: {}, ..._s };
+_s.tricks = _s.tricks || {};
 const _save = () => Store.save('golf', _s);
 
 const $ = id => document.getElementById(id);
@@ -29,7 +30,10 @@ const _fmt = d => (d === 0 ? 'E' : d > 0 ? `+${d}` : `${d}`);
 
 export function init() { MiniGolf.configure({ mode: _gameMode(_s.mode) }); }
 export const settings = () => ({ course: _s.course, holes: _s.holes, mode: _s.mode });
-export const stats = () => ({ rounds: _s.rounds, aces: _s.aces, fullRounds: _s.fullRounds, underPar: _s.underPar });
+export const stats = () => ({ rounds: _s.rounds, aces: _s.aces, fullRounds: _s.fullRounds, underPar: _s.underPar,
+    trickStars: Object.values(_s.tricks).reduce((a, n) => a + n, 0), tricksDone: Object.values(_s.tricks).filter(n => n > 0).length, tricks: (MiniGolf.CHALLENGES || []).length });
+/** A trick shot to play next: the game's own challenge, handed over for one go. */
+export function configureChallenge(ch) { MiniGolf.configure({ challenge: ch, mode: 'turns', round: true }); }
 export const best = (course, holes) => _s.best[`${course}:${holes}`] || null;
 
 // Solo is this screen's own: the game plays it as turns with one seat (see main.js play()).
@@ -47,6 +51,13 @@ export function configureNext() {
  */
 export function record(round, names, bots) {
     if (!round) return null;
+    if (round.challenge) {
+        // A trick shot: keep the best stars; it isn't a round of golf.
+        const had = _s.tricks[round.challenge] || 0;
+        if ((round.stars || 0) > had) _s.tricks[round.challenge] = round.stars;
+        _save();
+        return { trick: round.challenge, stars: round.stars || 0, newBest: null, better: (round.stars || 0) > had };
+    }
     _s.rounds++;
     const humanAces = round.aces.reduce((a, n, i) => a + (bots[i] ? 0 : n), 0);
     _s.aces += humanAces;
@@ -75,8 +86,8 @@ export function record(round, names, bots) {
     return { newBest, aces: humanAces };
 }
 
-/** The setup screen. */
-export function paint(onStart, onChange) {
+/** The setup screen. onTrick(challenge) plays a trick shot. */
+export function paint(onStart, onChange, onTrick) {
     const list = MiniGolf.COURSE_LIST;
     const cards = $('golf-courses');
     cards.innerHTML = '';
@@ -90,7 +101,7 @@ export function paint(onStart, onChange) {
             <em>${c.holes} HOLES · PAR ${c.par}${bst ? ` · BEST ${bst.strokes} (${_fmt(bst.toPar)}) ${bst.name.toUpperCase()}` : ''}${b18 ? ` · 18: ${b18.strokes}` : ''}</em></span>`;
         b.querySelector('b').textContent = c.name;
         b.querySelector('small').textContent = c.blurb;
-        b.addEventListener('click', () => { _s.course = c.key; _save(); paint(onStart, onChange); });
+        b.addEventListener('click', () => { _s.course = c.key; _save(); paint(onStart, onChange, onTrick); });
         cards.appendChild(b);
     });
     const seg = (id, opts, cur, set) => {
@@ -98,7 +109,7 @@ export function paint(onStart, onChange) {
         opts.forEach(([v, label]) => {
             const b = document.createElement('button');
             b.textContent = label; b.className = v === cur ? 'sel' : ''; b.dataset.v = v;
-            b.addEventListener('click', () => { set(v); paint(onStart, onChange); });
+            b.addEventListener('click', () => { set(v); paint(onStart, onChange, onTrick); });
             el.appendChild(b);
         });
     };
@@ -121,5 +132,20 @@ export function paint(onStart, onChange) {
         el.querySelectorAll('.gl-row b').forEach((b, i) => { b.textContent = (L.rows[i].bot ? '🤖 ' : '') + L.rows[i].name; });
     }
     $('btn-golf-start').onclick = () => { configureNext(); onStart(); };
+    // Trick shots: a card each, with the stars it's earned.
+    const tricks = $('golf-tricks');
+    if (tricks) {
+        tricks.innerHTML = '';
+        // The selected course's trick shots (every course has a handful).
+        (MiniGolf.CHALLENGES || []).filter(ch => ch.course === _s.course).forEach(ch => {
+            const st = _s.tricks[ch.id] || 0;
+            const b = document.createElement('button');
+            b.className = 'golf-trick' + (st ? ' done' : ''); b.dataset.trick = ch.id;
+            b.innerHTML = `<span class="gt-ico">${ICON[ch.course] || '⛳'}</span><b class="bfont"></b><span class="gt-stars">${'★'.repeat(st)}${'☆'.repeat(3 - st)}</span>`;
+            b.querySelector('b').textContent = ch.name;
+            b.addEventListener('click', () => { configureChallenge(ch); onTrick?.(ch); });
+            tricks.appendChild(b);
+        });
+    }
     onChange?.();
 }
