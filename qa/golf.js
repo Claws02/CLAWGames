@@ -151,11 +151,16 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
     await page.click('.golf-hero');
     await page.click('#btn-seats-go');
     await backTo('golf');
+    // The selected course's trick shots: pick Pirate Cove (it has the kegs).
+    await page.click('[data-course="pirate"]');
+    await page.waitForTimeout(150);
     const cards = await page.evaluate(() => [...document.querySelectorAll('#golf-tricks .golf-trick')].map(b => b.dataset.trick));
-    ok('trick shots: twelve on the clubhouse screen', cards.length === 12, cards.join(','));
+    const want = await page.evaluate(async () => (await import('/src/claw-core/minigames/golf/Courses.js')).CHALLENGES.filter(c => c.course === 'pirate').map(c => c.id));
+    ok('trick shots: the selected course\'s on the clubhouse screen', cards.length === want.length && cards.length >= 3 && cards.includes('kegs'), cards.join(','));
     await page.click('#golf-tricks .golf-trick[data-trick="kegs"]');
     s = await throughGates(30000, st => st.chal === 'kegs' && st.sub === 'play' && st.turn === 'aim' && st.balls[0].on);
-    ok('a trick shot is one ball, from its spot', s.chal === 'kegs' && s.n === 1 && s.balls[0].on && Math.abs(s.balls[0].x) < 0.01, JSON.stringify({ chal: s.chal, n: s.n, ball: s.balls[0] }));
+    const kegFrom = await page.evaluate(async () => (await import('/src/claw-core/minigames/golf/Courses.js')).CHALLENGES.find(c => c.id === 'kegs').from);
+    ok('a trick shot is one ball, from its spot', s.chal === 'kegs' && s.n === 1 && s.balls[0].on && Math.hypot(s.balls[0].x - kegFrom[0], s.balls[0].z - kegFrom[1]) < 0.01, JSON.stringify({ chal: s.chal, n: s.n, ball: s.balls[0], from: kegFrom }));
     for (let i = 0; i < 3; i++) {
         await page.waitForTimeout(400);
         await G('_debugShoot', 0, 0, 1, 0.08);     // a dribble sideways: a miss
