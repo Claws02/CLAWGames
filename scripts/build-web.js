@@ -11,6 +11,18 @@ const OUT = path.join(ROOT, 'www');
 const SHIP = ['index.html', 'css', 'src', 'vendor', 'assets'];
 const SKIP = [/\/archived(\/|$)/, /\/\./, /\.md$/, /_template(3d)?\.js$/];
 
+// `git pull` doesn't move submodules: bring src/claw-core to the commit this
+// checkout records, so a build never ships an older claw-core than main has.
+// (CLAW_KEEP_CORE=1 skips it, for building against a claw-core you're editing.)
+if (!process.env.CLAW_KEEP_CORE) {
+    try {
+        const st = require('child_process').execFileSync('git', ['submodule', 'status', 'src/claw-core'], { cwd: ROOT, encoding: 'utf8' });
+        if (/^[-+]/.test(st)) {
+            console.log('src/claw-core is not at the recorded commit — updating it (git submodule update --init).');
+            require('child_process').execFileSync('git', ['submodule', 'update', '--init', 'src/claw-core'], { cwd: ROOT, stdio: 'inherit' });
+        }
+    } catch (e) { console.warn('could not check src/claw-core:', e.message); }
+}
 if (!fs.existsSync(path.join(ROOT, 'src/claw-core/minigames/MinigameManager.js'))) {
     console.error('src/claw-core is empty: run `git submodule update --init` (or `npm run setup`).');
     process.exit(1);
