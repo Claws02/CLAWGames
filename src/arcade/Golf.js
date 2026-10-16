@@ -136,7 +136,8 @@ export function paint(onStart, onChange, onTrick) {
     const tricks = $('golf-tricks');
     if (tricks) {
         tricks.innerHTML = '';
-        (MiniGolf.CHALLENGES || []).forEach(ch => {
+        // The selected course's trick shots (every course has a handful).
+        (MiniGolf.CHALLENGES || []).filter(ch => ch.course === _s.course).forEach(ch => {
             const st = _s.tricks[ch.id] || 0;
             const b = document.createElement('button');
             b.className = 'golf-trick' + (st ? ' done' : ''); b.dataset.trick = ch.id;
