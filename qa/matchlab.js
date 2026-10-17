@@ -3,7 +3,10 @@
 //
 // Plays real matches through the arcade with no human at the table and records,
 // per game: does it finish, how long it takes, who wins, how close it was, and
-// any page errors. Two table setups:
+// any page errors; for games on claw-core's Match.js, rounds and lead changes.
+// Lengths are GAME time (frame time capped at 0.1 s, as the games count it),
+// and the manager's wall-clock watchdog is pushed back so a slow software-GL
+// page doesn't turn long matches into draws. Two table setups:
 //
 //   duel  both seats are bots (the games that only drive seat 2 leave seat 1
 //         standing still, which shows up as "seat 1 never wins")
@@ -46,6 +49,12 @@ const CLOCK = speed => {
     window.setTimeout = (fn, ms, ...a) => st(fn, (ms || 0) / S, ...a);
     window.setInterval = (fn, ms, ...a) => si(fn, (ms || 0) / S, ...a);
     window.__qaSpeed = S;
+    // Game time as the games count it: frame time capped at 0.1 s. On a slow
+    // (software-GL) page this runs behind the wall clock, so lengths are in it.
+    window.__qaGame = { t: 0, frames: 0 };
+    let last = null;
+    const tick = now => { if (last != null) { window.__qaGame.t += Math.min(0.1, (now - last) / 1000); window.__qaGame.frames++; } last = now; raf(tick); };
+    raf(tick);
 };
 
 async function playOne(page, type, mode, budgetS) {
@@ -67,9 +76,14 @@ async function playOne(page, type, mode, budgetS) {
                 if (b && b.offsetParent) b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
             }
             document.querySelectorAll('.mg-sc-btn').forEach(b => b.offsetParent && b.click());
-            const m = window.__ml;
-            if (m.start == null && window.__claw.state.mgActive && window.__claw.state.gameState === 'MINIGAME') m.start = performance.now();
-            return { winner: m.winner, standings: m.standings, start: m.start, end: m.end };
+            const m = window.__ml, g = window.__qaGame;
+            if (m.start == null && window.__claw.state.mgActive && window.__claw.state.gameState === 'MINIGAME') {
+                m.start = performance.now(); m.g0 = g.t; m.f0 = g.frames;
+                // The manager's backstop runs on the wall clock; a slow page would hit it mid-match.
+                import('/src/claw-core/minigames/MinigameManager.js').then(M => M.extendWatchdog(15 * 60 * 1000));
+            }
+            if (m.end != null && m.g1 == null) { m.g1 = g.t; m.f1 = g.frames; }
+            return { winner: m.winner, standings: m.standings, start: m.start, end: m.end, g0: m.g0, g1: m.g1, f0: m.f0, f1: m.f1, log: window.__mgMatch || null };
         });
         if (r.winner !== undefined) break;
         await page.waitForTimeout(250);
@@ -83,9 +97,12 @@ async function playOne(page, type, mode, budgetS) {
         });
         await page.waitForTimeout(800);
     }
-    // Game time, in the game's own (sped-up) seconds.
-    const secs = done && r.start != null ? (r.end - r.start) / 1000 : null;
-    return { done, winner: done ? r.winner : null, standings: done ? r.standings : null, secs };
+    // Game time (capped frame time), and frames per wall second.
+    const ok = done && r.start != null && r.g1 != null;
+    const secs = ok ? r.g1 - r.g0 : null;
+    const fps = ok ? (r.f1 - r.f0) / ((r.end - r.start) / 1000) : null;
+    const log = r && r.log && r.log.type === type ? r.log : null;
+    return { done, winner: done ? r.winner : null, standings: done ? r.standings : null, secs, fps, log };
 }
 
 (async () => {
@@ -151,8 +168,15 @@ async function playOne(page, type, mode, budgetS) {
             // Closeness: |a-b| / max(a,b) of the reported standings, when the game reports them.
             const margins = fin.filter(r => Array.isArray(r.standings) && r.standings.length >= 2)
                 .map(r => { const [a, b] = r.standings; const m = Math.max(Math.abs(a), Math.abs(b)); return m ? Math.abs(a - b) / m : 0; });
+            // Rounds and lead changes, for games on Match.js.
+            const logs = fin.map(r => r.log).filter(Boolean);
+            const leadChanges = logs.map(l => { let lead = -1, ch = 0; for (const rd of l.rounds) { const b = Math.max(...rd.wins), t = rd.wins.filter(w => w === b).length === 1 ? rd.wins.indexOf(b) : -1; if (t >= 0 && lead >= 0 && t !== lead) ch++; if (t >= 0) lead = t; } return ch; });
+            const fpsL = fin.map(r => r.fps).filter(f => f != null);
             row[mode] = {
                 n: rs.length, done: fin.length,
+                fps: fpsL.length ? +Math.min(...fpsL).toFixed(0) : null,
+                rounds: logs.length ? +(logs.reduce((a, l) => a + l.rounds.length, 0) / logs.length).toFixed(1) : null,
+                leadChanges: logs.length ? +(leadChanges.reduce((a, b) => a + b, 0) / logs.length).toFixed(1) : null,
                 secs: secs.length ? +(secs.reduce((a, b) => a + b, 0) / secs.length).toFixed(0) : null,
                 secsMax: secs.length ? +Math.max(...secs).toFixed(0) : null,
                 wins, margin: margins.length ? +(margins.reduce((a, b) => a + b, 0) / margins.length).toFixed(2) : null,
@@ -170,12 +194,13 @@ async function playOne(page, type, mode, budgetS) {
         if (d && d.secs != null && d.secs < 30) f.push('short');
         if (d && d.secs != null && d.secs > 150) f.push('long');
         if ((d && d.errs.length) || (i && i.errs.length)) f.push('errors');
+        if ((d && d.fps != null && d.fps < 8) || (i && i.fps != null && i.fps < 8)) f.push('low-fps');
         row.flags = f;
         card.push(row);
     }
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
     fs.writeFileSync(path.join(__dirname, `matchlab-${stamp}.json`), JSON.stringify({ speed: SPEED, tier, runs, card }, null, 2));
-    const fmt = m => !m ? '' : `${m.done}/${m.n} ${m.secs ?? '-'}s(max ${m.secsMax ?? '-'}) W${m.wins.join('-')}${m.margin != null ? ' mg' + m.margin : ''}`;
+    const fmt = m => !m ? '' : `${m.done}/${m.n} ${m.secs ?? '-'}s(max ${m.secsMax ?? '-'}) W${m.wins.join('-')}${m.margin != null ? ' mg' + m.margin : ''}${m.rounds != null ? ` r${m.rounds} lc${m.leadChanges}` : ''} ${m.fps ?? "-"}fps `;
     console.log(`game            ${MODES.map(m => m.padEnd(32)).join('')}flags`);
     for (const r of card) console.log(r.game.padEnd(16) + MODES.map(m => fmt(r[m]).padEnd(32)).join('') + r.flags.join(' '));
     const errRows = card.filter(r => r.flags.includes('errors'));
