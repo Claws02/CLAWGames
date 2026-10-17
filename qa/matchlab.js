@@ -67,9 +67,13 @@ async function playOne(page, type, mode, budgetS) {
         c.show('grid');
         c.play(type, (w, s) => { window.__ml.end = performance.now(); window.__ml.winner = w; window.__ml.standings = s; });
     }, { type, mode, tier });
+    // The budget is GAME seconds once the game is running (a slow page plays slow);
+    // before that, and as a hard ceiling, wall seconds.
     const t0 = Date.now();
     let r;
-    while ((Date.now() - t0) / 1000 < budgetS) {
+    while ((Date.now() - t0) / 1000 < budgetS * 6) {
+        if (r && r.start == null && (Date.now() - t0) / 1000 > 60) break;            // never started
+        if (r && r.g0 != null && r.gNow - r.g0 > budgetS) break;
         r = await page.evaluate(() => {
             for (const id of ['btn-mg-intro-next', 'btn-mg-launch', 'mg-ready-1', 'mg-ready-2']) {
                 const b = document.getElementById(id);
@@ -83,7 +87,7 @@ async function playOne(page, type, mode, budgetS) {
                 import('/src/claw-core/minigames/MinigameManager.js').then(M => M.extendWatchdog(15 * 60 * 1000));
             }
             if (m.end != null && m.g1 == null) { m.g1 = g.t; m.f1 = g.frames; }
-            return { winner: m.winner, standings: m.standings, start: m.start, end: m.end, g0: m.g0, g1: m.g1, f0: m.f0, f1: m.f1, log: window.__mgMatch || null };
+            return { winner: m.winner, standings: m.standings, start: m.start, end: m.end, g0: m.g0, g1: m.g1, f0: m.f0, f1: m.f1, gNow: g.t, log: window.__mgMatch || null };
         });
         if (r.winner !== undefined) break;
         await page.waitForTimeout(250);
@@ -129,8 +133,8 @@ async function playOne(page, type, mode, budgetS) {
         return { eligible: C.eligible(2), watchdog: R.MG_WATCHDOG_MS };
     });
     const games = gamesArg === 'all' ? meta.eligible : gamesArg.split(',');
-    // Real seconds a run may take: the game's own watchdog (or 120 s), sped up, plus the cards.
-    const budgetFor = t => Math.max(120, (meta.watchdog[t] || 0) / 1000) / SPEED + 25;
+    // Game seconds a run may take: the game's own watchdog (or 120 s).
+    const budgetFor = t => Math.max(120, (meta.watchdog[t] || 0) / 1000) / SPEED;
 
     const jobs = [];
     for (const g of games) for (const mode of MODES) for (let i = 0; i < RUNS; i++) jobs.push({ g, mode });
