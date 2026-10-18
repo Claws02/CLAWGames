@@ -38,6 +38,17 @@ const GAMES = {
         shape: 'table',
         profile: { genre: 'brain', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
     },
+    pinball: {
+        load: () => import('./Pinball.js'),
+        info: { icon: '🕹️', title: 'CLAW PINBALL', desc: 'A claw-machine pinball table each, on your own half. Hold the left or right side to flip; flick up to nudge (three in a row TILTs). 120 seconds, highest score wins, and a drained ball is back in a second (your multiplier resets). Spell C-L-A-W in the top lanes to raise your multiplier. Clear the orange targets to light LOCK and send the other player an attack. With LOCK lit, the ramp feeds the claw: two prizes locked starts MULTIBALL, with jackpots on the ramp. The scoop starts missions; finish three for CLAW CRAZE.' },
+        orientation: 'faceoff',
+        // A 120 s clock of its own, plus the result: past the manager's 90 s default.
+        watchdogMs: 150000,
+        // Attacks cross between the tables, so it is one simulation.
+        net: 'local',
+        shape: 'split',
+        profile: { genre: 'scramble', control: 'tap', wire: 'events', seats: [2, 2], live: false },
+    },
 };
 
 for (const [type, g] of Object.entries(GAMES)) {
