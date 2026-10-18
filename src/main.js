@@ -8,6 +8,7 @@
 // Every game runs through claw-core's MinigameManager.triggerStandalone,
 // exactly as HundredBlockDash's own arcade runs it, with the table from Seats.
 // ============================================================
+import './games/index.js';   // the arcade's own games, before anything reads the roster
 import * as MinigameManager from './claw-core/minigames/MinigameManager.js';
 import * as Audio from './claw-core/engine/AudioManager.js';
 import { state, SEAT_STYLE } from './host/ArcadeState.js';
