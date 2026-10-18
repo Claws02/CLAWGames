@@ -323,6 +323,19 @@
             const m = document.createElement('script');
             m.type = 'module'; m.src = 'src/main.js';
             document.body.appendChild(m);
+            // If the app hasn't started in 10 s, a file failed to load or a
+            // half-updated cache broke the module graph: say so, and offer
+            // the reload that fixes it, instead of a dead screen.
+            setTimeout(() => {
+                if (window.__claw) return;
+                document.getElementById('boot-error-why').textContent = 'The app didn\'t finish loading. This usually means a new version was published a moment ago. Reload to get it.';
+                document.getElementById('boot-error').style.display = 'flex';
+            }, 10000);
+        }
+        // On GitHub Pages: a service worker that always asks the network first
+        // (sw.js), so after a merge a phone never runs half the old release.
+        if ('serviceWorker' in navigator && (location.hostname.endsWith('github.io') || /[?&]sw\b/.test(location.search))) {
+            navigator.serviceWorker.register('sw.js').catch(() => {});
         }
     </script>
 </body>

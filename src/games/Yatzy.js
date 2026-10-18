@@ -120,7 +120,8 @@ export function start(isBot, onWin, botSkill = 0.55) {
 
 // ── DOM (R2) ────────────────────────────────────────────────────────────────
 const CSS = `
-.yz{position:absolute;inset:0;overflow:hidden;touch-action:none;background:#f4997b;font-family:Nunito,system-ui,sans-serif;user-select:none;-webkit-user-select:none}
+.yz{position:absolute;inset:0;overflow:hidden;touch-action:none;background:#f4997b;transition:background .45s;font-family:Nunito,system-ui,sans-serif;user-select:none;-webkit-user-select:none}
+.yz.p2{background:#7fb3e6}
 .yz-frame{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--c)*.22);padding:12px;box-sizing:border-box;transition:transform ${FLIP_MS}ms cubic-bezier(.5,0,.3,1)}
 .yz-frame.flip{transform:rotate(180deg)}
 .yz-head{display:flex;flex-direction:column;align-items:center;gap:4px;min-height:calc(var(--c)*1.1)}
@@ -372,6 +373,7 @@ function _render() {
     const p = _turn, rolled = _rollsUsed > 0 && !_rolling, bot = _isBotTurn();
     _el.turn.textContent = `${_name(p)}'S TURN`;
     _el.turn.style.background = _hex(p);
+    _overlay.classList.toggle('p2', p === 1);   // the table turns blue on Player 2's go
     _el.hint.textContent = _note || (bot ? 'THINKING…'
         : !_rollsUsed ? 'TAP ROLL'
         : _rollsUsed < ROLLS ? 'TAP DICE TO HOLD · PICK A BOX, OR ROLL AGAIN'

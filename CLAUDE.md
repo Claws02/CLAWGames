@@ -23,3 +23,8 @@ makes it live:
    Paths must be relative (the site lives under `/CLAWGames/`).
 5. **Before pushing:** `npm run smoke` and the game's own probe in `qa/`
    (with `npm run serve` on :8140).
+6. **Phones cache Pages for 10 minutes.** `sw.js` (network-first, github.io
+   only) stops a phone mixing old and new modules after a merge. Keep it, and
+   never make a new cross-file named import a single point of failure (see
+   the namespace import in `src/games/index.js`). After a merge, check the
+   "pages build and deployment" run succeeded before saying it's live.
