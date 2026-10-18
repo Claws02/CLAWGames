@@ -2,7 +2,7 @@
 
 Every HundredBlockDash minigame in one arcade app: pick from a grid, spin the wheel, or run a best-of party with a podium. Play friends on one device, on their own phones in the same room, or against Easy, Medium or Hard bots.
 
-Design and roadmap: [`docs/DESIGN.md`](docs/DESIGN.md).
+Design and roadmap: [`docs/DESIGN.md`](docs/DESIGN.md). Adding a game: [`docs/ADDING_A_GAME.md`](docs/ADDING_A_GAME.md).
 
 ## Run it
 
@@ -16,6 +16,7 @@ node qa/party.js      # a 3-game party with each picker (wheel, shuffle, draft, 
 node qa/party-points.mjs   # party scoring rules, no browser
 node qa/together.js   # two phones in one room over the loopback transport
 node qa/trophies.js   # trophy rules, persistence, old saves, the screen, a real game
+node qa/yatzy.js      # Yatzy scoring rules, a game vs a bot, a two-player tabletop game
 ```
 
 There's no build step: the app is ES modules served as static files, with vendored three.js and cannon.js.
@@ -25,5 +26,6 @@ There's no build step: the app is ES modules served as static files, with vendor
 - `src/claw-core/`: shared games, stage engine and game registry (the claw-core submodule). A change there is a commit in claw-core, then a pointer bump here and in HundredBlockDash; take the latest with `git submodule update --remote src/claw-core`.
 - `src/AppHost.js`: the 14 names the core imports from its host (listed in claw-core's README). This is CLAWGames' side of the contract.
 - `src/host/`: the arcade's `state`, bot tiers and a generated biome-data snapshot.
+- `src/games/`: games only the arcade has (Yatzy). They register themselves into claw-core's tables at startup, so HundredBlockDash never gets them.
 - `src/arcade/`: the shell screens (seats, grid, wheel, party, play together, trophies), stats, trophy rules and the game catalog.
 - `src/net/Room.js`: the Play Together session protocol, running on claw-core's `NetTransport`.
