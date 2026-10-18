@@ -133,6 +133,8 @@ const CSS = `
 .yz-ico,.yz-cell{align-self:center;height:var(--c);border-radius:calc(var(--c)*.16);box-sizing:border-box;display:flex;align-items:center;justify-content:center;position:relative}
 .yz-ico{background:#fff;border:3px solid #7a4e6a;font:calc(var(--c)*.5) 'Bebas Neue',Impact,sans-serif;color:#3f4652;flex-direction:column;line-height:.9}
 .yz-ico small{font:800 calc(var(--c)*.15) Nunito,system-ui,sans-serif;letter-spacing:.5px}
+.yz-ico.yz-big{font-size:calc(var(--c)*.68)}
+.yz-ico.yz-fan small{font-size:calc(var(--c)*.17);margin-top:1px}
 .yz-ico.yz-yatzy{font-size:calc(var(--c)*.36);color:#ffd200;-webkit-text-stroke:1.5px #3f4652;transform:rotate(-8deg)}
 .yz-cell{font:calc(var(--c)*.5) 'Bebas Neue',Impact,sans-serif;color:#3f4652;background:var(--pc-soft);border:3px solid transparent}
 .yz-cell.mine{border-color:var(--pc)}
@@ -184,24 +186,33 @@ const CSS = `
 const PIPS = { 1: [4], 2: [2, 6], 3: [2, 4, 6], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
 const _pips = (n, cls = '') => Array.from({ length: 9 }, (_, i) =>
     PIPS[n].includes(i) ? `<span class="yz-pip ${cls}"></span>` : '<span></span>').join('');
-const HOUSE = '<svg viewBox="0 0 24 24" width="55%" height="55%"><path fill="#3f4652" d="M12 3 2 12h3v8h5v-5h4v5h5v-8h3z"/></svg>';
+const HOUSE = '<svg viewBox="0 0 24 24" width="80%" height="80%"><path fill="#3f4652" d="M12 2 1 12h3v10h6v-6h4v6h6V12h3z"/></svg>';
+// A fanned hand of `n` cards pivoting on one point, the front card solid.
+function _fan(n) {
+    const spread = n === 4 ? 22 : 18, cards = Array.from({ length: n }, (_, i) => {
+        const a = (i - (n - 1) / 2) * spread, front = i === n - 1;
+        return `<rect x="10.5" y="1.5" width="11" height="15" rx="1.8" transform="rotate(${a} 16 24)" fill="${front ? '#3f4652' : '#fff'}" stroke="#3f4652" stroke-width="1.5"/>`;
+    }).join('');
+    return `<svg viewBox="-2 -0.5 36 21" width="94%" height="60%">${cards}</svg>`;
+}
 
 function _icon(cat) {
     const up = UPPER.indexOf(cat);
     if (up >= 0) return `<div class="yz-mini">${_pips(up + 1)}</div>`;
     return {
-        three: '3x<small>OF A KIND</small>', four: '4x<small>OF A KIND</small>',
-        full: `${HOUSE}<small>FULL HOUSE</small>`, small: '1234<small>SMALL</small>',
-        large: '12345<small>LARGE</small>', yatzy: 'YATZY', chance: '?<small>CHANCE</small>',
+        three: '3x', four: '4x', full: HOUSE,
+        small: `${_fan(4)}<small>SMALL</small>`, large: `${_fan(5)}<small>LARGE</small>`, yatzy: 'YATZY', chance: '?<small>CHANCE</small>',
     }[cat];
 }
+
+const ICO_CLASS = { yatzy: ' yz-yatzy', three: ' yz-big', four: ' yz-big', small: ' yz-fan', large: ' yz-fan' };
 
 function _build() {
     const mg = document.getElementById('minigame-layer');
     if (_overlay) { _overlay.remove(); _overlay = null; }
     _overlay = document.createElement('div');
     _overlay.className = 'yz';
-    const row = cat => `<div class="yz-row"><div class="yz-ico${cat === 'yatzy' ? ' yz-yatzy' : ''}" data-act="rule" data-cat="${cat}" style="${cat === 'small' || cat === 'large' ? 'font-size:calc(var(--c)*.3)' : ''}">${_icon(cat)}</div>` +
+    const row = cat => `<div class="yz-row"><div class="yz-ico${ICO_CLASS[cat] || ''}" data-act="rule" data-cat="${cat}">${_icon(cat)}</div>` +
         [0, 1].map(p => `<div class="yz-cell" data-act="cell" data-cat="${cat}" data-p="${p}" style="--pc:${_hex(p)};--pc-soft:${_hex(p)}33"></div>`).join('') + '</div>';
     _overlay.innerHTML = `<style>${CSS}</style><div class="yz-frame">
         <div class="yz-head"><div class="yz-turn"></div><div class="yz-hint"></div></div>
