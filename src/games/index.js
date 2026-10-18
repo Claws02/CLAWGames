@@ -38,6 +38,17 @@ const GAMES = {
         shape: 'table',
         profile: { genre: 'brain', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
     },
+    pinball: {
+        load: () => import('./Pinball.js'),
+        info: { icon: '🕹️', title: 'PINBALL', desc: 'A pinball machine each, on your own half. Tap and hold the left or right side of your half to flip. 90 seconds, highest score wins. Drain and a new ball is back in a second, but your multiplier resets. Light all three orange targets to raise your multiplier and drop a blocker across the other player\'s targets for 8 seconds.' },
+        orientation: 'faceoff',
+        // A 90 s clock of its own, plus the result: past the manager's 90 s default.
+        watchdogMs: 120000,
+        // The blocker crosses between the tables, so it is one simulation.
+        net: 'local',
+        shape: 'split',
+        profile: { genre: 'scramble', control: 'tap', wire: 'events', seats: [2, 2], live: false },
+    },
 };
 
 for (const [type, g] of Object.entries(GAMES)) {
