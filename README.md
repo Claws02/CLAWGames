@@ -17,7 +17,8 @@ node qa/party-points.mjs   # party scoring rules, no browser
 node qa/together.js   # two phones in one room over the loopback transport
 node qa/trophies.js   # trophy rules, persistence, old saves, the screen, a real game
 node qa/yatzy.js      # Yatzy scoring rules, a game vs a bot, a two-player tabletop game
-node qa/pinball.js    # four fingers at once, drain, the blocker, a full game vs the bot
+node qa/pinball.js    # four fingers, nudge/tilt, saver, claw lock, multiball, missions, attacks, a full game vs the bot
+node qa/pinball-lab.mjs [n]   # pinball balance: idle vs each bot tier, n simulated games each
 ```
 
 There's no build step: the app is ES modules served as static files, with vendored three.js and cannon.js.
