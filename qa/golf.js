@@ -55,7 +55,7 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
     ok('it opens the clubhouse after seats', await screen() === 'golf');
     const pick = await page.evaluate(() => ({ courses: [...document.querySelectorAll('.golf-course')].map(b => b.dataset.course),
         holes: [...document.querySelectorAll('#golf-holes button')].map(b => b.textContent), mode: [...document.querySelectorAll('#golf-mode button')].map(b => b.dataset.v) }));
-    ok('four courses, 3 / 9 / 18 holes, solo, turns or chaos', pick.courses.join() === 'backyard,pirate,candy,space' && pick.holes.length === 3 && pick.mode.join() === 'solo,turns,chaos', JSON.stringify(pick));
+    ok('four courses, 3 / 9 / 18 holes, solo, turns, tabletop or chaos', pick.courses.join() === 'backyard,pirate,candy,space' && pick.holes.length === 3 && pick.mode.join() === 'solo,turns,table,chaos', JSON.stringify(pick));
     await page.screenshot({ path: 'qa/shot-golf-clubhouse.png' });
     const wide = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
     ok('the clubhouse fits a phone (no sideways scroll)', wide);

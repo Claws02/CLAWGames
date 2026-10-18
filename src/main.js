@@ -228,7 +228,8 @@ document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', 
     if (mode === 'trophies' || mode === 'players') return show(mode);
     show('seats');
     // Mini Golf and Quick Play can be played alone: "1" on the seats screen.
-    const solo = mode === 'golf' ? { on: Golf.settings().mode === 'solo', set: on => Golf.setMode(on ? 'solo' : 'turns') }
+    // Leaving Solo goes back to Take turns; any other mode (Tabletop, Chaos) is kept as it was.
+    const solo = mode === 'golf' ? { on: Golf.settings().mode === 'solo', set: on => { if (on) Golf.setMode('solo'); else if (Golf.settings().mode === 'solo') Golf.setMode('turns'); } }
         : mode === 'quick' ? { on: _quickSolo, set: on => { _quickSolo = on; Store.save('quickSolo', on); } }
         : null;
     Seats.open(() => MODES[mode](), solo);
