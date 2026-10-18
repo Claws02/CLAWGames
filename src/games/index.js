@@ -12,7 +12,11 @@ import {
     MG_TYPES, MG_INFO, MG_ORIENTATIONS, MG_ORIENTATION_MAP, MG_WATCHDOG_MS,
     MG_NET, MG_SHAPE, MG_PROFILE,
 } from '../claw-core/config/MinigameRegistry.js';
-import { registerMinigame } from '../claw-core/minigames/MinigameManager.js';
+// A namespace import, not a named one: if a phone serves this file fresh and an
+// older claw-core from its cache (Pages caches for 10 minutes), a missing
+// named export would stop the whole app loading. This way the arcade still
+// boots, just without its own games until the cache catches up.
+import * as MinigameManager from '../claw-core/minigames/MinigameManager.js';
 
 // The tabletop hold, worded for dice rather than golf balls.
 MG_ORIENTATIONS.dicetable = {
@@ -52,6 +56,7 @@ const GAMES = {
 };
 
 for (const [type, g] of Object.entries(GAMES)) {
+    if (typeof MinigameManager.registerMinigame !== 'function') break;
     if (!MG_TYPES.includes(type)) MG_TYPES.push(type);
     MG_INFO[type] = g.info;
     MG_ORIENTATION_MAP[type] = g.orientation;
@@ -59,5 +64,5 @@ for (const [type, g] of Object.entries(GAMES)) {
     MG_NET[type] = g.net;
     MG_SHAPE[type] = g.shape;
     MG_PROFILE[type] = g.profile;
-    registerMinigame(type, g.load);
+    MinigameManager.registerMinigame(type, g.load);
 }
