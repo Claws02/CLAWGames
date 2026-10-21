@@ -626,7 +626,319 @@ const frog = {
     },
 };
 
-export const ART = { pig, elephant, giraffe, penguin, panda, turtle, croc, rabbit, cat, hedgehog, frog };
+// ── COW ─────────────────────────────────────────────────────────────────────
+// A Holstein cow, side on, facing right: white with big black patches, a pink
+// muzzle and udder, short horns, a switch of a tail.
+const COW = { base: '#f3f1eb', line: '#262222', dark: '#cfcbc2' };
+const cowBody = c => { c.moveTo(-0.72, -0.1); c.bezierCurveTo(-0.74, 0.24, -0.62, 0.36, -0.4, 0.34); c.bezierCurveTo(-0.1, 0.32, 0.16, 0.38, 0.32, 0.34); c.bezierCurveTo(0.44, 0.3, 0.46, 0.0, 0.42, -0.14); c.bezierCurveTo(0.1, -0.2, -0.4, -0.2, -0.72, -0.1); c.closePath(); };
+const cowHead = c => { c.moveTo(0.36, 0.32); c.bezierCurveTo(0.48, 0.4, 0.62, 0.36, 0.68, 0.24); c.bezierCurveTo(0.74, 0.12, 0.8, 0.02, 0.76, -0.04); c.bezierCurveTo(0.7, -0.08, 0.6, -0.04, 0.54, 0.04); c.bezierCurveTo(0.48, 0.1, 0.42, 0.14, 0.38, 0.12); c.closePath(); };
+const cowLeg = x => c => { c.moveTo(x - 0.07, -0.08); c.bezierCurveTo(x - 0.08, -0.3, x - 0.05, -0.44, x - 0.055, -0.56); c.lineTo(x + 0.055, -0.56); c.bezierCurveTo(x + 0.05, -0.44, x + 0.08, -0.3, x + 0.07, -0.08); c.closePath(); };
+const cow = {
+    key: 'cow', name: 'COW', col: COW.base, dark: COW.line,
+    parts: [
+        [[-0.72, -0.12], [-0.72, 0.26], [-0.5, 0.36], [0.3, 0.36], [0.44, 0.2], [0.42, -0.15]],
+        rect(0.15, 0.46, -0.56, -0.33),
+        rect(0.15, 0.46, 0.28, -0.33),
+        [[0.36, 0.32], [0.56, 0.38], [0.7, 0.22], [0.78, -0.04], [0.6, -0.04], [0.38, 0.12]],
+    ],
+    draw(ctx, hot) {
+        const rnd = rng(211);
+        line(ctx, 0.018, COW.line, () => { ctx.moveTo(-0.7, 0.22); ctx.quadraticCurveTo(-0.84, 0.0, -0.8, -0.3); });
+        strokes(ctx, rnd, [-0.84, -0.42, -0.76, -0.3], 14, { len: 0.06, ang: -1.6, col: '#1a1616', w: 0.01 });
+        for (const x of [-0.42, 0.4]) { const s = body(ctx, [cowLeg(x)], { ...COW, base: COW.dark }, { light: 0, shadow: 0.3 }); s.done(); }
+        const s = body(ctx, [cowBody, cowHead, cowLeg(-0.56), cowLeg(0.28)], COW, { top: 0.4, bottom: -0.56, light: 0.2, shadow: 0.3 });
+        // black patches: big irregular blobs
+        s.g.fillStyle = '#1f1c1c';
+        for (const [cx, cy, r] of [[-0.48, 0.16, 0.16], [-0.1, 0.22, 0.13], [0.2, 0.04, 0.12], [-0.3, -0.06, 0.1], [0.56, 0.28, 0.08], [-0.56, -0.36, 0.07]]) {
+            s.g.beginPath();
+            for (let k = 0; k < 9; k++) { const a = (k / 9) * Math.PI * 2, rr = r * (0.7 + rnd() * 0.5); const px = cx + Math.cos(a) * rr * 1.2, py = cy + Math.sin(a) * rr; k ? s.g.quadraticCurveTo(cx + Math.cos(a - 0.35) * rr * 1.5, cy + Math.sin(a - 0.35) * rr * 1.2, px, py) : s.g.moveTo(px, py); }
+            s.g.closePath(); s.g.fill();
+        }
+        strokes(s.g, rnd, [-0.72, -0.3, 0.78, 0.38], 140, { len: 0.03, ang: -1.9, col: 'rgba(140,130,120,.18)', w: 0.006 });
+        // hooves
+        for (const x of [-0.56, 0.28]) oval(s.g, x, -0.54, 0.06, 0.03, '#2a2422');
+        s.done();
+        // udder
+        oval(ctx, -0.02, -0.17, 0.09, 0.05, '#f0b4b0', 0, COW.line, LW * 0.8);
+        for (const d of [-0.05, 0.0, 0.05]) oval(ctx, -0.02 + d, -0.23, 0.012, 0.025, '#e89c98');
+        // pink muzzle, nostril, horn, ear, eye
+        oval(ctx, 0.73, 0.0, 0.07, 0.06, '#f2b8b0', 0.3, COW.line, LW * 0.7);
+        oval(ctx, 0.76, 0.02, 0.012, 0.009, '#3a2020');
+        line(ctx, 0.03, COW.line, () => { ctx.moveTo(0.5, 0.38); ctx.quadraticCurveTo(0.52, 0.46, 0.46, 0.5); });
+        line(ctx, 0.018, '#e8dcc0', () => { ctx.moveTo(0.5, 0.38); ctx.quadraticCurveTo(0.52, 0.46, 0.46, 0.5); });
+        oval(ctx, 0.42, 0.3, 0.09, 0.04, '#1f1c1c', 0.3, COW.line, LW * 0.6);
+        eye(ctx, 0.6, 0.24, 0.024, hot);
+    },
+};
+
+// ── SHEEP ───────────────────────────────────────────────────────────────────
+// A Suffolk sheep, side on, facing right: a cloud of cream wool in tight
+// curls, a black face with sideways ears, black legs.
+const SHP = { base: '#ece4d2', line: '#4a4236' };
+const sheepWool = c => c.ellipse(-0.05, 0.06, 0.5, 0.34, 0, 0, Math.PI * 2);
+const sheepHead = c => { c.moveTo(0.34, 0.24); c.bezierCurveTo(0.44, 0.32, 0.58, 0.28, 0.66, 0.14); c.bezierCurveTo(0.72, 0.04, 0.7, -0.06, 0.62, -0.07); c.bezierCurveTo(0.54, -0.08, 0.46, 0.0, 0.4, 0.06); c.closePath(); };
+const sheepLeg = x => c => { c.moveTo(x - 0.045, -0.2); c.lineTo(x - 0.04, -0.58); c.lineTo(x + 0.05, -0.58); c.lineTo(x + 0.045, -0.2); c.closePath(); };
+const sheep = {
+    key: 'sheep', name: 'SHEEP', col: SHP.base, dark: SHP.line,
+    parts: [
+        ell(0.52, 0.36, -0.05, 0.06, 10),
+        [[0.34, 0.24], [0.52, 0.31], [0.68, 0.12], [0.66, -0.07], [0.4, 0.05]],
+        rect(0.11, 0.36, -0.36, -0.41),
+        rect(0.11, 0.36, 0.22, -0.41),
+    ],
+    draw(ctx, hot) {
+        const rnd = rng(223);
+        for (const x of [-0.24, 0.32]) { const s = body(ctx, [sheepLeg(x)], { base: '#1c1a18', line: '#000' }, { light: 0, shadow: 0 }); s.done(); }
+        const lg = body(ctx, [sheepLeg(-0.36), sheepLeg(0.22), sheepHead], { base: '#23201c', line: '#000' }, { top: 0.3, bottom: -0.6, light: 0.18, shadow: 0 });
+        strokes(lg.g, rnd, [0.36, -0.06, 0.7, 0.3], 40, { len: 0.025, ang: Math.PI - 0.5, col: 'rgba(255,255,255,.12)', w: 0.006 });
+        lg.done();
+        // the fleece: a lumpy outline of curls, each lit from above
+        const bumps = [];
+        for (let i = 0; i < 22; i++) { const a = (i / 22) * Math.PI * 2; bumps.push([-0.05 + Math.cos(a) * 0.46, 0.06 + Math.sin(a) * 0.3]); }
+        const w = body(ctx, [sheepWool, ...bumps.map(([x, y]) => c => c.arc(x, y, 0.075, 0, Math.PI * 2))], SHP, { top: 0.42, bottom: -0.3, light: 0.3, shadow: 0.3 });
+        for (let i = 0; i < 70; i++) {
+            const x = -0.5 + rnd() * 0.9, y = -0.22 + rnd() * 0.56, r = 0.045 + rnd() * 0.03;
+            const g = w.g.createRadialGradient(x - r * 0.3, y + r * 0.3, r * 0.1, x, y, r);
+            g.addColorStop(0, 'rgba(255,252,242,.9)'); g.addColorStop(0.7, 'rgba(225,215,195,.5)'); g.addColorStop(1, 'rgba(160,145,120,.45)');
+            w.g.fillStyle = g; w.g.beginPath(); w.g.arc(x, y, r, 0, Math.PI * 2); w.g.fill();
+        }
+        strokes(w.g, rnd, [-0.55, -0.26, 0.45, 0.4], 120, { len: 0.03, ang: 0, jitter: 6, col: 'rgba(120,105,85,.25)', w: 0.006, curve: 1.2 });
+        w.done();
+        // sideways ear, nose, eye
+        oval(ctx, 0.4, 0.22, 0.09, 0.035, '#23201c', -0.2, '#000', LW * 0.6);
+        oval(ctx, 0.66, 0.0, 0.012, 0.008, '#000');
+        eye(ctx, 0.52, 0.16, 0.022, hot, '#5a4220');
+    },
+};
+
+// ── LION ────────────────────────────────────────────────────────────────────
+// A male lion, side on, facing right: tawny coat, a dark shaggy mane, a pale
+// muzzle, amber eye, and a black tuft on the tail.
+const LIO = { base: '#c99a5a', line: '#3a2410', dark: '#a87c44' };
+const lionBody = c => { c.moveTo(-0.66, -0.08); c.bezierCurveTo(-0.7, 0.2, -0.5, 0.3, -0.2, 0.28); c.bezierCurveTo(0.1, 0.28, 0.3, 0.32, 0.38, 0.12); c.bezierCurveTo(0.4, -0.04, 0.36, -0.16, 0.3, -0.18); c.bezierCurveTo(0.0, -0.22, -0.4, -0.22, -0.66, -0.08); c.closePath(); };
+const lionLeg = x => c => { c.moveTo(x - 0.075, -0.06); c.lineTo(x - 0.07, -0.5); c.quadraticCurveTo(x, -0.56, x + 0.1, -0.52); c.lineTo(x + 0.075, -0.06); c.closePath(); };
+const lionMane = c => c.ellipse(0.48, 0.24, 0.3, 0.33, 0.2, 0, Math.PI * 2);
+const lionFace = c => { c.moveTo(0.5, 0.36); c.bezierCurveTo(0.62, 0.42, 0.78, 0.36, 0.82, 0.22); c.bezierCurveTo(0.84, 0.14, 0.8, 0.08, 0.72, 0.08); c.bezierCurveTo(0.62, 0.06, 0.54, 0.12, 0.5, 0.2); c.closePath(); };
+const lion = {
+    key: 'lion', name: 'LION', col: LIO.base, dark: LIO.line,
+    parts: [
+        [[-0.66, -0.1], [-0.6, 0.24], [-0.2, 0.29], [0.34, 0.24], [0.38, 0.0], [0.3, -0.19], [-0.5, -0.2]],
+        rect(0.16, 0.46, -0.48, -0.31),
+        rect(0.16, 0.46, 0.22, -0.31),
+        ell(0.32, 0.33, 0.52, 0.24, 10),
+    ],
+    draw(ctx, hot) {
+        const rnd = rng(227);
+        line(ctx, 0.022, LIO.line, () => { ctx.moveTo(-0.64, 0.12); ctx.bezierCurveTo(-0.82, 0.1, -0.84, -0.1, -0.76, -0.24); });
+        line(ctx, 0.012, LIO.base, () => { ctx.moveTo(-0.64, 0.12); ctx.bezierCurveTo(-0.82, 0.1, -0.84, -0.1, -0.76, -0.24); });
+        oval(ctx, -0.75, -0.27, 0.035, 0.055, '#2a1a0c', 0.3, LIO.line, 0.008);
+        for (const x of [-0.34, 0.34]) { const s = body(ctx, [lionLeg(x)], { ...LIO, base: LIO.dark }, { light: 0, shadow: 0.3 }); s.done(); }
+        const s = body(ctx, [lionBody, lionLeg(-0.48), lionLeg(0.22)], LIO, { top: 0.3, bottom: -0.56, light: 0.25, shadow: 0.3 });
+        strokes(s.g, rnd, [-0.66, -0.5, 0.38, 0.28], 160, { len: 0.035, ang: Math.PI + 0.2, col: 'rgba(120,80,30,.25)', w: 0.006 });
+        s.g.fillStyle = 'rgba(240,220,180,.5)'; s.g.beginPath(); s.g.ellipse(-0.15, -0.16, 0.4, 0.06, 0, 0, Math.PI * 2); s.g.fill();
+        s.done();
+        // the mane: a dark shaggy halo of long strands
+        const m = body(ctx, [lionMane], { base: '#7a4a1e', line: '#2a170a' }, { top: 0.58, bottom: -0.1, light: 0.25, shadow: 0.35 });
+        strokes(m.g, rnd, [0.18, -0.1, 0.8, 0.58], 260, { len: 0.08, ang: (x, y) => Math.atan2(y - 0.24, x - 0.5), jitter: 0.5, col: 'rgba(40,20,6,.45)', w: 0.01, curve: 0.4 });
+        strokes(m.g, rnd, [0.18, -0.1, 0.8, 0.58], 160, { len: 0.07, ang: (x, y) => Math.atan2(y - 0.24, x - 0.5), jitter: 0.5, col: 'rgba(214,150,70,.4)', w: 0.008, curve: 0.4 });
+        m.done();
+        const f = body(ctx, [lionFace], LIO, { top: 0.42, bottom: 0.06, light: 0.3, shadow: 0.2 });
+        f.g.fillStyle = 'rgba(245,228,195,.85)'; f.g.beginPath(); f.g.ellipse(0.76, 0.14, 0.08, 0.06, 0, 0, Math.PI * 2); f.g.fill();
+        f.done();
+        // nose, mouth, whisker dots, eye
+        ctx.beginPath(); ctx.moveTo(0.8, 0.22); ctx.lineTo(0.84, 0.2); ctx.lineTo(0.82, 0.16); ctx.closePath(); ctx.fillStyle = '#3a2218'; ctx.fill();
+        line(ctx, 0.008, LIO.line, () => { ctx.moveTo(0.82, 0.16); ctx.quadraticCurveTo(0.78, 0.1, 0.7, 0.11); });
+        for (const [x, y] of [[0.74, 0.15], [0.76, 0.13], [0.72, 0.13]]) oval(ctx, x, y, 0.005, 0.005, '#5a3a20');
+        eye(ctx, 0.66, 0.28, 0.022, hot, '#b07818');
+    },
+};
+
+// ── ZEBRA ───────────────────────────────────────────────────────────────────
+// A plains zebra, side on, facing right: a horse's build, bold black stripes
+// that wrap the body and band the legs, an upright striped mane.
+const ZEB = { base: '#f4f2ee', line: '#151313' };
+const zebBody = c => c.ellipse(-0.1, 0.06, 0.54, 0.26, 0.04, 0, Math.PI * 2);
+const zebNeck = c => { c.moveTo(0.2, 0.18); c.bezierCurveTo(0.28, 0.4, 0.36, 0.56, 0.44, 0.64); c.lineTo(0.6, 0.56); c.bezierCurveTo(0.54, 0.4, 0.5, 0.2, 0.42, 0.02); c.closePath(); };
+const zebHead = c => { c.moveTo(0.44, 0.66); c.bezierCurveTo(0.56, 0.7, 0.76, 0.5, 0.86, 0.38); c.bezierCurveTo(0.9, 0.32, 0.86, 0.26, 0.8, 0.28); c.bezierCurveTo(0.7, 0.32, 0.6, 0.42, 0.54, 0.5); c.closePath(); };
+const zebLeg = x => c => { c.moveTo(x - 0.06, -0.12); c.bezierCurveTo(x - 0.07, -0.34, x - 0.04, -0.5, x - 0.05, -0.62); c.lineTo(x + 0.05, -0.62); c.bezierCurveTo(x + 0.04, -0.5, x + 0.07, -0.34, x + 0.06, -0.12); c.closePath(); };
+const zebra = {
+    key: 'zebra', name: 'ZEBRA', col: ZEB.base, dark: ZEB.line,
+    parts: [
+        ell(0.54, 0.26, -0.1, 0.06, 10),
+        rect(0.13, 0.52, -0.44, -0.36),
+        rect(0.13, 0.52, 0.24, -0.36),
+        [[0.2, 0.18], [0.44, 0.64], [0.6, 0.56], [0.42, 0.02]],
+        [[0.44, 0.66], [0.6, 0.66], [0.88, 0.34], [0.8, 0.27], [0.54, 0.48]],
+    ],
+    draw(ctx, hot) {
+        const rnd = rng(229);
+        line(ctx, 0.016, ZEB.line, () => { ctx.moveTo(-0.62, 0.14); ctx.quadraticCurveTo(-0.72, 0.0, -0.7, -0.22); });
+        strokes(ctx, rnd, [-0.73, -0.34, -0.67, -0.22], 12, { len: 0.06, ang: -1.6, col: '#111', w: 0.01 });
+        for (const x of [-0.3, 0.36]) { const s = body(ctx, [zebLeg(x)], { ...ZEB, base: '#d8d6d0' }, { light: 0, shadow: 0.2 }); s.g.fillStyle = '#1c1a1a'; for (let y = -0.2; y > -0.6; y -= 0.07) s.g.fillRect(x - 0.08, y, 0.16, 0.03); s.done(); }
+        // the mane stands up along the neck
+        ctx.strokeStyle = ZEB.line; ctx.lineCap = 'round';
+        for (let i = 0; i <= 12; i++) { const t = i / 12, x = 0.22 + 0.22 * t, y = 0.22 + 0.44 * t; ctx.lineWidth = 0.05; ctx.strokeStyle = i % 2 ? '#f4f2ee' : '#151313'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 0.06, y + 0.04); ctx.stroke(); }
+        const s = body(ctx, [zebBody, zebNeck, zebHead, zebLeg(-0.44), zebLeg(0.24)], ZEB, { top: 0.7, bottom: -0.62, light: 0.15, shadow: 0.2 });
+        // stripes: bands that bend round the barrel, chevrons on the rump, rings on the legs
+        s.g.fillStyle = '#1a1818';
+        for (let x = -0.5; x < 0.4; x += 0.085) { s.g.beginPath(); s.g.moveTo(x, 0.34); s.g.bezierCurveTo(x + 0.06, 0.1, x - 0.02, -0.06, x + 0.05, -0.22); s.g.lineTo(x + 0.085, -0.22); s.g.bezierCurveTo(x + 0.02, -0.06, x + 0.1, 0.1, x + 0.035, 0.34); s.g.closePath(); s.g.fill(); }
+        for (let i = 0; i < 6; i++) { const t = i / 6; s.g.beginPath(); s.g.moveTo(0.22 + 0.24 * t, 0.2 + 0.46 * t); s.g.lineTo(0.48 + 0.12 * t, 0.06 + 0.5 * t); s.g.lineTo(0.5 + 0.12 * t, 0.1 + 0.5 * t); s.g.lineTo(0.25 + 0.24 * t, 0.25 + 0.46 * t); s.g.closePath(); s.g.fill(); }
+        for (let i = 0; i < 5; i++) { s.g.beginPath(); s.g.moveTo(0.5 + i * 0.07, 0.66 - i * 0.05); s.g.lineTo(0.56 + i * 0.07, 0.6 - i * 0.07); s.g.lineTo(0.58 + i * 0.07, 0.62 - i * 0.07); s.g.lineTo(0.52 + i * 0.07, 0.68 - i * 0.05); s.g.closePath(); s.g.fill(); }
+        for (const x of [-0.44, 0.24]) for (let y = -0.18; y > -0.6; y -= 0.07) s.g.fillRect(x - 0.08, y, 0.16, 0.03);
+        s.g.beginPath(); s.g.ellipse(0.84, 0.32, 0.06, 0.05, 0.6, 0, Math.PI * 2); s.g.fill();
+        s.done();
+        oval(ctx, 0.46, 0.68, 0.05, 0.022, '#f4f2ee', 1.2, ZEB.line, LW * 0.6);
+        oval(ctx, 0.86, 0.34, 0.01, 0.008, '#555');
+        eye(ctx, 0.62, 0.52, 0.022, hot);
+    },
+};
+
+// ── HIPPO ───────────────────────────────────────────────────────────────────
+// A hippopotamus, side on, facing right: a vast barrel on stubby legs, the
+// huge square muzzle, little ears and eyes up top, pinkish skin underneath.
+const HIP = { base: '#8a7a82', line: '#2c2228', dark: '#6c5c66' };
+const hipBody = c => { c.moveTo(-0.74, -0.12); c.bezierCurveTo(-0.76, 0.24, -0.5, 0.4, -0.16, 0.4); c.bezierCurveTo(0.2, 0.4, 0.42, 0.34, 0.5, 0.16); c.lineTo(0.48, -0.2); c.bezierCurveTo(0.1, -0.3, -0.4, -0.3, -0.74, -0.12); c.closePath(); };
+const hipHead = c => { c.moveTo(0.38, 0.3); c.bezierCurveTo(0.5, 0.36, 0.62, 0.34, 0.72, 0.26); c.bezierCurveTo(0.84, 0.22, 0.96, 0.16, 0.98, 0.02); c.bezierCurveTo(0.98, -0.12, 0.9, -0.18, 0.76, -0.18); c.bezierCurveTo(0.6, -0.2, 0.48, -0.16, 0.42, -0.1); c.closePath(); };
+const hipLeg = x => c => { c.moveTo(x - 0.1, -0.12); c.lineTo(x - 0.11, -0.42); c.quadraticCurveTo(x, -0.47, x + 0.11, -0.42); c.lineTo(x + 0.1, -0.12); c.closePath(); };
+const hippo = {
+    key: 'hippo', name: 'HIPPO', col: HIP.base, dark: HIP.line,
+    parts: [
+        [[-0.74, -0.14], [-0.68, 0.24], [-0.36, 0.4], [0.2, 0.4], [0.5, 0.16], [0.48, -0.22], [-0.4, -0.27]],
+        [[0.38, 0.3], [0.62, 0.34], [0.94, 0.16], [0.98, -0.1], [0.76, -0.18], [0.42, -0.12]],
+        rect(0.22, 0.3, -0.5, -0.29),
+        rect(0.22, 0.3, 0.24, -0.29),
+    ],
+    draw(ctx, hot) {
+        const rnd = rng(233);
+        line(ctx, 0.022, HIP.line, () => { ctx.moveTo(-0.72, 0.12); ctx.lineTo(-0.82, 0.04); });
+        for (const x of [-0.34, 0.38]) { const s = body(ctx, [hipLeg(x)], { ...HIP, base: HIP.dark }, { light: 0, shadow: 0.3 }); s.done(); }
+        const s = body(ctx, [hipBody, hipHead, hipLeg(-0.5), hipLeg(0.24)], HIP, { top: 0.42, bottom: -0.44, light: 0.35, shadow: 0.25 });
+        // pink underside and muzzle, a wet sheen, sparse bristles
+        const pg = s.g.createLinearGradient(0, 0.0, 0, -0.3); pg.addColorStop(0, 'rgba(214,150,150,0)'); pg.addColorStop(1, 'rgba(214,150,150,.75)');
+        s.g.fillStyle = pg; s.g.fillRect(-0.8, -0.45, 1.8, 0.45);
+        s.g.fillStyle = 'rgba(214,150,150,.5)'; s.g.beginPath(); s.g.ellipse(0.84, -0.04, 0.14, 0.12, 0, 0, Math.PI * 2); s.g.fill();
+        s.g.fillStyle = 'rgba(255,255,255,.18)'; s.g.beginPath(); s.g.ellipse(-0.2, 0.3, 0.38, 0.05, -0.05, 0, Math.PI * 2); s.g.fill();
+        spots(s.g, rnd, [-0.7, -0.25, 0.95, 0.38], 50, 0.03, 'rgba(60,40,50,.15)');
+        for (const x of [-0.5, 0.24]) for (const d of [-0.06, 0.0, 0.06]) oval(s.g, x + d, -0.42, 0.024, 0.016, '#d8c8c0');
+        s.done();
+        // mouth line, nostril, ear, eye bump
+        line(ctx, 0.01, HIP.line, () => { ctx.moveTo(0.97, -0.06); ctx.bezierCurveTo(0.86, -0.08, 0.7, -0.06, 0.6, -0.02); });
+        oval(ctx, 0.92, 0.16, 0.022, 0.014, '#3a2a30', 0.4);
+        oval(ctx, 0.46, 0.38, 0.04, 0.03, HIP.base, 0, HIP.line, LW * 0.7);
+        oval(ctx, 0.62, 0.32, 0.05, 0.035, HIP.base, 0, HIP.line, LW * 0.7);
+        eye(ctx, 0.63, 0.33, 0.018, hot, '#3a1c10');
+    },
+};
+
+// ── FLAMINGO ────────────────────────────────────────────────────────────────
+// A greater flamingo standing on one leg: pink plumage deepening on the wing,
+// black flight feathers, an S-curved neck, the bent black-tipped bill.
+const FLA = { base: '#f2a0a8', line: '#5c2430' };
+const flaBody = c => c.ellipse(-0.06, 0.3, 0.34, 0.2, -0.12, 0, Math.PI * 2);
+const flaNeck = c => { c.moveTo(0.16, 0.34); c.bezierCurveTo(0.34, 0.4, 0.36, 0.56, 0.26, 0.66); c.bezierCurveTo(0.18, 0.76, 0.22, 0.86, 0.3, 0.88); c.lineTo(0.36, 0.82); c.bezierCurveTo(0.3, 0.8, 0.3, 0.74, 0.36, 0.68); c.bezierCurveTo(0.48, 0.54, 0.42, 0.34, 0.26, 0.24); c.closePath(); };
+const flaHead = c => c.ellipse(0.34, 0.86, 0.08, 0.06, 0, 0, Math.PI * 2);
+const flamingo = {
+    key: 'flamingo', name: 'FLAMINGO', col: FLA.base, dark: FLA.line,
+    parts: [
+        ell(0.34, 0.2, -0.06, 0.3, 10),
+        [[0.16, 0.34], [0.36, 0.5], [0.36, 0.86], [0.26, 0.88], [0.24, 0.6], [0.26, 0.24]],
+        [[0.28, 0.9], [0.42, 0.9], [0.56, 0.78], [0.52, 0.72], [0.3, 0.8]],
+        rect(0.05, 0.62, 0.0, -0.14),
+        [[-0.16, -0.48], [0.16, -0.48], [0.14, -0.42], [-0.14, -0.42]],
+    ],
+    draw(ctx, hot) {
+        const rnd = rng(239);
+        // the standing leg, knee bending backwards, and the folded one
+        line(ctx, 0.04, '#7a2a36', () => { ctx.moveTo(0.0, 0.14); ctx.lineTo(0.02, -0.12); ctx.lineTo(0.0, -0.44); });
+        line(ctx, 0.026, '#e08a92', () => { ctx.moveTo(0.0, 0.14); ctx.lineTo(0.02, -0.12); ctx.lineTo(0.0, -0.44); });
+        oval(ctx, 0.02, -0.12, 0.022, 0.02, '#e08a92', 0, '#7a2a36', 0.008);
+        line(ctx, 0.022, '#c87078', () => { ctx.moveTo(-0.04, 0.16); ctx.lineTo(-0.16, 0.0); ctx.lineTo(-0.02, -0.06); });
+        ctx.beginPath(); ctx.moveTo(-0.15, -0.44); ctx.lineTo(0.15, -0.44); ctx.lineTo(0.0, -0.48); ctx.closePath(); ctx.fillStyle = '#d07880'; ctx.fill(); ctx.lineWidth = 0.008; ctx.strokeStyle = '#7a2a36'; ctx.stroke();
+        const s = body(ctx, [flaBody, flaNeck, flaHead], FLA, { top: 0.92, bottom: 0.1, light: 0.25, shadow: 0.25 });
+        // wing coverts: deeper pink scalloped rows; black primaries at the tail
+        for (let r = 0; r < 3; r++) for (let i = 0; i < 6; i++) { const x = -0.3 + i * 0.07 + r * 0.03, y = 0.36 - r * 0.07; oval(s.g, x, y, 0.045, 0.03, `rgba(226,${90 + r * 15},${105 + r * 10},.75)`, -0.2); }
+        s.g.fillStyle = '#1a1416'; s.g.beginPath(); s.g.moveTo(-0.42, 0.34); s.g.bezierCurveTo(-0.3, 0.26, -0.2, 0.22, -0.1, 0.2); s.g.lineTo(-0.4, 0.22); s.g.closePath(); s.g.fill();
+        strokes(s.g, rnd, [-0.38, 0.12, 0.4, 0.9], 120, { len: 0.025, ang: Math.PI + 0.2, col: 'rgba(255,230,232,.35)', w: 0.006 });
+        s.done();
+        // the bill: pale, bending down, black at the tip
+        ctx.beginPath(); ctx.moveTo(0.38, 0.9); ctx.bezierCurveTo(0.48, 0.9, 0.54, 0.84, 0.56, 0.76); ctx.lineTo(0.5, 0.74); ctx.bezierCurveTo(0.48, 0.8, 0.44, 0.82, 0.38, 0.82); ctx.closePath();
+        ctx.fillStyle = '#f6e2da'; ctx.fill(); ctx.lineWidth = LW * 0.7; ctx.strokeStyle = FLA.line; ctx.stroke();
+        ctx.save(); ctx.clip(); ctx.fillStyle = '#1a1416'; ctx.fillRect(0.47, 0.7, 0.12, 0.13); ctx.restore();
+        eye(ctx, 0.35, 0.87, 0.014, hot, '#d8a020');
+    },
+};
+
+// ── BARN OWL ────────────────────────────────────────────────────────────────
+// A barn owl perched upright, front on: the white heart-shaped face, dark
+// eyes, golden-buff wings mottled with grey, a speckled white front.
+const OWL = { base: '#d8ab6c', line: '#4a3014' };
+const owlBody = c => c.ellipse(0, -0.04, 0.32, 0.46, 0, 0, Math.PI * 2);
+const owlHead = c => c.ellipse(0, 0.42, 0.3, 0.26, 0, 0, Math.PI * 2);
+const owl = {
+    key: 'owl', name: 'BARN OWL', col: OWL.base, dark: OWL.line,
+    parts: [
+        ell(0.32, 0.46, 0, -0.04, 10),
+        ell(0.3, 0.26, 0, 0.42, 10),
+        [[-0.2, -0.54], [0.2, -0.54], [0.2, -0.44], [-0.2, -0.44]],
+    ],
+    draw(ctx, hot) {
+        const rnd = rng(241);
+        // talons
+        for (const x of [-0.1, 0.1]) for (const d of [-0.04, 0, 0.04]) line(ctx, 0.016, '#5a4a40', () => { ctx.moveTo(x, -0.44); ctx.lineTo(x + d, -0.53); });
+        const s = body(ctx, [owlBody, owlHead], OWL, { top: 0.68, bottom: -0.5, light: 0.25, shadow: 0.3 });
+        // grey mottling on the buff back and wings
+        spots(s.g, rnd, [-0.32, -0.4, 0.32, 0.66], 60, 0.02, 'rgba(110,110,120,.35)');
+        // white breast with fine dark specks
+        s.g.fillStyle = '#f7f1e6'; s.g.beginPath(); s.g.ellipse(0, -0.08, 0.2, 0.36, 0, 0, Math.PI * 2); s.g.fill();
+        spots(s.g, rnd, [-0.16, -0.38, 0.16, 0.22], 30, 0.008, 'rgba(60,40,20,.6)');
+        // wing edges with feather rows
+        for (const sd of [-1, 1]) for (let i = 0; i < 6; i++) line(s.g, 0.008, 'rgba(90,60,30,.45)', () => { const y = 0.16 - i * 0.09; s.g.moveTo(sd * 0.32, y); s.g.quadraticCurveTo(sd * 0.22, y - 0.04, sd * 0.2, y - 0.08); });
+        // the heart-shaped facial disc
+        s.g.fillStyle = '#fbf7ef'; s.g.strokeStyle = '#c99a58'; s.g.lineWidth = 0.02;
+        s.g.beginPath(); s.g.moveTo(0, 0.54); s.g.bezierCurveTo(-0.12, 0.66, -0.3, 0.6, -0.26, 0.42); s.g.bezierCurveTo(-0.24, 0.28, -0.08, 0.2, 0, 0.16); s.g.bezierCurveTo(0.08, 0.2, 0.24, 0.28, 0.26, 0.42); s.g.bezierCurveTo(0.3, 0.6, 0.12, 0.66, 0, 0.54); s.g.closePath(); s.g.fill(); s.g.stroke();
+        strokes(s.g, rnd, [-0.24, 0.22, 0.24, 0.56], 60, { len: 0.04, ang: (x, y) => Math.atan2(y - 0.42, x - Math.sign(x) * 0.11), col: 'rgba(200,180,150,.35)', w: 0.005 });
+        s.done();
+        eye(ctx, -0.1, 0.43, 0.04, hot, '#120a06'); eye(ctx, 0.1, 0.43, 0.04, hot, '#120a06');
+        ctx.beginPath(); ctx.moveTo(-0.025, 0.36); ctx.lineTo(0.025, 0.36); ctx.lineTo(0, 0.28); ctx.closePath(); ctx.fillStyle = '#e8d2b8'; ctx.fill(); ctx.lineWidth = 0.008; ctx.strokeStyle = OWL.line; ctx.stroke();
+    },
+};
+
+// ── SEAL ────────────────────────────────────────────────────────────────────
+// A harbour seal hauled out, side on, facing right: a long grey body freckled
+// with dark spots, front flipper with claws, hind flippers, a whiskered
+// muzzle and big dark eyes.
+const SEL = { base: '#8e949a', line: '#262a2e' };
+const sealBody = c => { c.moveTo(-0.84, -0.04); c.bezierCurveTo(-0.66, 0.06, -0.3, 0.2, 0.1, 0.22); c.bezierCurveTo(0.34, 0.24, 0.5, 0.2, 0.56, 0.1); c.bezierCurveTo(0.58, -0.06, 0.5, -0.18, 0.3, -0.2); c.bezierCurveTo(-0.1, -0.22, -0.5, -0.16, -0.84, -0.1); c.closePath(); };
+const sealHead = c => { c.moveTo(0.44, 0.24); c.bezierCurveTo(0.52, 0.38, 0.7, 0.4, 0.8, 0.32); c.bezierCurveTo(0.88, 0.26, 0.88, 0.16, 0.82, 0.12); c.bezierCurveTo(0.74, 0.06, 0.6, 0.08, 0.5, 0.06); c.closePath(); };
+const sealTail = c => { c.moveTo(-0.82, -0.02); c.bezierCurveTo(-0.92, 0.04, -1.0, 0.06, -1.02, 0.0); c.bezierCurveTo(-1.0, -0.08, -0.94, -0.12, -0.84, -0.1); c.closePath(); };
+const seal = {
+    key: 'seal', name: 'SEAL', col: SEL.base, dark: SEL.line,
+    parts: [
+        [[-0.84, -0.1], [-0.84, -0.03], [-0.3, 0.18], [0.1, 0.23], [0.5, 0.18], [0.57, 0.02], [0.3, -0.21], [-0.2, -0.2]],
+        [[0.44, 0.24], [0.62, 0.38], [0.8, 0.33], [0.87, 0.18], [0.78, 0.07], [0.5, 0.06]],
+        [[-1.02, 0.0], [-0.92, 0.05], [-0.82, -0.02], [-0.84, -0.11], [-0.96, -0.1]],
+    ],
+    draw(ctx, hot) {
+        const rnd = rng(251);
+        const s = body(ctx, [sealTail, sealBody, sealHead], SEL, { top: 0.4, bottom: -0.22, light: 0.4, shadow: 0.25 });
+        // a paler belly, dark freckles, and a wet sheen along the back
+        s.g.fillStyle = 'rgba(214,214,206,.6)'; s.g.beginPath(); s.g.moveTo(-0.7, -0.1); s.g.bezierCurveTo(-0.2, -0.12, 0.3, -0.14, 0.56, -0.02); s.g.lineTo(0.56, -0.25); s.g.lineTo(-0.7, -0.25); s.g.closePath(); s.g.fill();
+        spots(s.g, rnd, [-0.84, -0.12, 0.86, 0.36], 70, 0.018, 'rgba(40,44,48,.55)');
+        s.g.fillStyle = 'rgba(255,255,255,.3)'; s.g.beginPath(); s.g.ellipse(-0.1, 0.16, 0.36, 0.03, 0.08, 0, Math.PI * 2); s.g.fill();
+        s.done();
+        // front flipper with its claws
+        ctx.beginPath(); ctx.moveTo(0.22, -0.02); ctx.bezierCurveTo(0.3, -0.1, 0.34, -0.18, 0.3, -0.22); ctx.lineTo(0.14, -0.2); ctx.bezierCurveTo(0.16, -0.12, 0.16, -0.06, 0.22, -0.02);
+        ctx.fillStyle = '#7a8086'; ctx.fill(); ctx.lineWidth = LW * 0.8; ctx.strokeStyle = SEL.line; ctx.stroke();
+        for (const d of [0.0, 0.05, 0.1]) line(ctx, 0.008, '#1c1e20', () => { ctx.moveTo(0.16 + d, -0.2); ctx.lineTo(0.15 + d, -0.23); });
+        // muzzle: nose, whisker pads, whiskers
+        oval(ctx, 0.86, 0.2, 0.018, 0.012, '#1c1e20');
+        for (const [x, y] of [[0.8, 0.16], [0.82, 0.13], [0.78, 0.14]]) oval(ctx, x, y, 0.005, 0.005, '#3a3e42');
+        line(ctx, 0.004, 'rgba(240,240,232,.85)', () => { for (const d of [0.04, 0.0, -0.04]) { ctx.moveTo(0.8, 0.15); ctx.lineTo(0.98, 0.16 + d); } });
+        eye(ctx, 0.7, 0.28, 0.035, hot, '#0c0c0c');
+    },
+};
+
+export const ART = { pig, elephant, giraffe, penguin, panda, turtle, croc, rabbit, cat, hedgehog, frog, cow, sheep, lion, zebra, hippo, flamingo, owl, seal };
 
 // ── Sprites ─────────────────────────────────────────────────────────────────
 // Paint an animal once at `ppm` pixels per metre and keep it. Returns the

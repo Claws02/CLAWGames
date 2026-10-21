@@ -35,7 +35,7 @@ const ISLAND_W   = 4.6, ISLAND_TOP = 0.25;
 const FALL_Y     = -1.4;    // a body below this has gone into the sea
 const FALL_X     = 6;
 const AIM_X      = 2.9;     // the claw can reach a little past the island's edge
-const HOLD_GAP   = 1.9;     // how far above the pile's top the claw holds the animal
+const HOLD_GAP   = 1.35;    // how far above the pile's top the claw holds the animal
 const TURN_TIME  = 20;
 const SETTLE_V   = 0.08, SETTLE_W = 0.1, SETTLE_FOR = 0.6, SETTLE_MAX = 7;
 const STEP       = 1 / 60;
@@ -93,6 +93,8 @@ export const CAST = [
 // The illustrated versions (AnimalArt.js) replace the first drafts as they're
 // drawn: their own physics parts and their own draw().
 CAST.forEach((a, i) => { if (ART[a.key]) CAST[i] = ART[a.key]; });
+// ...and animals that only exist in the new style join the deck.
+Object.values(ART).forEach(a => { if (!CAST.some(c => c.key === a.key)) CAST.push(a); });
 
 // Body-space bounds of each animal, for the hold height and the claw.
 CAST.forEach(a => {
@@ -375,7 +377,7 @@ function _simulate(pile, def, x, angle) {
         return { b: _addAnimal(w, d, p.x, p.y, body.getAngle()), x: p.x, y: p.y, a: body.getAngle() };
     });
     const nb = _addAnimal(w, def, x, _stackTop(pile) + HOLD_GAP + def.r * 0.4, angle);
-    for (let s = 0; s < 150; s++) w.step(STEP, 6, 2);
+    for (let s = 0; s < 240; s++) w.step(STEP, 6, 2);   // 4 s: long enough to catch a slow topple
     let moved = 0;
     for (const c of copy) {
         const p = c.b.getPosition();
