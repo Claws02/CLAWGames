@@ -347,7 +347,286 @@ const panda = {
     },
 };
 
-export const ART = { pig, elephant, giraffe, penguin, panda };
+// ── TORTOISE ────────────────────────────────────────────────────────────────
+// A land tortoise, side on, facing right: a high domed shell of plates with
+// growth rings, a scaly head and stumpy elephantine legs.
+const TOR = { base: '#86825a', line: '#2f2a1a', dark: '#5f5c3e' };
+const SHELL = { base: '#7b5a30', line: '#2a1d0e' };
+const torShell = c => { c.moveTo(-0.66, -0.15); c.bezierCurveTo(-0.66, 0.2, -0.36, 0.46, 0.0, 0.46); c.bezierCurveTo(0.36, 0.46, 0.64, 0.2, 0.64, -0.15); c.closePath(); };
+const torHead = c => { c.moveTo(0.5, -0.06); c.bezierCurveTo(0.58, 0.08, 0.74, 0.14, 0.86, 0.1); c.bezierCurveTo(0.96, 0.06, 0.97, -0.04, 0.9, -0.08); c.bezierCurveTo(0.8, -0.13, 0.62, -0.14, 0.52, -0.16); c.closePath(); };
+const torLeg = x => c => { c.moveTo(x - 0.11, -0.1); c.lineTo(x - 0.12, -0.4); c.quadraticCurveTo(x, -0.46, x + 0.12, -0.4); c.lineTo(x + 0.11, -0.1); c.closePath(); };
+const turtle = {
+    key: 'turtle', name: 'TORTOISE', col: SHELL.base, dark: SHELL.line,
+    parts: [
+        [[-0.66, -0.15], [-0.58, 0.16], [-0.34, 0.38], [0.0, 0.46], [0.34, 0.38], [0.58, 0.16], [0.64, -0.15]],
+        rect(0.24, 0.32, -0.4, -0.28),
+        rect(0.24, 0.32, 0.34, -0.28),
+        [[0.5, -0.06], [0.7, 0.13], [0.88, 0.1], [0.96, 0.0], [0.9, -0.09], [0.52, -0.16]],
+    ],
+    draw(ctx, hot) {
+        const rnd = rng(83);
+        for (const x of [-0.24, 0.48]) { const s = body(ctx, [torLeg(x)], { ...TOR, base: TOR.dark }, { light: 0, shadow: 0.3 }); s.done(); }
+        const k = body(ctx, [torHead, torLeg(-0.4), torLeg(0.34)], TOR, { top: 0.15, bottom: -0.45 });
+        spots(k.g, rnd, [-0.55, -0.45, 0.95, 0.14], 60, 0.022, 'rgba(40,36,20,.35)');
+        spots(k.g, rnd, [-0.55, -0.45, 0.95, 0.14], 40, 0.018, 'rgba(255,250,220,.18)');
+        for (const x of [-0.4, 0.34]) for (const d of [-0.07, 0, 0.07]) oval(k.g, x + d, -0.42, 0.022, 0.016, '#d8cfa8');
+        k.done();
+        // the shell: rim of marginal plates, then the big scutes with growth rings
+        const s = body(ctx, [torShell], SHELL, { top: 0.46, bottom: -0.16, light: 0.3, shadow: 0.35 });
+        const plate = (cx, cy, rx, ry, rot) => {
+            s.g.beginPath();
+            for (let i = 0; i < 6; i++) { const a = rot + i * Math.PI / 3; const px = cx + Math.cos(a) * rx, py = cy + Math.sin(a) * ry; i ? s.g.lineTo(px, py) : s.g.moveTo(px, py); }
+            s.g.closePath();
+            const pg = s.g.createRadialGradient(cx, cy, 0.01, cx, cy, Math.max(rx, ry));
+            pg.addColorStop(0, '#c99a52'); pg.addColorStop(0.55, '#9a6f38'); pg.addColorStop(1, '#5a3d1a');
+            s.g.fillStyle = pg; s.g.fill(); s.g.lineWidth = 0.014; s.g.strokeStyle = '#2a1d0e'; s.g.stroke();
+            for (const f of [0.75, 0.5]) { s.g.beginPath(); for (let i = 0; i < 6; i++) { const a = rot + i * Math.PI / 3; const px = cx + Math.cos(a) * rx * f, py = cy + Math.sin(a) * ry * f; i ? s.g.lineTo(px, py) : s.g.moveTo(px, py); } s.g.closePath(); s.g.lineWidth = 0.006; s.g.strokeStyle = 'rgba(40,25,10,.4)'; s.g.stroke(); }
+        };
+        for (let i = 0; i < 9; i++) { const a = Math.PI * (0.06 + i * 0.11); plate(Math.cos(a) * -0.6, -0.1 + Math.sin(a) * 0.5, 0.075, 0.06, a); }
+        for (const [cx, cy] of [[-0.36, 0.06], [0.0, 0.1], [0.36, 0.06]]) plate(cx, cy, 0.17, 0.15, Math.PI / 6);
+        for (const [cx, cy] of [[-0.18, 0.32], [0.18, 0.32]]) plate(cx, cy, 0.13, 0.1, Math.PI / 6);
+        s.done();
+        line(ctx, 0.012, '#2a1d0e', () => { ctx.moveTo(-0.66, -0.15); ctx.lineTo(0.64, -0.15); });
+        // face: a hooked beak line, nostril, eye
+        line(ctx, 0.01, TOR.line, () => { ctx.moveTo(0.94, -0.03); ctx.quadraticCurveTo(0.86, -0.06, 0.78, -0.04); });
+        oval(ctx, 0.92, 0.04, 0.008, 0.008, '#1c1a10');
+        eye(ctx, 0.8, 0.05, 0.022, hot, '#3a2a10');
+    },
+};
+
+// ── CROCODILE ───────────────────────────────────────────────────────────────
+// A Nile crocodile lying flat, side on, facing right: armoured back with rows
+// of ridged scutes, a serrated tail, a pale belly, a long toothy snout and a
+// raised eye with a slit pupil.
+const CRO = { base: '#5a6838', line: '#1c2210', dark: '#3e4826' };
+const croBody = c => { c.moveTo(-1.12, -0.06); c.bezierCurveTo(-0.9, 0.0, -0.6, 0.1, -0.3, 0.14); c.bezierCurveTo(0.1, 0.18, 0.4, 0.16, 0.58, 0.1); c.lineTo(0.58, -0.14); c.bezierCurveTo(0.2, -0.2, -0.3, -0.18, -0.6, -0.12); c.bezierCurveTo(-0.85, -0.08, -1.0, -0.08, -1.12, -0.06); c.closePath(); };
+const croHead = c => { c.moveTo(0.52, 0.11); c.bezierCurveTo(0.62, 0.15, 0.72, 0.16, 0.8, 0.12); c.bezierCurveTo(0.95, 0.07, 1.12, 0.06, 1.18, 0.02); c.bezierCurveTo(1.2, -0.04, 1.16, -0.08, 1.08, -0.09); c.bezierCurveTo(0.9, -0.11, 0.7, -0.14, 0.52, -0.14); c.closePath(); };
+const croLeg = (x, back) => c => { c.moveTo(x - 0.07, -0.08); c.lineTo(x - (back ? 0.1 : 0.05), -0.28); c.lineTo(x + 0.1, -0.28); c.lineTo(x + 0.08, -0.08); c.closePath(); };
+const croc = {
+    key: 'croc', name: 'CROC', col: CRO.base, dark: CRO.line,
+    parts: [
+        [[-0.42, -0.17], [-0.42, 0.12], [0.3, 0.17], [0.58, 0.1], [0.58, -0.14], [0.3, -0.18]],
+        [[-1.12, -0.07], [-1.0, -0.01], [-0.42, 0.12], [-0.42, -0.17], [-0.9, -0.09]],
+        [[0.52, -0.14], [0.52, 0.11], [0.78, 0.15], [1.18, 0.03], [1.16, -0.08], [0.8, -0.13]],
+        rect(0.18, 0.2, -0.28, -0.2),
+        rect(0.18, 0.2, 0.34, -0.2),
+    ],
+    draw(ctx, hot) {
+        const rnd = rng(97);
+        for (const x of [-0.14, 0.46]) { const s = body(ctx, [croLeg(x, x < 0)], { ...CRO, base: CRO.dark }, { light: 0, shadow: 0.3 }); s.done(); }
+        const s = body(ctx, [croBody, croHead, croLeg(-0.28, true), croLeg(0.34)], CRO, { top: 0.18, bottom: -0.28, light: 0.22, shadow: 0.2 });
+        // pale belly scales underneath
+        s.g.fillStyle = '#c4bd84'; s.g.beginPath(); s.g.moveTo(-1.0, -0.08); s.g.bezierCurveTo(-0.5, -0.06, 0.2, -0.08, 1.1, -0.06); s.g.lineTo(1.1, -0.2); s.g.lineTo(-1.0, -0.2); s.g.closePath(); s.g.fill();
+        for (let x = -0.9; x < 1.0; x += 0.06) line(s.g, 0.005, 'rgba(60,60,30,.35)', () => { s.g.moveTo(x, -0.07); s.g.lineTo(x, -0.2); });
+        // armour: a grid of scutes on the flank, bony bumps along the back
+        for (let x = -0.95; x < 0.55; x += 0.07) for (let y = -0.04; y < 0.14; y += 0.06) {
+            const top = y + 0.06 > 0.1 - Math.abs(x + 0.2) * 0.12;
+            if (y > 0.12 - Math.abs(x + 0.1) * 0.15) continue;
+            s.g.fillStyle = rnd() < 0.5 ? 'rgba(30,38,15,.35)' : 'rgba(120,130,70,.3)';
+            s.g.beginPath(); s.g.rect(x + 0.006, y + 0.006, 0.058, 0.048); s.g.fill();
+        }
+        spots(s.g, rnd, [0.55, -0.1, 1.15, 0.12], 40, 0.012, 'rgba(25,30,10,.4)');
+        s.g.fillStyle = 'rgba(25,30,12,.8)';
+        s.done();
+        // the serrated ridge down the back and tail
+        ctx.fillStyle = CRO.dark; ctx.strokeStyle = CRO.line; ctx.lineWidth = 0.008;
+        for (let x = -1.05; x < 0.45; x += 0.07) {
+            const y = x < -0.3 ? -0.04 + (x + 1.12) * 0.22 : 0.15;
+            const h = x < -0.3 ? 0.035 : 0.022;
+            ctx.beginPath(); ctx.moveTo(x - 0.025, y - 0.005); ctx.lineTo(x, y + h); ctx.lineTo(x + 0.025, y - 0.005); ctx.closePath(); ctx.fill(); ctx.stroke();
+        }
+        // jaw line with teeth, nostril, the raised eye
+        line(ctx, 0.01, CRO.line, () => { ctx.moveTo(0.62, -0.06); ctx.bezierCurveTo(0.8, -0.05, 1.0, -0.03, 1.16, -0.02); });
+        ctx.fillStyle = '#f2ecd6'; ctx.strokeStyle = 'rgba(28,34,16,.7)'; ctx.lineWidth = 0.004;
+        for (let x = 0.7; x < 1.14; x += 0.05) { const y = -0.05 + (x - 0.62) * 0.06; ctx.beginPath(); ctx.moveTo(x - 0.012, y); ctx.lineTo(x, y - 0.035); ctx.lineTo(x + 0.012, y); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+        oval(ctx, 1.12, 0.05, 0.016, 0.01, '#1c2210');
+        oval(ctx, 0.78, 0.15, 0.06, 0.04, CRO.base, 0, CRO.line);
+        oval(ctx, 0.79, 0.155, 0.035, 0.026, hot ? '#f4efe6' : '#d8b23a', 0, '#1c2210', 0.006);
+        oval(ctx, 0.79, 0.155, 0.007, hot ? 0.01 : 0.022, '#0a0a04');
+    },
+};
+
+// ── RABBIT ──────────────────────────────────────────────────────────────────
+// A wild rabbit sitting up, side on, facing right: agouti fur, long upright
+// ears with dark tips, a big dark eye, a white scut.
+const RAB = { base: '#9c8264', line: '#3a2c1e' };
+const rabBody = c => c.ellipse(-0.08, -0.08, 0.42, 0.32, 0.15, 0, Math.PI * 2);
+const rabHead = c => { c.moveTo(0.14, 0.14); c.bezierCurveTo(0.16, 0.36, 0.42, 0.4, 0.52, 0.26); c.bezierCurveTo(0.58, 0.18, 0.56, 0.08, 0.48, 0.06); c.bezierCurveTo(0.36, 0.02, 0.2, 0.02, 0.14, 0.14); c.closePath(); };
+const rabEar = (dx, lean) => c => { c.moveTo(0.18 + dx, 0.32); c.bezierCurveTo(0.12 + dx - lean, 0.56, 0.12 + dx - lean, 0.78, 0.18 + dx - lean, 0.8); c.bezierCurveTo(0.26 + dx - lean, 0.8, 0.3 + dx - lean * 0.6, 0.56, 0.3 + dx, 0.34); c.closePath(); };
+const rabFeet = c => { c.moveTo(-0.44, -0.3); c.bezierCurveTo(-0.44, -0.42, -0.2, -0.43, 0.0, -0.42); c.lineTo(0.38, -0.42); c.bezierCurveTo(0.42, -0.4, 0.4, -0.34, 0.3, -0.32); c.lineTo(-0.3, -0.26); c.closePath(); };
+const rabbit = {
+    key: 'rabbit', name: 'BUNNY', col: RAB.base, dark: RAB.line,
+    parts: [
+        ell(0.42, 0.32, -0.08, -0.08, 10),
+        [[0.14, 0.14], [0.22, 0.34], [0.46, 0.34], [0.57, 0.16], [0.48, 0.05], [0.2, 0.04]],
+        [[0.18, 0.32], [0.3, 0.34], [0.24, 0.8], [0.12, 0.79]],
+        [[-0.44, -0.43], [0.4, -0.43], [0.4, -0.32], [-0.44, -0.28]],
+    ],
+    draw(ctx, hot) {
+        const rnd = rng(109);
+        // far ear, in shadow, leaning back
+        const f = body(ctx, [rabEar(-0.07, 0.08)], { ...RAB, base: '#85694e' }, { light: 0, shadow: 0.2, top: 0.8, bottom: 0.3 }); f.done();
+        const s = body(ctx, [rabBody, rabHead, rabEar(0, 0.02), rabFeet], RAB, { top: 0.8, bottom: -0.44, light: 0.2, shadow: 0.3 });
+        // agouti: dark and pale hairs, a cream chest and belly
+        s.g.fillStyle = 'rgba(232,218,190,.85)'; s.g.beginPath(); s.g.ellipse(0.18, -0.12, 0.16, 0.2, -0.3, 0, Math.PI * 2); s.g.fill();
+        strokes(s.g, rnd, [-0.5, -0.42, 0.56, 0.4], 260, { len: 0.035, ang: (x, y) => Math.PI + 0.4 + y * 0.6, col: 'rgba(40,28,18,.3)', w: 0.006 });
+        strokes(s.g, rnd, [-0.5, -0.42, 0.56, 0.4], 200, { len: 0.03, ang: (x, y) => Math.PI + 0.4 + y * 0.6, col: 'rgba(235,220,190,.3)', w: 0.006 });
+        // ear: pink-grey inside, black-edged tip
+        s.g.fillStyle = 'rgba(214,170,160,.6)'; s.g.beginPath(); s.g.ellipse(0.22, 0.56, 0.035, 0.18, 0.05, 0, Math.PI * 2); s.g.fill();
+        s.g.fillStyle = 'rgba(30,22,16,.85)'; s.g.beginPath(); s.g.ellipse(0.15, 0.78, 0.07, 0.05, 0, 0, Math.PI * 2); s.g.fill();
+        s.done();
+        // the white scut
+        oval(ctx, -0.48, -0.06, 0.07, 0.065, '#f6f3ec', 0, 'rgba(58,44,30,.5)', 0.008);
+        // face
+        oval(ctx, 0.55, 0.15, 0.022, 0.016, '#b58478');
+        line(ctx, 0.008, RAB.line, () => { ctx.moveTo(0.55, 0.135); ctx.quadraticCurveTo(0.52, 0.09, 0.48, 0.09); });
+        line(ctx, 0.004, 'rgba(240,235,225,.8)', () => { for (const d of [0.02, -0.01, -0.04]) { ctx.moveTo(0.52, 0.12); ctx.lineTo(0.68, 0.12 + d); } });
+        oval(ctx, 0.39, 0.25, 0.05, 0.045, 'rgba(225,205,170,.8)');
+        eye(ctx, 0.39, 0.25, 0.034, hot, '#1e130c');
+        // front paw
+        oval(ctx, 0.3, -0.36, 0.07, 0.04, '#b29a7c', 0, RAB.line, 0.01);
+    },
+};
+
+// ── CAT ─────────────────────────────────────────────────────────────────────
+// An orange tabby sitting, three-quarter view facing right: striped coat, a
+// cream chest and muzzle, green almond eyes, the tail curled round the paws.
+const CAT = { base: '#d88a3e', line: '#3e2210' };
+const catBody = c => { c.moveTo(-0.34, -0.42); c.bezierCurveTo(-0.4, -0.1, -0.3, 0.2, -0.06, 0.3); c.bezierCurveTo(0.12, 0.34, 0.26, 0.2, 0.28, 0.0); c.bezierCurveTo(0.3, -0.16, 0.3, -0.32, 0.3, -0.42); c.closePath(); };
+const catHead = c => { c.moveTo(0.0, 0.42); c.bezierCurveTo(0.0, 0.3, 0.1, 0.24, 0.2, 0.24); c.bezierCurveTo(0.32, 0.24, 0.4, 0.32, 0.4, 0.42); c.bezierCurveTo(0.4, 0.5, 0.36, 0.54, 0.34, 0.56); c.lineTo(0.33, 0.72); c.lineTo(0.22, 0.6); c.bezierCurveTo(0.18, 0.61, 0.14, 0.6, 0.11, 0.59); c.lineTo(0.03, 0.7); c.lineTo(0.03, 0.54); c.bezierCurveTo(0.01, 0.5, 0.0, 0.46, 0.0, 0.42); c.closePath(); };
+const cat = {
+    key: 'cat', name: 'CAT', col: CAT.base, dark: CAT.line,
+    parts: [
+        [[-0.34, -0.42], [-0.38, -0.06], [-0.2, 0.24], [0.06, 0.32], [0.26, 0.12], [0.3, -0.42]],
+        [[0.0, 0.42], [0.06, 0.28], [0.2, 0.24], [0.36, 0.3], [0.4, 0.44], [0.34, 0.58], [0.03, 0.58]],
+        [[0.03, 0.54], [0.12, 0.59], [0.03, 0.7]],
+        [[0.22, 0.6], [0.34, 0.56], [0.33, 0.72]],
+    ],
+    draw(ctx, hot) {
+        const rnd = rng(127);
+        const s = body(ctx, [catBody, catHead], CAT, { top: 0.72, bottom: -0.42, light: 0.25, shadow: 0.3 });
+        // cream chest and muzzle
+        s.g.fillStyle = '#f2dcb8';
+        s.g.beginPath(); s.g.ellipse(0.16, -0.06, 0.12, 0.26, 0.1, 0, Math.PI * 2); s.g.fill();
+        s.g.beginPath(); s.g.ellipse(0.27, 0.33, 0.1, 0.07, 0, 0, Math.PI * 2); s.g.fill();
+        // tabby stripes: arcs round the body and the forehead "M"
+        s.g.strokeStyle = 'rgba(140,72,22,.75)'; s.g.lineCap = 'round';
+        for (let i = 0; i < 6; i++) { const y = 0.18 - i * 0.1; s.g.lineWidth = 0.035; s.g.beginPath(); s.g.moveTo(-0.38, y - 0.04); s.g.quadraticCurveTo(-0.2, y + 0.04, -0.04, y - 0.02 + rnd() * 0.04); s.g.stroke(); }
+        for (const [x1, y1, x2, y2] of [[0.12, 0.56, 0.16, 0.46], [0.2, 0.58, 0.2, 0.48], [0.28, 0.56, 0.24, 0.46]]) { s.g.lineWidth = 0.022; s.g.beginPath(); s.g.moveTo(x1, y1); s.g.lineTo(x2, y2); s.g.stroke(); }
+        s.g.lineWidth = 0.02; s.g.beginPath(); s.g.moveTo(0.04, 0.36); s.g.quadraticCurveTo(0.08, 0.32, 0.12, 0.34); s.g.stroke();
+        strokes(s.g, rnd, [-0.4, -0.42, 0.4, 0.6], 200, { len: 0.03, ang: (x, y) => -1.6 + (x - 0.0) * 0.6, col: 'rgba(255,230,190,.22)', w: 0.006 });
+        // ear insides
+        s.g.fillStyle = 'rgba(230,160,150,.7)'; s.g.beginPath(); s.g.moveTo(0.06, 0.56); s.g.lineTo(0.05, 0.66); s.g.lineTo(0.1, 0.59); s.g.fill();
+        s.g.beginPath(); s.g.moveTo(0.25, 0.59); s.g.lineTo(0.32, 0.68); s.g.lineTo(0.32, 0.57); s.g.fill();
+        s.done();
+        // the tail, curled round the front of the paws
+        const tail = () => { ctx.moveTo(-0.32, -0.36); ctx.bezierCurveTo(-0.3, -0.5, 0.1, -0.5, 0.3, -0.42); };
+        line(ctx, 0.11, CAT.line, tail); line(ctx, 0.07, CAT.base, tail);
+        for (const x of [-0.18, 0.0, 0.16]) line(ctx, 0.03, 'rgba(140,72,22,.75)', () => { ctx.moveTo(x, -0.43); ctx.lineTo(x + 0.01, -0.48); });
+        // front paws
+        for (const x of [0.12, 0.24]) oval(ctx, x, -0.4, 0.06, 0.035, '#f2dcb8', 0, CAT.line, 0.01);
+        // face
+        for (const x of [0.14, 0.3]) {
+            oval(ctx, x, 0.41, 0.04, 0.028, hot ? '#f4efe6' : '#8fb83a', 0, '#1e140a', 0.008);
+            oval(ctx, x + 0.004, 0.41, hot ? 0.008 : 0.01, hot ? 0.012 : 0.026, '#050302');
+            oval(ctx, x - 0.012, 0.42, 0.008, 0.007, 'rgba(255,255,255,.8)');
+        }
+        ctx.beginPath(); ctx.moveTo(0.33, 0.35); ctx.lineTo(0.37, 0.35); ctx.lineTo(0.35, 0.325); ctx.closePath(); ctx.fillStyle = '#d98a8a'; ctx.fill();
+        line(ctx, 0.007, CAT.line, () => { ctx.moveTo(0.35, 0.325); ctx.lineTo(0.35, 0.3); ctx.quadraticCurveTo(0.32, 0.28, 0.3, 0.3); ctx.moveTo(0.35, 0.3); ctx.quadraticCurveTo(0.38, 0.28, 0.4, 0.3); });
+        line(ctx, 0.003, 'rgba(255,250,240,.85)', () => { for (const d of [0.03, 0.0, -0.03]) { ctx.moveTo(0.38, 0.33); ctx.lineTo(0.54, 0.34 + d); ctx.moveTo(0.3, 0.33); ctx.lineTo(0.14, 0.34 + d); } });
+    },
+};
+
+// ── HEDGEHOG ────────────────────────────────────────────────────────────────
+// A European hedgehog walking, side on, facing right: a mound of banded
+// spines with pale tips, a soft brown face tapering to a black nose.
+const HED = { base: '#b9966e', line: '#2e2014' };
+const SPN = { base: '#4b3624', line: '#1e140c' };
+const hedSpines = c => { c.moveTo(-0.56, -0.2); c.bezierCurveTo(-0.58, 0.12, -0.3, 0.34, 0.02, 0.34); c.bezierCurveTo(0.3, 0.34, 0.46, 0.18, 0.42, -0.02); c.bezierCurveTo(0.3, -0.16, 0.0, -0.2, -0.56, -0.2); c.closePath(); };
+const hedFace = c => { c.moveTo(0.26, 0.12); c.bezierCurveTo(0.4, 0.06, 0.56, -0.02, 0.66, -0.08); c.bezierCurveTo(0.7, -0.12, 0.66, -0.16, 0.6, -0.16); c.bezierCurveTo(0.46, -0.2, 0.32, -0.22, 0.2, -0.2); c.closePath(); };
+const hedLeg = x => c => { c.moveTo(x - 0.05, -0.16); c.lineTo(x - 0.05, -0.32); c.lineTo(x + 0.07, -0.32); c.lineTo(x + 0.05, -0.16); c.closePath(); };
+const hedgehog = {
+    key: 'hedgehog', name: 'HEDGEHOG', col: SPN.base, dark: SPN.line,
+    parts: [
+        [[-0.56, -0.2], [-0.5, 0.12], [-0.26, 0.32], [0.04, 0.35], [0.32, 0.26], [0.44, 0.02], [0.3, -0.18]],
+        [[0.22, 0.12], [0.5, 0.02], [0.68, -0.1], [0.62, -0.17], [0.2, -0.21]],
+        rect(0.14, 0.14, -0.32, -0.26),
+        rect(0.14, 0.14, 0.26, -0.26),
+    ],
+    draw(ctx, hot) {
+        const rnd = rng(131);
+        const k = body(ctx, [hedFace, hedLeg(-0.32), hedLeg(0.26)], HED, { top: 0.12, bottom: -0.32 });
+        strokes(k.g, rnd, [0.2, -0.32, 0.66, 0.1], 80, { len: 0.025, ang: Math.PI - 0.3, col: 'rgba(60,40,20,.3)', w: 0.006 });
+        k.done();
+        // the spines: a dark mound, then banded quills fanning out with pale tips
+        const s = body(ctx, [hedSpines], SPN, { top: 0.34, bottom: -0.2, light: 0.15, shadow: 0.2 });
+        for (let i = 0; i < 420; i++) {
+            const a = Math.PI * (0.02 + rnd() * 0.98), r = 0.12 + rnd() * 0.3;
+            const x = -0.07 + Math.cos(a) * r * 1.4, y = -0.2 + Math.sin(a) * r * 1.05;
+            const dx = Math.cos(a) * 0.08, dy = Math.sin(a) * 0.08;
+            s.g.lineCap = 'round';
+            s.g.strokeStyle = 'rgba(30,20,12,.8)'; s.g.lineWidth = 0.01; s.g.beginPath(); s.g.moveTo(x, y); s.g.lineTo(x + dx * 0.6, y + dy * 0.6); s.g.stroke();
+            s.g.strokeStyle = 'rgba(236,222,196,.85)'; s.g.lineWidth = 0.008; s.g.beginPath(); s.g.moveTo(x + dx * 0.6, y + dy * 0.6); s.g.lineTo(x + dx, y + dy); s.g.stroke();
+        }
+        s.done();
+        // the spiky outer fringe
+        ctx.strokeStyle = 'rgba(236,222,196,.9)'; ctx.lineWidth = 0.008; ctx.lineCap = 'round';
+        for (let i = 0; i <= 34; i++) { const t = i / 34, a = Math.PI * (0.04 + t * 0.9); const x = -0.07 + Math.cos(a) * 0.5, y = -0.2 + Math.sin(a) * 0.53; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * 0.05, y + Math.sin(a) * 0.05); ctx.stroke(); }
+        // face: ear, nose, eye
+        oval(ctx, 0.36, 0.08, 0.035, 0.03, '#8a6a4a', 0, HED.line, 0.008);
+        oval(ctx, 0.66, -0.11, 0.03, 0.025, '#120c08');
+        oval(ctx, 0.655, -0.1, 0.008, 0.006, 'rgba(255,255,255,.7)');
+        line(ctx, 0.006, HED.line, () => { ctx.moveTo(0.63, -0.14); ctx.quadraticCurveTo(0.58, -0.16, 0.54, -0.15); });
+        eye(ctx, 0.47, -0.02, 0.02, hot, '#0e0906');
+        for (const x of [-0.32, 0.26]) for (const d of [-0.03, 0.0, 0.03]) line(ctx, 0.006, '#2e2014', () => { ctx.moveTo(x + 0.01 + d, -0.32); ctx.lineTo(x + 0.03 + d, -0.34); });
+    },
+};
+
+// ── FROG ────────────────────────────────────────────────────────────────────
+// A green frog sitting, side on, facing right: folded hind leg, dark blotches,
+// a pale ridge along the back, a golden eye with a horizontal pupil and the
+// round eardrum behind it.
+const FRG = { base: '#5e9a3a', line: '#1c3010' };
+const frgBody = c => { c.moveTo(-0.46, -0.18); c.bezierCurveTo(-0.46, 0.06, -0.3, 0.2, -0.02, 0.24); c.bezierCurveTo(0.2, 0.27, 0.38, 0.2, 0.5, 0.06); c.bezierCurveTo(0.54, -0.02, 0.5, -0.1, 0.4, -0.14); c.bezierCurveTo(0.2, -0.24, -0.2, -0.24, -0.46, -0.18); c.closePath(); };
+const frgThigh = c => c.ellipse(-0.28, -0.14, 0.22, 0.13, 0.25, 0, Math.PI * 2);
+const frgEye = c => c.ellipse(0.26, 0.25, 0.09, 0.075, 0, 0, Math.PI * 2);
+const frgFoot = c => { c.moveTo(-0.56, -0.3); c.bezierCurveTo(-0.4, -0.34, 0.0, -0.34, 0.1, -0.3); c.lineTo(0.06, -0.22); c.lineTo(-0.5, -0.22); c.closePath(); };
+const frog = {
+    key: 'frog', name: 'FROG', col: FRG.base, dark: FRG.line,
+    parts: [
+        [[-0.46, -0.18], [-0.36, 0.1], [-0.02, 0.24], [0.3, 0.24], [0.52, 0.04], [0.42, -0.14], [0.0, -0.23]],
+        ell(0.22, 0.14, -0.28, -0.14, 8),
+        ell(0.09, 0.075, 0.26, 0.25, 6),
+        [[-0.58, -0.32], [0.46, -0.32], [0.46, -0.22], [-0.56, -0.22]],
+    ],
+    draw(ctx, hot) {
+        const rnd = rng(149);
+        const s = body(ctx, [frgFoot, frgBody, frgThigh, frgEye], FRG, { top: 0.32, bottom: -0.32, light: 0.3, shadow: 0.3 });
+        // pale yellow throat and belly
+        s.g.fillStyle = 'rgba(236,226,150,.9)'; s.g.beginPath(); s.g.moveTo(0.48, -0.04); s.g.bezierCurveTo(0.3, -0.2, -0.1, -0.24, -0.3, -0.22); s.g.lineTo(0.5, -0.3); s.g.closePath(); s.g.fill();
+        // dark blotches and the thigh's bars
+        spots(s.g, rnd, [-0.44, -0.12, 0.3, 0.2], 14, 0.04, 'rgba(30,55,15,.55)');
+        for (let i = 0; i < 4; i++) { s.g.save(); s.g.translate(-0.42 + i * 0.09, -0.14); s.g.rotate(0.8); s.g.fillStyle = 'rgba(30,55,15,.6)'; s.g.fillRect(-0.015, -0.08, 0.03, 0.16); s.g.restore(); }
+        // the dorsolateral ridge, and a wet sheen
+        line(s.g, 0.016, 'rgba(210,225,140,.7)', () => { s.g.moveTo(0.3, 0.17); s.g.bezierCurveTo(0.1, 0.2, -0.2, 0.16, -0.4, 0.0); });
+        spots(s.g, rnd, [-0.4, 0.0, 0.45, 0.24], 12, 0.02, 'rgba(255,255,255,.25)');
+        s.done();
+        // eardrum, mouth, nostril
+        oval(ctx, 0.12, 0.13, 0.05, 0.05, '#4a7a2c', 0, 'rgba(28,48,16,.8)', 0.008);
+        line(ctx, 0.01, FRG.line, () => { ctx.moveTo(0.52, 0.05); ctx.quadraticCurveTo(0.4, 0.02, 0.2, 0.06); });
+        oval(ctx, 0.48, 0.14, 0.01, 0.007, '#1c3010');
+        // front leg with splayed toes
+        line(ctx, 0.05, FRG.line, () => { ctx.moveTo(0.28, -0.08); ctx.lineTo(0.32, -0.26); });
+        line(ctx, 0.03, FRG.base, () => { ctx.moveTo(0.28, -0.08); ctx.lineTo(0.32, -0.26); });
+        for (const d of [-0.05, 0.0, 0.05]) line(ctx, 0.014, '#4f8430', () => { ctx.moveTo(0.32, -0.26); ctx.lineTo(0.32 + d + 0.03, -0.3); });
+        // the golden eye with its horizontal pupil
+        oval(ctx, 0.27, 0.26, 0.055, 0.05, hot ? '#f4efe6' : '#c99a2e', 0, '#1c1608', 0.008);
+        oval(ctx, 0.275, 0.26, hot ? 0.012 : 0.034, hot ? 0.01 : 0.016, '#080604');
+        oval(ctx, 0.255, 0.275, 0.012, 0.009, 'rgba(255,255,255,.85)');
+    },
+};
+
+export const ART = { pig, elephant, giraffe, penguin, panda, turtle, croc, rabbit, cat, hedgehog, frog };
 
 // ── Sprites ─────────────────────────────────────────────────────────────────
 // Paint an animal once at `ppm` pixels per metre and keep it. Returns the
