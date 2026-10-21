@@ -25,7 +25,7 @@ import * as planck from '../../vendor/planck-esm.js';
 import { state } from '../AppHost.js';
 import { sfx, haptic } from '../claw-core/engine/AudioManager.js';
 import * as MinigameManager from '../claw-core/minigames/MinigameManager.js';
-import { ART } from './AnimalArt.js';
+import { ART, spriteOf } from './AnimalArt.js';
 
 const { Vec2 } = planck;
 
@@ -90,8 +90,8 @@ export const CAST = [
       eyes: [[-0.28, 0.32], [0.28, 0.32]], smile: true },
 ];
 
-// The sticker-cartoon versions (AnimalArt.js) replace the first drafts as
-// they're drawn: their own physics parts and their own draw().
+// The illustrated versions (AnimalArt.js) replace the first drafts as they're
+// drawn: their own physics parts and their own draw().
 CAST.forEach((a, i) => { if (ART[a.key]) CAST[i] = ART[a.key]; });
 
 // Body-space bounds of each animal, for the hold height and the claw.
@@ -497,8 +497,14 @@ function _claw(ctx, x, y, closed) {
 // One animal: its parts filled and outlined, then its face, in body space.
 function _animal(ctx, def, x, y, a, hot, scale = _scale(), ox = _sx(x), oy = _sy(y)) {
     ctx.save();
-    ctx.translate(ox, oy); ctx.rotate(-a); ctx.scale(scale, -scale);
-    if (def.draw) { def.draw(ctx, hot); ctx.restore(); return; }
+    ctx.translate(ox, oy); ctx.rotate(-a);
+    if (def.draw) {
+        // The illustrated animals are painted once into a sprite at this scale.
+        const k = ctx === _ctx ? _dpr : 1, sp = spriteOf(def, scale * k, hot);
+        ctx.drawImage(sp.img, -sp.ox / k, -sp.oy / k, sp.img.width / k, sp.img.height / k);
+        ctx.restore(); return;
+    }
+    ctx.scale(scale, -scale);
     ctx.lineJoin = 'round';
     const path = pts => { ctx.beginPath(); pts.forEach(([px, py], i) => i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)); ctx.closePath(); };
     ctx.lineWidth = 0.09; ctx.strokeStyle = hot ? '#e8463c' : def.dark;
