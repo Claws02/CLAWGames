@@ -40,7 +40,7 @@ There's no build step: the app is ES modules served as static files, with vendor
 
 1. On a laptop, open the site in Chrome, then use ⋮ → Cast… → your TV → **Cast tab**.
 2. On the laptop tab, go to **Together → 📺 HOST ON A TV**. The TV shows the room code.
-3. Each phone opens the same site, goes to **Together**, adds everyone sharing that phone (**+ ANOTHER PLAYER ON THIS PHONE**) and JOINs (4 players max).
+3. Each phone scans the QR code on the TV (or opens the site and goes to **Together**), adds everyone sharing that phone (**+ ANOTHER PLAYER ON THIS PHONE**) and JOINs (4 players max).
 4. The first phone in is the captain. Its **SPIN** button spins the wheel, plays what it lands on, and spins again after each round. The laptop mouse can do the same.
 
 The site has to be served over HTTPS (or localhost) for the phones' peer-to-peer connection, e.g. GitHub Pages.

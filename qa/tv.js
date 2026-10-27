@@ -39,6 +39,8 @@ const ROUNDS = +(process.env.QA_ROUNDS || 2);
     await tv.waitForFunction(() => /^[A-Z0-9]{4}$/.test(document.getElementById('tv-code').textContent), null, { timeout: 15000 });
     const code = await tv.textContent('#tv-code');
     check(await screen(tv) === 'tvroom' && (await tv.textContent('.tv-mode')).includes('DRINKING'), `TV room ${code} open in drinking mode`);
+    await tv.waitForFunction(() => !!document.querySelector('#tv-qr svg'), null, { timeout: 10000 }).catch(() => {});
+    check(await tv.isVisible('#tv-qr svg'), 'the TV shows a QR code for the join link');
 
     const phone = async (names, who) => {
         const p = await ctx.newPage(); watch(p, who);

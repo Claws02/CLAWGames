@@ -636,3 +636,5 @@ body.tv .tv-card .wr-desc { font-size: clamp(18px, 1.8vw, 34px); }
 .tv-drinks { border: var(--line); border-radius: var(--radius); box-shadow: var(--pop); background: var(--yellow); padding: 14px 18px; font-weight: 800; }
 .sip-row { display: flex; gap: 10px; align-items: baseline; font-size: 1.2em; }
 .sip-row .bfont { font-size: 1.8em; line-height: 1; }
+.tv-qr { width: clamp(140px, 22vh, 280px); aspect-ratio: 1; background: #fff; border: var(--line); border-radius: 14px; padding: 6px; }
+.tv-qr svg { display: block; width: 100%; height: 100%; }

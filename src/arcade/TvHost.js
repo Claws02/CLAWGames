@@ -72,6 +72,32 @@ function _joinUrl() {
     return { show: `${location.host}${location.pathname.replace(/index\.html$/, '')}`, href: `${location.origin}${location.pathname}?join=${Room.code()}${keep}` };
 }
 
+// The join link as a QR code. The encoder (vendor/qrcode.js, MIT) loads on
+// first use; without it the TV still shows the address and the code.
+let _qrLib = null, _qrFor = '';
+function _loadQr() {
+    return _qrLib ||= new Promise((ok, no) => {
+        if (window.qrcode) return ok(window.qrcode);
+        const s = document.createElement('script');
+        s.src = 'vendor/qrcode.js';
+        s.onload = () => (window.qrcode ? ok(window.qrcode) : no());
+        s.onerror = no;
+        document.head.appendChild(s);
+    });
+}
+function _paintQr(href) {
+    if (!Room.code() || _qrFor === href) return;
+    _qrFor = href;
+    _loadQr().then(qrcode => {
+        if (_qrFor !== href) return;
+        const qr = qrcode(0, 'M');
+        qr.addData(href);
+        qr.make();
+        $('tv-qr').innerHTML = qr.createSvgTag({ cellSize: 8, margin: 2, scalable: true });
+        $('tv-qr').hidden = false;
+    }).catch(() => { _qrLib = null; _qrFor = ''; });
+}
+
 function _rows(host, names, extra) {
     host.innerHTML = names.map((name, i) =>
         `<div class="st-row"><span class="st-place">${extra ? extra.place[i] : ''}</span>` +
@@ -96,6 +122,7 @@ function _paint() {
     $('tv-url').textContent = u.show;
     $('tv-url').title = u.href;
     $('tv-code').textContent = Room.code() || '····';
+    _paintQr(u.href);
     const seats = Room.seats();
     _rows($('tv-seats'), seats.map(s => s.name));
     $('btn-tv-spin').disabled = seats.length < 2;
