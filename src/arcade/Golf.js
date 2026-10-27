@@ -1,11 +1,11 @@
 // ============================================================
-// GOLF — the Mini Golf mode: pick a course, 3, 9 or 18 holes, turns or chaos.
+// GOLF — the Mini Golf mode: pick a course, 3, 9 or 18 holes, turns, tabletop or chaos.
 //
 // The game itself is claw-core's MiniGolf; this is the clubhouse round it:
 // the course cards with each one's best round, the setting for how a round is
 // played (which parties use too), and the records kept after each round.
 //
-//   init()                    apply the saved solo/turns/chaos setting to the game
+//   init()                    apply the saved solo/turns/tabletop/chaos setting to the game
 //   paint(onStart, onChange)  the setup screen; onStart() once START is pressed,
 //                             onChange() after every repaint (the seats strip follows Solo)
 //   configureNext()           hand the chosen course and holes to the game
@@ -28,21 +28,23 @@ const _save = () => Store.save('golf', _s);
 const $ = id => document.getElementById(id);
 const _fmt = d => (d === 0 ? 'E' : d > 0 ? `+${d}` : `${d}`);
 
-export function init() { MiniGolf.configure({ mode: _gameMode(_s.mode) }); }
+export function init() { MiniGolf.configure({ mode: _gameMode(_s.mode), table: _s.mode === 'table' }); }
 export const settings = () => ({ course: _s.course, holes: _s.holes, mode: _s.mode });
 export const stats = () => ({ rounds: _s.rounds, aces: _s.aces, fullRounds: _s.fullRounds, underPar: _s.underPar,
     trickStars: Object.values(_s.tricks).reduce((a, n) => a + n, 0), tricksDone: Object.values(_s.tricks).filter(n => n > 0).length, tricks: (MiniGolf.CHALLENGES || []).length });
 /** A trick shot to play next: the game's own challenge, handed over for one go. */
-export function configureChallenge(ch) { MiniGolf.configure({ challenge: ch, mode: 'turns', round: true }); }
+export function configureChallenge(ch) { MiniGolf.configure({ challenge: ch, mode: 'turns', table: false, round: true }); }
 export const best = (course, holes) => _s.best[`${course}:${holes}`] || null;
 
 // Solo is this screen's own: the game plays it as turns with one seat (see main.js play()).
+// Tabletop is turns too, with the phone flat between two ends: the game turns the
+// picture round to whoever's up instead of asking for the phone to be passed.
 const _gameMode = m => (m === 'chaos' ? 'chaos' : 'turns');
-export function setMode(m) { _s.mode = ['solo', 'chaos'].includes(m) ? m : 'turns'; _save(); MiniGolf.configure({ mode: _gameMode(_s.mode) }); }
+export function setMode(m) { _s.mode = ['solo', 'chaos', 'table'].includes(m) ? m : 'turns'; _save(); MiniGolf.configure({ mode: _gameMode(_s.mode), table: _s.mode === 'table' }); }
 
 /** The chosen course and length go to the game for its next round only. */
 export function configureNext() {
-    MiniGolf.configure({ course: _s.course, holes: _s.holes === 3 ? 'sampler' : _s.holes, mode: _gameMode(_s.mode), round: true });
+    MiniGolf.configure({ course: _s.course, holes: _s.holes === 3 ? 'sampler' : _s.holes, mode: _gameMode(_s.mode), table: _s.mode === 'table', round: true });
 }
 
 /**
@@ -114,11 +116,13 @@ export function paint(onStart, onChange, onTrick) {
         });
     };
     seg('golf-holes', HOLES.map(n => [n, `${n} holes`]), _s.holes, v => { _s.holes = v; _save(); });
-    seg('golf-mode', [['solo', '⛳ Solo'], ['turns', '🏌️ Take turns'], ['chaos', '💥 Chaos']], _s.mode, v => setMode(v));
+    seg('golf-mode', [['solo', '⛳ Solo'], ['turns', '🏌️ Take turns'], ['table', '🍽️ Tabletop'], ['chaos', '💥 Chaos']], _s.mode, v => setMode(v));
     $('golf-mode-hint').textContent = _s.mode === 'solo'
         ? 'Just you and the course, phone upright. Beat par, and your best round goes on the board.'
         : _s.mode === 'turns'
         ? 'Proper golf, phone upright: pass it to whoever\'s up. One ball at a time, the camera behind it; furthest from the cup goes next.'
+        : _s.mode === 'table'
+        ? 'Two of you, the phone flat on the table between you: P1 at the bottom end, P2 at the top. One ball at a time, and the screen turns round to face whoever\'s up.'
         : 'Phone upright, everyone at once: the screen splits across the middle, P1 drags in the bottom half (a band each for 3–4). Putt again as soon as your ball stops.';
     const cur = list.find(c => c.key === _s.course);
     const next = list[(list.indexOf(cur) + 1) % list.length];

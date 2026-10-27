@@ -12,7 +12,11 @@ import {
     MG_TYPES, MG_INFO, MG_ORIENTATIONS, MG_ORIENTATION_MAP, MG_WATCHDOG_MS,
     MG_NET, MG_SHAPE, MG_PROFILE,
 } from '../claw-core/config/MinigameRegistry.js';
-import { registerMinigame } from '../claw-core/minigames/MinigameManager.js';
+// A namespace import, not a named one: if a phone serves this file fresh and an
+// older claw-core from its cache (Pages caches for 10 minutes), a missing
+// named export would stop the whole app loading. This way the arcade still
+// boots, just without its own games until the cache catches up.
+import * as MinigameManager from '../claw-core/minigames/MinigameManager.js';
 
 // The tabletop hold, worded for dice rather than golf balls.
 MG_ORIENTATIONS.dicetable = {
@@ -24,6 +28,13 @@ MG_ORIENTATIONS.dicetable = {
     icon: '🎲',
     instructions: 'Lay the phone <b>flat on the table</b> between you: <b style="color:#ff3b3b">P1</b> at the <b>bottom</b> end, <b style="color:#3b8eff">P2</b> at the <b>top</b>.<br><br>You take it in <b>turns</b>. On your go the card <b>turns round to face you</b>: roll up to three times, tap dice to hold them, then pick a box and press <b>PLAY</b>.',
     thumbAnim: 'pulse',
+};
+
+// The same hold, worded for stacking.
+MG_ORIENTATIONS.stacktable = {
+    ...MG_ORIENTATIONS.dicetable,
+    icon: '🐘',
+    instructions: 'Lay the phone <b>flat on the table</b> between you: <b style="color:#ff3b3b">P1</b> at the <b>bottom</b> end, <b style="color:#3b8eff">P2</b> at the <b>top</b>.<br><br>You take it in <b>turns</b>. On your go the picture <b>turns round to face you</b>: drag to move the animal, <b>ROTATE</b> to turn it, <b>DROP</b> to let go.',
 };
 
 const GAMES = {
@@ -49,9 +60,20 @@ const GAMES = {
         shape: 'split',
         profile: { genre: 'scramble', control: 'tap', wire: 'events', seats: [2, 2], live: false },
     },
+    animalstack: {
+        load: () => import('./AnimalStack.js'),
+        info: { icon: '🐘', title: 'ANIMAL STACK', desc: 'One wobbly pile of animals on a tiny island, taken in turns. On your go the CLAW crane holds an animal over the pile: drag to move it, ROTATE to turn it, DROP to let go. If anything falls into the sea, whoever dropped last loses. Twenty seconds a turn, then the claw lets go wherever it is.' },
+        orientation: 'stacktable',
+        // No match clock: each turn pushes the watchdog on (extendWatchdog).
+        watchdogMs: 120000,
+        net: 'local',
+        shape: 'table',
+        profile: { genre: 'nerve', control: 'thumb', wire: 'snapshot', seats: [2, 2], live: false },
+    },
 };
 
 for (const [type, g] of Object.entries(GAMES)) {
+    if (typeof MinigameManager.registerMinigame !== 'function') break;
     if (!MG_TYPES.includes(type)) MG_TYPES.push(type);
     MG_INFO[type] = g.info;
     MG_ORIENTATION_MAP[type] = g.orientation;
@@ -59,5 +81,5 @@ for (const [type, g] of Object.entries(GAMES)) {
     MG_NET[type] = g.net;
     MG_SHAPE[type] = g.shape;
     MG_PROFILE[type] = g.profile;
-    registerMinigame(type, g.load);
+    MinigameManager.registerMinigame(type, g.load);
 }
