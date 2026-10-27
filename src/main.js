@@ -33,6 +33,8 @@ import * as Store from './arcade/Store.js';
 import { lastRound as golfRound } from './claw-core/minigames/MiniGolf.js';
 import { faceHTML, portraits } from './arcade/Characters.js';
 import { isHost as Room_isHost } from './net/Room.js';
+import * as TvHost from './arcade/TvHost.js';
+import * as Drinks from './arcade/Drinks.js';
 
 // Quick Play for one: "1" on Quick Play's seats screen (kept between visits).
 let _quickSolo = !!Store.load('quickSolo', false);
@@ -64,10 +66,13 @@ function openProfile(id) {
 }
 
 async function back() {
+    // The TV's wheel backs out to the TV room, not out of it.
+    if (TvHost.active() && _current === 'wheel') { show('tvroom', false); return TvHost.repaint(); }
     // Backing out of the room leaves it (a host leaving closes it for everyone).
-    if (['room', 'netcard', 'netresult'].includes(_current)) {
+    if (['room', 'netcard', 'netresult', 'tvroom', 'tvround', 'tvresult'].includes(_current)) {
         if (Room_isHost() && !(await Confirm.ask('Close the room for everyone?', 'CLOSE IT'))) return;
         Together.leave();
+        TvHost.stop();
         return goHome();
     }
     // Leaving a party mid-way asks first; it can't be resumed.
@@ -94,6 +99,8 @@ function _paintHome() {
     $('home-trophies-n').textContent = `${c.earned} / ${c.total}`;
     $('home-players-n').textContent = Profiles.list().length || '';
     _paintCrew();
+    $('home-mode').textContent = Drinks.isOn() ? '🍺 DRINKING MODE · drink responsibly' : '🎉 PARTY MODE';
+    $('home-mode').classList.toggle('drinking', Drinks.isOn());
     const t = Stats.totals();
     $('home-stats').textContent = t.plays
         ? `🎲 ${t.plays} games played · 🏆 ${t.humanWins} won by humans · 🤖 ${t.botWins} by bots`
@@ -288,6 +295,14 @@ Seats.init();
 Golf.init();
 PlayersScreen.init(openProfile);
 Together.init(show, goHome);
+TvHost.init(show, () => _current);
+// The Easter egg: five quick taps on the crab flip party mode ⇄ drinking mode.
+document.querySelector('.logo-claw').addEventListener('click', () => {
+    if (!Drinks.tap()) return;
+    try { Audio.sfx(Drinks.isOn() ? 'win' : 'land_bad'); Audio.haptic([60, 40, 60]); } catch (e) {}
+    Toast.show(Drinks.isOn() ? '🍺 DRINKING MODE UNLOCKED. Losers drink! Know your limits.' : '🎉 Back to party mode', Drinks.isOn() ? '#ff9f1c' : null);
+    _paintHome();
+});
 // Builds hosted where peer-to-peer connections are blocked set CLAW_NO_P2P:
 // Play Together is then shown as app-only rather than failing on tap.
 if (window.CLAW_NO_P2P) {
@@ -298,3 +313,5 @@ if (window.CLAW_NO_P2P) {
 Wheel.init();
 PartyScreens.initDraft();
 show('home', false);
+// A join link from the TV (?join=ABCD) lands on Play Together, code filled in.
+if (new URLSearchParams(location.search).get('join')) show('together');
