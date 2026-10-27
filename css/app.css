@@ -601,3 +601,40 @@ button:focus-visible { outline: 4px solid var(--blue); outline-offset: 2px; }
 .golf-trick b { font-size: 15px; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; }
 .golf-trick .gt-stars { font-size: 14px; letter-spacing: 1px; color: #f59e0b; }
 .golf-trick.done { background: #fff7d6; }
+
+/* ---------- modes: party ⇄ drinking (the 🦀 Easter egg) ---------- */
+.logo-claw { cursor: pointer; user-select: none; -webkit-user-select: none; }
+.mode-badge { display: inline-block; margin: 6px auto 0; padding: 2px 12px; border: 2px solid var(--ink); border-radius: 99px; background: #fff; font-size: 16px; letter-spacing: .04em; }
+.mode-badge.drinking, body.tv .tv-mode { background: var(--yellow); }
+.net-more { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.rules { align-items: stretch; background: #fff3c4; }
+.rule-row { font-weight: 800; border-top: 2px dashed rgba(43,18,64,.25); padding-top: 6px; }
+.rule-row b { display: block; }
+
+/* ---------- TV host: a laptop tab cast to the TV ---------- */
+body.tv .tv-screen { max-width: 1600px; padding: 2.5vh 3vw; font-size: clamp(16px, 1.4vw, 28px); }
+.tv-screen .bar { display: flex; align-items: center; gap: 16px; }
+.tv-screen .bar .tv-mode { margin: 0 0 0 auto; }
+.tv-cols { display: grid; grid-template-columns: 1fr; gap: 3vw; align-items: start; }
+@media (min-width: 900px) { .tv-cols { grid-template-columns: 1.1fr 1fr; } }
+.tv-join { display: flex; flex-direction: column; align-items: center; gap: 1.2vh; text-align: center;
+    border: var(--line); border-radius: var(--radius); box-shadow: var(--pop); background: var(--paper); padding: 3vh 2vw; }
+.tv-join .un-k { font-size: clamp(12px, 1.2vw, 22px); }
+.tv-url { font-size: clamp(22px, 2.6vw, 48px); word-break: break-all; }
+.tv-code { font-size: clamp(64px, 11vw, 200px); line-height: 1; letter-spacing: .12em; color: #fff;
+    -webkit-text-stroke: 4px var(--ink); paint-order: stroke fill; text-shadow: 0 8px 0 var(--ink); }
+.tv-side { display: flex; flex-direction: column; gap: 16px; }
+.tv-screen .st-name small { font-size: .7em; opacity: .7; }
+body.tv .tv-screen .st-row { padding: 1.2vh 1vw; }
+body.tv .tv-screen .st-name { font-size: clamp(18px, 1.8vw, 36px); }
+body.tv .tv-screen .st-pts { font-size: clamp(30px, 2.8vw, 56px); }
+.tv-card { margin: 4vh auto 0; max-width: 1100px; }
+body.tv .tv-card .wr-icon { font-size: clamp(80px, 12vw, 220px); }
+body.tv .tv-card .wr-title { font-size: clamp(40px, 5vw, 96px); }
+body.tv .tv-card .wr-desc { font-size: clamp(18px, 1.8vw, 34px); }
+.tv-status { font-size: clamp(24px, 2.6vw, 52px); text-align: center; margin-top: 2vh; }
+.tv-drinks { border: var(--line); border-radius: var(--radius); box-shadow: var(--pop); background: var(--yellow); padding: 14px 18px; font-weight: 800; }
+.sip-row { display: flex; gap: 10px; align-items: baseline; font-size: 1.2em; }
+.sip-row .bfont { font-size: 1.8em; line-height: 1; }
+.tv-qr { width: clamp(140px, 22vh, 280px); aspect-ratio: 1; background: #fff; border: var(--line); border-radius: 14px; padding: 6px; }
+.tv-qr svg { display: block; width: 100%; height: 100%; }
