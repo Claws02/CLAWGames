@@ -30,6 +30,7 @@ import * as PlayersScreen from './arcade/PlayersScreen.js';
 import * as Golf from './arcade/Golf.js';
 import * as Solo from './arcade/Solo.js';
 import * as Store from './arcade/Store.js';
+import * as HomeScreenTip from './arcade/HomeScreenTip.js';
 import { lastRound as golfRound } from './claw-core/minigames/MiniGolf.js';
 import { faceHTML, portraits } from './arcade/Characters.js';
 import { isHost as Room_isHost } from './net/Room.js';
@@ -312,6 +313,7 @@ if (window.CLAW_NO_P2P) {
     b.querySelector('.sub').textContent = 'In the phone app';
 }
 Wheel.init();
+HomeScreenTip.init?.();   // iPhone Safari only
 PartyScreens.initDraft();
 show('home', false);
 // A join link from the TV (?join=ABCD) lands on Play Together, code filled in.
