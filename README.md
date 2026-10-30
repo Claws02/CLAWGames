@@ -17,6 +17,7 @@ node qa/party-points.mjs   # party scoring rules, no browser
 node qa/together.js   # two phones in one room over the loopback transport
 node qa/tv.js         # a TV host, a passed phone with two players and a second phone, drinking mode on
 node qa/drinks.mjs    # drinking-mode rules (sips by place, house rules, the crab tap), no browser
+node qa/phonegames.js # online-only games (Stop the Clock, Higher or Lower): lists, same seed same challenge, scores
 node qa/trophies.js   # trophy rules, persistence, old saves, the screen, a real game
 node qa/yatzy.js      # Yatzy scoring rules, a game vs a bot, a two-player tabletop game
 node qa/pinball.js    # four fingers, nudge/tilt, saver, claw lock, multiball, missions, attacks, a full game vs the bot

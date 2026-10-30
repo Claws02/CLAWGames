@@ -78,7 +78,7 @@ function _section(grid, title, types) {
 function _render() {
     const grid = document.getElementById('game-grid');
     grid.innerHTML = '';
-    const all = Catalog.allTypes().filter(t => _genre === 'all' || Catalog.genreOf(t) === _genre);
+    const all = Catalog.allTypes(_solo).filter(t => _genre === 'all' || Catalog.genreOf(t) === _genre);
     const ok = all.filter(t => !_why(t));
     const no = all.filter(t => _why(t));
     if (_genre === 'all') {
