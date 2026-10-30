@@ -55,9 +55,19 @@ export function init(show, goHome) {
     if (j && Room.codeOk(j.toUpperCase())) $('net-code').value = j.toUpperCase();
     $('btn-net-add').addEventListener('click', () => _addName());
 
+    // Whether the hosting phone plays too, or just runs the room (kept between visits).
+    const plays = $('btn-net-plays');
+    const paintPlays = () => {
+        const on = Store.load('hostPlays', true);
+        plays.textContent = on ? '🎮 HOST PLAYS TOO: ON' : '🎮 HOST PLAYS TOO: OFF · just runs the room';
+        plays.classList.toggle('on', on);
+        plays.setAttribute('aria-pressed', String(on));
+    };
+    plays.addEventListener('click', () => { Store.save('hostPlays', !Store.load('hostPlays', true)); paintPlays(); });
+    paintPlays();
     $('btn-net-host').addEventListener('click', async () => {
         _hint('Opening a room…');
-        try { await Room.host(_names()); _show('room'); _paintRoom(); _hint(''); }
+        try { await Room.host(_names(), { watch: !Store.load('hostPlays', true) }); _show('room'); _paintRoom(); _hint(''); }
         catch (e) { _hint("Couldn't open a room. Check your connection and try again."); }
     });
     $('btn-net-join').addEventListener('click', async () => {
@@ -76,7 +86,12 @@ export function init(show, goHome) {
     Room.on('roster', () => { if (!_tvHere()) _paintRoom(); });
     Room.on('round', r => { if (!_tvHere()) { _pending = r; _showCard(); } });
     Room.on('readyCount', (k, n) => { if (!_tvHere()) $('nc-wait').textContent = `${k} of ${n} phones ready…`; });
-    Room.on('go', () => { if (!_tvHere()) _play(); });
+    Room.on('go', () => {
+        if (_tvHere()) return;
+        if (Room.isWatching()) { $('nc-wait').textContent = '🎮 PLAYING… look at the other phones!'; return; }
+        _play();
+    });
+    Room.on('scoreCount', (k, n) => { if (Room.isWatching()) $('nc-wait').textContent = `🎮 PLAYING… ${k} of ${n} scores in`; });
     Room.on('result', r => { if (!_tvHere()) _showResult(r); });
     Room.on('closed', msg => { Toast.show(msg); _abortGame(); _home(); });
 
@@ -124,7 +139,7 @@ function _rows(host, names, extra) {
     host.innerHTML = names.map((name, i) =>
         `<div class="st-row"><span class="st-place">${extra ? extra.place[i] : ''}</span>` +
         `<span class="st-dot" style="background:${color(i)}">${Room.mySeats().includes(i) ? '⭐' : '📱'}</span>` +
-        `<span class="st-name">${_esc(name)}${i === 0 ? (Room.isTv() ? ' (captain)' : ' (host)') : ''}</span>` +
+        `<span class="st-name">${_esc(name)}${i === 0 ? (Room.isTv() ? ' (captain)' : Room.hostSeated() ? ' (host)' : '') : ''}</span>` +
         `<span class="st-bar"><i style="width:${extra ? extra.bar[i] : 0}%;background:${color(i)}"></i></span>` +
         `<span class="st-pts bfont">${extra ? extra.pts[i] : (Room.totals()[i] || 0)}</span></div>`).join('');
 }
@@ -185,6 +200,9 @@ function _showCard() {
     $('nc-desc').textContent = descOf(r.type);
     $('btn-nc-ready').disabled = false;
     _handoff = null; $('btn-nc-ready').textContent = "I'M READY";
+    // A host sitting out watches the round go by: no ready, no game.
+    $('btn-nc-ready').hidden = Room.isWatching();
+    if (Room.isWatching()) { $('nc-wait').textContent = "You're running the room: the other phones play. Waiting for them to get ready…"; return; }
     $('nc-wait').textContent = Room.mySeats().length > 1
         ? 'Everyone plays the same challenge. This phone gets passed round its players. Top score wins.'
         : 'Everyone plays the same challenge at once. Top score wins.';
@@ -264,7 +282,7 @@ function _showResult(r) {
     // Decided while this phone was still playing (it started late, or the
     // host's grace period ran out): take the game down first.
     _abortGame();
-    if (r.n !== _countedRound) { _countedRound = r.n; Stats.recordTogether(); Trophies.announce(600); }
+    if (r.n !== _countedRound) { _countedRound = r.n; if (!Room.isWatching()) { Stats.recordTogether(); Trophies.announce(600); } }
     _show('netresult', false);
     const me = Room.mySeat();
     $('nr-title').textContent = r.winner < 0 ? 'A TIE!' : r.winner === me ? 'YOU WIN!' : `${r.names[r.winner]} WINS!`;
