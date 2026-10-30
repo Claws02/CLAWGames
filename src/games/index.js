@@ -52,6 +52,15 @@ const GAMES = {
         watchdogMs: 90000,
         profile: { genre: 'nerve', control: 'tap', wire: 'none', seats: [2, 4], live: false },
     },
+    trivia: {
+        ...PHONE,
+        load: () => import('./Trivia.js'),
+        info: { icon: '❓', title: 'TRIVIA', desc: 'Ten general-knowledge questions, four answers each, ten seconds a question. A right answer scores 100, plus up to 100 more for answering fast.' },
+        netInfo: 'Ten questions, the same on every phone: Massachusetts, science, geography, history, TV, music, sport and food. Four answers, ten seconds each. A right answer scores 100, plus up to 100 more the faster you are. Highest total wins.',
+        // Ten questions at up to ~12 s each: past the 90 s default round.
+        watchdogMs: 160000, soloMs: 150000,
+        profile: { genre: 'brain', control: 'tap', wire: 'none', seats: [2, 4], live: false },
+    },
     higherlower: {
         ...PHONE,
         load: () => import('./HigherLower.js'),

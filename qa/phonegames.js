@@ -1,6 +1,6 @@
 // ============================================================
 // PHONE GAMES — the arcade's online-only games (src/games/PhoneGame.js):
-// Stop the Clock and Higher or Lower.
+// Stop the Clock, Higher or Lower and Trivia.
 //   1. They're online only: off the shared-screen lists, on Quick Play for
 //      one, and in MG_PARALLEL so rooms and the TV wheel deal them.
 //   2. Two phones with the same seed face the same challenge.
@@ -12,7 +12,7 @@ const fs = require('fs');
 let chromium;
 try { ({ chromium } = require('playwright')); } catch (e) { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); }
 const BASE = process.env.QA_BASE || 'http://127.0.0.1:8140/index.html';
-const GAMES = { stopclock: '/src/games/StopClock.js', higherlower: '/src/games/HigherLower.js' };
+const GAMES = { stopclock: '/src/games/StopClock.js', higherlower: '/src/games/HigherLower.js', trivia: '/src/games/Trivia.js' };
 
 (async () => {
     const exe = process.env.CHROMIUM_PATH || ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome'].find(p => fs.existsSync(p));
@@ -42,9 +42,9 @@ const GAMES = { stopclock: '/src/games/StopClock.js', higherlower: '/src/games/H
     // Same seed, same challenge.
     for (const type of Object.keys(GAMES)) {
         await play(a, type, 4242); await play(b, type, 4242);
-        await a.waitForTimeout(300);
+        await a.waitForTimeout(1300);
         const [sa, sb] = [await state(a, type), await state(b, type)];
-        const key = s => JSON.stringify(type === 'stopclock' ? [s.target, s.dark] : [s.cur, s.next]);
+        const key = s => JSON.stringify(type === 'stopclock' ? [s.target, s.dark] : type === 'trivia' ? [s.q, s.rightAt] : [s.cur, s.next]);
         check(key(sa) === key(sb), `${type}: two phones, one seed, the same challenge ${key(sa)}`);
         await Promise.all([a, b].map(p => p.evaluate(() => import('/src/claw-core/minigames/SoloArena.js').then(S => { S.forceEnd(); S.reset(); }))));
     }
@@ -70,6 +70,23 @@ const GAMES = { stopclock: '/src/games/StopClock.js', higherlower: '/src/games/H
     }
     const hl = await a.evaluate(() => window.__score);
     check(Math.floor(hl / 10) === 5, `Higher or Lower: five right calls then a wrong one scores 5×10 + speed: ${hl}`);
+
+    // Trivia: the bank is sound, ten distinct questions a round; all right, quickly.
+    const bank = await a.evaluate(() => Promise.all([import('/src/games/TriviaQuestions.js'), import('/src/games/Trivia.js')]).then(([Q, T]) => {
+        const sets = [1, 2, 3].map(seed => T.pickSet(i => ((Math.sin(seed * 1e4 + i) + 1) / 2) % 1));
+        return { n: Q.QUESTIONS.length, ok: Q.QUESTIONS.every(q => q.length === 5 && new Set(q.slice(1)).size === 4),
+                 distinct: sets.every(s => s.length === T.COUNT && new Set(s).size === T.COUNT) };
+    }));
+    check(bank.ok && bank.n >= 150 && bank.distinct, `Trivia: ${bank.n} questions, four different answers each, ten distinct a round`);
+    await play(a, 'trivia', 99);
+    t0 = Date.now(); let asked = -1;
+    while (Date.now() - t0 < 160000 && await a.evaluate(() => window.__score == null)) {
+        const s = await state(a, 'trivia');
+        if (s.phase === 'pick' && s.k !== asked) { asked = s.k; await tap(a, s.k < 8 ? s.rightAt : (s.rightAt + 1) % 4); }
+        await a.waitForTimeout(100);
+    }
+    const tv = await a.evaluate(() => window.__score);
+    check(tv >= 8 * 150 && tv <= 8 * 200, `Trivia: eight right fast, two wrong scores ${tv} (8 × 150–200)`);
 
     check(!errs.length, `no page errors${errs.length ? ': ' + errs.slice(0, 3).join(' | ') : ''}`);
     await browser.close();
