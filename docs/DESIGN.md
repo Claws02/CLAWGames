@@ -28,7 +28,7 @@ What's in the HundredBlockDash repo now:
 | Genres | reflex · race · nerve · scramble · aim · push · brain |
 | 3–4 player games | **Only 9** are `live` at 2–4 seats: sortrush, snapstrike, steadyhand, lootcatch, sumospheres, lightcycles, gridrecall, oddoneout, brainrot. The other 34 are 1v1. |
 | Bots | Each game has `start(isBot, onWin, botSkill)`. `botSkill` is a 0–1 number. |
-| Net | Trystero WebRTC P2P, `src/net/*`, 2–4 phones. Each game has a `wire` tag: 22 snapshot, 7 exact, 6 events, 3 stamp, 5 none. |
+| Net | Trystero WebRTC P2P, `src/net/*`, 2–12 players. Each game has a `wire` tag: 22 snapshot, 7 exact, 6 events, 3 stamp, 5 none. |
 | Build | No bundler: ES modules served static, vendored three.js + cannon.js, Capacitor 8 |
 | QA | About 100 Playwright test scripts in `qa/` |
 
@@ -150,9 +150,10 @@ This is the one feature that changes what the product is: it goes from a static 
 - The final ranking goes by points, then game wins. Seats that are equal on both share the place, and the podium says "SHARED CROWN!".
 
 ## 10. Play Together (as built)
-- **Mechanism:** every phone plays the **same seeded challenge at the same moment, alone**, and scores are compared. These are claw-core's *parallel* games: **Snap Strike, Odd One Out, Steady Hand, Loot Catch, Tree Climb** (5). That's all the library supports across phones today. Sumo, Tank Clash and the other shared-arena games have no real-time cross-phone sync in either app.
+- **Mechanism:** every phone plays the **same seeded challenge at the same moment, alone**, and scores are compared. These are claw-core's *parallel* games: **Snap Strike, Odd One Out, Steady Hand, Loot Catch, Tree Climb, Mini Golf, Balloon Pump, Pancake Stack, Shell Game**, and the time trials **Kart GP, Speed Boat, Rift Dive** (12). In a time trial every phone also broadcasts its racer (Room GHOST, ~9 a second, peer to peer) and draws the others as see-through ghosts on a bigger course; the TV shows the running order. That's all the library supports across phones today. Because nobody shares a screen, a room seats up to **12 players** (`Room.MAX_SEATS`); past four, the points ladder pays the top five (6-4-3-2-1). Sumo, Tank Clash and the other shared-arena games have no real-time cross-phone sync in either app.
 - **Transport:** claw-core's `NetTransport` (Trystero WebRTC, Nostr then torrent signaling), namespace `claw-games`. `?net=local` uses a BroadcastChannel loopback for testing.
 - **Session:** `src/net/Room.js`, host-authoritative. The protocol is HELLO / ROSTER / ROUND / READY / GO / SCORE / RESULT. Points use the Party ladder, and totals run for as long as the room is open.
+- **Drinking mode:** the host's 🍺 DRINKING MODE button switches the room on or off at any time (it starts from the host's 🦀 setting). Each result then carries the sips (one per player, split by place), the winner's handout and a house rule for last place, and every phone and the TV put up the full-screen DRINK card (`src/arcade/DrinkCard.js`). One-device games show the same card after every game, bots excluded.
 - **Failure handling:** a phone that never reports is scored 0 after 90 s plus an 8 s grace period. A guest leaving mid-round is dropped from the wait. If the host leaves, the room closes for everyone.
 - **Gaps:**
   - There's no TURN relay, so about 1 network in 10 can't connect peer-to-peer.

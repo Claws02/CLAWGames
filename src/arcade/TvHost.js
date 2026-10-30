@@ -16,8 +16,8 @@ import * as Wheel from './Wheel.js';
 import * as Vetoes from './Vetoes.js';
 import * as Toast from './Toast.js';
 import { MG_INFO, MG_NET_INFO, MG_PARALLEL } from '../claw-core/config/MinigameRegistry.js';
-import { SEAT_STYLE } from '../host/ArcadeState.js';
-import { rulesHTML, drinkLine } from './Together.js';
+import { rulesHTML, drinkLine, NET_COLORS, showDrinks, paintDrinkToggle } from './Together.js';
+import * as DrinkCard from './DrinkCard.js';
 
 const $ = id => document.getElementById(id);
 const MEDALS = ['🥇', '🥈', '🥉', '4️⃣'];
@@ -40,11 +40,12 @@ export function init(show, current) {
     $('btn-tvx-next').addEventListener('click', spin);
     $('btn-tv-end').addEventListener('click', final);
     $('btn-tvx-end').addEventListener('click', final);
+    $('btn-tv-drink').addEventListener('click', () => Room.setDrinking(Room.mode() !== 'drinking'));
 
     Room.on('roster', () => { if (active()) _paint(); });
     Room.on('round', r => { if (active()) { _round = r; _paintRound('Phones: tap I\'M READY'); } });
     Room.on('readyCount', (k, n) => { if (active()) $('tvr-status').textContent = `${k} of ${n} phones ready…`; });
-    Room.on('go', () => { if (active()) $('tvr-status').textContent = '🎮 PLAYING… look at your phones!'; });
+    Room.on('go', () => { if (active()) { $('tvr-status').textContent = '🎮 PLAYING… look at your phones!'; _raceBoard(true); } });
     Room.on('scoreCount', (k, n) => { if (active()) $('tvr-status').textContent = `🎮 PLAYING… ${k} of ${n} scores in`; });
     Room.on('result', r => { if (active()) _paintResult(r); });
     Room.on('cmd', () => { if (active()) _captain(); });
@@ -101,7 +102,7 @@ function _paintQr(href) {
 function _rows(host, names, extra) {
     host.innerHTML = names.map((name, i) =>
         `<div class="st-row"><span class="st-place">${extra ? extra.place[i] : ''}</span>` +
-        `<span class="st-dot" style="background:${SEAT_STYLE[i].hex}">📱</span>` +
+        `<span class="st-dot" style="background:${NET_COLORS[i % NET_COLORS.length]}">📱</span>` +
         `<span class="st-name">${esc(name)}${i === 0 ? ' <small>captain</small>' : ''}</span>` +
         `<span class="st-pts bfont">${extra ? extra.pts[i] : (Room.totals()[i] || 0)}</span></div>`).join('')
         || '<p class="hint">Nobody yet…</p>';
@@ -117,6 +118,7 @@ export function repaint() { _paint(); }
 
 function _paint() {
     _paintRules();
+    paintDrinkToggle($('btn-tv-drink'));
     if (_current() !== 'tvroom') return;
     const u = _joinUrl();
     $('tv-url').textContent = u.show;
@@ -138,6 +140,7 @@ function _pool() {
 
 // auto: start the wheel turning as soon as it's up (the captain's button).
 function spin(auto = false) {
+    DrinkCard.hide();
     if (Room.seats().length < 2) return Toast.show('Need at least 2 players to spin.');
     _show('wheel', false);
     Wheel.open(type => {
@@ -177,7 +180,28 @@ function _places(scores) {
     return place;
 }
 
+// A time trial's racers report where they are (Room ghosts): the TV shows the
+// running order, finishers first by time, then by how far along.
+let _raceTimer = 0;
+function _raceBoard(on) {
+    clearInterval(_raceTimer); _raceTimer = 0;
+    const box = $('tvr-race');
+    box.hidden = true; box.innerHTML = '';
+    if (!on) return;
+    _raceTimer = setInterval(() => {
+        if (!active() || _current() !== 'tvround') return _raceBoard(false);
+        const now = performance.now(), names = Room.seats().map(s => s.name);
+        const rows = Room.ghosts().filter(g => now - g.at < 4000 && g.s && typeof g.s.p === 'number')
+            .map(g => ({ seat: g.seat, done: +g.s.done || 0, p: +g.s.p || 0 }))
+            .sort((a, b) => (a.done && b.done ? a.done - b.done : a.done ? -1 : b.done ? 1 : b.p - a.p));
+        box.hidden = !rows.length;
+        box.innerHTML = rows.map(x => `<li><i style="background:${NET_COLORS[x.seat % NET_COLORS.length]}"></i>${esc(names[x.seat] || '')}` +
+            `<b>${x.done ? `🏁 ${x.done.toFixed(1)}s` : `${Math.round(Math.min(1, x.p) * 100)}%`}</b></li>`).join('');
+    }, 500);
+}
+
 function _paintResult(r) {
+    _raceBoard(false);
     _show('tvresult', false);
     _paintRules();
     $('tvx-game').innerHTML = `${MG_INFO[r.type].icon} ${MG_INFO[r.type].title} · round ${r.n}`;
@@ -189,6 +213,8 @@ function _paintResult(r) {
     });
     const box = $('tvx-drinks');
     box.hidden = !d;
+    // The whole room sees the call, big, until the next spin.
+    if (d) showDrinks(r);
     if (d) {
         const drinkers = r.names.map((n, i) => (d.sips[i] ? `<div class="sip-row"><b>${esc(n)}</b> drinks <span class="bfont">${d.sips[i]}</span> ${d.sips[i] === 1 ? 'sip' : 'sips'}</div>` : '')).join('');
         box.innerHTML = `<div class="panel-h bfont">🍺 Drinks</div>${drinkers}<p>${drinkLine(r)}</p>`;
@@ -196,6 +222,7 @@ function _paintResult(r) {
 }
 
 function final() {
+    DrinkCard.hide();
     const names = Room.seats().map(s => s.name), totals = Room.totals();
     _show('tvresult', false);
     _paintRules();
