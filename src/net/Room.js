@@ -6,7 +6,8 @@
 // NetTransport (Trystero WebRTC; ?net=local for two tabs of one browser).
 //
 // A TV host (a laptop tab cast to the TV) takes no seat: it shows the wheel
-// and the scores, and the first phone in is its captain. A phone may carry
+// and the scores, and the first phone in is its captain. A phone host can sit
+// out the same way (opts.watch): it runs the room and only the guests play. A phone may carry
 // several players (pass the phone): it plays the round once for each of them.
 //
 //   client → host   HELLO  {names}          on every peer join, until seated
@@ -42,6 +43,7 @@ let _hostPeer = null;       // client: who the host is
 let _seats = [];            // host: [{ peer, name }], a peer per player; client: mirror from ROSTER
 let _round = null;          // host: { type, seed, n, ready:Set, scores:Map(seat), timer }
 let _tv = false;            // the host is a TV: no seat of its own
+let _hostSeated = true;     // the host's own players are seats 0.. (false for a TV or a watching phone)
 let _mode = 'party';        // 'party' | 'drinking'
 let _rules = [];            // drinking: [{ name, rule }] for the rest of the room
 let _totals = [];
@@ -56,6 +58,10 @@ export const role = () => _role;
 export const isHost = () => _role === 'host';
 export const code = () => T.roomCode();
 export const isTv = () => _tv;
+/** Is seat 0 the host's own phone? (Not for a TV, or a phone host sitting out.) */
+export const hostSeated = () => _hostSeated;
+/** This phone hosts and sits out: it runs the room, the guests play. */
+export const isWatching = () => _role === 'host' && !_tv && !_hostSeated;
 export const mode = () => _mode;
 /** Host: drinking mode on or off for the room, from the next result on. */
 export function setDrinking(on) {
@@ -93,12 +99,12 @@ function _wire() {
 
 const _list = names => (Array.isArray(names) ? names : [names]).map(n => String(n || '').trim().slice(0, 16)).filter(Boolean);
 
-/** names: this phone's players (none for a TV). opts.tv: host on a TV. */
+/** names: this phone's players (none for a TV). opts.tv: host on a TV; opts.watch: a phone host that sits out. */
 export async function host(names, opts = {}) {
     await leave();
-    _role = 'host'; _tv = !!opts.tv;
+    _role = 'host'; _tv = !!opts.tv; _hostSeated = !_tv && !opts.watch;
     _mode = Drinks.isOn() ? 'drinking' : 'party'; _rules = [];
-    _seats = _tv ? [] : (_list(names).length ? _list(names) : ['Host']).slice(0, MAX_SEATS).map(name => ({ peer: SELF, name }));
+    _seats = !_hostSeated ? [] : (_list(names).length ? _list(names) : ['Host']).slice(0, MAX_SEATS).map(name => ({ peer: SELF, name }));
     _totals = _seats.map(() => 0); _n = 0;
     _wire();
     await T.connect(T.makeRoomCode());
@@ -127,7 +133,7 @@ export async function leave() {
 
 function _broadcastRoster() {
     const list = _seats.map(s => ({ name: s.name, peer: s.peer === SELF ? T.selfId() : s.peer }));
-    _send(MSG.ROSTER, { seats: list, totals: _totals, tv: _tv, mode: _mode, rules: _rules });
+    _send(MSG.ROSTER, { seats: list, totals: _totals, tv: _tv, hostSeated: _hostSeated, mode: _mode, rules: _rules });
     _emit('roster', seats());
 }
 
@@ -260,7 +266,7 @@ function _onMsg(m, peer) {
         _hostPeer = peer;
         _seats = (m.seats || []).map(s => ({ peer: s.peer, name: s.name }));
         _totals = m.totals || [];
-        _tv = !!m.tv; _mode = m.mode || 'party'; _rules = m.rules || [];
+        _tv = !!m.tv; _hostSeated = m.hostSeated ?? !_tv; _mode = m.mode || 'party'; _rules = m.rules || [];
         _emit('roster', seats());
     } else if (peer !== _hostPeer) {
         return;
