@@ -29,7 +29,7 @@
             <div class="logo">
                 <div class="logo-claw">🦀</div>
                 <h1 class="bfont">CLAW <span>GAMES</span></h1>
-                <p class="tag">43 minigames · 1–4 players · friends or bots</p>
+                <p class="tag">43 minigames · 1–4 players · up to 12 online</p>
                 <p class="mode-badge bfont" id="home-mode"></p>
             </div>
             <button class="party-hero" data-go="party">
@@ -205,7 +205,7 @@
         </section>
         <section class="screen" id="scr-together" data-screen="together" hidden>
             <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Play Together</h2></header>
-            <p class="lead">Everyone on their own phone, same room. One phone hosts and the rest join with the code.</p>
+            <p class="lead">Everyone on their own phone, same room, up to 12 players. One phone hosts and the rest join with the code.</p>
             <div class="panel">
                 <label class="panel-h bfont" for="net-name">Your name</label>
                 <input class="field" id="net-name" maxlength="16" autocomplete="off" placeholder="Player">
@@ -232,6 +232,7 @@
                 <div class="panel-h bfont">📺 You're the captain</div>
                 <button class="go-btn bfont" id="btn-room-spin">🎡 SPIN THE WHEEL</button>
             </div>
+            <button class="ghost-btn bfont drink-toggle" id="btn-room-drink" hidden aria-pressed="false">🍺 DRINKING MODE: OFF</button>
             <div class="panel rules" id="room-rules" hidden></div>
             <div class="panel" id="room-host-panel">
                 <div class="panel-h bfont">Pick the next game</div>
@@ -280,12 +281,13 @@
                     <div class="un-k">TAP PLAY TOGETHER, THEN JOIN</div>
                     <div class="tv-code bfont" id="tv-code">····</div>
                     <div class="tv-qr" id="tv-qr" hidden></div>
-                    <p class="hint">Scan to join, or type the code. Up to 4 players. Sharing a phone? Add everyone's name on it before joining.</p>
+                    <p class="hint">Scan to join, or type the code. Up to 12 players. Sharing a phone? Add everyone's name on it before joining.</p>
                 </div>
                 <div class="tv-side">
                     <div class="standings" id="tv-seats"></div>
                     <div class="panel rules tv-rules" hidden></div>
                     <button class="go-btn bfont" id="btn-tv-spin">🎡 SPIN THE WHEEL</button>
+                    <button class="ghost-btn bfont drink-toggle" id="btn-tv-drink" hidden aria-pressed="false">🍺 DRINKING MODE: OFF</button>
                     <button class="ghost-btn bfont" id="btn-tv-end">🏁 FINAL SCORES</button>
                     <p class="hint" id="tv-hint"></p>
                 </div>
@@ -299,6 +301,7 @@
                 <div class="wr-title bfont" id="tvr-title"></div>
                 <div class="wr-desc" id="tvr-desc"></div>
                 <div class="tv-status bfont" id="tvr-status"></div>
+                <ol class="tv-race" id="tvr-race" hidden></ol>
             </div>
         </section>
 
