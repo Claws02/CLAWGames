@@ -45,7 +45,7 @@ export function init(show, current) {
     Room.on('roster', () => { if (active()) _paint(); });
     Room.on('round', r => { if (active()) { _round = r; _paintRound('Phones: tap I\'M READY'); } });
     Room.on('readyCount', (k, n) => { if (active()) $('tvr-status').textContent = `${k} of ${n} phones ready…`; });
-    Room.on('go', () => { if (active()) $('tvr-status').textContent = '🎮 PLAYING… look at your phones!'; });
+    Room.on('go', () => { if (active()) { $('tvr-status').textContent = '🎮 PLAYING… look at your phones!'; _raceBoard(true); } });
     Room.on('scoreCount', (k, n) => { if (active()) $('tvr-status').textContent = `🎮 PLAYING… ${k} of ${n} scores in`; });
     Room.on('result', r => { if (active()) _paintResult(r); });
     Room.on('cmd', () => { if (active()) _captain(); });
@@ -180,7 +180,28 @@ function _places(scores) {
     return place;
 }
 
+// A time trial's racers report where they are (Room ghosts): the TV shows the
+// running order, finishers first by time, then by how far along.
+let _raceTimer = 0;
+function _raceBoard(on) {
+    clearInterval(_raceTimer); _raceTimer = 0;
+    const box = $('tvr-race');
+    box.hidden = true; box.innerHTML = '';
+    if (!on) return;
+    _raceTimer = setInterval(() => {
+        if (!active() || _current() !== 'tvround') return _raceBoard(false);
+        const now = performance.now(), names = Room.seats().map(s => s.name);
+        const rows = Room.ghosts().filter(g => now - g.at < 4000 && g.s && typeof g.s.p === 'number')
+            .map(g => ({ seat: g.seat, done: +g.s.done || 0, p: +g.s.p || 0 }))
+            .sort((a, b) => (a.done && b.done ? a.done - b.done : a.done ? -1 : b.done ? 1 : b.p - a.p));
+        box.hidden = !rows.length;
+        box.innerHTML = rows.map(x => `<li><i style="background:${NET_COLORS[x.seat % NET_COLORS.length]}"></i>${esc(names[x.seat] || '')}` +
+            `<b>${x.done ? `🏁 ${x.done.toFixed(1)}s` : `${Math.round(Math.min(1, x.p) * 100)}%`}</b></li>`).join('');
+    }, 500);
+}
+
 function _paintResult(r) {
+    _raceBoard(false);
     _show('tvresult', false);
     _paintRules();
     $('tvx-game').innerHTML = `${MG_INFO[r.type].icon} ${MG_INFO[r.type].title} · round ${r.n}`;

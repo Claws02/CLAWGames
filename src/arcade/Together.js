@@ -212,7 +212,9 @@ function _play() {
         }
         const go = () => {
             $('arcade').hidden = true;
+            _ghostLink(Room.mySeats()[scores.length]);
             SoloArena.play(r.type, r.seed, score => {
+                SoloArena.setGhostLink?.(null);
                 SoloArena.reset();
                 $('arcade').hidden = false;
                 scores.push(score);
@@ -237,9 +239,20 @@ function _passTo(name, go) {
     _handoff = go;
 }
 
+// Time trials draw everyone else racing as ghosts (claw-core SoloArena): this
+// phone's racer goes out on the room, and the room's racers come back in.
+function _ghostLink(seat) {
+    SoloArena.setGhostLink?.({
+        send: s => Room.sendGhost(seat, s),
+        others: () => Room.ghosts().filter(g => g.seat !== seat)
+            .map(g => ({ id: g.seat, name: Room.seats()[g.seat]?.name || '', color: color(g.seat), state: g.s, at: g.at })),
+    });
+}
+
 function _abortGame() {
     const was = _playing;
     _playing = false; _handoff = null;
+    SoloArena.setGhostLink?.(null);
     if (was && $('arcade').hidden) { try { SoloArena.forceEnd(); } catch (e) {} SoloArena.reset(); }
     $('arcade').hidden = false;
 }
