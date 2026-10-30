@@ -18,13 +18,17 @@
 //   host   → all    RESULT {type, scores, pay, totals, n, drinks?, rules}
 //   captain → TV    CMD    {}               "spin / play it / next" from the couch
 //
+// Up to MAX_SEATS players: every game here is played alone on each phone and
+// the scores compared, so a room scales past the four a shared screen seats.
+// The host can switch drinking mode on and off at any time (setDrinking).
+//
 // A phone that leaves mid-round is scored 0; a host that leaves ends the room.
 // ============================================================
 import * as T from '../claw-core/net/NetTransport.js';
 import { soloRoundMs } from '../claw-core/config/MinigameRegistry.js';
 import * as Drinks from '../arcade/Drinks.js';
 
-export const MAX_SEATS = 4;
+export const MAX_SEATS = 12;
 const V = 1;
 const MSG = { HELLO: 'hello', ROSTER: 'roster', ROUND: 'round', READY: 'ready', GO: 'go', SCORE: 'score', RESULT: 'result', CMD: 'cmd' };
 const SELF = 'self';
@@ -50,6 +54,12 @@ export const isHost = () => _role === 'host';
 export const code = () => T.roomCode();
 export const isTv = () => _tv;
 export const mode = () => _mode;
+/** Host: drinking mode on or off for the room, from the next result on. */
+export function setDrinking(on) {
+    if (!isHost()) return;
+    _mode = on ? 'drinking' : 'party';
+    _broadcastRoster();
+}
 export const rules = () => _rules.slice();
 export const seats = () => _seats.map(s => ({ name: s.name, me: s.peer === SELF || s.peer === T.selfId() }));
 export const mySeat = () => seats().findIndex(s => s.me);

@@ -16,8 +16,8 @@ import * as Wheel from './Wheel.js';
 import * as Vetoes from './Vetoes.js';
 import * as Toast from './Toast.js';
 import { MG_INFO, MG_NET_INFO, MG_PARALLEL } from '../claw-core/config/MinigameRegistry.js';
-import { SEAT_STYLE } from '../host/ArcadeState.js';
-import { rulesHTML, drinkLine } from './Together.js';
+import { rulesHTML, drinkLine, NET_COLORS, showDrinks, paintDrinkToggle } from './Together.js';
+import * as DrinkCard from './DrinkCard.js';
 
 const $ = id => document.getElementById(id);
 const MEDALS = ['🥇', '🥈', '🥉', '4️⃣'];
@@ -40,6 +40,7 @@ export function init(show, current) {
     $('btn-tvx-next').addEventListener('click', spin);
     $('btn-tv-end').addEventListener('click', final);
     $('btn-tvx-end').addEventListener('click', final);
+    $('btn-tv-drink').addEventListener('click', () => Room.setDrinking(Room.mode() !== 'drinking'));
 
     Room.on('roster', () => { if (active()) _paint(); });
     Room.on('round', r => { if (active()) { _round = r; _paintRound('Phones: tap I\'M READY'); } });
@@ -101,7 +102,7 @@ function _paintQr(href) {
 function _rows(host, names, extra) {
     host.innerHTML = names.map((name, i) =>
         `<div class="st-row"><span class="st-place">${extra ? extra.place[i] : ''}</span>` +
-        `<span class="st-dot" style="background:${SEAT_STYLE[i].hex}">📱</span>` +
+        `<span class="st-dot" style="background:${NET_COLORS[i % NET_COLORS.length]}">📱</span>` +
         `<span class="st-name">${esc(name)}${i === 0 ? ' <small>captain</small>' : ''}</span>` +
         `<span class="st-pts bfont">${extra ? extra.pts[i] : (Room.totals()[i] || 0)}</span></div>`).join('')
         || '<p class="hint">Nobody yet…</p>';
@@ -117,6 +118,7 @@ export function repaint() { _paint(); }
 
 function _paint() {
     _paintRules();
+    paintDrinkToggle($('btn-tv-drink'));
     if (_current() !== 'tvroom') return;
     const u = _joinUrl();
     $('tv-url').textContent = u.show;
@@ -138,6 +140,7 @@ function _pool() {
 
 // auto: start the wheel turning as soon as it's up (the captain's button).
 function spin(auto = false) {
+    DrinkCard.hide();
     if (Room.seats().length < 2) return Toast.show('Need at least 2 players to spin.');
     _show('wheel', false);
     Wheel.open(type => {
@@ -189,6 +192,8 @@ function _paintResult(r) {
     });
     const box = $('tvx-drinks');
     box.hidden = !d;
+    // The whole room sees the call, big, until the next spin.
+    if (d) showDrinks(r);
     if (d) {
         const drinkers = r.names.map((n, i) => (d.sips[i] ? `<div class="sip-row"><b>${esc(n)}</b> drinks <span class="bfont">${d.sips[i]}</span> ${d.sips[i] === 1 ? 'sip' : 'sips'}</div>` : '')).join('');
         box.innerHTML = `<div class="panel-h bfont">🍺 Drinks</div>${drinkers}<p>${drinkLine(r)}</p>`;
@@ -196,6 +201,7 @@ function _paintResult(r) {
 }
 
 function final() {
+    DrinkCard.hide();
     const names = Room.seats().map(s => s.name), totals = Room.totals();
     _show('tvresult', false);
     _paintRules();

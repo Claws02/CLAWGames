@@ -16,6 +16,7 @@ import * as SoloArena from '../claw-core/minigames/SoloArena.js';
 import { MG_INFO, MG_NET_INFO, MG_PARALLEL } from '../claw-core/config/MinigameRegistry.js';
 import { pointsFor } from './Party.js';
 import { SEAT_STYLE } from '../host/ArcadeState.js';
+import * as DrinkCard from './DrinkCard.js';
 import * as Store from './Store.js';
 import * as Profiles from './Profiles.js';
 import * as Toast from './Toast.js';
@@ -28,6 +29,9 @@ let _show = null, _home = null;
 let _pending = null;       // the announced round: { type, seed, n }
 let _playing = false;
 const MAX_LOCAL = 4;
+// A colour per seat for rooms of up to twelve: the table's four, then eight more.
+export const NET_COLORS = [...SEAT_STYLE.map(s => s.hex), '#8b5cf6', '#ff9f1c', '#2ec4b6', '#ff5fa2', '#a3e635', '#38bdf8', '#b45309', '#e2e8f0'];
+const color = i => NET_COLORS[i % NET_COLORS.length];
 let _handoff = null;       // pass the phone: the next player's game, on the card's button
 // The TV tab hosts the room; its screens are TvHost's, not these.
 const _tvHere = () => Room.isHost() && Room.isTv();
@@ -87,6 +91,7 @@ export function init(show, goHome) {
         _show('room'); _paintRoom();
     });
     $('btn-room-spin').addEventListener('click', () => Room.command());
+    $('btn-room-drink').addEventListener('click', () => Room.setDrinking(Room.mode() !== 'drinking'));
 }
 
 function _name() {
@@ -118,9 +123,9 @@ export async function leave() { _abortGame(); await Room.leave(); }
 function _rows(host, names, extra) {
     host.innerHTML = names.map((name, i) =>
         `<div class="st-row"><span class="st-place">${extra ? extra.place[i] : ''}</span>` +
-        `<span class="st-dot" style="background:${SEAT_STYLE[i].hex}">${Room.mySeats().includes(i) ? '⭐' : '📱'}</span>` +
+        `<span class="st-dot" style="background:${color(i)}">${Room.mySeats().includes(i) ? '⭐' : '📱'}</span>` +
         `<span class="st-name">${_esc(name)}${i === 0 ? (Room.isTv() ? ' (captain)' : ' (host)') : ''}</span>` +
-        `<span class="st-bar"><i style="width:${extra ? extra.bar[i] : 0}%;background:${SEAT_STYLE[i].hex}"></i></span>` +
+        `<span class="st-bar"><i style="width:${extra ? extra.bar[i] : 0}%;background:${color(i)}"></i></span>` +
         `<span class="st-pts bfont">${extra ? extra.pts[i] : (Room.totals()[i] || 0)}</span></div>`).join('');
 }
 
@@ -140,6 +145,7 @@ function _paintRoom() {
     const host = Room.isHost();
     $('room-host-panel').hidden = !host;
     $('room-captain').hidden = !Room.isCaptain();
+    paintDrinkToggle($('btn-room-drink'));
     const rules = $('room-rules');
     rules.innerHTML = Room.mode() === 'drinking' ? rulesHTML(Room.rules()) : '';
     rules.hidden = !rules.innerHTML;
@@ -239,7 +245,7 @@ function _abortGame() {
 }
 
 // A result can be re-sent (a late phone, a repaint); count each round once.
-let _countedRound = null;
+let _countedRound = null, _drankRound = null;
 
 function _showResult(r) {
     // Decided while this phone was still playing (it started late, or the
@@ -260,7 +266,11 @@ function _showResult(r) {
         bar: r.totals.map(t => (t / top) * 100),
         pts: r.totals.map((t, i) => `${t}<small>${r.scores[i]} pts · +${r.pay[i]}${d ? ` · 🍺 ${d.sips[i]}` : ''}</small>`),
     });
-    if (d) $('nr-game').innerHTML += '<br>' + drinkLine(r);
+    if (d) {
+        $('nr-game').innerHTML += '<br>' + drinkLine(r);
+        // Once per round, on every phone: who drinks, and how much.
+        if (r.n !== _drankRound) { _drankRound = r.n; showDrinks(r, Room.mySeats()); }
+    }
     $('btn-nr-next').hidden = !(Room.isHost() || Room.isCaptain());
     $('btn-nr-next').textContent = Room.isCaptain() ? '🎡 SPIN THE NEXT ONE →' : 'NEXT GAME →';
     $('nr-wait').textContent = Room.isHost() || Room.isCaptain() ? '' : Room.isTv() ? 'Watch the TV for the next game…' : 'Waiting for the host to pick the next game…';
@@ -274,4 +284,21 @@ export function drinkLine(r) {
     if (d.give >= 0) bits.push(`🎁 <b>${_esc(r.names[d.give])}</b> hands out 1 sip`);
     if (d.rule) bits.push(`📜 <b>${_esc(d.rule.name)}</b> new rule: ${_esc(d.rule.rule)}`);
     return bits.join('<br>');
+}
+
+/** The room's DRINK card for a result (phones pass their own seats as `me`). */
+export function showDrinks(r, me = []) {
+    const d = r.drinks;
+    if (!d) return;
+    DrinkCard.show({ names: r.names, sips: d.sips, give: d.give, rule: d.rule, rules: r.rules || [], me, colors: r.names.map((_, i) => color(i)) });
+}
+
+/** The host's drinking switch: shows the room's mode, only the host may flip it. */
+export function paintDrinkToggle(btn) {
+    if (!btn) return;
+    const on = Room.mode() === 'drinking';
+    btn.hidden = !Room.isHost();
+    btn.textContent = on ? '🍺 DRINKING MODE: ON' : '🍺 DRINKING MODE: OFF';
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-pressed', String(on));
 }

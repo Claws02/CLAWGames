@@ -39,6 +39,11 @@ const ROUNDS = +(process.env.QA_ROUNDS || 2);
     await tv.waitForFunction(() => /^[A-Z0-9]{4}$/.test(document.getElementById('tv-code').textContent), null, { timeout: 15000 });
     const code = await tv.textContent('#tv-code');
     check(await screen(tv) === 'tvroom' && (await tv.textContent('.tv-mode')).includes('DRINKING'), `TV room ${code} open in drinking mode`);
+    check(/ON/.test(await tv.textContent('#btn-tv-drink')), 'the TV shows its drinking switch, on');
+    await tv.click('#btn-tv-drink');
+    check(/OFF/.test(await tv.textContent('#btn-tv-drink')) && (await tv.textContent('.tv-mode')).includes('PARTY'), 'one tap switches the room to party mode');
+    await tv.click('#btn-tv-drink');
+    check(/ON/.test(await tv.textContent('#btn-tv-drink')), 'and back to drinking');
     await tv.waitForFunction(() => !!document.querySelector('#tv-qr svg'), null, { timeout: 10000 }).catch(() => {});
     check(await tv.isVisible('#tv-qr svg'), 'the TV shows a QR code for the join link');
 
@@ -96,9 +101,15 @@ const ROUNDS = +(process.env.QA_ROUNDS || 2);
         check(sips.every(x => x >= 0) && sips.reduce((s, x) => s + x, 0) >= 2, `sips shown for everyone: ${sips}`);
         const rules = await tv.$$eval('#scr-tvresult .rule-row', els => els.length);
         check(rules <= round, `house rules on the TV: ${rules}`);
+        check(await tv.isVisible('.drink-wrap'), 'the TV puts up the DRINK card');
+        const me = await Promise.all(phones.map(p => p.evaluate(() => document.querySelector('.drink-me')?.textContent || '')));
+        check(me.every(t => /YOU DRINK|SAFE|SIP/.test(t)), `every phone is told what to drink: ${me.join(' | ')}`);
+        await Promise.all(phones.map(p => p.click('.drink-ok')));
         check(await a.isVisible('#btn-nr-next') && !(await b.isVisible('#btn-nr-next')), 'only the captain gets NEXT');
     }
 
+    await tv.click('.drink-ok');
+    check(!(await tv.isVisible('.drink-wrap')), 'CHEERS on the TV clears its DRINK card');
     await tv.click('#btn-tvx-end');
     check((await tv.textContent('#tvx-game')) === 'FINAL SCORES', `final scores: ${await tv.textContent('#tvx-title')}`);
     await b.click('.screen:not([hidden]) [data-back]');

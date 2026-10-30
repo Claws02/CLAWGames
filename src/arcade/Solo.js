@@ -20,7 +20,7 @@ import * as Store from './Store.js';
 
 const KEEP = 10;
 export const GAMES = MG_PARALLEL.slice();
-const UNIT = { lootcatch: 'coins', oddoneout: 'found', snapstrike: 'pts', treeclimb: 'branches', minigolf: 'pts' };
+const UNIT = { lootcatch: 'coins', oddoneout: 'found', snapstrike: 'pts', treeclimb: 'branches', minigolf: 'pts', balloonpump: 'pts', shellgame: 'pts' };
 
 let _s = Store.load('solo', null) || {};
 _s = { tables: {}, ..._s };
@@ -33,6 +33,8 @@ export function fmt(type, score) {
     if (score == null) return '—';
     // Steady Hand counts tenths of a second held.
     if (type === 'steadyhand') return `${(score / 10).toFixed(1)}s`;
+    // Pancake Stack reports its stack in millimetres.
+    if (type === 'pancakes') return `${(score / 10).toFixed(1)} cm`;
     return `${Math.round(score)} ${UNIT[type] || ''}`.trim();
 }
 export const table = type => (_s.tables[type] || []).slice();
