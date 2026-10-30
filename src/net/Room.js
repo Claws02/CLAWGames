@@ -17,6 +17,9 @@
 //   any    → host   SCORE  {scores}         my players' games ended, in seat order
 //   host   → all    RESULT {type, scores, pay, totals, n, drinks?, rules}
 //   captain → TV    CMD    {}               "spin / play it / next" from the couch
+//   any     → all   GHOST  {n, seat, s}     a racer's whereabouts, ~9 a second, during
+//                                           a time trial (SoloArena ghosts); straight to
+//                                           every phone, not through the host
 //
 // Up to MAX_SEATS players: every game here is played alone on each phone and
 // the scores compared, so a room scales past the four a shared screen seats.
@@ -30,7 +33,7 @@ import * as Drinks from '../arcade/Drinks.js';
 
 export const MAX_SEATS = 12;
 const V = 1;
-const MSG = { HELLO: 'hello', ROSTER: 'roster', ROUND: 'round', READY: 'ready', GO: 'go', SCORE: 'score', RESULT: 'result', CMD: 'cmd' };
+const MSG = { HELLO: 'hello', ROSTER: 'roster', ROUND: 'round', READY: 'ready', GO: 'go', SCORE: 'score', RESULT: 'result', CMD: 'cmd', GHOST: 'ghost' };
 const SELF = 'self';
 
 let _role = null;           // 'host' | 'client' | null
@@ -117,6 +120,7 @@ export function command() { if (_role === 'client' && _hostPeer) _send(MSG.CMD, 
 export async function leave() {
     if (_round && _round.timer) clearTimeout(_round.timer);
     _round = null; _role = null; _hostPeer = null; _seats = []; _totals = []; _tv = false; _rules = [];
+    _ghosts.clear(); _ghostN = 0;
     _offs.splice(0).forEach(off => { try { off(); } catch (e) {} });
     if (T.isOpen()) await T.disconnect();
 }
@@ -138,6 +142,7 @@ export function startRound(type) {
     _n++;
     _round = { type, seed, n: _n, ready: new Set(), scores: new Map(), started: false };
     _send(MSG.ROUND, { type, seed, n: _n });
+    _ghosts.clear(); _ghostN = _n;
     _emit('round', { type, seed, n: _n });
     return true;
 }
@@ -217,7 +222,26 @@ function _finishRound() {
 }
 
 // ---- messages --------------------------------------------------------------------
+// ---- ghosts: where everyone is in a time trial -----------------------------------
+const _ghosts = new Map();   // seat index → { s, at }, this round only
+let _ghostN = 0;
+
+/** This phone's racer (seat = which of its players is racing). */
+export function sendGhost(seat, s) {
+    if (!_role || !_ghostN) return;
+    _send(MSG.GHOST, { n: _ghostN, seat, s });
+}
+/** Everyone heard from this round: [{ seat, s, at }]. */
+export const ghosts = () => [..._ghosts].map(([seat, g]) => ({ seat, s: g.s, at: g.at }));
+
+function _onGhost(m, peer) {
+    // Only for the round in play, and only for a seat that phone really holds.
+    if (m.n !== _ghostN || !_seats[m.seat] || _seats[m.seat].peer !== peer || !m.s || typeof m.s !== 'object') return;
+    _ghosts.set(m.seat, { s: m.s, at: performance.now() });
+}
+
 function _onMsg(m, peer) {
+    if (m.t === MSG.GHOST) return _onGhost(m, peer);
     if (_role === 'host') {
         if (m.t === MSG.HELLO) {
             if (_seats.some(s => s.peer === peer)) return _broadcastRoster();
@@ -240,7 +264,7 @@ function _onMsg(m, peer) {
         _emit('roster', seats());
     } else if (peer !== _hostPeer) {
         return;
-    } else if (m.t === MSG.ROUND) _emit('round', { type: m.type, seed: m.seed, n: m.n });
+    } else if (m.t === MSG.ROUND) { _ghosts.clear(); _ghostN = m.n; _emit('round', { type: m.type, seed: m.seed, n: m.n }); }
     else if (m.t === MSG.GO) _emit('go', {});
     else if (m.t === MSG.RESULT) { _totals = m.totals || _totals; _rules = m.rules || _rules; _emit('result', m); }
 }

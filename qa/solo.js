@@ -48,7 +48,7 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
         spin: !document.getElementById('btn-grid-spin').hidden,
         who: document.querySelectorAll('#grid-who i').length,
     }));
-    const solo = ['snapstrike', 'oddoneout', 'steadyhand', 'lootcatch', 'treeclimb', 'minigolf', 'balloonpump', 'pancakes', 'shellgame'];
+    const solo = ['snapstrike', 'oddoneout', 'steadyhand', 'lootcatch', 'treeclimb', 'minigolf', 'balloonpump', 'pancakes', 'shellgame', 'kartgp', 'speedboat', 'riftdive'];
     ok('only the solo games are open', g.open.length === solo.length && solo.every(t => g.open.includes(t)), g.open.join(','));
     ok('a card says there is no score yet; no SPIN; one seat in the strip', g.best === 'no score yet' && !g.spin && g.who === 1, `${g.best} spin=${g.spin} who=${g.who}`);
     await page.screenshot({ path: 'qa/shot-solo-grid.png' });

@@ -78,7 +78,7 @@ const ROUNDS = +(process.env.QA_ROUNDS || 2);
         await Promise.all(phones.map(p => p.click('#btn-nc-ready')));
         const t0 = Date.now();
         let handoffs = 0;
-        while (Date.now() - t0 < 240000 && await screen(tv) !== 'tvresult') {
+        while (Date.now() - t0 < 480000 && await screen(tv) !== 'tvresult') {
             for (const p of phones) {
                 const s = await screen(p);
                 // Pass the phone: the next player's card.
