@@ -1,0 +1,14 @@
+{
+    "name": "CLAW Games",
+    "short_name": "CLAW Games",
+    "description": "43 minigames for 1–4 players: friends on one phone, phones in a room, or bots.",
+    "start_url": "./",
+    "scope": "./",
+    "display": "standalone",
+    "background_color": "#ff7eb6",
+    "theme_color": "#ff5fa2",
+    "icons": [
+        { "src": "assets/icons/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+        { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+    ]
+}

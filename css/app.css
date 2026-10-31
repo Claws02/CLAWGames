@@ -668,3 +668,11 @@ body.tv #tv-seats { display: grid; grid-template-columns: repeat(auto-fill, minm
 .tv-race li { counter-increment: race; display: grid; grid-template-columns: auto 18px 1fr auto; align-items: center; gap: 8px; background: var(--paper); border: 3px solid var(--ink); border-radius: 14px; padding: 6px 12px; font-weight: 900; font-size: clamp(16px, 1.6vw, 30px); }
 .tv-race li::before { content: counter(race) "."; font-family: 'Bebas Neue', sans-serif; }
 .tv-race li i { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--ink); }
+
+/* ---------- iPhone: Share → Add to Home Screen ---------- */
+.a2hs { display: flex; align-items: center; gap: 10px; border: var(--line); border-radius: var(--radius); box-shadow: 0 4px 0 var(--ink); background: var(--paper); padding: 10px 12px; }
+.a2hs[hidden] { display: none; }
+.a2hs-ico { width: 44px; height: 44px; border-radius: 10px; border: 2px solid var(--ink); flex-shrink: 0; }
+.a2hs-txt { flex: 1; font-weight: 700; font-size: 15px; line-height: 1.35; }
+.a2hs-share { display: inline-grid; place-items: center; vertical-align: -4px; color: #0a84ff; }
+.a2hs-x { border: none; background: none; font-size: 18px; font-weight: 900; padding: 6px; color: var(--ink); }
