@@ -36,6 +36,7 @@ import { faceHTML, portraits } from './arcade/Characters.js';
 import { isHost as Room_isHost } from './net/Room.js';
 import * as TvHost from './arcade/TvHost.js';
 import * as Drinks from './arcade/Drinks.js';
+import * as DrinkCard from './arcade/DrinkCard.js';
 
 // Quick Play for one: "1" on Quick Play's seats screen (kept between visits).
 let _quickSolo = !!Store.load('quickSolo', false);
@@ -82,7 +83,7 @@ async function back() {
     if (Party.party.active && _current !== 'party') { Party.party.active = false; return goHome(); }
     show(_history.pop() || 'home', false);
 }
-function goHome() { _history.length = 0; show('home', false); }
+function goHome() { _history.length = 0; Drinks.resetLocal(); show('home', false); }
 
 document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', back));
 
@@ -179,6 +180,12 @@ function play(type, onDone, via = 'quick', opts = {}) {
             } else Toast.show(won ? `${table[winnerId] ? '🤖' : '🏆'} ${won.name} wins ${MG_INFO[type].title}!` : '🤝 Draw!',
                 won ? SEAT_STYLE[winnerId].hex : null);
             Trophies.announce();
+            // Drinking mode: the table is told who drinks, after every game.
+            if (Drinks.isOn() && count >= 2 && table.some(b => !b)) {
+                const names = table.map((_, i) => state.players[i]?.name || `P${i + 1}`);
+                const d = Drinks.localRound(names, Drinks.scoresFrom(winnerId, standings, count), table);
+                setTimeout(() => DrinkCard.show({ ...d, names, rules: Drinks.localRules(), bots: table, colors: SEAT_STYLE.map(st => st.hex) }), 700);
+            }
             (onDone || (() => show(_current, false)))(winnerId, standings);
         },
     });

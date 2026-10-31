@@ -15,8 +15,11 @@ npm run smoke         # plays 5 games end to end in headless Chromium
 node qa/party.js      # a 3-game party with each picker (wheel, shuffle, draft, host picks)
 node qa/party-points.mjs   # party scoring rules, no browser
 node qa/together.js   # two phones in one room over the loopback transport
+node qa/hostwatch.js  # a phone host with HOST PLAYS TOO off: runs the room, never plays
 node qa/tv.js         # a TV host, a passed phone with two players and a second phone, drinking mode on
 node qa/drinks.mjs    # drinking-mode rules (sips by place, house rules, the crab tap), no browser
+node qa/ghosts.js     # time trials (Kart GP, Speed Boat, Rift Dive): a TV and three phones racing with live ghosts
+node qa/phonegames.js # online-only games (Stop the Clock, Higher or Lower, Trivia): lists, same seed same challenge, scores
 node qa/homescreen.js # iPhone Add to Home Screen tip, web-app meta, manifest and icons
 node qa/trophies.js   # trophy rules, persistence, old saves, the screen, a real game
 node qa/yatzy.js      # Yatzy scoring rules, a game vs a bot, a two-player tabletop game
@@ -42,7 +45,7 @@ There's no build step: the app is ES modules served as static files, with vendor
 
 1. On a laptop, open the site in Chrome, then use ⋮ → Cast… → your TV → **Cast tab**.
 2. On the laptop tab, go to **Together → 📺 HOST ON A TV**. The TV shows the room code.
-3. Each phone scans the QR code on the TV (or opens the site and goes to **Together**), adds everyone sharing that phone (**+ ANOTHER PLAYER ON THIS PHONE**) and JOINs (4 players max).
+3. Each phone scans the QR code on the TV (or opens the site and goes to **Together**), adds everyone sharing that phone (**+ ANOTHER PLAYER ON THIS PHONE**) and JOINs (12 players max).
 4. The first phone in is the captain. Its **SPIN** button spins the wheel, plays what it lands on, and spins again after each round. The laptop mouse can do the same.
 
 The site has to be served over HTTPS (or localhost) for the phones' peer-to-peer connection, e.g. GitHub Pages.

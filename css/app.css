@@ -639,6 +639,36 @@ body.tv .tv-card .wr-desc { font-size: clamp(18px, 1.8vw, 34px); }
 .tv-qr { width: clamp(140px, 22vh, 280px); aspect-ratio: 1; background: #fff; border: var(--line); border-radius: 14px; padding: 6px; }
 .tv-qr svg { display: block; width: 100%; height: 100%; }
 
+/* ---------- drinking mode: the after-round DRINK card ---------- */
+.drink-wrap { position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center; padding: 16px; background: rgba(43,18,64,.72); animation: screen-in .25s ease; }
+.drink-card { width: min(100%, 520px); max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
+    border: var(--line); border-radius: var(--radius); box-shadow: var(--pop); background: var(--yellow); padding: 18px 16px; text-align: center; }
+.drink-h { font-size: clamp(40px, 11vw, 64px); line-height: 1; color: #fff; -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 5px 0 var(--ink); }
+.drink-me { font-size: 30px; background: var(--ink); color: var(--yellow); border-radius: 14px; padding: 6px 10px; }
+.drink-rows { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
+.drink-ok { position: sticky; bottom: 0; }
+.drink-row { display: grid; grid-template-columns: 18px 1fr auto auto; align-items: center; gap: 6px; background: var(--paper); border: 3px solid var(--ink); border-radius: 14px; padding: 6px 10px; text-align: left; font-weight: 900; font-size: 18px; min-width: 0; }
+.dr-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drink-row.me { background: #fff; outline: 4px solid var(--pink, #ff5fa2); }
+.dr-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ink); }
+.dr-n { font-size: 34px; line-height: 1; }
+.dr-u { font-size: 14px; }
+.drink-note, .drink-give, .drink-rule { font-weight: 800; }
+.drink-give, .drink-rule { background: var(--paper); border-radius: 12px; padding: 8px 10px; border: 2px dashed var(--ink); }
+.drink-rules { font-weight: 700; text-align: left; } .drink-rules summary { cursor: pointer; font-weight: 900; }
+body.tv .drink-card { width: min(92vw, 1100px); gap: 1.4vh; padding: 3vh 3vw; }
+body.tv .drink-rows { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+body.tv .drink-row { font-size: clamp(20px, 2.2vw, 40px); }
+body.tv .dr-n { font-size: clamp(34px, 3.4vw, 64px); }
+body.tv .drink-give, body.tv .drink-rule, body.tv .drink-note { font-size: clamp(16px, 1.6vw, 30px); }
+.drink-toggle.on { background: var(--yellow); }
+body.tv #tv-seats { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 10px; }
+/* the TV's running order during a time trial */
+.tv-race { list-style: none; margin: 2vh auto 0; padding: 0; width: min(92vw, 1100px); display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; counter-reset: race; }
+.tv-race li { counter-increment: race; display: grid; grid-template-columns: auto 18px 1fr auto; align-items: center; gap: 8px; background: var(--paper); border: 3px solid var(--ink); border-radius: 14px; padding: 6px 12px; font-weight: 900; font-size: clamp(16px, 1.6vw, 30px); }
+.tv-race li::before { content: counter(race) "."; font-family: 'Bebas Neue', sans-serif; }
+.tv-race li i { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--ink); }
+
 /* ---------- iPhone: Share → Add to Home Screen ---------- */
 .a2hs { display: flex; align-items: center; gap: 10px; border: var(--line); border-radius: var(--radius); box-shadow: 0 4px 0 var(--ink); background: var(--paper); padding: 10px 12px; }
 .a2hs[hidden] { display: none; }

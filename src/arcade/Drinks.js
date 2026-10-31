@@ -76,3 +76,37 @@ export function drawRule(scores, taken = [], rnd = Math.random) {
     const deck = fresh.length ? fresh : RULES;
     return { seat, rule: deck[Math.floor(rnd() * deck.length)] };
 }
+
+/**
+ * Scores to split drinks by, from a one-device game's result: its standings
+ * when they rank the table (higher is better, as party scoring reads them),
+ * otherwise the winner over everyone else, and a draw shares it all.
+ */
+export function scoresFrom(winnerId, standings, n) {
+    if (Array.isArray(standings) && standings.length >= n && standings.slice(0, n).some(v => v !== standings[0]))
+        return standings.slice(0, n).map(v => Number(v) || 0);
+    return Array.from({ length: n }, (_, i) => (i === winnerId ? 1 : 0));
+}
+
+// One-device play keeps its house rules here, until the table goes home.
+let _local = [];
+export const localRules = () => _local.slice();
+export function resetLocal() { _local = []; }
+
+/** A one-device round: sips, the handout and a new rule for `names` (bots never drink). */
+export function localRound(names, scores, bots = []) {
+    const d = sips(scores);
+    const humans = names.map((_, i) => i).filter(i => !bots[i]);
+    // Last place takes the rule. A bot can't, so it passes to the lowest human,
+    // unless that human topped the table.
+    const r = drawRule(scores, _local.map(x => x.rule));
+    let seat = r ? r.seat : -1;
+    if (seat >= 0 && bots[seat]) {
+        const low = humans.reduce((a, i) => (a < 0 || scores[i] < scores[a] ? i : a), -1);
+        seat = low >= 0 && scores[low] < Math.max(...scores) ? low : -1;
+    }
+    d.rule = seat >= 0 ? { name: names[seat], rule: r.rule } : null;
+    if (d.rule) _local.push(d.rule);
+    if (d.give >= 0 && bots[d.give]) d.give = -1;
+    return d;
+}

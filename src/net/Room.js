@@ -6,7 +6,8 @@
 // NetTransport (Trystero WebRTC; ?net=local for two tabs of one browser).
 //
 // A TV host (a laptop tab cast to the TV) takes no seat: it shows the wheel
-// and the scores, and the first phone in is its captain. A phone may carry
+// and the scores, and the first phone in is its captain. A phone host can sit
+// out the same way (opts.watch): it runs the room and only the guests play. A phone may carry
 // several players (pass the phone): it plays the round once for each of them.
 //
 //   client → host   HELLO  {names}          on every peer join, until seated
@@ -17,6 +18,13 @@
 //   any    → host   SCORE  {scores}         my players' games ended, in seat order
 //   host   → all    RESULT {type, scores, pay, totals, n, drinks?, rules}
 //   captain → TV    CMD    {}               "spin / play it / next" from the couch
+//   any     → all   GHOST  {n, seat, s}     a racer's whereabouts, ~9 a second, during
+//                                           a time trial (SoloArena ghosts); straight to
+//                                           every phone, not through the host
+//
+// Up to MAX_SEATS players: every game here is played alone on each phone and
+// the scores compared, so a room scales past the four a shared screen seats.
+// The host can switch drinking mode on and off at any time (setDrinking).
 //
 // A phone that leaves mid-round is scored 0; a host that leaves ends the room.
 // ============================================================
@@ -24,9 +32,9 @@ import * as T from '../claw-core/net/NetTransport.js';
 import { soloRoundMs } from '../claw-core/config/MinigameRegistry.js';
 import * as Drinks from '../arcade/Drinks.js';
 
-export const MAX_SEATS = 4;
+export const MAX_SEATS = 12;
 const V = 1;
-const MSG = { HELLO: 'hello', ROSTER: 'roster', ROUND: 'round', READY: 'ready', GO: 'go', SCORE: 'score', RESULT: 'result', CMD: 'cmd' };
+const MSG = { HELLO: 'hello', ROSTER: 'roster', ROUND: 'round', READY: 'ready', GO: 'go', SCORE: 'score', RESULT: 'result', CMD: 'cmd', GHOST: 'ghost' };
 const SELF = 'self';
 
 let _role = null;           // 'host' | 'client' | null
@@ -35,6 +43,7 @@ let _hostPeer = null;       // client: who the host is
 let _seats = [];            // host: [{ peer, name }], a peer per player; client: mirror from ROSTER
 let _round = null;          // host: { type, seed, n, ready:Set, scores:Map(seat), timer }
 let _tv = false;            // the host is a TV: no seat of its own
+let _hostSeated = true;     // the host's own players are seats 0.. (false for a TV or a watching phone)
 let _mode = 'party';        // 'party' | 'drinking'
 let _rules = [];            // drinking: [{ name, rule }] for the rest of the room
 let _totals = [];
@@ -49,7 +58,17 @@ export const role = () => _role;
 export const isHost = () => _role === 'host';
 export const code = () => T.roomCode();
 export const isTv = () => _tv;
+/** Is seat 0 the host's own phone? (Not for a TV, or a phone host sitting out.) */
+export const hostSeated = () => _hostSeated;
+/** This phone hosts and sits out: it runs the room, the guests play. */
+export const isWatching = () => _role === 'host' && !_tv && !_hostSeated;
 export const mode = () => _mode;
+/** Host: drinking mode on or off for the room, from the next result on. */
+export function setDrinking(on) {
+    if (!isHost()) return;
+    _mode = on ? 'drinking' : 'party';
+    _broadcastRoster();
+}
 export const rules = () => _rules.slice();
 export const seats = () => _seats.map(s => ({ name: s.name, me: s.peer === SELF || s.peer === T.selfId() }));
 export const mySeat = () => seats().findIndex(s => s.me);
@@ -80,12 +99,12 @@ function _wire() {
 
 const _list = names => (Array.isArray(names) ? names : [names]).map(n => String(n || '').trim().slice(0, 16)).filter(Boolean);
 
-/** names: this phone's players (none for a TV). opts.tv: host on a TV. */
+/** names: this phone's players (none for a TV). opts.tv: host on a TV; opts.watch: a phone host that sits out. */
 export async function host(names, opts = {}) {
     await leave();
-    _role = 'host'; _tv = !!opts.tv;
+    _role = 'host'; _tv = !!opts.tv; _hostSeated = !_tv && !opts.watch;
     _mode = Drinks.isOn() ? 'drinking' : 'party'; _rules = [];
-    _seats = _tv ? [] : (_list(names).length ? _list(names) : ['Host']).slice(0, MAX_SEATS).map(name => ({ peer: SELF, name }));
+    _seats = !_hostSeated ? [] : (_list(names).length ? _list(names) : ['Host']).slice(0, MAX_SEATS).map(name => ({ peer: SELF, name }));
     _totals = _seats.map(() => 0); _n = 0;
     _wire();
     await T.connect(T.makeRoomCode());
@@ -107,13 +126,14 @@ export function command() { if (_role === 'client' && _hostPeer) _send(MSG.CMD, 
 export async function leave() {
     if (_round && _round.timer) clearTimeout(_round.timer);
     _round = null; _role = null; _hostPeer = null; _seats = []; _totals = []; _tv = false; _rules = [];
+    _ghosts.clear(); _ghostN = 0;
     _offs.splice(0).forEach(off => { try { off(); } catch (e) {} });
     if (T.isOpen()) await T.disconnect();
 }
 
 function _broadcastRoster() {
     const list = _seats.map(s => ({ name: s.name, peer: s.peer === SELF ? T.selfId() : s.peer }));
-    _send(MSG.ROSTER, { seats: list, totals: _totals, tv: _tv, mode: _mode, rules: _rules });
+    _send(MSG.ROSTER, { seats: list, totals: _totals, tv: _tv, hostSeated: _hostSeated, mode: _mode, rules: _rules });
     _emit('roster', seats());
 }
 
@@ -128,6 +148,7 @@ export function startRound(type) {
     _n++;
     _round = { type, seed, n: _n, ready: new Set(), scores: new Map(), started: false };
     _send(MSG.ROUND, { type, seed, n: _n });
+    _ghosts.clear(); _ghostN = _n;
     _emit('round', { type, seed, n: _n });
     return true;
 }
@@ -207,7 +228,26 @@ function _finishRound() {
 }
 
 // ---- messages --------------------------------------------------------------------
+// ---- ghosts: where everyone is in a time trial -----------------------------------
+const _ghosts = new Map();   // seat index → { s, at }, this round only
+let _ghostN = 0;
+
+/** This phone's racer (seat = which of its players is racing). */
+export function sendGhost(seat, s) {
+    if (!_role || !_ghostN) return;
+    _send(MSG.GHOST, { n: _ghostN, seat, s });
+}
+/** Everyone heard from this round: [{ seat, s, at }]. */
+export const ghosts = () => [..._ghosts].map(([seat, g]) => ({ seat, s: g.s, at: g.at }));
+
+function _onGhost(m, peer) {
+    // Only for the round in play, and only for a seat that phone really holds.
+    if (m.n !== _ghostN || !_seats[m.seat] || _seats[m.seat].peer !== peer || !m.s || typeof m.s !== 'object') return;
+    _ghosts.set(m.seat, { s: m.s, at: performance.now() });
+}
+
 function _onMsg(m, peer) {
+    if (m.t === MSG.GHOST) return _onGhost(m, peer);
     if (_role === 'host') {
         if (m.t === MSG.HELLO) {
             if (_seats.some(s => s.peer === peer)) return _broadcastRoster();
@@ -226,11 +266,11 @@ function _onMsg(m, peer) {
         _hostPeer = peer;
         _seats = (m.seats || []).map(s => ({ peer: s.peer, name: s.name }));
         _totals = m.totals || [];
-        _tv = !!m.tv; _mode = m.mode || 'party'; _rules = m.rules || [];
+        _tv = !!m.tv; _hostSeated = m.hostSeated ?? !_tv; _mode = m.mode || 'party'; _rules = m.rules || [];
         _emit('roster', seats());
     } else if (peer !== _hostPeer) {
         return;
-    } else if (m.t === MSG.ROUND) _emit('round', { type: m.type, seed: m.seed, n: m.n });
+    } else if (m.t === MSG.ROUND) { _ghosts.clear(); _ghostN = m.n; _emit('round', { type: m.type, seed: m.seed, n: m.n }); }
     else if (m.t === MSG.GO) _emit('go', {});
     else if (m.t === MSG.RESULT) { _totals = m.totals || _totals; _rules = m.rules || _rules; _emit('result', m); }
 }

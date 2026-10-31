@@ -7,7 +7,9 @@ import { MG_TYPES, MG_INFO, MG_GENRES, profileOf, surfacesOf, blockedReason }
 import * as MinigameLayout from '../claw-core/config/MinigameLayout.js';
 
 export { MG_INFO, MG_GENRES };
-export const allTypes = () => MG_TYPES.filter(t => MG_INFO[t]);
+// Online-only games (src/games/index.js) are left off shared-screen lists;
+// Quick Play for one asks for them too.
+export const allTypes = (withOnline = false) => MG_TYPES.filter(t => MG_INFO[t] && (withOnline || !MG_INFO[t].onlineOnly));
 export const genreOf = type => profileOf(type).genre;
 // The rules as the arcade tells them: coin games carry board payout copy
 // ("REAL money, everybody keeps it") that is not true here, and a plain

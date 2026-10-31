@@ -28,6 +28,8 @@ export const PICKERS = {
     pick:    { icon: '👆', label: 'Host picks', sub: 'Choose from the grid' },
 };
 export const POINTS = { 2: [3, 0], 3: [4, 2, 0], 4: [4, 2, 1, 0] };
+// Online rooms seat up to twelve: the top five score, the rest nothing.
+const BIG_LADDER = [6, 4, 3, 2, 1];
 
 const prefs = Store.load('party', { length: 5, picker: 'wheel' });
 export const party = {
@@ -67,7 +69,7 @@ export function shuffleNext() {
 
 /** Points for one game, by place. */
 export function pointsFor(winnerId, standings, n) {
-    const ladder = POINTS[n] || POINTS[4];
+    const ladder = POINTS[n] || (n > 4 ? BIG_LADDER : POINTS[4]);
     let scores;
     if (Array.isArray(standings) && standings.length >= n && standings.some(v => v !== standings[0])) {
         scores = standings.slice(0, n).map(v => Number(v) || 0);

@@ -10,7 +10,7 @@
 // ============================================================
 import {
     MG_TYPES, MG_INFO, MG_ORIENTATIONS, MG_ORIENTATION_MAP, MG_WATCHDOG_MS,
-    MG_NET, MG_SHAPE, MG_PROFILE,
+    MG_NET, MG_SHAPE, MG_PROFILE, MG_PARALLEL, MG_NET_INFO, MG_SOLO_MS,
 } from '../claw-core/config/MinigameRegistry.js';
 // A namespace import, not a named one: if a phone serves this file fresh and an
 // older claw-core from its cache (Pages caches for 10 minutes), a missing
@@ -37,7 +37,38 @@ MG_ORIENTATIONS.stacktable = {
     instructions: 'Lay the phone <b>flat on the table</b> between you: <b style="color:#ff3b3b">P1</b> at the <b>bottom</b> end, <b style="color:#3b8eff">P2</b> at the <b>top</b>.<br><br>You take it in <b>turns</b>. On your go the picture <b>turns round to face you</b>: drag to move the animal, <b>ROTATE</b> to turn it, <b>DROP</b> to let go.',
 };
 
+// Online only: played alone on every phone for a score (claw-core's
+// SoloArena), so a room seats up to twelve. `onlineOnly` keeps them off the
+// shared-screen grid, wheel and parties (Catalog.allTypes); Quick Play for
+// one still has them.
+const PHONE = { orientation: 'faceoff', net: 'parallel', shape: 'split', onlineOnly: true };
+
 const GAMES = {
+    stopclock: {
+        ...PHONE,
+        load: () => import('./StopClock.js'),
+        info: { icon: '⏱️', title: 'STOP THE CLOCK', desc: 'Five target times. The clock starts, counts up for a second or so, then goes dark: tap STOP when you think the target has come round. The closer, the more points.' },
+        netInfo: 'Five target times, the same on every phone. The clock counts up, then goes dark: tap STOP when you think the target has come round. 1000 points a round, minus a point for every 0.002 s you are off. Closest overall wins.',
+        watchdogMs: 90000,
+        profile: { genre: 'nerve', control: 'tap', wire: 'none', seats: [2, 4], live: false },
+    },
+    trivia: {
+        ...PHONE,
+        load: () => import('./Trivia.js'),
+        info: { icon: '❓', title: 'TRIVIA', desc: 'Ten general-knowledge questions, four answers each, ten seconds a question. A right answer scores 100, plus up to 100 more for answering fast.' },
+        netInfo: 'Ten questions, the same on every phone: Massachusetts, science, geography, history, TV, music, sport and food. Four answers, ten seconds each. A right answer scores 100, plus up to 100 more the faster you are. Highest total wins.',
+        // Ten questions at up to ~12 s each: past the 90 s default round.
+        watchdogMs: 160000, soloMs: 150000,
+        profile: { genre: 'brain', control: 'tap', wire: 'none', seats: [2, 4], live: false },
+    },
+    higherlower: {
+        ...PHONE,
+        load: () => import('./HigherLower.js'),
+        info: { icon: '🃏', title: 'HIGHER OR LOWER', desc: 'One card face up: is the next one higher or lower? Aces high, the same rank is a free pass, six seconds a call. Keep going until you call it wrong.' },
+        netInfo: 'The same deck on every phone. Is the next card HIGHER or LOWER? Aces high, the same rank is a free pass, and you get six seconds a call. One wrong call and you are out: 10 points a right call, plus a bonus for calling fast. Longest run wins.',
+        watchdogMs: 150000, soloMs: 150000,
+        profile: { genre: 'brain', control: 'tap', wire: 'none', seats: [2, 4], live: false },
+    },
     yatzy: {
         load: () => import('./Yatzy.js'),
         info: { icon: '🎲', title: 'YATZY', desc: 'The full 13-box card. On your turn roll up to three times, tapping dice to hold the ones you want. Every open box in your column shows what it would score, so pick one and press PLAY. Score 63 or more in the top half for a +35 bonus. Highest total when both cards are full wins.' },
@@ -81,5 +112,10 @@ for (const [type, g] of Object.entries(GAMES)) {
     MG_NET[type] = g.net;
     MG_SHAPE[type] = g.shape;
     MG_PROFILE[type] = g.profile;
+    if (g.onlineOnly) MG_INFO[type].onlineOnly = true;
+    if (g.netInfo) MG_NET_INFO[type] = g.netInfo;
+    if (g.soloMs) MG_SOLO_MS[type] = g.soloMs;
+    // claw-core lists its parallel games once, at load; ours join afterwards.
+    if (g.net === 'parallel' && !MG_PARALLEL.includes(type)) MG_PARALLEL.push(type);
     MinigameManager.registerMinigame(type, g.load);
 }
