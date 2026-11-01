@@ -2,7 +2,7 @@
 
 Every HundredBlockDash minigame in one arcade app: pick from a grid, spin the wheel, or run a best-of party with a podium. Play friends on one device, on their own phones in the same room, or against Easy, Medium or Hard bots.
 
-Design and roadmap: [`docs/DESIGN.md`](docs/DESIGN.md). Adding a game: [`docs/ADDING_A_GAME.md`](docs/ADDING_A_GAME.md).
+Where things stand and what's next: [`docs/STATUS.md`](docs/STATUS.md). Auditing the online version: [`docs/ONLINE_AUDIT.md`](docs/ONLINE_AUDIT.md). Design and roadmap: [`docs/DESIGN.md`](docs/DESIGN.md). Adding a game: [`docs/ADDING_A_GAME.md`](docs/ADDING_A_GAME.md).
 
 ## Run it
 
@@ -39,7 +39,9 @@ There's no build step: the app is ES modules served as static files, with vendor
 - `src/arcade/`: the shell screens (seats, grid, wheel, party, play together, trophies), stats, trophy rules and the game catalog.
 - `src/net/Room.js`: the Play Together session protocol, running on claw-core's `NetTransport`.
 - `src/arcade/TvHost.js`: the arcade on a TV. The TV tab hosts the room without a seat, while phones join by code (or `?join=CODE`) and play.
-- `src/arcade/Drinks.js`: drinking mode (tap the 🦀 five times): sips by place each round, and a house rule for last place.
+- `src/arcade/Drinks.js` and `DrinkCard.js`: drinking mode (tap the 🦀 five times, or the room's 🍺 switch): sips by place each round, a house rule for last place, and the full-screen card that says who drinks.
+- `src/games/PhoneGame.js`: the frame for the online-only games (Stop the Clock, Higher or Lower, Trivia), each played alone on every phone from the round's seed.
+- `src/arcade/HomeScreenTip.js`, `manifest.webmanifest`, `assets/icons/`: iPhone Add to Home Screen.
 
 ## On the TV (e.g. a Vizio with Chromecast built in)
 
