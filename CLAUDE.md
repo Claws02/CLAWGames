@@ -1,5 +1,7 @@
 # CLAWGames: notes for Claude
 
+Start with `docs/STATUS.md` (what exists, what's next). Online work (Play Together, TV mode, `src/net/Room.js`) follows `docs/ONLINE_AUDIT.md`.
+
 ## Shipping: every change must be playable from GitHub Pages
 
 The app is published by GitHub Pages ("deploy from branch", `main`, root) at

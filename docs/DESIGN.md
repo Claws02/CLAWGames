@@ -119,6 +119,7 @@ This is the one feature that changes what the product is: it goes from a static 
 | **0 · Extract** ✅ code done | claw-core split behind AppHost, HundredBlockDash switched to core with no behavior change. Core is now [claws02/claw-core](https://github.com/Claws02/claw-core), a submodule at `src/claw-core/` in both apps. | HundredBlockDash `npm run smoke` + full `qa/` suite still pass |
 | **1 · Arcade shell** 🟡 v0 built | Home, seat setup, Arcade grid, Spin the wheel, bot tiers, same device | Every eligible game launches and finishes from the grid at 2 and 4 seats (Playwright). *v0: 5 games verified by `qa/smoke.js`; full sweep pending.* |
 | **2 · Party** ✅ v1 | Playlist (3/5/7), Wheel, Shuffle, Draft, Host picks, standings, podium · Play Together (phones in a room) | `qa/party.js` (each picker, 3 seats) · `qa/together.js` (host + guest, 2 rounds, leave) |
+| **2b · Same-room online** 🟡 built, not field-tested | 12-player rooms, TV host, 15 parallel games, ghosts, drinking mode | The game-night sheet in `ONLINE_AUDIT.md` passes on real phones |
 | **3 · Online** | Accounts, friends, invites, TURN | Two networks, invite → game → result |
 | **4 · Ship** | Store art, privacy, Capacitor builds | TestFlight / internal track |
 | **ongoing** | New 3–4 seat games (or revived archived ones) | 4-player pool ≥ 20 |
@@ -152,11 +153,15 @@ This is the one feature that changes what the product is: it goes from a static 
 ## 10. Play Together (as built)
 - **Mechanism:** every phone plays the **same seeded challenge at the same moment, alone**, and scores are compared. These are claw-core's *parallel* games: **Snap Strike, Odd One Out, Steady Hand, Loot Catch, Tree Climb, Mini Golf, Balloon Pump, Pancake Stack, Shell Game**, and the time trials **Kart GP, Speed Boat, Rift Dive** (12). In a time trial every phone also broadcasts its racer (Room GHOST, ~9 a second, peer to peer) and draws the others as see-through ghosts on a bigger course; the TV shows the running order. That's all the library supports across phones today. Because nobody shares a screen, a room seats up to **12 players** (`Room.MAX_SEATS`); past four, the points ladder pays the top five (6-4-3-2-1). Sumo, Tank Clash and the other shared-arena games have no real-time cross-phone sync in either app.
 - **Transport:** claw-core's `NetTransport` (Trystero WebRTC, Nostr then torrent signaling), namespace `claw-games`. `?net=local` uses a BroadcastChannel loopback for testing.
-- **Session:** `src/net/Room.js`, host-authoritative. The protocol is HELLO / ROSTER / ROUND / READY / GO / SCORE / RESULT. Points use the Party ladder, and totals run for as long as the room is open.
+- **Session:** `src/net/Room.js`, host-authoritative. The protocol is HELLO / ROSTER / ROUND / READY / GO / SCORE / RESULT, plus CMD (the TV captain's button) and GHOST (time-trial positions, phone to phone). Points use the Party ladder, and totals run for as long as the room is open.
+- **Hosts:** a phone (HOST PLAYS TOO on: it takes seats; off: it runs the room only), or a TV tab that never plays. A phone can carry up to 4 players and is passed round each round. The TV shows the QR join link, the wheel, round status, the time-trial running order, results and final scores; its captain (the first phone in) drives it.
 - **Drinking mode:** the host's 🍺 DRINKING MODE button switches the room on or off at any time (it starts from the host's 🦀 setting). Each result then carries the sips (one per player, split by place), the winner's handout and a house rule for last place, and every phone and the TV put up the full-screen DRINK card (`src/arcade/DrinkCard.js`). One-device games show the same card after every game, bots excluded.
 - **Failure handling:** a phone that never reports is scored 0 after 90 s plus an 8 s grace period. A guest leaving mid-round is dropped from the wait. If the host leaves, the room closes for everyone.
-- **Gaps:**
-  - There's no TURN relay, so about 1 network in 10 can't connect peer-to-peer.
+- **Gaps** (the online audit, [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md), is the plan to close these):
+  - Nothing has been tried on real phones over real WiFi yet.
+  - Messages are fire-and-forget: a phone that misses ROUND, GO or RESULT has no way to catch up.
+  - A phone that reloads or drops loses its seat and points; there's no rejoin, no wake lock, no protocol version check.
+  - There's no TURN relay (`RELEASE.turnServers` is wired but empty), so about 1 network in 10 can't connect peer-to-peer.
   - There's no live score rail during a round.
   - Late joiners are refused while a round is running.
   - The host can't kick a player.
