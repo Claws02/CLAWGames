@@ -74,7 +74,8 @@ tried on real phones over real WiFi yet**: that's the first job of the audit.
    until it lands, a dropped phone keeps its seat and points and comes back by itself, a
    reloaded host reopens its room, late joiners queue for the next round, and an old build
    is told to refresh. Still open: a TURN relay (`RELEASE.turnServers` in `src/AppHost.js`
-   is wired, just empty) and shared-phone fairness (roadmap PR 5).
+   is wired, just empty) and shared-phone fairness (roadmap PR 5). **Roadmap PRs 5–8 wait
+   until 1–4 have been tested on real phones.**
 3. **Room UX (P1)**: kick a player and the drinking "host's call" line (roadmap PR 6),
    and a live score rail.
 4. **More online games (P2)**: easy conversions are High Noon, Grid Recall, Rhythm

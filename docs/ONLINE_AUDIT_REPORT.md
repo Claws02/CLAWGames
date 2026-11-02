@@ -36,8 +36,9 @@ architecture.
 
 ## 0. Fix status
 
-Roadmap PRs 1–4 are on this branch (stacked on this PR, by request). TURN (PR 7) is left
-for after the game night.
+Roadmap PRs 1–4 are on this branch (stacked on this PR, by request). **PRs 5–8 are on hold
+until Caleb has tested 1–4 on real phones** (shared-phone fairness, host tools, TURN,
+hygiene); the game-night notes may reorder them.
 
 | Fix | Findings | How | Proven by |
 |---|---|---|---|
