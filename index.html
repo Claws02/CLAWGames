@@ -230,6 +230,7 @@
                 <div class="net-more" id="net-more"></div>
                 <button class="ghost-btn bfont" id="btn-net-add">+ ANOTHER PLAYER ON THIS PHONE</button>
             </div>
+            <button class="go-btn bfont" id="btn-net-resume" hidden>↻ REOPEN ROOM</button>
             <button class="go-btn bfont" id="btn-net-host">HOST A ROOM</button>
             <button class="ghost-btn bfont drink-toggle on" id="btn-net-plays" aria-pressed="true">🎮 HOST PLAYS TOO: ON</button>
             <button class="ghost-btn bfont" id="btn-net-tv">📺 HOST ON A TV</button>
@@ -258,6 +259,7 @@
                 <div class="grid net-grid" id="room-games"></div>
             </div>
             <p class="hint" id="room-hint"></p>
+            <button class="go-btn bfont" id="btn-room-refresh" hidden>↻ REFRESH</button>
         </section>
 
         <section class="screen" id="scr-netcard" data-screen="netcard" hidden>
@@ -269,6 +271,7 @@
                 <div class="wr-desc" id="nc-desc"></div>
                 <button class="go-btn bfont" id="btn-nc-ready">I'M READY</button>
                 <p class="hint" id="nc-wait"></p>
+                <button class="ghost-btn bfont" id="btn-nc-force" hidden>▶ START WITHOUT THEM</button>
             </div>
         </section>
 
@@ -289,6 +292,7 @@
             <div class="standings" id="nr-rows"></div>
             <button class="go-btn bfont" id="btn-nr-next">NEXT GAME →</button>
             <p class="hint" id="nr-wait"></p>
+            <button class="ghost-btn bfont" id="btn-nr-finish" hidden>⏹ FINISH WITHOUT THEM</button>
         </section>
         <!-- ===== TV HOST: a laptop tab cast to the TV; phones are the controllers ===== -->
         <section class="screen tv-screen" id="scr-tvroom" data-screen="tvroom" hidden>
@@ -321,6 +325,7 @@
                 <div class="wr-desc" id="tvr-desc"></div>
                 <div class="tv-status bfont" id="tvr-status"></div>
                 <ol class="tv-race" id="tvr-race" hidden></ol>
+                <button class="ghost-btn bfont" id="btn-tvr-force" hidden>▶ START WITHOUT THEM</button>
             </div>
         </section>
 

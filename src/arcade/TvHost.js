@@ -43,12 +43,27 @@ export function init(show, current) {
     $('btn-tv-drink').addEventListener('click', () => Room.setDrinking(Room.mode() !== 'drinking'));
 
     Room.on('roster', () => { if (active()) _paint(); });
-    Room.on('round', r => { if (active()) { _round = r; _paintRound('Phones: tap I\'M READY'); } });
-    Room.on('readyCount', (k, n) => { if (active()) $('tvr-status').textContent = `${k} of ${n} phones ready…`; });
-    Room.on('go', () => { if (active()) { $('tvr-status').textContent = '🎮 PLAYING… look at your phones!'; _raceBoard(true); } });
-    Room.on('scoreCount', (k, n) => { if (active()) $('tvr-status').textContent = `🎮 PLAYING… ${k} of ${n} scores in`; });
-    Room.on('result', r => { if (active()) _paintResult(r); });
+    Room.on('round', r => { if (active()) { _round = r; _force(null); _paintRound('Phones: tap I\'M READY'); } });
+    Room.on('readyCount', (k, n, missing = []) => { if (active() && k) $('tvr-status').textContent = `${k} of ${n} phones ready${missing.length ? ` · waiting for ${missing.join(', ')}` : ''}…`; });
+    Room.on('go', () => { if (active()) { _force(null); $('tvr-status').textContent = '🎮 PLAYING… look at your phones!'; _raceBoard(true); } });
+    Room.on('scoreCount', (k, n, missing = []) => { if (active()) $('tvr-status').textContent = `🎮 PLAYING… ${k} of ${n} scores in${missing.length ? ` · waiting for ${missing.join(', ')}` : ''}`; });
+    Room.on('stall', (kind, missing) => { if (active()) _force(kind, missing); });
+    Room.on('result', r => { if (active()) { _force(null); _paintResult(r); } });
     Room.on('cmd', () => { if (active()) _captain(); });
+    // A reloaded TV tab reopened its room (Together's REOPEN button).
+    Room.on('resumed', () => { if (!active()) return; _played = []; _round = null; Vetoes.reset(); document.body.classList.add('tv'); _show('tvroom'); _paint(); });
+    $('btn-tvr-force')?.addEventListener('click', () => { if (_forceKind === 'ready') Room.startNow(); else Room.finishNow(); _force(null); });
+}
+
+// START / FINISH WITHOUT THEM, once the round has waited on somebody a while.
+let _forceKind = null;
+function _force(kind, missing = []) {
+    _forceKind = kind;
+    const b = $('btn-tvr-force');
+    if (!b) return;
+    b.hidden = !kind;
+    const who = (missing.length ? missing.join(', ') : 'them').toUpperCase();
+    b.textContent = kind === 'ready' ? `▶ START WITHOUT ${who}` : `⏹ FINISH WITHOUT ${who}`;
 }
 
 async function start() {
@@ -99,11 +114,11 @@ function _paintQr(href) {
     }).catch(() => { _qrLib = null; _qrFor = ''; });
 }
 
-function _rows(host, names, extra) {
+function _rows(host, names, extra, away = []) {
     host.innerHTML = names.map((name, i) =>
-        `<div class="st-row"><span class="st-place">${extra ? extra.place[i] : ''}</span>` +
-        `<span class="st-dot" style="background:${NET_COLORS[i % NET_COLORS.length]}">📱</span>` +
-        `<span class="st-name">${esc(name)}${i === 0 ? ' <small>captain</small>' : ''}</span>` +
+        `<div class="st-row${away[i] ? ' away' : ''}"><span class="st-place">${extra ? extra.place[i] : ''}</span>` +
+        `<span class="st-dot" style="background:${NET_COLORS[i % NET_COLORS.length]}">${away[i] ? '💤' : '📱'}</span>` +
+        `<span class="st-name">${esc(name)}${i === 0 ? ' <small>captain</small>' : ''}${away[i] ? ' <small>away</small>' : ''}</span>` +
         `<span class="st-pts bfont">${extra ? extra.pts[i] : (Room.totals()[i] || 0)}</span></div>`).join('')
         || '<p class="hint">Nobody yet…</p>';
 }
@@ -126,7 +141,7 @@ function _paint() {
     $('tv-code').textContent = Room.code() || '····';
     _paintQr(u.href);
     const seats = Room.seats();
-    _rows($('tv-seats'), seats.map(s => s.name));
+    _rows($('tv-seats'), seats.map(s => s.name), null, seats.map(s => s.away));
     $('btn-tv-spin').disabled = seats.length < 2;
     $('btn-tv-end').hidden = !Room.totals().some(Boolean);
     $('tv-hint').textContent = seats.length < 2 ? 'Waiting for at least 2 players…' : `${seats.length} players in. Spin when you're ready!`;

@@ -34,9 +34,12 @@ import * as HomeScreenTip from './arcade/HomeScreenTip.js';
 import { lastRound as golfRound } from './claw-core/minigames/MiniGolf.js';
 import { faceHTML, portraits } from './arcade/Characters.js';
 import { isHost as Room_isHost } from './net/Room.js';
+// Namespace, not named: a phone serving an older cached Room.js still boots.
+import * as RoomNS from './net/Room.js';
 import * as TvHost from './arcade/TvHost.js';
 import * as Drinks from './arcade/Drinks.js';
 import * as DrinkCard from './arcade/DrinkCard.js';
+import * as WakeLock from './arcade/WakeLock.js';
 
 // Quick Play for one: "1" on Quick Play's seats screen (kept between visits).
 let _quickSolo = !!Store.load('quickSolo', false);
@@ -50,9 +53,12 @@ const $ = id => document.getElementById(id);
 const _history = [];
 let _current = 'home';
 
+const ROOM_SCREENS = ['room', 'netcard', 'netresult', 'tvroom', 'tvround', 'tvresult'];
 function show(name, push = true) {
     if (push && _current !== name) _history.push(_current);
     _current = name;
+    // In a room the screen stays on: a phone that auto-locks drops out of it.
+    WakeLock.want(ROOM_SCREENS.includes(name) || (name === 'wheel' && TvHost.active()));
     document.querySelectorAll('.screen').forEach(s => { s.hidden = s.dataset.screen !== name; });
     $('arcade').hidden = false;
     ['grid-who', 'wheel-who', 'party-who', 'golf-who'].forEach(_paintWho);
@@ -324,4 +330,5 @@ HomeScreenTip.init?.();   // iPhone Safari only
 PartyScreens.initDraft();
 show('home', false);
 // A join link from the TV (?join=ABCD) lands on Play Together, code filled in.
-if (new URLSearchParams(location.search).get('join')) show('together');
+// So does a reloaded tab that was hosting: its REOPEN ROOM button is there.
+if (new URLSearchParams(location.search).get('join') || RoomNS.resumable?.()) show('together');
