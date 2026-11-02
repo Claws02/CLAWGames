@@ -37,6 +37,7 @@ import { isHost as Room_isHost } from './net/Room.js';
 import * as TvHost from './arcade/TvHost.js';
 import * as Drinks from './arcade/Drinks.js';
 import * as DrinkCard from './arcade/DrinkCard.js';
+import * as WakeLock from './arcade/WakeLock.js';
 
 // Quick Play for one: "1" on Quick Play's seats screen (kept between visits).
 let _quickSolo = !!Store.load('quickSolo', false);
@@ -50,9 +51,12 @@ const $ = id => document.getElementById(id);
 const _history = [];
 let _current = 'home';
 
+const ROOM_SCREENS = ['room', 'netcard', 'netresult', 'tvroom', 'tvround', 'tvresult'];
 function show(name, push = true) {
     if (push && _current !== name) _history.push(_current);
     _current = name;
+    // In a room the screen stays on: a phone that auto-locks drops out of it.
+    WakeLock.want(ROOM_SCREENS.includes(name) || (name === 'wheel' && TvHost.active()));
     document.querySelectorAll('.screen').forEach(s => { s.hidden = s.dataset.screen !== name; });
     $('arcade').hidden = false;
     ['grid-who', 'wheel-who', 'party-who', 'golf-who'].forEach(_paintWho);

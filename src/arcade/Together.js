@@ -186,8 +186,8 @@ function _paintRoom() {
         ? (seats.length < 2 ? 'Waiting for more players to join on the TV…'
             : Room.isCaptain() ? "You're the captain: spin the wheel from here, or on the TV." : 'Watch the TV: the wheel picks the game.')
         : seats.length < 2
-        ? (host ? `Share the code. Friends tap Play Together, then JOIN with ${Room.code()}.` : 'Connecting to the host…')
-        : (host ? `${seats.length} players in. Pick a game!` : 'Waiting for the host to pick a game…');
+        ? (host ? `Share the code. Friends tap Play Together, then JOIN with ${Room.code()}. Keep this phone on: the room lives here.` : 'Connecting to the host…')
+        : (host ? `${seats.length} players in. Pick a game! Keep this phone on: the room lives here.` : 'Waiting for the host to pick a game…');
 }
 
 // ---- round -------------------------------------------------------------------------
