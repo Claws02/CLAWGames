@@ -67,7 +67,7 @@ tried on real phones over real WiFi yet**: that's the first job of the audit.
 
 ## How to continue
 
-1. **Run the online audit** ([`ONLINE_AUDIT.md`](ONLINE_AUDIT.md)): a real-device game
+1. **Run the online audit** ([`ONLINE_AUDIT.md`](ONLINE_AUDIT.md)); the code half is done ([`ONLINE_AUDIT_REPORT.md`](ONLINE_AUDIT_REPORT.md), its roadmap is the fix order). Still to do: a real-device game
    night with the test sheet, then the code audit with the prompt there.
 2. **Reliability (P0)**, the likely headline findings: acknowledged delivery of
    ROUND/GO/RESULT, rejoining with a stable player id, surviving a phone locking or
