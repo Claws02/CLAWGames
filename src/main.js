@@ -34,6 +34,8 @@ import * as HomeScreenTip from './arcade/HomeScreenTip.js';
 import { lastRound as golfRound } from './claw-core/minigames/MiniGolf.js';
 import { faceHTML, portraits } from './arcade/Characters.js';
 import { isHost as Room_isHost } from './net/Room.js';
+// Namespace, not named: a phone serving an older cached Room.js still boots.
+import * as RoomNS from './net/Room.js';
 import * as TvHost from './arcade/TvHost.js';
 import * as Drinks from './arcade/Drinks.js';
 import * as DrinkCard from './arcade/DrinkCard.js';
@@ -328,4 +330,5 @@ HomeScreenTip.init?.();   // iPhone Safari only
 PartyScreens.initDraft();
 show('home', false);
 // A join link from the TV (?join=ABCD) lands on Play Together, code filled in.
-if (new URLSearchParams(location.search).get('join')) show('together');
+// So does a reloaded tab that was hosting: its REOPEN ROOM button is there.
+if (new URLSearchParams(location.search).get('join') || RoomNS.resumable?.()) show('together');

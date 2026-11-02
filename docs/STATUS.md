@@ -68,14 +68,15 @@ tried on real phones over real WiFi yet**: that's the first job of the audit.
 ## How to continue
 
 1. **Run the online audit** ([`ONLINE_AUDIT.md`](ONLINE_AUDIT.md)); the code half is done ([`ONLINE_AUDIT_REPORT.md`](ONLINE_AUDIT_REPORT.md), its roadmap is the fix order). Still to do: a real-device game
-   night with the test sheet, then the code audit with the prompt there.
-2. **Reliability (P0)**, the likely headline findings: acknowledged delivery of
-   ROUND/GO/RESULT, rejoining with a stable player id, surviving a phone locking or
-   switching apps, a protocol version handshake, a TURN relay
-   (`RELEASE.turnServers` in `src/AppHost.js` is already wired, just empty), and
-   longer or collision-checked room codes.
-3. **Room UX (P1)**: kick a player, late joiners queue for the next round, a live score
-   rail, a ready timeout, reconnecting states that say what's happening.
+   night with the test sheet, to confirm the fixes below on iPhones and real WiFi.
+2. **Reliability (P0): done in code, not yet on real phones** (audit roadmap PRs 1–4,
+   `ONLINE_AUDIT_REPORT.md` §0). Rooms keep the screen awake, every round step is re-sent
+   until it lands, a dropped phone keeps its seat and points and comes back by itself, a
+   reloaded host reopens its room, late joiners queue for the next round, and an old build
+   is told to refresh. Still open: a TURN relay (`RELEASE.turnServers` in `src/AppHost.js`
+   is wired, just empty) and shared-phone fairness (roadmap PR 5).
+3. **Room UX (P1)**: kick a player and the drinking "host's call" line (roadmap PR 6),
+   and a live score rail.
 4. **More online games (P2)**: easy conversions are High Noon, Grid Recall, Rhythm
    Forge, Pinball; medium are Bowling, Block Party, Sack Race, Red Light Green Light,
    Rooftop Run, Yatzy. New modes: **Crab Royale** (bottom third out each round), and

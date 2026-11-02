@@ -34,6 +34,34 @@ architecture.
 
 ---
 
+## 0. Fix status
+
+Roadmap PRs 1–4 are on this branch (stacked on this PR, by request). TURN (PR 7) is left
+for after the game night.
+
+| Fix | Findings | How | Proven by |
+|---|---|---|---|
+| Stay awake | F24 (+ F1/F2 trigger) | `src/arcade/WakeLock.js`: Screen Wake Lock on every room/TV screen, re-asked when the page comes back; the phone host is told "Keep this phone on" | `qa/latejoin.js` §1 |
+| Clear doors | F4, F8, F9, F10, F11 | `proto` in HELLO; `REFUSE {update / full}`, `WAIT {round}`; mid-round joiners queued and seated at RESULT; unseated phones ignore rounds; clients keep saying HELLO until seated; ROSTER pinned to the first host (a second one is a collision warning); unknown game types ignored | `qa/latejoin.js` §2–4, `qa/netfaults.js` §5 |
+| Rounds that recover | F3, F5, F6, F14 (names), F15, F16 (partly), F17 | the host re-sends ROUND to un-ready phones and ROUND+GO to phones that haven't scored, every 3 s; a phone that scored sends `SYNC {n, scores}` until it has the RESULT; `n` on READY/SCORE; the host's card names who it's waiting for; START / FINISH WITHOUT THEM after 20 s without progress (phone and TV); +7 s grace for the long games | `qa/netfaults.js` §1–4 |
+| Seats survive a drop | F1, F2, F7, F19 | a per-tab player id (sessionStorage); a dropped phone's seats go **away** (kept, with points, shown 💤) instead of being deleted; a HELLO with a known id takes them back; a round waits 20 s for an away seat; a phone that loses its host shows "Reconnecting…" for 60 s, re-signs in to the room after 10 s, and only then gives up; a deliberate leave (BYE) removes the seat between rounds; the host's tab keeps a snapshot, so a reloaded host gets **REOPEN ROOM** with the same code, players and points | `qa/rejoin.js` §1–6 |
+
+Notes on what changed from the plan:
+- **The player id is per tab (sessionStorage), not per browser.** It survives a reload and a
+  locked screen. It does not survive closing the tab. A per-browser id would make two tabs
+  on one device the same player, which breaks every loopback probe.
+- **The grace for the long games is +7 s, not `soloGraceMs`.** That one is 0.6 × the round
+  (108 s for Kart GP), which is too long to hold a room for; FINISH WITHOUT covers the rest.
+- **The banked score of a phone cut off by the RESULT still isn't sent (F16).** The timer
+  is longer instead.
+- **What the loopback can't prove:** that Trystero re-handshakes when a phone re-signs in
+  (`_rejoin`). The probes model a dead link that only comes back through a fresh
+  hello/here, which is how it behaves, but the real check is the test sheet's lines 4–6
+  and 11.
+- **Protocol version.** A phone on the old build in a new room (or the reverse) can't
+  understand the other. A new host tells an old phone nothing it can read, so the old
+  phone shows its old hint. Everyone reloads once after the merge.
+
 ## 1. The system, mapped
 
 ### 1.1 Messages
@@ -207,7 +235,8 @@ new probes reuse the fault-injection trick in §6.
 - **Area:** F · **Status:** VERIFIED.
 - **Evidence:**
   - `Room.js:85` drops `v !== 1` silently, both ways.
-  - Loopback, with the `V = 0` build served to one phone: after 14 s it reads "Still looking for that room… may be full", and it never appears on the host.
+  - Loopback, with `main`'s Room.js served to one phone with `V = 0`: that phone receives the host's ROSTER and drops it (`{"roster":1}` seen), the host ignores its HELLO, and after 14 s it reads "Still looking for that room… may be full". It never appears on the host.
+  - *Correction:* the first run of this reproduction put the stale phone in a separate browser context, which the loopback (a BroadcastChannel) doesn't cross, so that phone heard nothing for a different reason. It was re-run in one context, with the same result. No other reproduction used a second context.
   - Fields have been added under `v: 1` since (`hostSeated`, `drinks`, GHOST). An old phone in a new room mostly works, but no future change can be made safely.
 - **Smallest fix:**
   - HELLO carries `proto` and `build`. The host checks it, and answers a mismatch with `REFUSE {reason:'update'}`, sent in an envelope every build reads: keep `v: 1` on HELLO/REFUSE forever, and move the real version into `proto`.

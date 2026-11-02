@@ -44,6 +44,25 @@ const descOf = type => (MG_NET_INFO[type] || MG_INFO[type].desc).replace(/^\S+ P
 export function prefill() {
     const el = $('net-name');
     if (!el.value) el.value = Store.load('netName', '') || Profiles.list()[0]?.name || '';
+    _paintResume();
+}
+
+// A tab that was hosting and got reloaded can reopen its room: same code,
+// same players and points, everyone back as their phones say hello.
+function _paintResume() {
+    const b = $('btn-net-resume');
+    if (!b) return;
+    const snap = Room.resumable();
+    b.hidden = !snap;
+    if (snap) b.textContent = `↻ REOPEN ROOM ${snap.code} (${snap.seats.length} players)`;
+}
+
+// The strip across the top while this phone has lost its host.
+function _banner(text) {
+    let el = $('net-banner');
+    if (!text) { if (el) el.remove(); return; }
+    if (!el) { el = document.createElement('div'); el.id = 'net-banner'; el.className = 'net-banner bfont'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+    el.textContent = text;
 }
 
 export function init(show, goHome) {
@@ -79,21 +98,52 @@ export function init(show, goHome) {
             _show('room'); _paintRoom();
             // Nobody answering is the common failure: wrong code, or the host's
             // network can't be reached peer-to-peer.
-            setTimeout(() => { if (Room.role() === 'client' && Room.mySeat() < 0) $('room-hint').textContent = "Still looking for that room. Check the code, or the room may be full."; }, 12000);
+            setTimeout(() => { if (Room.role() === 'client' && Room.status() === 'seeking') $('room-hint').textContent = 'Still looking for that room. Check the code, or refresh this page and join again.'; }, 12000);
         } catch (e) { _hint("Couldn't join. Check the code and your connection."); }
     });
 
     Room.on('roster', () => { if (!_tvHere()) _paintRoom(); });
-    Room.on('round', r => { if (!_tvHere()) { _pending = r; _showCard(); } });
-    Room.on('readyCount', (k, n) => { if (!_tvHere()) $('nc-wait').textContent = `${k} of ${n} phones ready…`; });
+    Room.on('round', r => { if (!_tvHere()) { _pending = r; _force(null); _showCard(); } });
+    Room.on('readyCount', (k, n, missing = []) => {
+        if (_tvHere() || (!Room.isWatching() && !$('btn-nc-ready').disabled)) return;
+        $('nc-wait').textContent = `${k} of ${n} phones ready${missing.length ? ` · waiting for ${missing.join(', ')}` : ''}…`;
+    });
     Room.on('go', () => {
         if (_tvHere()) return;
+        _force(null);
         if (Room.isWatching()) { $('nc-wait').textContent = '🎮 PLAYING… look at the other phones!'; return; }
         _play();
     });
-    Room.on('scoreCount', (k, n) => { if (Room.isWatching()) $('nc-wait').textContent = `🎮 PLAYING… ${k} of ${n} scores in`; });
-    Room.on('result', r => { if (!_tvHere()) _showResult(r); });
-    Room.on('closed', msg => { Toast.show(msg); _abortGame(); _home(); });
+    Room.on('scoreCount', (k, n, missing = []) => {
+        if (_tvHere()) return;
+        const t = `${k} of ${n} scores in${missing.length && k ? ` · waiting for ${missing.join(', ')}` : ''}`;
+        if (Room.isWatching()) $('nc-wait').textContent = `🎮 PLAYING… ${t}`;
+        else if (!_playing && !$('scr-netresult').hidden && $('btn-nr-next').hidden) $('nr-wait').textContent = t;
+    });
+    // The host's way past a phone that never answers.
+    Room.on('stall', (kind, missing) => { if (!_tvHere()) _force(kind, missing); });
+    Room.on('result', r => { if (!_tvHere()) { _force(null); _showResult(r); } });
+    Room.on('closed', msg => { _banner(null); Toast.show(msg); _abortGame(); _home(); });
+    Room.on('reconnecting', () => _banner('📡 Lost the host. Reconnecting… keep this screen on'));
+    Room.on('reconnected', () => { _banner(null); Toast.show('Back in the room!'); if (!_tvHere()) _paintRoom(); });
+    Room.on('waiting', () => _paintRoom());
+    Room.on('refused', () => _paintRoom());
+    Room.on('collision', () => Toast.show(Room.isHost()
+        ? `Another room is using ${Room.code()}. Close this one and host a new room.`
+        : 'Two rooms are using this code. Ask your host to open a new room.', '#ef4444'));
+    // The host lost the round (it reloaded mid-game): back to the room.
+    Room.on('dropped', () => { _abortGame(); _show('room'); _paintRoom(); Toast.show('That round was lost when the host dropped out. Next one!'); });
+    Room.on('resumed', () => { if (!Room.isTv()) { _show('room'); _paintRoom(); } });
+    $('btn-net-resume')?.addEventListener('click', async () => {
+        const snap = Room.resumable();
+        if (!snap) return _paintResume();
+        _hint('Reopening the room…');
+        try { await Room.host([], { resume: snap }); _hint(''); }
+        catch (e) { _hint("Couldn't reopen the room. Check your connection and try again."); }
+    });
+    $('btn-nc-force')?.addEventListener('click', () => { if (_forceKind === 'ready') Room.startNow(); else Room.finishNow(); _force(null); });
+    $('btn-nr-finish')?.addEventListener('click', () => { Room.finishNow(); _force(null); });
+    $('btn-room-refresh')?.addEventListener('click', () => location.reload());
 
     $('btn-nc-ready').addEventListener('click', () => {
         if (_handoff) { const go = _handoff; _handoff = null; return go(); }
@@ -131,15 +181,29 @@ function _addName() {
 }
 const _hint = t => { $('net-hint').textContent = t; };
 
+// START / FINISH WITHOUT THEM: shown to the host once a round has waited on
+// somebody for a while (Room 'stall'); kind null hides it.
+let _forceKind = null;
+function _force(kind, missing = []) {
+    _forceKind = kind;
+    const who = missing.length ? missing.join(', ') : 'them';
+    const card = $('btn-nc-force'), fin = $('btn-nr-finish');
+    if (!card || !fin) return;
+    card.hidden = !(kind === 'ready' || (kind === 'score' && Room.isWatching()));
+    card.textContent = kind === 'ready' ? `▶ START WITHOUT ${who.toUpperCase()}` : `⏹ FINISH WITHOUT ${who.toUpperCase()}`;
+    fin.hidden = !(kind === 'score' && !Room.isWatching());
+    fin.textContent = `⏹ FINISH WITHOUT ${who.toUpperCase()}`;
+}
+
 /** Leaving any Play Together screen leaves the room. */
 export async function leave() { _abortGame(); await Room.leave(); }
 
 // ---- room --------------------------------------------------------------------------
-function _rows(host, names, extra) {
+function _rows(host, names, extra, away = []) {
     host.innerHTML = names.map((name, i) =>
-        `<div class="st-row"><span class="st-place">${extra ? extra.place[i] : ''}</span>` +
-        `<span class="st-dot" style="background:${color(i)}">${Room.mySeats().includes(i) ? '⭐' : '📱'}</span>` +
-        `<span class="st-name">${_esc(name)}${i === 0 ? (Room.isTv() ? ' (captain)' : Room.hostSeated() ? ' (host)' : '') : ''}</span>` +
+        `<div class="st-row${away[i] ? ' away' : ''}"><span class="st-place">${extra ? extra.place[i] : ''}</span>` +
+        `<span class="st-dot" style="background:${color(i)}">${Room.mySeats().includes(i) ? '⭐' : away[i] ? '💤' : '📱'}</span>` +
+        `<span class="st-name">${_esc(name)}${i === 0 ? (Room.isTv() ? ' (captain)' : Room.hostSeated() ? ' (host)' : '') : ''}${away[i] ? ' <small>away</small>' : ''}</span>` +
         `<span class="st-bar"><i style="width:${extra ? extra.bar[i] : 0}%;background:${color(i)}"></i></span>` +
         `<span class="st-pts bfont">${extra ? extra.pts[i] : (Room.totals()[i] || 0)}</span></div>`).join('');
 }
@@ -156,7 +220,7 @@ function _paintRoom() {
     if (!$('scr-room') || $('scr-room').hidden) return;
     $('room-code').textContent = Room.code() || '····';
     const seats = Room.seats();
-    _rows($('room-seats'), seats.map(s => s.name));
+    _rows($('room-seats'), seats.map(s => s.name), null, seats.map(s => s.away));
     const host = Room.isHost();
     $('room-host-panel').hidden = !host;
     $('room-captain').hidden = !Room.isCaptain();
@@ -182,13 +246,23 @@ function _paintRoom() {
         mk('random', '🎲', 'SURPRISE ME');
         MG_PARALLEL.forEach(t => mk(t, MG_INFO[t].icon, MG_INFO[t].title));
     }
-    $('room-hint').textContent = Room.isTv()
+    const st = Room.status(), refused = Room.role() === 'client' && st === 'refused';
+    $('btn-room-refresh') && ($('btn-room-refresh').hidden = !(refused && _refusal() === 'update'));
+    $('room-hint').textContent = refused
+        ? (_refusal() === 'update' ? 'This phone has a different version of CLAW Games from the host. Refresh to update, then join again.'
+            : 'This room is full (12 players). You will be let in if a seat comes free.')
+        : Room.role() === 'client' && st === 'waiting' ? "A round is on right now. You're in from the next one!"
+        : Room.role() === 'client' && st === 'seeking' ? 'Connecting to the host…'
+        : Room.isTv()
         ? (seats.length < 2 ? 'Waiting for more players to join on the TV…'
             : Room.isCaptain() ? "You're the captain: spin the wheel from here, or on the TV." : 'Watch the TV: the wheel picks the game.')
         : seats.length < 2
         ? (host ? `Share the code. Friends tap Play Together, then JOIN with ${Room.code()}. Keep this phone on: the room lives here.` : 'Connecting to the host…')
         : (host ? `${seats.length} players in. Pick a game! Keep this phone on: the room lives here.` : 'Waiting for the host to pick a game…');
 }
+let _lastRefusal = null;
+Room.on('refused', reason => { _lastRefusal = reason; });
+const _refusal = () => _lastRefusal;
 
 // ---- round -------------------------------------------------------------------------
 function _showCard() {
