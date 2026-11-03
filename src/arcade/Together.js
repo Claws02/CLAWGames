@@ -20,6 +20,7 @@ import * as DrinkCard from './DrinkCard.js';
 import * as Store from './Store.js';
 import * as Profiles from './Profiles.js';
 import * as Toast from './Toast.js';
+import * as Confirm from './Confirm.js';
 import * as Stats from './Stats.js';
 import * as Trophies from './Trophies.js';
 
@@ -216,12 +217,47 @@ export function rulesHTML(list) {
         list.map(x => `<div class="rule-row"><b>${_esc(x.name)}</b> ${_esc(x.rule)}</div>`).join('') : '';
 }
 
+// Pass the phone plays the same seed in turn, so in a game you can remember
+// (Trivia's answers, the shells' shuffles, the balloons' limits) whoever plays
+// second has watched the answers. With a shared phone in the room those games
+// are kept out of SURPRISE ME (and the TV's wheel) and marked on the picker.
+const _memorable = t => !!(MG_INFO[t] && MG_INFO[t].memorable);
+/** The games SURPRISE ME (and the TV's wheel) draws from, right now. */
+export function fairPool(list = MG_PARALLEL) {
+    if (!Room.sharedPhone()) return list.slice();
+    const fair = list.filter(t => !_memorable(t));
+    return fair.length ? fair : list.slice();
+}
+export function surprise() { const pool = fairPool(); return pool[Math.floor(Math.random() * pool.length)]; }
+
+// The host taps a player to take them out of the room (and everyone on their phone).
+async function _askRemove(i) {
+    const seats = Room.seats(), s = seats[i];
+    if (!Room.isHost() || !s || s.me) return;
+    const mates = Room.phoneOf(i).map(k => seats[k].name).filter(n => n !== s.name);
+    const ok = await Confirm.ask(`Remove ${s.name}${mates.length ? ` (and ${mates.join(', ')} on the same phone)` : ''} from the room?`, 'REMOVE');
+    if (ok) Room.remove(i);
+}
+
 function _paintRoom() {
     if (!$('scr-room') || $('scr-room').hidden) return;
     $('room-code').textContent = Room.code() || '····';
     const seats = Room.seats();
     _rows($('room-seats'), seats.map(s => s.name), null, seats.map(s => s.away));
     const host = Room.isHost();
+    // The host's way to take somebody out: tap their row.
+    $('room-seats').querySelectorAll('.st-row').forEach((row, i) => {
+        if (!host || seats[i].me) return;
+        row.classList.add('tappable');
+        row.title = 'Tap to remove from the room';
+        row.addEventListener('click', () => _askRemove(i));
+    });
+    // A guest sees drinking mode but can't change it: say whose call it is.
+    const note = $('room-drink-note');
+    if (note) {
+        note.hidden = host || Room.role() !== 'client' || Room.status() !== 'seated';
+        note.textContent = `🍺 Drinking mode is the host's call: ${Room.mode() === 'drinking' ? 'ON' : 'OFF'}`;
+    }
     $('room-host-panel').hidden = !host;
     $('room-captain').hidden = !Room.isCaptain();
     paintDrinkToggle($('btn-room-drink'));
@@ -231,15 +267,17 @@ function _paintRoom() {
     if (host) {
         const g = $('room-games');
         g.innerHTML = '';
+        const shared = Room.sharedPhone();
         const mk = (type, icon, title) => {
             const el = document.createElement('div');
             el.className = 'card' + (seats.length < 2 ? ' blocked' : '');
             el.dataset.type = type;
-            el.innerHTML = `<span class="ci">${icon}</span><span class="cn">${title}</span>`;
+            const warn = shared && _memorable(type);
+            if (warn) { el.classList.add('warn'); el.title = 'A shared phone sees the answers to whoever plays second'; }
+            el.innerHTML = `<span class="ci">${icon}</span><span class="cn">${title}</span>${warn ? '<span class="cw">⚠ SHARED PHONE</span>' : ''}`;
             el.addEventListener('click', () => {
                 if (Room.seats().length < 2) return;
-                const t = type === 'random' ? MG_PARALLEL[Math.floor(Math.random() * MG_PARALLEL.length)] : type;
-                Room.startRound(t);
+                Room.startRound(type === 'random' ? surprise() : type);
             });
             g.appendChild(el);
         };
@@ -250,6 +288,7 @@ function _paintRoom() {
     $('btn-room-refresh') && ($('btn-room-refresh').hidden = !(refused && _refusal() === 'update'));
     $('room-hint').textContent = refused
         ? (_refusal() === 'update' ? 'This phone has a different version of CLAW Games from the host. Refresh to update, then join again.'
+            : _refusal() === 'removed' ? 'The host removed you from this room.'
             : 'This room is full (12 players). You will be let in if a seat comes free.')
         : Room.role() === 'client' && st === 'waiting' ? "A round is on right now. You're in from the next one!"
         : Room.role() === 'client' && st === 'seeking' ? 'Connecting to the host…'
@@ -258,7 +297,7 @@ function _paintRoom() {
             : Room.isCaptain() ? "You're the captain: spin the wheel from here, or on the TV." : 'Watch the TV: the wheel picks the game.')
         : seats.length < 2
         ? (host ? `Share the code. Friends tap Play Together, then JOIN with ${Room.code()}. Keep this phone on: the room lives here.` : 'Connecting to the host…')
-        : (host ? `${seats.length} players in. Pick a game! Keep this phone on: the room lives here.` : 'Waiting for the host to pick a game…');
+        : (host ? `${seats.length} players in. Pick a game! Keep this phone on: the room lives here.${Room.sharedPhone() ? ' A phone is shared: games marked ⚠ show the answers to whoever plays second, so SURPRISE ME skips them.' : ''} Tap a player to remove them.` : 'Waiting for the host to pick a game…');
 }
 let _lastRefusal = null;
 Room.on('refused', reason => { _lastRefusal = reason; });

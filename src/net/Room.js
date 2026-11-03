@@ -11,7 +11,7 @@
 // several players (pass the phone): it plays the round once for each of them.
 //
 //   client → host   HELLO  {names, pid, proto}   on joining, to every new peer, and every few s until seated
-//   host   → one    REFUSE {reason}              'update' (another build) or 'full'
+//   host   → one    REFUSE {reason}              'update' (another build), 'full', or 'removed' (by the host)
 //   host   → one    WAIT   {reason}              'round': you're in from the next one
 //   host   → all    ROSTER {seats, totals, tv, hostSeated, mode, rules, rid, proto, round, last}
 //   host   → all    ROUND  {type, seed, n}       a game is announced (and again to phones that lag)
@@ -70,6 +70,7 @@ let _seats = [];            // host: [{ peer, pid, name, away, awayAt, bye }]; c
 let _round = null;          // host: { type, seed, n, ready:Set, scores:Map(seat), started, timer, progressAt, stalled }
 let _last = null;           // host: the last RESULT, for phones that missed it
 let _waiting = new Map();   // host: peer → { pid, names }, asked to join mid-round
+let _banned = new Set();    // host: player ids the host removed (they can't come back to this room)
 let _tv = false;            // the host is a TV: no seat of its own
 let _hostSeated = true;     // the host's own players are seats 0.. (false for a TV or a watching phone)
 let _mode = 'party';        // 'party' | 'drinking'
@@ -115,6 +116,10 @@ export const seats = () => _seats.map(s => ({ name: s.name, me: _isMe(s), away: 
 export const mySeat = () => seats().findIndex(s => s.me);
 export const mySeats = () => seats().map((s, i) => (s.me ? i : -1)).filter(i => i >= 0);
 const _live = () => _seats.filter(s => !s.away);
+/** The seats on the same phone as seat i (itself included). */
+export const phoneOf = i => (_seats[i] ? _seats.map((s, k) => (s.peer === _seats[i].peer ? k : -1)).filter(k => k >= 0) : []);
+/** Does some phone carry more than one player (pass the phone)? */
+export const sharedPhone = () => { const n = {}; return _seats.some(s => (n[s.peer] = (n[s.peer] || 0) + 1) > 1); };
 const _livePeers = () => [...new Set(_live().map(s => s.peer))];
 // The phone that drives a TV room: whoever sat down first.
 export const isCaptain = () => _tv && mySeat() === 0;
@@ -174,7 +179,7 @@ export async function host(names, opts = {}) {
             : { peer: null, pid: s.pid, name: s.name, away: true, awayAt: -1e9 }));
         _totals = _seats.map((_, i) => Number(snap.totals[i]) || 0);
     } else {
-        _rid = 'r-' + _rand(); _mode = Drinks.isOn() ? 'drinking' : 'party'; _rules = []; _n = 0;
+        _rid = 'r-' + _rand(); _mode = Drinks.isOn() ? 'drinking' : 'party'; _rules = []; _n = 0; _banned = new Set();
         _seats = !_hostSeated ? [] : (_list(names).length ? _list(names) : ['Host']).slice(0, MAX_SEATS).map(name => ({ peer: SELF, pid: SELF, name, away: false }));
         _totals = _seats.map(() => 0);
     }
@@ -264,6 +269,7 @@ function _onHello(m, peer) {
     if (m.proto !== PROTO) return _send(MSG.REFUSE, { reason: 'update', proto: PROTO }, peer);
     let pid = String(m.pid || '').slice(0, 40);
     if (!pid || pid === SELF) pid = 'peer-' + peer;
+    if (_banned.has(pid)) return _send(MSG.REFUSE, { reason: 'removed' }, peer);
     const mine = _seats.filter(s => s.pid === pid);
     if (mine.length) {
         // Back again (a reload, a locked screen): the same seats and points.
@@ -286,6 +292,21 @@ function _onHello(m, peer) {
 function _seatNew(peer, pid, want) {
     const room = MAX_SEATS - _seats.length;
     (want.length ? want : ['Player']).slice(0, room).forEach(name => { _seats.push({ peer, pid, name, away: false }); _totals.push(0); });
+}
+
+/** Host: take seat i out of the room, with everyone on the same phone. That
+ *  phone is told, and can't rejoin this room. Mid-round the seats sit out the
+ *  rest of it and go at the result (seat numbers never move during a round). */
+export function remove(i) {
+    const seat = _seats[i];
+    if (!isHost() || !seat || seat.peer === SELF) return false;
+    const mine = _seats.filter(s => s.peer === seat.peer);
+    _banned.add(seat.pid);
+    if (seat.peer && !seat.away) _send(MSG.REFUSE, { reason: 'removed' }, seat.peer);
+    if (seat.peer) _waiting.delete(seat.peer);
+    mine.forEach(s => { s.bye = true; s.away = true; s.awayAt = -1e9; s.peer = s.peer || null; });
+    _seatsChanged();
+    return true;
 }
 
 // Between rounds only (seat numbers stay put while one is played): drop the
@@ -389,6 +410,18 @@ export function reportScore(scores) {
     _send(MSG.SCORE, { n: _cur.n, scores: list }, _hostPeer);
 }
 
+// The most a game can honestly score, about twice over (a phone reporting more
+// has been tampered with). Games whose top score can't be worked out from the
+// code only get the sanity ceiling, so a real score is never cut.
+const SCORE_MAX = {
+    lootcatch: 60, treeclimb: 60,                          // capped at 30 in the game
+    speedboat: 3000, riftdive: 3000, kartgp: 5000,         // 1000 + seconds left × 10
+    stopclock: 10000, trivia: 4000,                        // 5 × 1000, 10 × 200
+    higherlower: 1100, shellgame: 520, steadyhand: 2000,   // 51 calls, 25 shuffles, seconds × 10
+};
+const SCORE_CEILING = 100000;
+const _clamp = (type, v) => Math.min(Math.max(0, Number(v) || 0), SCORE_MAX[type] || SCORE_CEILING);
+
 // Passing the phone round takes a little longer than handing it over.
 const PASS_MS = 15000;
 
@@ -423,7 +456,7 @@ function _hostScore(peer, list) {
     let k = 0, fresh = false;
     _seats.forEach(s => {
         if (s.peer !== peer) return;
-        const v = Math.max(0, Number(list[k++]) || 0);
+        const v = _clamp(r.type, list[k++]);
         if (!r.scores.has(s)) fresh = true;
         r.scores.set(s, v);
     });
@@ -556,6 +589,7 @@ function _onRoster(m, peer) {
 
 // ---- ghosts: where everyone is in a time trial -----------------------------------
 const _ghosts = new Map();   // seat index → { s, at }, this round only
+const GHOST_MAX = 256;       // bytes of JSON: a kart's state is under 80
 let _ghostN = 0;
 
 /** This phone's racer (seat = which of its players is racing). */
@@ -569,6 +603,7 @@ export const ghosts = () => [..._ghosts].map(([seat, g]) => ({ seat, s: g.s, at:
 function _onGhost(m, peer) {
     // Only for the round in play, and only for a seat that phone really holds.
     if (m.n !== _ghostN || !_seats[m.seat] || _seats[m.seat].peer !== peer || !m.s || typeof m.s !== 'object') return;
+    if (JSON.stringify(m.s).length > GHOST_MAX) return;   // a racer is a few numbers, never a payload
     _ghosts.set(m.seat, { s: m.s, at: _now() });
 }
 
@@ -579,6 +614,12 @@ function _onMsg(m, peer) {
     if (_role !== 'client') return;
     if (m.t === MSG.ROSTER) return _onRoster(m, peer);
     if (m.t === MSG.REFUSE) {
+        // Taken out by the host: go, and say why.
+        if (m.reason === 'removed' && _status === 'seated' && peer === _hostPeer) {
+            _emit('closed', 'The host removed you from the room.');
+            _teardown(true);
+            return;
+        }
         if (_status === 'seated') return;
         const again = _status === 'refused' && _refusal === m.reason;
         _status = 'refused'; _refusal = m.reason;

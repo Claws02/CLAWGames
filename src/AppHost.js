@@ -45,6 +45,17 @@ export const MINIGAME_PLACE_COINS = { 2: [0, 0], 3: [0, 0, 0], 4: [0, 0, 0, 0] }
 
 // Play Together. Rooms signal in their own namespace so an arcade room can
 // never collide with a HundredBlockDash match. turnServers empty = public STUN
-// only, which roughly one network in ten cannot get through (see DESIGN §4).
+// only, which roughly one network in ten cannot get through (see DESIGN §4):
+// a phone on mobile data, or a guest WiFi that keeps devices apart.
+//
+// TURN: paste your provider's servers here and every room uses them as a
+// fallback (claw-core NetTransport puts them after public STUN). The browser
+// needs the credentials, so they are public: use a free tier or a key you can
+// rotate, never one tied to a card with no cap. docs/TURN.md has the steps.
+//   turnServers: [
+//       { urls: 'turn:global.relay.example.com:80', username: 'USER', credential: 'PASS' },
+//       { urls: 'turns:global.relay.example.com:443?transport=tcp', username: 'USER', credential: 'PASS' },
+//   ],
 export const NET_APP_ID = 'claw-games';
-export const RELEASE = { version: '0.1.0', turnServers: [] };
+export const TURN_SERVERS = [];   // ← paste here (see above)
+export const RELEASE = { version: '0.1.0', turnServers: TURN_SERVERS };
