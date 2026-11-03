@@ -36,15 +36,18 @@ architecture.
 
 ## 0. Fix status
 
-Roadmap PRs 1–4 are on this branch (stacked on this PR, by request). **PRs 5–8 are on hold
-until Caleb has tested 1–4 on real phones** (shared-phone fairness, host tools, TURN,
-hygiene); the game-night notes may reorder them.
+Roadmap PRs 1–4 shipped in CLAWGames #43. PRs 5–8 followed in the next CLAWGames PR, plus
+claw-core #41 for the ghost leak. Fixes 1–4 hadn't been tested on real phones yet at that point.
 
 | Fix | Findings | How | Proven by |
 |---|---|---|---|
 | Stay awake | F24 (+ F1/F2 trigger) | `src/arcade/WakeLock.js`: Screen Wake Lock on every room/TV screen, re-asked when the page comes back; the phone host is told "Keep this phone on" | `qa/latejoin.js` §1 |
 | Clear doors | F4, F8, F9, F10, F11 | `proto` in HELLO; `REFUSE {update / full}`, `WAIT {round}`; mid-round joiners queued and seated at RESULT; unseated phones ignore rounds; clients keep saying HELLO until seated; ROSTER pinned to the first host (a second one is a collision warning); unknown game types ignored | `qa/latejoin.js` §2–4, `qa/netfaults.js` §5 |
 | Rounds that recover | F3, F5, F6, F14 (names), F15, F16 (partly), F17 | the host re-sends ROUND to un-ready phones and ROUND+GO to phones that haven't scored, every 3 s; a phone that scored sends `SYNC {n, scores}` until it has the RESULT; `n` on READY/SCORE; the host's card names who it's waiting for; START / FINISH WITHOUT THEM after 20 s without progress (phone and TV); +7 s grace for the long games | `qa/netfaults.js` §1–4 |
+| Shared-phone fairness | F12 | games you can remember (Trivia, Higher or Lower, Stop the Clock, Shell Game, Balloon Pump) are flagged in `src/games/index.js`; while a phone carries more than one player they're kept out of SURPRISE ME and the TV's wheel and marked ⚠ SHARED PHONE on the picker | `qa/hosttools.js` §1 |
+| Host tools | F14 (remove), F27 | the host taps a player (a TV host clicks) to remove them and everyone on their phone; that phone is sent home and told why, and its player id can't rejoin the room (a new tab could); mid-round the seat sits out and goes at the result; guests see "Drinking mode is the host's call" | `qa/hosttools.js` §2–3 |
+| TURN slot | F13 | `TURN_SERVERS` in `src/AppHost.js`: paste a provider's servers and every room uses them after public STUN; steps and the public-credential caveat in `docs/TURN.md`. **Still empty: TURN is off until credentials are pasted** | `qa/hosttools.js` §5 |
+| Hygiene | F23, F26, F29 | the host caps each score at about twice the game's real maximum where the code shows it (a 100,000 sanity ceiling otherwise); GHOST payloads over 256 bytes are dropped; a privacy note on the Play Together screen; ghosts give back their materials and name-tag textures (**claw-core #41**, then a submodule pin) | `qa/hosttools.js` §4, §6; claw-core #41's leak check |
 | Seats survive a drop | F1, F2, F7, F19 | a per-tab player id (sessionStorage); a dropped phone's seats go **away** (kept, with points, shown 💤) instead of being deleted; a HELLO with a known id takes them back; a round waits 20 s for an away seat; a phone that loses its host shows "Reconnecting…" for 60 s, re-signs in to the room after 10 s, and only then gives up; a deliberate leave (BYE) removes the seat between rounds; the host's tab keeps a snapshot, so a reloaded host gets **REOPEN ROOM** with the same code, players and points | `qa/rejoin.js` §1–6 |
 
 Notes on what changed from the plan:

@@ -23,6 +23,7 @@ node qa/phonegames.js # online-only games (Stop the Clock, Higher or Lower, Triv
 node qa/netfaults.js  # lost ROUND / GO / RESULT recovered, START WITHOUT a phone that never readies, forged ROSTER and stale SCORE ignored
 node qa/rejoin.js     # phones and the host dropping off and reloading: same seats, same points, REOPEN ROOM
 node qa/latejoin.js   # wake lock, joining mid-round, an older version told to refresh, the 13th player told it's full
+node qa/hosttools.js  # shared phones keep memorable games off SURPRISE ME/the wheel, removing a player, score and ghost caps, TURN config, privacy note
 node qa/homescreen.js # iPhone Add to Home Screen tip, web-app meta, manifest and icons
 node qa/trophies.js   # trophy rules, persistence, old saves, the screen, a real game
 node qa/yatzy.js      # Yatzy scoring rules, a game vs a bot, a two-player tabletop game

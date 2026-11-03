@@ -681,3 +681,8 @@ body.tv #tv-seats { display: grid; grid-template-columns: repeat(auto-fill, minm
 .net-banner { position: fixed; left: 0; right: 0; top: 0; z-index: 1900; padding: calc(env(safe-area-inset-top) + 8px) 12px 8px; background: #ff9f1c; color: #1a0d24; text-align: center; font-size: 18px; letter-spacing: .5px; box-shadow: 0 4px 16px rgba(0,0,0,.35); }
 .st-row.away { opacity: .55; }
 .st-row.away small { margin-left: 4px; opacity: .8; }
+.st-row.tappable { cursor: pointer; }
+.st-row.tappable:active { filter: brightness(1.25); }
+.card.warn { outline: 2px dashed #ff9f1c; outline-offset: -4px; }
+.card .cw { display: block; font-size: 10px; letter-spacing: .5px; color: #ff9f1c; margin-top: 2px; }
+.privacy-note { font-size: 12px; opacity: .7; }

@@ -74,10 +74,10 @@ tried on real phones over real WiFi yet**: that's the first job of the audit.
    until it lands, a dropped phone keeps its seat and points and comes back by itself, a
    reloaded host reopens its room, late joiners queue for the next round, and an old build
    is told to refresh. Still open: a TURN relay (`RELEASE.turnServers` in `src/AppHost.js`
-   is wired, just empty) and shared-phone fairness (roadmap PR 5). **Roadmap PRs 5–8 wait
-   until 1–4 have been tested on real phones.**
-3. **Room UX (P1)**: kick a player and the drinking "host's call" line (roadmap PR 6),
-   and a live score rail.
+   is wired: paste credentials into `TURN_SERVERS`, see `TURN.md`). Shared-phone fairness,
+   removing a player, score/ghost caps and the privacy note followed (roadmap PRs 5–8); the
+   ghost leak fix is claw-core #41.
+3. **Room UX (P1)**: a live score rail.
 4. **More online games (P2)**: easy conversions are High Noon, Grid Recall, Rhythm
    Forge, Pinball; medium are Bowling, Block Party, Sack Race, Red Light Green Light,
    Rooftop Run, Yatzy. New modes: **Crab Royale** (bottom third out each round), and

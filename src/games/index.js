@@ -119,3 +119,16 @@ for (const [type, g] of Object.entries(GAMES)) {
     if (g.net === 'parallel' && !MG_PARALLEL.includes(type)) MG_PARALLEL.push(type);
     MinigameManager.registerMinigame(type, g.load);
 }
+
+// Games you can REMEMBER: pass the phone plays the same seed in turn, so the
+// second player on a shared phone has watched the first one's answers. Rooms
+// keep these off SURPRISE ME and the TV's wheel while a phone is shared
+// (Together.fairPool). Flagged here, not in claw-core, so HundredBlockDash is
+// untouched; a missing game is skipped.
+for (const type of [
+    'trivia',        // the same ten questions, the right answers lit up
+    'higherlower',   // the same deck, in the same order
+    'stopclock',     // the same five target times
+    'shellgame',     // the same shuffles
+    'balloonpump',   // the same hidden pop limits
+]) if (MG_INFO[type]) MG_INFO[type].memorable = true;

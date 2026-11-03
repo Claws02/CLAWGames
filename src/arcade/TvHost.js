@@ -18,6 +18,9 @@ import * as Toast from './Toast.js';
 import { MG_INFO, MG_NET_INFO, MG_PARALLEL } from '../claw-core/config/MinigameRegistry.js';
 import { rulesHTML, drinkLine, NET_COLORS, showDrinks, paintDrinkToggle } from './Together.js';
 import * as DrinkCard from './DrinkCard.js';
+import * as Confirm from './Confirm.js';
+// Namespace, not named: a phone with an older cached Together.js still boots.
+import * as Together from './Together.js';
 
 const $ = id => document.getElementById(id);
 const MEDALS = ['🥇', '🥈', '🥉', '4️⃣'];
@@ -142,16 +145,29 @@ function _paint() {
     _paintQr(u.href);
     const seats = Room.seats();
     _rows($('tv-seats'), seats.map(s => s.name), null, seats.map(s => s.away));
+    // Click a player to take them out of the room (and everyone on their phone).
+    $('tv-seats').querySelectorAll('.st-row').forEach((row, i) => {
+        row.classList.add('tappable');
+        row.title = 'Click to remove from the room';
+        row.addEventListener('click', async () => {
+            const s = Room.seats()[i];
+            if (s && await Confirm.ask(`Remove ${s.name} from the room?`, 'REMOVE')) Room.remove(i);
+        });
+    });
     $('btn-tv-spin').disabled = seats.length < 2;
     $('btn-tv-end').hidden = !Room.totals().some(Boolean);
     $('tv-hint').textContent = seats.length < 2 ? 'Waiting for at least 2 players…' : `${seats.length} players in. Spin when you're ready!`;
 }
 
 // ---- the wheel -------------------------------------------------------------------
+// A shared phone in the room keeps the memorable games off the wheel (Together.fairPool).
 function _pool() {
-    const left = GAMES.filter(t => !_played.includes(t));
-    return left.length ? left : GAMES.slice();
+    const games = Together.fairPool ? Together.fairPool(GAMES) : GAMES.slice();
+    const left = games.filter(t => !_played.includes(t));
+    return left.length ? left : games;
 }
+/** The games the wheel would deal from now (probes). */
+export const pool = () => _pool();
 
 // auto: start the wheel turning as soon as it's up (the captain's button).
 function spin(auto = false) {
