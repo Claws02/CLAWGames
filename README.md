@@ -32,7 +32,7 @@ node qa/rebound.mjs  # Rebound physics; every level cleared within its par by a 
 node qa/sologames.js # SOLO GAMES hub: Treasure Dig, Lighthouse Beams, Pearl Diver, Rebound by tapping; dailies, streak, a trophy
 node qa/daily.mjs    # daily systems: three dailies a day by the date, the weekday difficulty, claw tokens, tide passes, the shelf; no browser
 node qa/icefloe.mjs  # Ice Floe (par is the shortest route) and Rock Pool Paths (every pool solvable) rules, no browser
-node qa/coral.mjs    # Coral Merge rules: merges, chains, the tide, sand washing away, a whole game; no browser
+node qa/coral.mjs    # Coral Merge physics: falling, merging, chains, the treasure burst, the bubble, game over, determinism; no browser
 node qa/dailygames.js # Ice Floe, Rock Pool Paths, Coral Merge, Kite Wind, Prize Shelf by tapping; TODAY, a tide pass, SHARE
 node qa/trophies.js   # trophy rules, persistence, old saves, the screen, a real game
 node qa/yatzy.js      # Yatzy scoring rules, a game vs a bot, a two-player tabletop game
