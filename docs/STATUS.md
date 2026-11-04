@@ -30,6 +30,21 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
   room. After every round: who drinks how many sips (one sip per player, split by
   place), the winner's handout, and a house rule for last place.
 
+## Solo games (one player)
+
+One home-screen card, **SOLO GAMES** (`src/arcade/SoloHub.js`), opens five games, each with its
+best on its card, and **TODAY**: a daily Critter Square, Treasure Dig and Lighthouse Beams from
+the date (the same puzzle on every phone that day) with a streak. What a device remembers is in
+`SoloStats.js`; six trophies read it.
+
+| Game | What | Files |
+|---|---|---|
+| Critter Square | every row and column holds each critter once; fences open towards the bigger one. Easy 4×4 / Medium 5×5 / Hard 6×6, one solution each, hints, best times | `CritterSquare.js`, `CritterLogic.js` |
+| Treasure Dig | three chests on a 7×7 beach; every hole reads the steps to the nearest one still buried; stars by digs | `TreasureDig.js` |
+| Lighthouse Beams | light every boat exactly once; lighthouses never shine on each other; 5×5 / 6×6 / 7×7, one answer each | `Lighthouse.js`, `LighthouseLogic.js` |
+| Pearl Diver | hold to dive, let go to float; pearls, jellyfish and an air meter; speeds up; high score | `PearlDiver.js` |
+| Rebound | pull back and flick a pearl to pop every clam; 8 hand-made levels, each par proven by a search | `Rebound.js`, `ReboundLogic.js` |
+
 ## Online games (15)
 
 Every one is played **alone on each phone from the round's seed** and scored, so they

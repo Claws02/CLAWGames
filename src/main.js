@@ -40,6 +40,8 @@ import * as TvHost from './arcade/TvHost.js';
 import * as Drinks from './arcade/Drinks.js';
 import * as DrinkCard from './arcade/DrinkCard.js';
 import * as WakeLock from './arcade/WakeLock.js';
+import * as CritterSquare from './arcade/CritterSquare.js';
+import * as SoloHub from './arcade/SoloHub.js';
 
 // Quick Play for one: "1" on Quick Play's seats screen (kept between visits).
 let _quickSolo = !!Store.load('quickSolo', false);
@@ -66,6 +68,8 @@ function show(name, push = true) {
     if (name === 'trophies') _paintTrophies();
     if (name === 'players') PlayersScreen.paintList();
     if (name === 'together') Together.prefill();
+    if (name === 'critter') CritterSquare.open(); else CritterSquare.leave();
+    if (name === 'solo') SoloHub.open(); else if (name !== 'sologame') SoloHub.leaveGame();
 }
 
 function openProfile(id) {
@@ -246,7 +250,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', 
     const mode = b.dataset.go;
     // One phone, one player: Play Together has no local seat setup.
     if (mode === 'together') return show('together');
-    if (mode === 'trophies' || mode === 'players') return show(mode);
+    if (mode === 'trophies' || mode === 'players' || mode === 'critter' || mode === 'solo') return show(mode);
     show('seats');
     // Mini Golf and Quick Play can be played alone: "1" on the seats screen.
     // Leaving Solo goes back to Take turns; any other mode (Tabletop, Chaos) is kept as it was.
@@ -310,6 +314,8 @@ Seats.init();
 Golf.init();
 PlayersScreen.init(openProfile);
 Together.init(show, goHome);
+CritterSquare.init();
+SoloHub.init(show);
 TvHost.init(show, () => _current);
 // The Easter egg: five quick taps on the crab flip party mode ⇄ drinking mode.
 document.querySelector('.logo-claw').addEventListener('click', () => {

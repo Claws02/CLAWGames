@@ -55,6 +55,11 @@
                 <span class="gh-txt"><span class="gh-lbl bfont">MINI GOLF</span><span class="gh-sub">4 courses · 36 holes · par &amp; a scorecard</span></span>
                 <span class="gh-go bfont">TEE OFF ›</span>
             </button>
+            <button class="golf-hero critter-hero" data-go="solo">
+                <span class="gh-ico">🐾</span>
+                <span class="gh-txt"><span class="gh-lbl bfont">SOLO GAMES</span><span class="gh-sub" id="home-solo-sub">5 games just for you · a daily puzzle</span></span>
+                <span class="gh-go bfont">PLAY ›</span>
+            </button>
             <div class="crew">
                 <div class="crew-h"><span class="bfont">Your crew</span>
                     <button class="crew-all" data-go="players">All players <span class="n" id="home-players-n"></span> ›</button></div>
@@ -243,6 +248,48 @@
             </div>
             <p class="hint" id="net-hint"></p>
             <p class="hint privacy-note">🔒 Phones in a room talk to each other directly. To find each other they go through public relays, which see the room code and your IP address, never the game.</p>
+        </section>
+
+        <!-- ===== SOLO GAMES: the single-player hub (src/arcade/SoloHub.js) ===== -->
+        <section class="screen" id="scr-solo" data-screen="solo" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Solo Games</h2></header>
+            <div class="panel hub-today-panel">
+                <div class="panel-h bfont">📅 Today <span class="hub-n" id="solo-today-n"></span></div>
+                <div class="hub-today" id="solo-today"></div>
+                <p class="hint" id="solo-streak"></p>
+            </div>
+            <div class="hub-list" id="solo-list"></div>
+        </section>
+        <section class="screen" id="scr-sologame" data-screen="sologame" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont" id="sg-title">Solo</h2></header>
+            <div class="sg-body" id="sg-body"></div>
+        </section>
+
+        <!-- ===== CRITTER SQUARE: a pet logic puzzle for one (src/arcade/CritterSquare.js) ===== -->
+        <section class="screen" id="scr-critter" data-screen="critter" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Critter Square</h2></header>
+            <div id="cs-pick">
+                <p class="lead">Fill the square so every <b>row</b> and every <b>column</b> has each critter once. A fence between two squares <b>opens towards the bigger critter</b>.</p>
+                <div class="cs-sizes" id="cs-sizes"></div>
+                <div class="cs-eg"><span>🐱</span><b>&gt;</b><span>🐭</span><em>the cat is bigger than the mouse</em></div>
+                <button class="go-btn bfont" id="btn-cs-continue" hidden>▶ CONTINUE</button>
+                <button class="go-btn bfont cs-level" data-level="easy">EASY</button>
+                <button class="go-btn bfont cs-level" data-level="medium">MEDIUM</button>
+                <button class="go-btn bfont cs-level" data-level="hard">HARD</button>
+            </div>
+            <div id="cs-play" hidden>
+                <div class="cs-top"><span class="bfont" id="cs-level"></span><span class="cs-time bfont" id="cs-time">0:00</span><button class="ghost-btn bfont" id="btn-cs-hint">💡 HINT</button></div>
+                <div class="cs-sizes small" id="cs-sizes2"></div>
+                <div class="cs-board" id="cs-board"></div>
+                <div class="cs-tray" id="cs-tray"></div>
+                <div class="cs-done" id="cs-done" hidden>
+                    <div class="cs-done-h bfont">🐾 SOLVED!</div>
+                    <div class="cs-done-t bfont" id="cs-done-t"></div>
+                    <div class="cs-done-best" id="cs-done-best"></div>
+                    <button class="go-btn bfont" id="btn-cs-again">NEXT PUZZLE</button>
+                    <button class="ghost-btn bfont" id="btn-cs-levels">CHANGE LEVEL</button>
+                </div>
+            </div>
         </section>
 
         <section class="screen" id="scr-room" data-screen="room" hidden>
