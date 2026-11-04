@@ -32,18 +32,32 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 
 ## Solo games (one player)
 
-One home-screen card, **SOLO GAMES** (`src/arcade/SoloHub.js`), opens five games, each with its
-best on its card, and **TODAY**: a daily Critter Square, Treasure Dig and Lighthouse Beams from
-the date (the same puzzle on every phone that day) with a streak. What a device remembers is in
-`SoloStats.js`; six trophies read it.
+One home-screen card, **SOLO GAMES** (`src/arcade/SoloHub.js`), opens the Prize Shelf and nine
+games, each with its best on its card.
+
+**Every day (`SoloStats.js`):**
+- **TODAY**: three daily puzzles, picked from five by the date (Critter Square, Treasure Dig,
+  Lighthouse Beams, Ice Floe, Rock Pool Paths). The same puzzles on every phone that day, gentle
+  on Monday and Tuesday, medium Wednesday to Friday, hard at the weekend.
+- A **streak**, and **tide passes**: solving all three earns one (two at most), and a missed day
+  spends one so the streak survives.
+- Each daily solved is a **claw token** for the **Prize Shelf** (`PrizeShelf.js`, `Prizes.js`):
+  a claw machine with 60 plush critters (40 common, 15 rare, 5 legendary). Dropping over the
+  lucky spot improves the odds; repeats become sparkles, five sparkles a free token.
+- **SHARE** after a daily hands a short result to the phone's share sheet (`Share.js`).
+- 15 trophies for the solo games.
 
 | Game | What | Files |
 |---|---|---|
-| Critter Square | every row and column holds each critter once; fences open towards the bigger one. Easy 4×4 / Medium 5×5 / Hard 6×6, one solution each, hints, best times | `CritterSquare.js`, `CritterLogic.js` |
-| Treasure Dig | three chests on a 7×7 beach; every hole reads the steps to the nearest one still buried; stars by digs | `TreasureDig.js` |
-| Lighthouse Beams | light every boat exactly once; lighthouses never shine on each other; 5×5 / 6×6 / 7×7, one answer each | `Lighthouse.js`, `LighthouseLogic.js` |
-| Pearl Diver | hold to dive, let go to float; pearls, jellyfish and an air meter; speeds up; high score | `PearlDiver.js` |
-| Rebound | pull back and flick a pearl to pop every clam; 8 hand-made levels, each par proven by a search | `Rebound.js`, `ReboundLogic.js` |
+| Critter Square | every row and column holds each critter once; fences open towards the bigger one. Easy 4×4 / Medium 5×5 / Hard 6×6, one solution each | `CritterSquare.js`, `CritterLogic.js` |
+| Ice Floe | slide the penguin; it only stops at rocks, edges and snow; stop on the fish. Par is the shortest route | `IceFloe.js`, `IceFloeLogic.js` |
+| Rock Pool Paths | join each pair of critters; paths can't cross and every square is used | `Paths.js`, `PathsLogic.js` |
+| Treasure Dig | three chests on a 7×7 beach; every hole reads the steps to the nearest one still buried | `TreasureDig.js` |
+| Lighthouse Beams | light every boat exactly once; lighthouses never shine on each other; one answer each | `Lighthouse.js`, `LighthouseLogic.js` |
+| Coral Merge | drop creatures into a reef; two alike merge into the next kind up; the tide brings up sand | `Coral.js`, `CoralLogic.js` |
+| Kite Wind | tap to tug the kite up; rings build a combo; gulls and gusts | `Kite.js` |
+| Pearl Diver | hold to dive, let go to float; pearls, jellyfish and an air meter | `PearlDiver.js` |
+| Rebound | flick a pearl to pop every clam; 8 levels, each par proven by a search | `Rebound.js`, `ReboundLogic.js` |
 
 ## Online games (15)
 

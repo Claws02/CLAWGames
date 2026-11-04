@@ -17,16 +17,25 @@ import * as TreasureDig from './TreasureDig.js';
 import * as Lighthouse from './Lighthouse.js';
 import * as PearlDiver from './PearlDiver.js';
 import * as Rebound from './Rebound.js';
+import * as IceFloe from './IceFloe.js';
+import * as Paths from './Paths.js';
+import * as Coral from './Coral.js';
+import * as Kite from './Kite.js';
+import * as PrizeShelf from './PrizeShelf.js';
+import * as Toast from './Toast.js';
 import * as Trophies from './Trophies.js';
 
 const $ = id => document.getElementById(id);
-export const GAMES = [TreasureDig, Lighthouse, PearlDiver, Rebound];
-// The daily puzzles, in the order TODAY shows them.
-const DAILY = [
-    { id: 'critter', icon: '🐾', title: 'Critter Square' },
-    { id: 'treasure', icon: '💰', title: 'Treasure Dig' },
-    { id: 'lighthouse', icon: '🗼', title: 'Lighthouse Beams' },
-];
+export const GAMES = [IceFloe, Paths, TreasureDig, Lighthouse, Coral, Kite, PearlDiver, Rebound];
+const SCREENS = [...GAMES, PrizeShelf];   // everything that mounts on the shared screen
+// Every game with a daily puzzle (Solo.todaysDailies picks three a day).
+const DAILY = {
+    critter: { icon: '🐾', title: 'Critter Square', levels: true },
+    treasure: { icon: '💰', title: 'Treasure Dig' },
+    lighthouse: { icon: '🗼', title: 'Lighthouse Beams', levels: true },
+    icefloe: { icon: '🐧', title: 'Ice Floe', levels: true },
+    paths: { icon: '🦑', title: 'Rock Pool Paths', levels: true },
+};
 let _show = null, _game = null;
 
 export function init(show) {
@@ -37,17 +46,23 @@ export function init(show) {
 /** The hub screen. */
 export function open() {
     leaveGame();
-    const streak = Solo.streak(), done = DAILY.filter(g => Solo.dailyDone(g.id)).length;
-    $('solo-streak').textContent = streak ? `🔥 ${streak} day${streak === 1 ? '' : 's'} in a row` : 'Solve one a day to start a streak';
-    $('solo-today-n').textContent = `${done} of ${DAILY.length} solved`;
+    // Missed a day? A tide pass keeps the streak going.
+    const spent = Solo.usePasses();
+    if (spent) Toast.show(`🌊 ${spent === 1 ? 'A tide pass' : `${spent} tide passes`} saved your streak!`, '#38bdf8');
+    const ids = Solo.todaysDailies(), level = Solo.dailyLevel();
+    const streak = Solo.streak(), done = ids.filter(id => Solo.dailyDone(id)).length;
+    $('solo-streak').textContent = (streak ? `🔥 ${streak} day${streak === 1 ? '' : 's'} in a row` : 'Solve one a day to start a streak') +
+        ` · 🌊 ${Solo.passes()} tide pass${Solo.passes() === 1 ? '' : 'es'}`;
+    $('solo-today-n').textContent = done === ids.length ? 'all done! 🌊' : `${done} of ${ids.length} · ${level}`;
     const today = $('solo-today');
-    today.innerHTML = DAILY.map(g => `<button class="hub-day${Solo.dailyDone(g.id) ? ' done' : ''}" data-daily="${g.id}">` +
-        `<span class="sd-ico">${g.icon}</span><span class="sd-t">${g.title}</span><span class="sd-s bfont">${Solo.dailyDone(g.id) ? '✓ DONE' : 'PLAY'}</span></button>`).join('');
+    today.innerHTML = ids.map(id => { const g = DAILY[id], d = Solo.dailyDone(id);
+        return `<button class="hub-day${d ? ' done' : ''}" data-daily="${id}"><span class="sd-ico">${g.icon}</span><span class="sd-t">${g.title}</span>` +
+            `<span class="sd-s bfont">${d ? '✓ DONE' : g.levels ? level.toUpperCase() : 'PLAY'}</span></button>`; }).join('');
     today.querySelectorAll('[data-daily]').forEach(b => b.addEventListener('click', () => playDaily(b.dataset.daily)));
 
-    const cards = [{ meta: { id: 'critter', icon: '🐾', title: 'Critter Square', blurb: 'Every row and column holds each critter once; fences point to the bigger one.' }, bestText: CritterSquare.bestText }, ...GAMES];
+    const cards = [PrizeShelf, { meta: { id: 'critter', icon: '🐾', title: 'Critter Square', blurb: 'Every row and column holds each critter once; fences point to the bigger one.' }, bestText: CritterSquare.bestText }, ...GAMES];
     const list = $('solo-list');
-    list.innerHTML = cards.map(g => `<button class="hub-card" data-game="${g.meta.id}"><span class="sc-ico">${g.meta.icon}</span>` +
+    list.innerHTML = cards.map(g => `<button class="hub-card${g === PrizeShelf ? ' shelf' : ''}" data-game="${g.meta.id}"><span class="sc-ico">${g.meta.icon}</span>` +
         `<span class="sc-txt"><span class="sc-t bfont">${g.meta.title}</span><span class="sc-b">${g.meta.blurb}</span>` +
         `<span class="sc-best">${g.bestText() || 'not played yet'}</span></span><span class="sc-go bfont">›</span></button>`).join('');
     list.querySelectorAll('[data-game]').forEach(b => b.addEventListener('click', () => play(b.dataset.game)));
@@ -56,7 +71,7 @@ export function open() {
 /** Open a game (not its daily). */
 export function play(id, opts = {}) {
     if (id === 'critter') { _show('critter'); return; }
-    const g = GAMES.find(x => x.meta.id === id);
+    const g = SCREENS.find(x => x.meta.id === id);
     if (!g) return;
     _show('sologame');
     leaveGame();
@@ -71,7 +86,7 @@ export function play(id, opts = {}) {
 /** Today's puzzle: the same for everyone today, from the date. */
 export function playDaily(id) {
     const seed = Solo.dailySeed(id);
-    if (id === 'critter') { _show('critter'); CritterSquare.startDaily(seed); return; }
+    if (id === 'critter') { _show('critter'); CritterSquare.startDaily(seed, Solo.dailyLevel()); return; }
     play(id, { daily: true, seed });
 }
 

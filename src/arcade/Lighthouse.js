@@ -8,6 +8,7 @@
 // ============================================================
 import { LEVELS, SEA, ROCK, BOAT, generate, check } from './LighthouseLogic.js';
 import * as Solo from './SoloStats.js';
+import * as Share from './Share.js';
 import * as Audio from '../claw-core/engine/AudioManager.js';
 
 export const meta = { id: 'lighthouse', icon: '🗼', title: 'Lighthouse Beams', blurb: 'Light every boat exactly once. Lighthouses must never shine on each other.', daily: true };
@@ -23,7 +24,7 @@ export function bestText() {
 
 export function mount(el, opts = {}) {
     _el = el; _setTitle = opts.title || (() => {});
-    if (opts.daily) return start('medium', Solo.rng(opts.seed), true);
+    if (opts.daily) return start(Solo.dailyLevel(), Solo.rng(opts.seed), true);
     _pick();
 }
 export function unmount() { _stop(); _el = null; }
@@ -55,7 +56,7 @@ export function start(level, rnd = Math.random, daily = false) {
             <button class="ghost-btn bfont" id="btn-lh-levels">CHANGE LEVEL</button>
         </div>`;
     _el.querySelector('#btn-lh-hint').addEventListener('click', hint);
-    _el.querySelector('#btn-lh-again').addEventListener('click', () => start(daily ? 'medium' : level));
+    _el.querySelector('#btn-lh-again').addEventListener('click', () => start(level));   // after a daily: an ordinary one
     _el.querySelector('#btn-lh-levels').addEventListener('click', _pick);
     _t0 = performance.now();
     _timer = setInterval(() => { const t = _el && _el.querySelector('#lh-time'); if (t) t.textContent = _fmt((performance.now() - _t0) / 1000); }, 250);
@@ -116,13 +117,14 @@ function _win() {
     Solo.bump('lighthouseSolved');
     if (_p.level === 'hard' && !_hints) Solo.bump('lighthouseHard');
     const isBest = !_daily && !_hints && Solo.record(`lighthouse:${_p.level}`, Math.round(t * 10) / 10, 'low');
-    const firstDaily = _daily && Solo.solveDaily('lighthouse');
+    const firstDaily = _daily ? Solo.solveDaily('lighthouse') : null;
     _sfx('win');
     Solo.won();
     _el.querySelector('#lh-time').textContent = _fmt(t);
     _el.querySelector('#lh-done').hidden = false;
     _el.querySelector('#lh-done-t').textContent = `${_fmt(t)}${_hints ? ` · ${_hints} hint${_hints === 1 ? '' : 's'}` : ''}`;
-    _el.querySelector('#lh-done-best').textContent = _daily ? (firstDaily ? `📅 Today's coast is safe! Streak: ${Solo.streak()}` : "📅 Today's coast: already done.")
+    if (_daily) _el.querySelector('#lh-done').insertBefore(Share.button(Share.dailyText('🗼 Lighthouse Beams', `${LEVELS[_p.level].label.toLowerCase()} in ${_fmt(t)}${_hints ? ` · ${_hints} hint${_hints === 1 ? '' : 's'}` : ''}`)), _el.querySelector('#btn-lh-again'));
+    _el.querySelector('#lh-done-best').textContent = _daily ? Solo.dailyLine(firstDaily, "Today's coast")
         : isBest ? '🏅 NEW BEST TIME!' : _hints ? 'Solve one without hints to set a best time.' : `Best: ${_fmt(Solo.best(`lighthouse:${_p.level}`))}`;
     _el.querySelector('#lh-done').scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
 }
