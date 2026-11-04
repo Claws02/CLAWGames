@@ -50,6 +50,13 @@ export const TROPHIES = [
     { id: 'shelf_20',     icon: '🧸', name: 'Collector',       how: 'Put 20 plush critters on your Prize Shelf.',      rule: () => [Object.keys(Solo.shelf()).length, 20] },
     { id: 'shelf_all',    icon: '🏅', name: 'Full Shelf',      how: 'Collect all 60 plush critters.',                  rule: () => [Object.keys(Solo.shelf()).length, 60] },
     { id: 'legendary',    icon: '🐉', name: 'Legend',          how: 'Win a legendary plush from the claw machine.',    rule: () => [Solo.count('legendary'), 1] },
+    { id: 'abyss_3',      icon: '🌌', name: 'Abyss Diver',     how: 'Three stars on a Rebound level in the Abyss.',     rule: () => [Solo.count('reboundAbyss3'), 1] },
+    { id: 'rebound_96',   icon: '🦪', name: 'Rebound Royalty', how: 'Every star in Rebound (all 32 tanks).',            rule: () => [Solo.best('rebound') || 0, 96] },
+    { id: 'orbit_all',    icon: '🪐', name: 'Astronaut',       how: 'Clear every Orbit Putt level.',                    rule: () => [Array.from({ length: 12 }, (_, i) => Solo.best(`orbit:${i}`) ? 1 : 0).reduce((a, b) => a + b, 0), 12] },
+    { id: 'cannon_all',   icon: '🔔', name: 'Bell Ringer',     how: 'Clear every Crab Cannon level.',                   rule: () => [Array.from({ length: 12 }, (_, i) => Solo.best(`cannon:${i}`) ? 1 : 0).reduce((a, b) => a + b, 0), 12] },
+    { id: 'snooker_grand', icon: '🎱', name: 'Table Clearer',  how: 'Clear the Grand Rack in Sea Snooker.',             rule: () => [Solo.best('snooker:9') ? 1 : 0, 1] },
+    { id: 'reef_3',       icon: '🪸', name: 'Oyster Whisperer', how: 'Three stars on 6 Reef Drop reefs.',              rule: () => [Array.from({ length: 12 }, (_, i) => (Solo.best(`reefdrop:${i}`) === 3 ? 1 : 0)).reduce((a, b) => a + b, 0), 6] },
+    { id: 'mirror_30',    icon: '🏮', name: 'Lamplighter',     how: 'Light all 30 Mirror Lagoon levels.',               rule: () => [Array.from({ length: 30 }, (_, i) => Solo.best(`mirror:${i}`) ? 1 : 0).reduce((a, b) => a + b, 0), 30] },
 ];
 
 let earned = Store.load('trophies', {});   // id → ISO date earned

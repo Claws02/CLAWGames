@@ -73,7 +73,7 @@ export const dailyDone = (game, day = today()) => !!(_load().daily[day] && _load
 
 // ---- which dailies, and how hard -------------------------------------------------------
 /** Every game with a daily puzzle. Each day the date picks three of them. */
-export const DAILY_POOL = ['critter', 'treasure', 'lighthouse', 'icefloe', 'paths'];
+export const DAILY_POOL = ['critter', 'treasure', 'lighthouse', 'icefloe', 'paths', 'rebound'];
 export function todaysDailies(day = today()) {
     const r = rng(hash(`${day}:pick`)), pool = DAILY_POOL.slice();
     for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }

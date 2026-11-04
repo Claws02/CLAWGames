@@ -864,3 +864,25 @@ body.tv #tv-seats { display: grid; grid-template-columns: repeat(auto-fill, minm
 
 /* ---------- Share ---------- */
 .share-btn { width: 100%; margin-top: 6px; }
+
+/* ---------- Rebound worlds ---------- */
+.rb-world { margin-bottom: 10px; }
+.rb-world .panel-h { display: flex; justify-content: space-between; align-items: baseline; margin: 8px 0 6px; }
+.rb-world .panel-h small { font-family: Nunito, sans-serif; font-weight: 900; font-size: 13px; color: #eab308; }
+.rb-hint { margin: 4px 0 2px; padding: 6px 10px; border: 3px solid var(--ink); border-radius: 12px; background: #fef9c3; font-weight: 800; font-size: 13px; text-align: center; }
+
+/* ---------- Mirror Lagoon ---------- */
+.ml-wrap { position: relative; padding-left: 30px; margin: 8px auto; width: max-content; max-width: 100%; }
+.ml-src { position: absolute; left: 0; font-size: 26px; }
+.ml-board { --w: 5; --h: 6; --cell: min(calc((100vw - 76px) / var(--w)), calc(56vh / var(--h)), 52px); position: relative; display: grid; grid-template-columns: repeat(var(--w), var(--cell)); border: var(--line); border-radius: 12px; overflow: hidden; background: #164e63; }
+.ml-sq { width: var(--cell); height: var(--cell); border: 1px solid rgba(255,255,255,.08); display: flex; align-items: center; justify-content: center; font-size: calc(var(--cell) * .55); padding: 0; background: transparent; color: #fff; position: relative; z-index: 2; }
+.ml-sq.rock { background: #57534e; }
+.ml-sq.lit { background: rgba(253,224,71,.12); }
+.ml-m { font-style: normal; font-weight: 900; font-size: calc(var(--cell) * .8); color: #e0f2fe; text-shadow: 0 0 6px #38bdf8; transition: transform .2s; display: block; }
+.ml-m.spin { animation: ml-spin .22s; }
+@keyframes ml-spin { from { transform: rotate(-90deg) scale(.8); } to { transform: none; } }
+button.ml-sq { cursor: pointer; background: rgba(56,189,248,.12); }
+.ml-l { filter: grayscale(1) brightness(.7); transition: filter .25s, transform .25s; }
+.ml-l.on { filter: drop-shadow(0 0 8px #fbbf24); transform: scale(1.12); }
+.ml-beam { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible; }
+.ml-beam polyline { fill: none; stroke: #fde047; stroke-width: .14; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 .1px #fde047); opacity: .9; }

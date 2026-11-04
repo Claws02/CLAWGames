@@ -28,7 +28,9 @@ node qa/homescreen.js # iPhone Add to Home Screen tip, web-app meta, manifest an
 node qa/critter.mjs   # Critter Square rules: one solution per puzzle at every level, the checker, no browser
 node qa/critter.js    # Critter Square screen: levels, fences, a clash, hints, solving, best times, CONTINUE, small-phone fit
 node qa/lighthouse.mjs  # Lighthouse Beams (one answer per puzzle, the rules) and Treasure Dig rules; dailies from the date, no browser
-node qa/rebound.mjs  # Rebound physics; every level cleared within its par by a search, no browser
+node qa/rebound.mjs  # Rebound physics and mechanics (movers, portals, coral, urchins, gates); all 32 tanks and 12 daily tanks within par, no browser
+node qa/aimgames.mjs # Orbit Putt, Crab Cannon, Sea Snooker, Reef Drop, Mirror Lagoon: the rules and every level within par, no browser
+node qa/aimgames.js  # the five new games on a small phone: real pull-and-release shots, levels cleared on screen, Mirror by taps, Rebound worlds and daily
 node qa/sologames.js # SOLO GAMES hub: Treasure Dig, Lighthouse Beams, Pearl Diver, Rebound by tapping; dailies, streak, a trophy
 node qa/daily.mjs    # daily systems: three dailies a day by the date, the weekday difficulty, claw tokens, tide passes, the shelf; no browser
 node qa/icefloe.mjs  # Ice Floe (par is the shortest route) and Rock Pool Paths (every pool solvable) rules, no browser
