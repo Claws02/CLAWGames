@@ -55,10 +55,10 @@
                 <span class="gh-txt"><span class="gh-lbl bfont">MINI GOLF</span><span class="gh-sub">4 courses · 36 holes · par &amp; a scorecard</span></span>
                 <span class="gh-go bfont">TEE OFF ›</span>
             </button>
-            <button class="golf-hero critter-hero" data-go="critter">
+            <button class="golf-hero critter-hero" data-go="solo">
                 <span class="gh-ico">🐾</span>
-                <span class="gh-txt"><span class="gh-lbl bfont">CRITTER SQUARE</span><span class="gh-sub">A pet logic puzzle, just for you · 3 sizes</span></span>
-                <span class="gh-go bfont">SOLVE ›</span>
+                <span class="gh-txt"><span class="gh-lbl bfont">SOLO GAMES</span><span class="gh-sub" id="home-solo-sub">5 games just for you · a daily puzzle</span></span>
+                <span class="gh-go bfont">PLAY ›</span>
             </button>
             <div class="crew">
                 <div class="crew-h"><span class="bfont">Your crew</span>
@@ -248,6 +248,21 @@
             </div>
             <p class="hint" id="net-hint"></p>
             <p class="hint privacy-note">🔒 Phones in a room talk to each other directly. To find each other they go through public relays, which see the room code and your IP address, never the game.</p>
+        </section>
+
+        <!-- ===== SOLO GAMES: the single-player hub (src/arcade/SoloHub.js) ===== -->
+        <section class="screen" id="scr-solo" data-screen="solo" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont">Solo Games</h2></header>
+            <div class="panel hub-today-panel">
+                <div class="panel-h bfont">📅 Today <span class="hub-n" id="solo-today-n"></span></div>
+                <div class="hub-today" id="solo-today"></div>
+                <p class="hint" id="solo-streak"></p>
+            </div>
+            <div class="hub-list" id="solo-list"></div>
+        </section>
+        <section class="screen" id="scr-sologame" data-screen="sologame" hidden>
+            <header class="bar"><button class="back" data-back>‹</button><h2 class="bfont" id="sg-title">Solo</h2></header>
+            <div class="sg-body" id="sg-body"></div>
         </section>
 
         <!-- ===== CRITTER SQUARE: a pet logic puzzle for one (src/arcade/CritterSquare.js) ===== -->

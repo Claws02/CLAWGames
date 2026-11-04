@@ -27,6 +27,9 @@ node qa/hosttools.js  # shared phones keep memorable games off SURPRISE ME/the w
 node qa/homescreen.js # iPhone Add to Home Screen tip, web-app meta, manifest and icons
 node qa/critter.mjs   # Critter Square rules: one solution per puzzle at every level, the checker, no browser
 node qa/critter.js    # Critter Square screen: levels, fences, a clash, hints, solving, best times, CONTINUE, small-phone fit
+node qa/lighthouse.mjs  # Lighthouse Beams (one answer per puzzle, the rules) and Treasure Dig rules; dailies from the date, no browser
+node qa/rebound.mjs  # Rebound physics; every level cleared within its par by a search, no browser
+node qa/sologames.js # SOLO GAMES hub: Treasure Dig, Lighthouse Beams, Pearl Diver, Rebound by tapping; dailies, streak, a trophy
 node qa/trophies.js   # trophy rules, persistence, old saves, the screen, a real game
 node qa/yatzy.js      # Yatzy scoring rules, a game vs a bot, a two-player tabletop game
 node qa/pinball.js    # four fingers, nudge/tilt, saver, claw lock, multiball, missions, attacks, a full game vs the bot

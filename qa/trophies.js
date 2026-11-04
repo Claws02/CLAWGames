@@ -26,7 +26,9 @@ const ok = (name, cond, detail = '') => (cond ? pass : fail).push(`${name}${deta
     await page.goto(BASE);
     await page.evaluate(() => localStorage.clear());
     await boot();
-    ok('a fresh arcade has no trophies', (await page.textContent('#home-trophies-n')).trim() === '0 / 21',
+    // How many trophies there are, from the code: adding one never breaks this probe.
+    const TOTAL = await page.evaluate(() => import('/src/arcade/Trophies.js').then(T => T.TROPHIES.length));
+    ok('a fresh arcade has no trophies', (await page.textContent('#home-trophies-n')).trim() === `0 / ${TOTAL}`,
         await page.textContent('#home-trophies-n'));
 
     // ---- the rules ----------------------------------------------------------
@@ -66,7 +68,7 @@ const ok = (name, cond, detail = '') => (cond ? pass : fail).push(`${name}${deta
     });
     ok('earned trophies survive a reload', after.count === 8, `earned ${after.count}`);
     ok('and are not announced a second time', after.again === 0, `check() gave ${after.again}`);
-    ok('the home button shows the count', (await page.textContent('#home-trophies-n')).trim() === '8 / 21');
+    ok('the home button shows the count', (await page.textContent('#home-trophies-n')).trim() === `8 / ${TOTAL}`);
 
     // ---- the screen ------------------------------------------------------------
     await page.click('[data-go="trophies"]');
@@ -76,7 +78,7 @@ const ok = (name, cond, detail = '') => (cond ? pass : fail).push(`${name}${deta
         return { n: cards.length, earnedFirst: cards.slice(0, 8).every(c => c.classList.contains('got')) && !cards[8].classList.contains('got'),
                  overflow: s.scrollWidth > s.clientWidth + 1, sum: document.getElementById('trophy-sum').textContent };
     });
-    ok('the screen lists all 21, earned first', scr.n === 21 && scr.earnedFirst, JSON.stringify(scr));
+    ok(`the screen lists all ${TOTAL}, earned first`, scr.n === TOTAL && scr.earnedFirst, JSON.stringify(scr));
     ok('and fits a 412 px phone without sideways scroll', !scr.overflow);
     await page.screenshot({ path: '/tmp/claude-0/-home-user/feef9cb7-b3ea-5463-a3fa-376dc616dfcb/scratchpad/shot-trophies.png', fullPage: false }).catch(() => {});
 

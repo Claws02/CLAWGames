@@ -12,6 +12,7 @@
 // ============================================================
 import { CRITTERS, NAMES, LEVELS, generate, conflicts, solved } from './CritterLogic.js';
 import * as Store from './Store.js';
+import * as Solo from './SoloStats.js';
 import * as Audio from '../claw-core/engine/AudioManager.js';
 
 const $ = id => document.getElementById(id);
@@ -19,6 +20,7 @@ let _p = null;          // the puzzle: { level, n, solution, givens, fences }
 let _grid = [];         // what's on the board now
 let _sel = -1;          // the picked square
 let _t0 = 0, _paused = 0, _hints = 0, _done = false, _timer = 0;
+let _daily = false;     // today's puzzle (SoloHub's TODAY): Medium, from the date
 
 const _sfx = n => { try { Audio.sfx(n); } catch (e) {} };
 const _buzz = p => { try { Audio.haptic(p); } catch (e) {} };
@@ -35,7 +37,8 @@ export function open() {
         const L = LEVELS[b.dataset.level];
         b.innerHTML = `${L.label} <span>${L.n}×${L.n}</span><small>${best[b.dataset.level] ? `best ${_fmt(best[b.dataset.level])}` : 'not solved yet'}</small>`;
     });
-    $('btn-cs-continue').hidden = !(_p && !_done);
+    // A daily is played from TODAY; the level picker only continues an ordinary puzzle.
+    $('btn-cs-continue').hidden = !(_p && !_done && !_daily);
     if (_p && !_done) $('btn-cs-continue').textContent = `▶ CONTINUE ${LEVELS[_p.level].label} · ${_fmt(_paused)}`;
     _paintSizes($('cs-sizes'), 6);
 }
@@ -47,14 +50,25 @@ export function init() {
     document.querySelectorAll('#cs-pick .cs-level').forEach(b => b.addEventListener('click', () => start(b.dataset.level)));
     $('btn-cs-continue').addEventListener('click', () => _resume());
     $('btn-cs-hint').addEventListener('click', hint);
-    $('btn-cs-again').addEventListener('click', () => start(_p.level));
+    $('btn-cs-again').addEventListener('click', () => start(_p.level));   // after a daily: an ordinary one
     $('btn-cs-levels').addEventListener('click', open);
     document.addEventListener('visibilitychange', () => { if (document.hidden) _stopClock(); else if (!$('cs-play').hidden && !_done && !$('scr-critter').hidden) _startClock(); });
 }
 
+/** One line for the SOLO hub's card: the best time at the hardest level solved. */
+export function bestText() {
+    const b = _bests();
+    const lv = ['hard', 'medium', 'easy'].find(l => b[l]);
+    return lv ? `best ${LEVELS[lv].label.toLowerCase()} ${_fmt(b[lv])}` : '';
+}
+
+/** Today's puzzle: a Medium square from the date's seed, the same on every phone. */
+export function startDaily(seed) { start('medium', Solo.rng(seed), true); }
+
 /** A new puzzle at this level. */
-export function start(level) {
-    _p = generate(level);
+export function start(level, rnd = Math.random, daily = false) {
+    _daily = daily;
+    _p = generate(level, rnd);
     _grid = _p.givens.slice();
     _sel = _grid.indexOf(-1);
     _hints = 0; _done = false; _paused = 0;
@@ -63,7 +77,7 @@ export function start(level) {
 
 function _resume() {
     $('cs-pick').hidden = true; $('cs-play').hidden = false; $('cs-done').hidden = true; $('cs-tray').hidden = false;
-    $('cs-level').textContent = `${LEVELS[_p.level].label} · ${_p.n}×${_p.n}`;
+    $('cs-level').textContent = `${_daily ? '📅 DAILY' : LEVELS[_p.level].label} · ${_p.n}×${_p.n}`;
     _paintSizes($('cs-sizes2'), _p.n);
     _paintTray();
     _paint();
@@ -168,16 +182,22 @@ function _win() {
     _done = true; _sel = -1;
     const t = _paused, best = _bests(), prev = best[_p.level];
     // A best time only counts without hints.
-    const isBest = !_hints && (!prev || t < prev);
+    const isBest = !_daily && !_hints && (!prev || t < prev);
+    Solo.bump('critterSolved');
+    if (_p.level === 'hard' && !_hints) Solo.bump('critterHard');
+    const firstDaily = _daily && Solo.solveDaily('critter');
     if (isBest) { best[_p.level] = Math.round(t * 10) / 10; Store.save('critterBest', best); }
     _sfx('win');
+    Solo.won();
     _paint();
     $('cs-time').textContent = _fmt(t);
     $('cs-done').hidden = false;
     $('cs-tray').hidden = true;   // nothing left to place: the card takes its spot
     $('cs-done').scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
     $('cs-done-t').textContent = `${_fmt(t)}${_hints ? ` · ${_hints} hint${_hints === 1 ? '' : 's'}` : ''}`;
-    $('cs-done-best').textContent = isBest ? '🏅 NEW BEST TIME!' : _hints ? 'Solve one without hints to set a best time.' : `Best: ${_fmt(prev)}`;
+    $('cs-done-best').textContent = _daily ? (firstDaily ? `📅 Today's puzzle solved! Streak: ${Solo.streak()}` : "📅 Today's puzzle: already solved.")
+        : isBest ? '🏅 NEW BEST TIME!' : _hints ? 'Solve one without hints to set a best time.' : `Best: ${_fmt(prev)}`;
+    $('btn-cs-again').textContent = _daily ? 'A NEW MEDIUM PUZZLE' : 'NEXT PUZZLE';
 }
 
 /** For probes: the puzzle on screen. */

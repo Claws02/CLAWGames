@@ -725,3 +725,76 @@ body.tv #tv-seats { display: grid; grid-template-columns: repeat(auto-fill, minm
 .cs-done-t { font-size: 24px; }
 .cs-done-best { font-weight: 800; margin: 4px 0 10px; }
 .cs-done .go-btn, .cs-done .ghost-btn { width: 100%; margin-top: 6px; }
+
+/* ---------- Solo games hub ---------- */
+.hub-today-panel .panel-h { display: flex; justify-content: space-between; align-items: baseline; }
+.hub-n { font-size: 13px; font-family: Nunito, sans-serif; font-weight: 800; opacity: .7; }
+.hub-today { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.hub-day { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border: 3px solid var(--ink); border-radius: 14px; background: #fff; box-shadow: 0 3px 0 var(--ink); }
+.hub-day.done { background: #c8f7d8; }
+.sd-ico { font-size: 26px; line-height: 1; }
+.sd-t { font-size: 11px; font-weight: 800; text-align: center; line-height: 1.1; }
+.sd-s { font-size: 14px; color: var(--pink); }
+.hub-day.done .sd-s { color: #15803d; }
+.hub-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.hub-card { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: var(--line); border-radius: 18px; background: #fff; box-shadow: var(--pop); text-align: left; color: var(--ink); }
+.hub-card:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink); }
+.sc-ico { font-size: 36px; line-height: 1; }
+.sc-txt { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.sc-t { font-size: 24px; line-height: 1; }
+.sc-b { font-size: 12px; font-weight: 700; opacity: .8; }
+.sc-best { font-size: 12px; font-weight: 900; color: var(--pink); margin-top: 2px; }
+.sc-go { font-size: 30px; }
+.sg-body .sg-lead { margin-top: 0; }
+.sg-body .cs-level { width: 100%; margin-bottom: 10px; display: flex; align-items: baseline; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.sg-body .cs-level span { opacity: .8; }
+.sg-body .cs-level small { flex-basis: 100%; font-family: Nunito, sans-serif; font-weight: 800; font-size: 12px; opacity: .8; }
+
+/* ---------- Treasure Dig ---------- */
+.td-top { display: flex; justify-content: space-between; font-size: 24px; margin-bottom: 8px; }
+.td-board { --n: 7; display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; max-width: min(100%, 60vh); margin: 0 auto; }
+.td-sq { aspect-ratio: 1; border-radius: 9px; border: 2px solid var(--ink); display: flex; align-items: center; justify-content: center; font: 900 20px/1 Nunito, sans-serif; padding: 0; }
+.td-sq.sand { background: #f4d9a0; box-shadow: inset 0 -4px 0 #d9b56e; }
+.td-sq.sand:active { transform: scale(.94); }
+.td-sq.chest { background: #ffd23f; font-size: 24px; }
+.td-sq.hole { background: #8b6b3d; color: #fff; }
+.td-sq.h1, .td-key .h1 { background: #ef4444; }
+.td-sq.h2, .td-key .h2 { background: #f97316; }
+.td-sq.h3, .td-key .h3 { background: #eab308; }
+.td-sq.h4, .td-key .h4 { background: #3b82f6; }
+.td-key { display: flex; gap: 6px; justify-content: center; align-items: center; margin-top: 8px; font-size: 12px; font-weight: 800; }
+.td-key span { color: #fff; border: 2px solid var(--ink); border-radius: 6px; padding: 1px 6px; font-weight: 900; }
+
+/* ---------- Lighthouse Beams ---------- */
+.lh-rules { margin: 0 0 12px; padding-left: 20px; font-weight: 700; font-size: 14px; }
+.lh-status { text-align: center; font-weight: 900; margin: 4px 0 8px; }
+.lh-board { --n: 6; display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 4px; max-width: min(100%, 58vh); margin: 0 auto; }
+.lh-sq { aspect-ratio: 1; border-radius: 8px; border: 2px solid var(--ink); display: flex; align-items: center; justify-content: center; font-size: clamp(16px, 6vw, 28px); padding: 0; }
+.lh-sq.sea { background: #60a5fa; }
+.lh-sq.sea.lit { background: #fde68a; }
+.lh-sq.light { background: #fff7ed; }
+.lh-sq.rock { background: #57534e; }
+.lh-sq.boat { background: #93c5fd; }
+.lh-sq.boat.lit { background: #fde68a; }
+.lh-sq.boat.ok { background: #86efac; box-shadow: inset 0 0 0 3px #15803d; }
+.lh-sq.bad { background: #fca5a5 !important; box-shadow: inset 0 0 0 3px #b91c1c; }
+.lh-sq.idle { box-shadow: inset 0 0 0 3px #f97316; }
+
+/* ---------- Pearl Diver ---------- */
+.pd-wrap { position: relative; display: flex; justify-content: center; }
+.pd-cv { border: var(--line); border-radius: 16px; touch-action: none; user-select: none; -webkit-user-select: none; display: block; }
+.pd-over { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(43, 18, 64, .35); border-radius: 16px; }
+.pd-over[hidden] { display: none; }
+.pd-card { background: var(--yellow); border: var(--line); border-radius: 18px; box-shadow: var(--pop); padding: 14px; text-align: center; max-width: 320px; }
+.pd-t { font-weight: 700; margin: 6px 0; }
+.pd-score { font-size: 30px; }
+.pd-card .go-btn { width: 100%; margin-top: 8px; }
+
+/* ---------- Rebound ---------- */
+.rb-levels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.rb-lv { display: flex; flex-direction: column; align-items: center; padding: 8px 2px; border: 3px solid var(--ink); border-radius: 14px; background: #fff; box-shadow: 0 3px 0 var(--ink); color: var(--ink); }
+.rb-lv span { font-size: 26px; line-height: 1; }
+.rb-lv small { font-size: 10px; font-weight: 800; text-align: center; line-height: 1.1; min-height: 22px; }
+.rb-lv em { font-style: normal; color: #eab308; font-size: 13px; -webkit-text-stroke: .5px var(--ink); }
+.rb-lv.locked { opacity: .5; }
+.rb-cv { display: block; margin: 8px auto; border-radius: 12px; touch-action: none; user-select: none; -webkit-user-select: none; }

@@ -1,6 +1,6 @@
 // ============================================================
 // CRITTER SQUARE — the screen, played by tapping (qa/critter.mjs has the rules).
-//   home → the Critter Square card → pick a level → the board (givens locked,
+//   home → SOLO GAMES → Critter Square → pick a level → the board (givens locked,
 //   fences drawn) → a clash glows red → HINT fills a square → solve it by
 //   tapping → SOLVED with the time; a best only without hints, and it shows
 //   on the level buttons → CONTINUE a half-done puzzle → all three sizes fit
@@ -28,11 +28,16 @@ const SHOTS = process.env.QA_SHOTS || '';
     const shot = async name => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await p.screenshot({ path: `${SHOTS}/${name}.png` }); } };
     const tapSq = k => p.click(`#cs-board .cs-sq[data-k="${k}"]`);
     const tapPet = v => p.click(`#cs-tray .cs-pet[data-v="${v}"]`);
+    // Critter Square lives in the SOLO GAMES hub; its back button returns there.
+    const openCritter = async () => {
+        if (!(await p.isVisible('#scr-solo'))) await p.click('[data-go="solo"]');
+        await p.click('#solo-list [data-game="critter"]');
+    };
 
     // home → the card → levels
     await shot('home');
-    await p.click('[data-go="critter"]');
-    check(await p.isVisible('#cs-pick') && (await p.$$('#cs-pick .cs-level')).length === 3, 'the home card opens Critter Square with three levels');
+    await openCritter();
+    check(await p.isVisible('#cs-pick') && (await p.$$('#cs-pick .cs-level')).length === 3, 'SOLO GAMES → Critter Square opens with three levels');
     check(/not solved yet/.test(await p.textContent('#cs-pick .cs-level[data-level="easy"]')), `the levels show no best yet: "${await p.textContent('#cs-pick .cs-level[data-level="easy"]')}"`);
     await shot('pick');
 
@@ -111,11 +116,11 @@ const SHOTS = process.env.QA_SHOTS || '';
             const dm = await dbg(); const k = dm.p.givens.findIndex(v => v < 0);
             await tapSq(k); await tapPet(dm.p.solution[k]);
             await p.click('#scr-critter [data-back]');
-            await p.click('[data-go="critter"]');
+            await openCritter();
             check(await p.isVisible('#btn-cs-continue'), `   leave half done and come back: "${await p.textContent('#btn-cs-continue')}"`);
             await p.click('#btn-cs-continue');
             check((await dbg()).grid[k] === dm.p.solution[k], '   CONTINUE brings the same board back');
-            await p.click('#scr-critter [data-back]'); await p.click('[data-go="critter"]');
+            await p.click('#scr-critter [data-back]'); await openCritter();
         } else {
             await p.click('#scr-critter [data-back]');
         }

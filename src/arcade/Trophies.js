@@ -8,6 +8,7 @@ import * as Stats from './Stats.js';
 import { allTypes, MG_GENRES } from './Catalog.js';
 import * as Toast from './Toast.js';
 import * as Golf from './Golf.js';
+import * as Solo from './SoloStats.js';
 
 const n = o => Object.keys(o).length;
 const tot = o => Object.values(o).reduce((a, b) => a + b, 0);
@@ -34,6 +35,13 @@ export const TROPHIES = [
     { id: 'golf_tour',  icon: '🌍', name: 'World Tour',      how: 'Set a best round on every Mini Golf course.',  rule: () => [['backyard', 'pirate', 'candy', 'space'].filter(c => Golf.best(c, 9)).length, 4] },
     { id: 'golf_trick', icon: '🎯', name: 'Trick Shot',      how: 'Sink a Mini Golf trick shot.',                   rule: () => [Golf.stats().tricksDone, 1] },
     { id: 'golf_trickall', icon: '🌟', name: 'Trick Shot Master', how: 'Three stars on every Mini Golf trick shot.', rule: () => [Golf.stats().trickStars, Math.max(1, Golf.stats().tricks * 3)] },
+    // Solo games
+    { id: 'critter_hard', icon: '🐘', name: 'Critter Keeper',  how: 'Solve a Hard Critter Square with no hints.',     rule: () => [Solo.count('critterHard'), 1] },
+    { id: 'treasure_3',   icon: '💰', name: 'Treasure Hunter', how: 'Find all three chests in 10 digs or fewer.',      rule: () => [Solo.count('treasure3'), 1] },
+    { id: 'light_hard',   icon: '🗼', name: 'Keeper of the Light', how: 'Solve a Hard Lighthouse Beams with no hints.', rule: () => [Solo.count('lighthouseHard'), 1] },
+    { id: 'pearl_50',     icon: '🫧', name: 'Deep Diver',      how: 'Score 50 in one Pearl Diver dive.',               rule: () => [Solo.best('pearl') || 0, 50] },
+    { id: 'rebound_all',  icon: '🦪', name: 'Clam Champion',   how: 'Three stars on every Rebound level.',             rule: () => [Solo.best('rebound') || 0, 24] },
+    { id: 'daily_7',      icon: '📅', name: 'Daily Habit',     how: 'Solve a daily puzzle 7 days in a row.',           rule: () => [Solo.streak(), 7] },
 ];
 
 let earned = Store.load('trophies', {});   // id → ISO date earned
