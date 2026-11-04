@@ -30,6 +30,14 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
   room. After every round: who drinks how many sips (one sip per player, split by
   place), the winner's handout, and a house rule for last place.
 
+## Critter Square (one player)
+
+A pet logic puzzle on its own home-screen card (`src/arcade/CritterSquare.js`, rules and
+puzzle maker in `CritterLogic.js`). Every row and column holds each critter once; a fence
+between two squares opens towards the bigger critter (🐭 < 🐱 < 🐶 < 🐷 < 🐴 < 🐘). Easy 4×4,
+Medium 5×5, Hard 6×6, a fresh puzzle each time with exactly one solution, hints, and a best
+time per level (only without hints).
+
 ## Online games (15)
 
 Every one is played **alone on each phone from the round's seed** and scored, so they
