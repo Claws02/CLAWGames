@@ -8,6 +8,7 @@
 // Stars by digs: ≤ 10 ★★★, ≤ 15 ★★, otherwise ★.
 // ============================================================
 import * as Solo from './SoloStats.js';
+import * as Share from './Share.js';
 import * as Audio from '../claw-core/engine/AudioManager.js';
 
 export const meta = { id: 'treasure', icon: '💰', title: 'Treasure Dig', blurb: 'Three chests under the sand. Every hole tells you how far the nearest one is.', daily: true };
@@ -96,13 +97,14 @@ function _win() {
     Solo.bump('treasureGames');
     if (st === 3) Solo.bump('treasure3');
     const isBest = Solo.record('treasure', digs, 'low');
-    const firstDaily = s.daily && Solo.solveDaily('treasure');
+    const firstDaily = s.daily ? Solo.solveDaily('treasure') : null;
     _sfx('win');
     Solo.won();
     _el.querySelector('#td-done').hidden = false;
     _el.querySelector('#td-done-h').textContent = `${'★'.repeat(st)}${'☆'.repeat(3 - st)} ALL FOUND!`;
     _el.querySelector('#td-done-t').textContent = `${digs} digs`;
-    _el.querySelector('#td-done-best').textContent = s.daily ? (firstDaily ? `📅 Today's beach dug up! Streak: ${Solo.streak()}` : "📅 Today's beach: already done.")
+    if (s.daily) _el.querySelector('#td-done').insertBefore(Share.button(Share.dailyText('💰 Treasure Dig', `${digs} digs ${'★'.repeat(st)}${'☆'.repeat(3 - st)}`)), _el.querySelector('#btn-td-again'));
+    _el.querySelector('#td-done-best').textContent = s.daily ? Solo.dailyLine(firstDaily, "Today's beach")
         : isBest ? '🏅 NEW BEST!' : `Best: ${Solo.best('treasure')} digs · ★★★ in ${STARS[0]} or fewer`;
     _el.querySelector('#td-done').scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
 }

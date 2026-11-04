@@ -9,7 +9,7 @@
 //   5. Rebound: only level 1 is open; a real pull-and-flick clears it with
 //      ★★★ and opens level 2
 //   6. the dailies: two phones get the same beach; solving marks it done and
-//      starts a streak; Critter Square's daily opens as DAILY
+//      starts a streak; Critter Square's daily opens as DAILY, sized by the weekday
 //   7. leaving a game stops it
 //
 // usage: node qa/sologames.js   (static server on :8140)
@@ -42,7 +42,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     await p.click('[data-go="solo"]');
     await p.waitForSelector('#scr-solo:not([hidden])');
     const days = await p.$$('#solo-today .hub-day'), cards = await p.$$('#solo-list .hub-card');
-    check(days.length === 3 && cards.length === 5, `1. SOLO GAMES: ${days.length} daily puzzles, ${cards.length} games`);
+    check(days.length === 3 && cards.length >= 5, `1. SOLO GAMES: ${days.length} daily puzzles, ${cards.length} cards`);
     check(/start a streak/.test(await p.textContent('#solo-streak')), `   no streak yet: "${await p.textContent('#solo-streak')}"`);
     await shot('hub');
 
@@ -135,7 +135,8 @@ const SHOTS = process.env.QA_SHOTS || '';
     await toHub();
 
     // 6. the dailies
-    await p.click('#solo-today [data-daily="treasure"]');
+    // Today's three rotate by the date (qa/dailygames.js checks that), so open these dailies directly.
+    await p.evaluate(() => import('/src/arcade/SoloHub.js').then(H => H.playDaily('treasure')));
     await p.waitForSelector('#td-board .td-sq');
     const day1 = (await mod('TreasureDig', 'M._debug()')).chests;
     const p2 = await open();
@@ -146,11 +147,12 @@ const SHOTS = process.env.QA_SHOTS || '';
     await p.waitForSelector('#td-done:not([hidden])', { timeout: 5000 }).catch(() => {});
     check(/Today's beach/.test(await p.textContent('#td-done-best')), `   solved: "${await p.textContent('#td-done-best')}"`);
     await toHub();
-    check(await p.$eval('#solo-today [data-daily="treasure"]', e => e.classList.contains('done')) && /1 day in a row/.test(await p.textContent('#solo-streak')),
-        `   TODAY marks it done and the streak starts: "${await p.textContent('#solo-streak')}"`);
-    await p.click('#solo-today [data-daily="critter"]');
+    check((await mod('SoloStats', "M.dailyDone('treasure')")) && /1 day in a row/.test(await p.textContent('#solo-streak')),
+        `   it's marked done and the streak starts: "${await p.textContent('#solo-streak')}"`);
+    await p.evaluate(() => import('/src/arcade/SoloHub.js').then(H => H.playDaily('critter')));
     await p.waitForSelector('#cs-play:not([hidden])');
-    check(/DAILY/.test(await p.textContent('#cs-level')) && (await p.$$('#cs-board .cs-sq')).length === 25, `   Critter Square's daily opens: "${await p.textContent('#cs-level')}"`);
+    const lvN = { easy: 16, medium: 25, hard: 36 }[await mod('SoloStats', 'M.dailyLevel()')];
+    check(/DAILY/.test(await p.textContent('#cs-level')) && (await p.$$('#cs-board .cs-sq')).length === lvN, `   Critter Square's daily opens at today's size: "${await p.textContent('#cs-level')}"`);
 
     check(!errs.length, `no page errors${errs.length ? ': ' + errs.slice(0, 3).join(' | ') : ''}`);
     await browser.close();

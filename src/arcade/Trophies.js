@@ -42,6 +42,14 @@ export const TROPHIES = [
     { id: 'pearl_50',     icon: '🫧', name: 'Deep Diver',      how: 'Score 50 in one Pearl Diver dive.',               rule: () => [Solo.best('pearl') || 0, 50] },
     { id: 'rebound_all',  icon: '🦪', name: 'Clam Champion',   how: 'Three stars on every Rebound level.',             rule: () => [Solo.best('rebound') || 0, 24] },
     { id: 'daily_7',      icon: '📅', name: 'Daily Habit',     how: 'Solve a daily puzzle 7 days in a row.',           rule: () => [Solo.streak(), 7] },
+    { id: 'daily_30',     icon: '🗓️', name: 'Tide Keeper',     how: 'Keep a daily streak going for 30 days.',          rule: () => [Solo.streak(), 30] },
+    { id: 'ice_hard',     icon: '🐧', name: 'Slick Penguin',   how: 'Reach the fish in par on a Hard Ice Floe.',       rule: () => [Solo.count('icefloeHard3'), 1] },
+    { id: 'paths_hard',   icon: '🦑', name: 'Pathfinder',      how: 'Solve a Hard Rock Pool Paths.',                   rule: () => [Solo.count('pathsHard'), 1] },
+    { id: 'coral_turtle', icon: '🐢', name: 'Reef Builder',    how: 'Grow a turtle in Coral Merge.',                   rule: () => [Solo.count('coralTurtle'), 1] },
+    { id: 'kite_combo',   icon: '🪁', name: 'High Flyer',      how: 'Fly through 10 rings in a row in Kite Wind.',      rule: () => [Solo.count('kiteCombo10'), 1] },
+    { id: 'shelf_20',     icon: '🧸', name: 'Collector',       how: 'Put 20 plush critters on your Prize Shelf.',      rule: () => [Object.keys(Solo.shelf()).length, 20] },
+    { id: 'shelf_all',    icon: '🏅', name: 'Full Shelf',      how: 'Collect all 60 plush critters.',                  rule: () => [Object.keys(Solo.shelf()).length, 60] },
+    { id: 'legendary',    icon: '🐉', name: 'Legend',          how: 'Win a legendary plush from the claw machine.',    rule: () => [Solo.count('legendary'), 1] },
 ];
 
 let earned = Store.load('trophies', {});   // id → ISO date earned

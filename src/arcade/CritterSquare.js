@@ -13,6 +13,7 @@
 import { CRITTERS, NAMES, LEVELS, generate, conflicts, solved } from './CritterLogic.js';
 import * as Store from './Store.js';
 import * as Solo from './SoloStats.js';
+import * as Share from './Share.js';
 import * as Audio from '../claw-core/engine/AudioManager.js';
 
 const $ = id => document.getElementById(id);
@@ -62,8 +63,8 @@ export function bestText() {
     return lv ? `best ${LEVELS[lv].label.toLowerCase()} ${_fmt(b[lv])}` : '';
 }
 
-/** Today's puzzle: a Medium square from the date's seed, the same on every phone. */
-export function startDaily(seed) { start('medium', Solo.rng(seed), true); }
+/** Today's puzzle: from the date's seed (the same on every phone), as hard as the weekday says. */
+export function startDaily(seed, level = Solo.dailyLevel()) { start(level, Solo.rng(seed), true); }
 
 /** A new puzzle at this level. */
 export function start(level, rnd = Math.random, daily = false) {
@@ -185,7 +186,7 @@ function _win() {
     const isBest = !_daily && !_hints && (!prev || t < prev);
     Solo.bump('critterSolved');
     if (_p.level === 'hard' && !_hints) Solo.bump('critterHard');
-    const firstDaily = _daily && Solo.solveDaily('critter');
+    const firstDaily = _daily ? Solo.solveDaily('critter') : null;
     if (isBest) { best[_p.level] = Math.round(t * 10) / 10; Store.save('critterBest', best); }
     _sfx('win');
     Solo.won();
@@ -195,9 +196,11 @@ function _win() {
     $('cs-tray').hidden = true;   // nothing left to place: the card takes its spot
     $('cs-done').scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
     $('cs-done-t').textContent = `${_fmt(t)}${_hints ? ` · ${_hints} hint${_hints === 1 ? '' : 's'}` : ''}`;
-    $('cs-done-best').textContent = _daily ? (firstDaily ? `📅 Today's puzzle solved! Streak: ${Solo.streak()}` : "📅 Today's puzzle: already solved.")
+    $('cs-done').querySelector('.share-btn')?.remove();
+    if (_daily) $('cs-done').insertBefore(Share.button(Share.dailyText('🐾 Critter Square', `${LEVELS[_p.level].label.toLowerCase()} in ${_fmt(t)}${_hints ? ` · ${_hints} hint${_hints === 1 ? '' : 's'}` : ''}`)), $('btn-cs-again'));
+    $('cs-done-best').textContent = _daily ? Solo.dailyLine(firstDaily, "Today's square")
         : isBest ? '🏅 NEW BEST TIME!' : _hints ? 'Solve one without hints to set a best time.' : `Best: ${_fmt(prev)}`;
-    $('btn-cs-again').textContent = _daily ? 'A NEW MEDIUM PUZZLE' : 'NEXT PUZZLE';
+    $('btn-cs-again').textContent = _daily ? 'AN EXTRA PUZZLE' : 'NEXT PUZZLE';
 }
 
 /** For probes: the puzzle on screen. */
