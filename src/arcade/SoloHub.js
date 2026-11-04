@@ -22,11 +22,16 @@ import * as Paths from './Paths.js';
 import * as Coral from './Coral.js';
 import * as Kite from './Kite.js';
 import * as PrizeShelf from './PrizeShelf.js';
+import * as Orbit from './Orbit.js';
+import * as Cannon from './Cannon.js';
+import * as Snooker from './Snooker.js';
+import * as ReefDrop from './ReefDrop.js';
+import * as Mirror from './Mirror.js';
 import * as Toast from './Toast.js';
 import * as Trophies from './Trophies.js';
 
 const $ = id => document.getElementById(id);
-export const GAMES = [IceFloe, Paths, TreasureDig, Lighthouse, Coral, Kite, PearlDiver, Rebound];
+export const GAMES = [Rebound, Orbit, Cannon, ReefDrop, Snooker, Mirror, IceFloe, Paths, TreasureDig, Lighthouse, Coral, Kite, PearlDiver];
 const SCREENS = [...GAMES, PrizeShelf];   // everything that mounts on the shared screen
 // Every game with a daily puzzle (Solo.todaysDailies picks three a day).
 const DAILY = {

@@ -57,7 +57,14 @@ games, each with its best on its card.
 | Coral Merge | drop sea creatures into a tank (real 2D physics); two alike that touch merge into the next kind up; combos, a bubble power-up that lifts the pile | `Coral.js`, `CoralPhysics.js` |
 | Kite Wind | tap to tug the kite up; rings build a combo; gulls and gusts | `Kite.js` |
 | Pearl Diver | hold to dive, let go to float; pearls, jellyfish and an air meter | `PearlDiver.js` |
-| Rebound | flick a pearl to pop every clam; 8 levels, each par proven by a search | `Rebound.js`, `ReboundLogic.js` |
+| Rebound | flick a pearl to pop every clam; 32 tanks in four worlds (moving bumpers, portals, breakable coral, urchins and switches), a daily tank, each par proven by a search | `Rebound.js`, `ReboundLogic.js`, `ReboundDaily.js` |
+| Orbit Putt | putt a ball past planets and black holes into a wormhole that only catches slow balls; 12 levels | `Orbit.js`, `OrbitLogic.js` |
+| Crab Cannon | fire a crab through wind and bouncy clouds to ring every bell; 12 levels | `Cannon.js`, `CannonLogic.js` |
+| Sea Snooker | pot the clams in number order; out-of-order pots are respotted, potting the pearl costs a shot; 10 racks | `Snooker.js`, `SnookerLogic.js` |
+| Reef Drop | drop pearls from the top through a reef of coral, oysters and eels; crack every oyster (two hits each), eels zap what is near them, a long chain earns a pearl; 12 reefs | `ReefDrop.js`, `ReefDropLogic.js` |
+| Mirror Lagoon | flip mirrors so the lighthouse beam lights every lantern; 30 generated levels, par is the fewest flips | `Mirror.js`, `MirrorLogic.js` |
+
+The four aim games share `AimScreen.js` (picker, pull-back aim, loop, done panel) and `AimSearch.js` (the beam search that proves each par).
 
 ## Online games (15)
 
