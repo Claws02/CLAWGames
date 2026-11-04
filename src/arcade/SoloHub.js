@@ -35,6 +35,7 @@ const DAILY = {
     lighthouse: { icon: '🗼', title: 'Lighthouse Beams', levels: true },
     icefloe: { icon: '🐧', title: 'Ice Floe', levels: true },
     paths: { icon: '🦑', title: 'Rock Pool Paths', levels: true },
+    rebound: { icon: '🦪', title: 'Rebound' },
 };
 let _show = null, _game = null;
 

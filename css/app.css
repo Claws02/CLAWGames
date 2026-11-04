@@ -864,3 +864,9 @@ body.tv #tv-seats { display: grid; grid-template-columns: repeat(auto-fill, minm
 
 /* ---------- Share ---------- */
 .share-btn { width: 100%; margin-top: 6px; }
+
+/* ---------- Rebound worlds ---------- */
+.rb-world { margin-bottom: 10px; }
+.rb-world .panel-h { display: flex; justify-content: space-between; align-items: baseline; margin: 8px 0 6px; }
+.rb-world .panel-h small { font-family: Nunito, sans-serif; font-weight: 900; font-size: 13px; color: #eab308; }
+.rb-hint { margin: 4px 0 2px; padding: 6px 10px; border: 3px solid var(--ink); border-radius: 12px; background: #fef9c3; font-weight: 800; font-size: 13px; text-align: center; }
