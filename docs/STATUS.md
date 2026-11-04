@@ -54,7 +54,7 @@ games, each with its best on its card.
 | Rock Pool Paths | join each pair of critters; paths can't cross and every square is used | `Paths.js`, `PathsLogic.js` |
 | Treasure Dig | three chests on a 7×7 beach; every hole reads the steps to the nearest one still buried | `TreasureDig.js` |
 | Lighthouse Beams | light every boat exactly once; lighthouses never shine on each other; one answer each | `Lighthouse.js`, `LighthouseLogic.js` |
-| Coral Merge | drop creatures into a reef; two alike merge into the next kind up; the tide brings up sand | `Coral.js`, `CoralLogic.js` |
+| Coral Merge | drop sea creatures into a tank (real 2D physics); two alike that touch merge into the next kind up; combos, a bubble power-up that lifts the pile | `Coral.js`, `CoralPhysics.js` |
 | Kite Wind | tap to tug the kite up; rings build a combo; gulls and gusts | `Kite.js` |
 | Pearl Diver | hold to dive, let go to float; pearls, jellyfish and an air meter | `PearlDiver.js` |
 | Rebound | flick a pearl to pop every clam; 8 levels, each par proven by a search | `Rebound.js`, `ReboundLogic.js` |

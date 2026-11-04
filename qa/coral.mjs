@@ -1,41 +1,62 @@
-// Coral Merge rules, no browser.
+// Coral Merge (free-fall physics) rules, no browser.
 // usage: node qa/coral.mjs
-import { begin, drop, canDrop, COLS, ROWS, TIDE_EVERY, SAND, KINDS } from '../src/arcade/CoralLogic.js';
+import { create, drop, step, bodies, canDrop, clampX, points, KINDS, RADII, TANK_W, TANK_H, LINE_Y, BUBBLE, TOP } from '../src/arcade/CoralPhysics.js';
 import { rng } from '../src/arcade/SoloStats.js';
 let fails = 0;
 const ok = (c, m) => { console.log(c ? 'ok  ' : 'FAIL', m); if (!c) fails++; };
-const fixed = seq => { let i = 0; return () => seq[i++ % seq.length]; };   // a random that returns these, in turn
+const run = (g, secs) => { const ev = []; for (let t = 0; t < secs; t += 1 / 30) ev.push(...step(g, 1 / 30)); return ev; };
+const kinds = g => bodies(g).map(b => b.getUserData().kind).sort();
+const queue = (g, list) => { g.next = list[0]; g.after = list[1] ?? 0; };   // set what drops next
 
-// Two shells merge into a snail
-let s = begin(fixed([0.1]));        // always a shell
-drop(s, 2);
-const r1 = drop(s, 2);
-ok(r1.merges.length === 1 && s.grid[ROWS - 1][2] === 1 && s.grid[ROWS - 2][2] === null, 'a shell on a shell: one snail at the bottom');
-ok(s.score > 0, `and it scores (${s.score})`);
-// Side by side, and a chain: snail + (shell, shell) → snail + snail → shrimp
-s = begin(fixed([0.1]));
-drop(s, 0); drop(s, 0);              // a snail in column 0
-drop(s, 1); const r2 = drop(s, 1);   // two shells in column 1: a snail beside the snail → a shrimp
-ok(r2.merges.length === 2 && r2.merges[1].chain === 2 && s.grid.flat().filter(v => v === 2).length === 1, `side by side, a chain: shells → snail → shrimp (${r2.merges.map(m => KINDS[m.kind]).join(' → ')})`);
-// A full column won't take more
-s = begin(fixed([0.1, 0.6]));        // shell, snail, shell, snail…: no merges in one column
-for (let i = 0; i < ROWS; i++) drop(s, 4);
-ok(!canDrop(s, 4) && drop(s, 4).ok === false, 'a full column takes no more');
-// The tide: a row of sand with one gap, every 12 drops
-s = begin(fixed([0.1, 0.6]));
-for (let i = 0; i < TIDE_EVERY; i++) drop(s, i % COLS);
-const bottom = s.grid[ROWS - 1];
-ok(bottom.filter(v => v === SAND).length === COLS - 1, `after ${TIDE_EVERY} drops the tide brings up sand, with one gap`);
-// A merge next to sand washes it away
-s = begin(fixed([0.1]));
-s.grid[ROWS - 1] = [SAND, null, SAND, SAND, SAND];
-drop(s, 1); const r3 = drop(s, 1);
-ok(r3.washed >= 1, `a merge washes away the sand touching it (${r3.washed})`);
-// Games end, and the same seed plays the same game
-const play = seed => { const g = begin(rng(seed)); let n = 0; while (!g.over && n < 2000) { const cols = [...Array(COLS).keys()].filter(c => canDrop(g, c)); if (!cols.length) break; drop(g, cols[n % cols.length]); n++; } return { over: g.over, score: g.score, drops: g.drops }; };
-const a = play(7), b = play(7);
-ok(a.over && a.drops > TIDE_EVERY, `a game played to the end finishes (${a.drops} drops, ${a.score} points)`);
-ok(JSON.stringify(a) === JSON.stringify(b), 'the same seed plays the same game');
+// A creature falls and comes to rest on the floor, inside the tank
+let g = create(rng(1));
+queue(g, [0, 3]);
+drop(g, 3.5); run(g, 2);
+const b0 = bodies(g)[0], p0 = b0.getPosition();
+ok(Math.abs(p0.y - (TANK_H - RADII[0])) < 0.05 && p0.x > 0 && p0.x < TANK_W, `a shell falls and rests on the floor (y ${p0.y.toFixed(2)})`);
+// Two of a kind touching merge into the next kind up
+queue(g, [0, 1]);
+drop(g, 3.5);
+const ev = run(g, 2);
+ok(JSON.stringify(kinds(g)) === '[1]' && ev.some(e => e.type === 'merge' && e.kind === 1), `two shells meet: one snail (${kinds(g).map(k => KINDS[k]).join('')})`);
+ok(g.score === points(1), `and it scores ${points(1)} (${g.score})`);
+// Different kinds don't merge
+queue(g, [3, 0]);
+drop(g, 3.5); run(g, 2);
+ok(JSON.stringify(kinds(g)) === '[1,3]', `a crab on a snail: no merge (${kinds(g).map(k => KINDS[k]).join('')})`);
+// A chain: shell + shell make a snail that lands on a snail: a shrimp, as a combo
+g = create(rng(2));
+queue(g, [1, 0]); drop(g, 3.5); run(g, 1.5);
+queue(g, [0, 0]); drop(g, 3.5); run(g, 0.6); queue(g, [0, 0]); drop(g, 3.5);
+const ev2 = run(g, 3);
+const m = ev2.filter(e => e.type === 'merge');
+ok(kinds(g).includes(2) && m.some(e => e.combo >= 2), `shells → snail → shrimp: a chain, combo ×${Math.max(...m.map(e => e.combo))}`);
+// Two of the top kind burst
+g = create(rng(3));
+queue(g, [TOP, TOP]); drop(g, 2); run(g, 1.5); queue(g, [TOP, 0]); drop(g, 4.5);
+const ev3 = run(g, 3);
+ok(ev3.some(e => e.type === 'treasure') && !kinds(g).includes(TOP), 'two treasures: a burst, both gone, big bonus');
+// Drops wait for the cooldown, and stay between the walls
+g = create(rng(4));
+ok(drop(g, 3) && !canDrop(g) && drop(g, 3) === null, 'a second drop straight away waits for the cooldown');
+ok(clampX(g, -5, 9) >= RADII[9] && clampX(g, 99, 9) <= TANK_W - RADII[9], 'drops are kept between the walls');
+// A bubble pops after landing and lifts its neighbours
+g = create(rng(5));
+for (let i = 0; i < 5; i++) { queue(g, [3, 3]); drop(g, 0.8 + i * 1.35); run(g, 0.5); }
+run(g, 2);
+const before = bodies(g).map(b => b.getPosition().y);
+queue(g, [BUBBLE, 0]); drop(g, 3.5);
+const ev4 = run(g, 1.6);
+const pop = ev4.find(e => e.type === 'pop');
+ok(pop && pop.lifted > 0 && !bodies(g).some(b => b.getUserData().kind === BUBBLE), `a bubble lands, pops and lifts ${pop ? pop.lifted : 0} creatures`);
+// Over the line for two seconds ends it
+g = create(rng(6));
+let n = 0;
+while (!g.over && n < 400) { if (canDrop(g)) { queue(g, [n % 2 ? 4 : 3, 0]); drop(g, 3.5); } run(g, 0.25); n++; }
+ok(g.over, `piling up over the line ends the game (after ${g.drops} drops)`);
+// The same seed and drops make the same game
+const play = () => { const x = create(rng(9)); for (let i = 0; i < 25; i++) { drop(x, 1 + (i * 1.7) % 5); run(x, 0.6); } return JSON.stringify({ s: x.score, k: kinds(x), p: bodies(x).map(b => b.getPosition().x.toFixed(3)) }); };
+ok(play() === play(), 'the same seed and the same drops make the same game');
 
 if (fails) { console.log(`CORAL FAIL — ${fails}`); process.exit(1); }
 console.log('CORAL PASS');

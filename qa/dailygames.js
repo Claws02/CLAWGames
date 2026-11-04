@@ -6,7 +6,7 @@
 //   2. a tide pass saves a streak with a missed day when the hub opens
 //   3. Ice Floe: arrow taps along the shortest route stop on the fish, in par
 //   4. Rock Pool Paths: dragging each path with a finger solves the pool
-//   5. Coral Merge: two shells dropped in one column merge
+//   5. Coral Merge: two shells dropped by finger fall, touch and merge, with the juice
 //   6. Kite Wind: a tap tugs the kite up; a ring scores and builds a combo;
 //      a gull ends the flight
 //   7. a daily solved: a claw token, and SHARE hands the result to the phone
@@ -91,14 +91,16 @@ const SHOTS = process.env.QA_SHOTS || '';
 
     // 5. Coral Merge
     await game('coral');
-    await p.waitForSelector('#cm-reef .cm-col');
-    const kinds = await mod('Coral', '[M._debug().next]');
-    // put the same creature twice in column 2: set the queue so both are shells
-    await p.evaluate(() => import('/src/arcade/Coral.js').then(C => { C.start(() => 0.1); }));
-    await p.click('#cm-reef .cm-col[data-c="2"]'); await p.click('#cm-reef .cm-col[data-c="2"]');
-    const reef = await mod('Coral', 'M._debug()');
-    check(reef.grid[6][2] === 1 && reef.score > 0, `5. Coral Merge: two shells in one column merge into a snail (score ${reef.score}; first in the queue was ${kinds})`);
-    await p.click('#cm-reef .cm-col[data-c="1"]');
+    await p.waitForSelector('#cm-cv');
+    // Two shells next: set the queue, then drop both by finger at the same spot.
+    await p.evaluate(() => import('/src/arcade/Coral.js').then(C => { const g = C._game(); g.next = 0; g.after = 0; }));
+    const cb = await (await p.$('#cm-cv')).boundingBox();
+    const tapAt = async fx => { await p.mouse.move(cb.x + cb.width * fx, cb.y + 20); await p.mouse.down(); await p.mouse.up(); };
+    await tapAt(0.5); await p.waitForTimeout(700); await tapAt(0.52);
+    let reef = null;
+    for (let i = 0; i < 40; i++) { reef = await mod('Coral', 'M._debug()'); if (reef.kinds.includes(1)) break; await p.waitForTimeout(100); }
+    check(reef.kinds.includes(1) && !reef.kinds.includes(0) && reef.score > 0, `5. Coral Merge: two shells dropped by finger fall, touch and merge into a snail (score ${reef.score})`);
+    check(reef.bursts > 0, `   the merge throws a burst of particles (${reef.bursts})`);
     await shot('coral');
     await hub();
 

@@ -822,18 +822,11 @@ body.tv #tv-seats { display: grid; grid-template-columns: repeat(auto-fill, minm
 .cm-score { font-size: 32px; }
 .cm-next { font-weight: 900; font-size: 13px; display: flex; align-items: center; gap: 6px; }
 .cm-next b { font-size: 32px; } .cm-next i { font-size: 18px; opacity: .55; font-style: normal; }
-.cm-tide { font-weight: 900; font-size: 13px; } .cm-tide.soon { color: #dc2626; }
-.cm-reef { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; width: min(100%, 48vh); margin: 0 auto; padding: 6px; border: var(--line); border-radius: 16px; background: linear-gradient(#38bdf8, #1e40af); }
-.cm-col { display: grid; grid-template-rows: repeat(7, 1fr); gap: 4px; padding: 0; border: 0; border-radius: 10px; background: rgba(255,255,255,.12); }
-.cm-col:active { background: rgba(255,255,255,.3); }
-.cm-col.full { background: rgba(239,68,68,.25); }
-.cm-cell { aspect-ratio: 1; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: clamp(18px, 7vw, 32px); }
-.cm-cell.sand { background: #e7c98f; box-shadow: inset 0 -3px 0 #c9a25b; }
-.cm-cell.pop { animation: cm-pop .35s; }
-@keyframes cm-pop { 0% { transform: scale(.4); } 70% { transform: scale(1.25); } 100% { transform: scale(1); } }
-.cm-flash { position: absolute; left: 0; right: 0; top: 40%; text-align: center; font-size: 34px; color: #fff; -webkit-text-stroke: 2px var(--ink); pointer-events: none; animation: cm-flash .9s forwards; }
-@keyframes cm-flash { to { transform: translateY(-40px); opacity: 0; } }
+.cm-best { font-weight: 900; font-size: 13px; opacity: .8; }
+.cm-cv { display: block; border: var(--line); border-radius: 16px; touch-action: none; user-select: none; -webkit-user-select: none; }
 .cm-ladder { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px; font-size: 18px; margin-top: 8px; }
+.cm-ladder span { opacity: .35; filter: grayscale(1); transition: opacity .3s, transform .3s; }
+.cm-ladder span.got { opacity: 1; filter: none; transform: scale(1.12); }
 .cm-ladder i { font-style: normal; opacity: .4; font-size: 12px; }
 
 /* ---------- Kite Wind ---------- */
