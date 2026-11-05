@@ -52,10 +52,32 @@ S._reset();
 ok(S.spendToken() === false, 'no tokens: no go on the claw');
 S.giveTokens(1);
 ok(S.spendToken() && S.tokens() === 0, 'a token buys one go');
-ok(S.addPrize('octopus').fresh && S.shelf().octopus === 1, 'a new prize goes on the shelf');
-let bonus = false;
-for (let i = 0; i < 5; i++) bonus = S.addPrize('octopus').bonus || bonus;
-ok(bonus && S.tokens() === 1 && S.sparkles() === 0 && S.shelf().octopus === 6, 'five repeats are five sparkles: a free token');
+ok(S.addPrize('octopus').fresh && S.shelf().octopus === 1 && S.foundOn('octopus') === S.today(), 'a new prize goes on the shelf, with the day it was found');
+const rep = S.addPrize('octopus', 3);
+ok(!rep.fresh && rep.sparkles === 3 && S.sparkles() === 3 && S.shelf().octopus === 2 && S.prizeDry() === 1, 'a repeat is sparkles for the shop (and counts towards the next one being new)');
+ok(!S.spendSparkles(4) && S.spendSparkles(3) && S.sparkles() === 0, 'sparkles are spent only when there are enough');
+ok(S.freeDropReady('2026-11-04') && S.useFreeDrop('2026-11-04') && !S.freeDropReady('2026-11-04') && !S.useFreeDrop('2026-11-04') && S.freeDropReady('2026-11-05'), 'one free drop a day');
+ok(S.markSet('ocean') && !S.markSet('ocean') && S.setsDone().includes('ocean'), 'a finished set is rewarded once');
+S.addGold(2); ok(S.golds() === 2 && S.useGold() && S.golds() === 1, 'gold capsules in hand');
+
+// The capsules, the claw and the sets
+const P = await import('../src/arcade/Prizes.js');
+const seeded = s => () => (s = (s * 16807) % 2147483647) / 2147483647;
+ok(P.PRIZES.length === 60 && P.SETS.every(st => P.inSet(st.id).length > 0) && P.PRIZES.every(p => p.name && p.bio && P.SETS.some(st => st.id === p.set)), '60 plushies in six sets, each with a name and a story');
+const rate = (tier, n = 20000) => { const r = seeded(7); let rare = 0, leg = 0; for (let i = 0; i < n; i++) { const p = P.draw(r, tier); if (p.rarity === 'rare') rare++; if (p.rarity === 'legendary') leg++; } return { rare: rare / n, leg: leg / n }; };
+const bl = rate('blue'), si = rate('silver'), go = rate('gold');
+ok(bl.leg < si.leg && si.leg < go.leg && bl.rare < si.rare && si.rare < go.rare, `the capsule's colour sets the odds: legendary ${(bl.leg * 100).toFixed(1)}% blue, ${(si.leg * 100).toFixed(1)}% silver, ${(go.leg * 100).toFixed(1)}% gold`);
+{ const owned = Object.fromEntries(P.PRIZES.filter(p => p.id !== 'whale').map(p => [p.id, 1])), r = seeded(3);
+  let pity = 0; for (let i = 0; i < 200; i++) if (P.draw(r, 'blue', owned, P.DRY_MAX - 1).id === 'whale') pity++;
+  let plain = 0; for (let i = 0; i < 200; i++) if (P.draw(r, 'blue', owned, 0).id === 'whale') plain++;
+  ok(pity === 200 && plain < 40, `after ${P.DRY_MAX - 1} repeats in a row the next capsule is always new (${pity}/200, against ${plain}/200 by luck)`); }
+{ const pile = P.pile(seeded(11)), c = pile.find(x => x.tier === 'blue');
+  const centre = P.grab(pile, c.x, c.z, () => 0.5), edge = P.grab(pile, c.x + P.GRAB_R * 0.9, c.z, () => 0.5), nowhere = P.grab(pile, 0.05, 0.05, () => 0.5);
+  ok(pile.length === P.PILE_N && pile.filter(x => x.tier === 'gold').length === 2 && pile.filter(x => x.tier === 'gold').every(x => x.z > 0.6), `a pile of ${pile.length} capsules: mostly blue, two gold ones at the back`);
+  ok(centre.capsule === c && centre.grip > 0.95 && !centre.slip && edge.slipChance > centre.slipChance && nowhere.capsule === null, `dead centre grips firmly (slip ${(centre.slipChance * 100).toFixed(0)}%), the edge is slippery (${(edge.slipChance * 100).toFixed(0)}%), off the pile misses`);
+  const g = pile.find(x => x.tier === 'gold');
+  ok(P.grab(pile, g.x, g.z, () => 0.5).slipChance > centre.slipChance, 'gold capsules are slipperier than blue'); }
+ok(P.progress('legend', { dragon: 1, 't-rex': 1 }).have === 2 && !P.progress('legend', {}).done && P.progress('legend', Object.fromEntries(P.inSet('legend').map(p => [p.id, 1]))).done, 'a set\'s progress, and when it\'s done');
 
 if (fails) { console.log(`DAILY FAIL — ${fails}`); process.exit(1); }
 console.log('DAILY PASS');

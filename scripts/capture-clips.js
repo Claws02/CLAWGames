@@ -28,7 +28,14 @@ const PARTY = {
 // ---- solo games: how to get each one moving (runs in the page; `wait` is a sleep) ----
 // Each returns once the interesting bit has started; recording goes on from there.
 const SOLO = {
-    shelf: { open: 'shelf', sel: '#sg-body', top: true, play: async () => { const M = await import('/src/arcade/PrizeShelf.js'); for (let i = 0; i < 2; i++) { try { M.dropClaw(); } catch (e) {} await wait(1600); } } },
+    shelf: { open: 'shelf', sel: '#ps-cv', prep: async () => {
+        const M = await import('/src/arcade/PrizeShelf.js'), c = M._debug().pile.find(x => x.tier === 'gold'); M._setRnd(() => 0.97); window.__gold = c;
+    }, play: async () => {
+        // glide the claw over to the gold capsule, drop, carry it to the chute
+        const M = await import('/src/arcade/PrizeShelf.js'), d = M._debug(), c = window.__gold;
+        for (let k = 1; k <= 12; k++) { M.steerTo(d.x + (c.x - d.x) * k / 12, d.z + (c.z - d.z) * k / 12); await wait(40); }
+        M.drop(); await wait(3300); document.querySelector('#ps-cap')?.click();
+    } },
     critter: { open: 'critter', sel: '#scr-critter .cs-board, #scr-critter [class*=board]', play: async () => {
         const M = await import('/src/arcade/CritterSquare.js'); M.start('easy'); await wait(300);
         const d = M._debug(), sol = d.p.solution || d.p.sol;

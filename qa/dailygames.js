@@ -10,8 +10,8 @@
 //   6. Kite Wind: a tap tugs the kite up; a ring scores and builds a combo;
 //      a gull ends the flight
 //   7. a daily solved: a claw token, and SHARE hands the result to the phone
-//   8. Prize Shelf: no token, no drop; a drop over the lucky spot wins a
-//      plush that goes on the shelf
+//   8. Prize Shelf: no token, no drop; the free drop grabs a capsule that pops
+//      open into a plush for the cabinet; a slip keeps the token; the shop
 //
 // usage: node qa/dailygames.js        (static server on :8140)
 // ============================================================
@@ -148,19 +148,38 @@ const SHOTS = process.env.QA_SHOTS || '';
     await hub();
 
     // 8. the Prize Shelf
-    await S('(() => { const s = JSON.parse(localStorage.getItem("claw.solo")); s.tokens = 0; localStorage.setItem("claw.solo", JSON.stringify(s)); return true; })()');
+    const setSolo = js => S(`(() => { const s = JSON.parse(localStorage.getItem("claw.solo")); ${js}; localStorage.setItem("claw.solo", JSON.stringify(s)); return true; })()`);
+    await setSolo(`s.tokens = 0; s.freeDay = "${await S('S.today()')}"`);
     await p.reload(); await p.waitForFunction(() => !!window.__claw);
     await p.click('[data-go="solo"]'); await p.waitForSelector('#scr-solo:not([hidden])');
     await game('shelf');
-    check(await p.$eval('#btn-ps-drop', b => b.disabled) && /No tokens/.test(await p.textContent('#ps-hint')), '8. Prize Shelf: no token, no drop');
-    await S('S.giveTokens(2)');
-    await hub(); await game('shelf');
-    const spot = (await mod('PrizeShelf', 'M._debug()')).lucky;
-    const prize = await p.evaluate(x => import('/src/arcade/PrizeShelf.js').then(P => P.dropClaw(x)), spot);
-    await p.waitForTimeout(200);
-    const shelf = await S('S.shelf()');
-    check(prize && shelf[prize.id] === 1 && /lucky drop/.test(await p.textContent('#ps-won')), `   a drop over the lucky spot: ${prize && prize.icon} ${prize && prize.id} (${prize && prize.rarity}), on the shelf`);
-    check((await p.$$('#ps-shelf .ps-slot:not(.empty)')).length === 1 && (await S('S.tokens()')) === 1, '   the shelf shows it, one token left');
+    check(await p.$eval('#btn-ps-drop', b => b.disabled) && /No tokens/.test(await p.textContent('#ps-hint')), '8. Prize Shelf: no token and today\'s free drop used: no drop');
+    // the free drop: steer onto a capsule's middle, a firm grab, the reveal, the cabinet
+    // (SoloStats keeps its own copy: reload after writing the save)
+    const reopen = async () => { await p.reload(); await p.waitForFunction(() => !!window.__claw); await p.click('[data-go="solo"]'); await p.waitForSelector('#scr-solo:not([hidden])'); await game('shelf'); };
+    await setSolo('s.freeDay = ""; s.tokens = 1; s.shelf = {}; s.sparkles = 0');
+    await reopen();
+    const banner = await p.textContent('#ps-banner');
+    const aim = await p.evaluate(async () => { const M = await import('/src/arcade/PrizeShelf.js'); const c = M._debug().pile.find(x => x.tier === 'blue'); M._setRnd(() => 0.99); M.steerTo(c.x, c.z); return c; });
+    const going = p.evaluate(() => import('/src/arcade/PrizeShelf.js').then(M => M.drop()));
+    await p.waitForSelector('#ps-cap', { timeout: 8000 });
+    await p.click('#ps-cap'); await p.waitForSelector('.ps-over.popped #btn-ps-nice', { timeout: 3000 });
+    const shown = await p.evaluate(() => ({ name: document.querySelector('.ps-name')?.textContent, bio: document.querySelector('.ps-bio')?.textContent, isNew: document.querySelector('.ps-new')?.textContent }));
+    await shot('shelf-reveal');
+    await p.click('#btn-ps-nice');
+    const got = await going;
+    const after = await S('({ shelf: S.shelf(), tokens: S.tokens(), free: S.freeDropReady() })');
+    check(/free drop/i.test(banner) && got.result === 'won' && after.shelf[got.prize.id] === 1 && after.tokens === 1 && !after.free && /NEW/.test(shown.isNew) && shown.bio.length > 8,
+        `   the free drop: claw on a ${aim.tier} capsule, a firm grab, it pops open: ${got.prize.icon} "${shown.name.trim()}" (${got.prize.rarity}); token kept, free drop used`);
+    check(!!(await p.$(`#ps-cabinet .ps-plush[data-id="${got.prize.id}"]`)) && (await p.$$('#ps-cabinet .ps-plush.miss')).length === 59, '   the cabinet shows it on its set\'s shelf (59 still silhouettes)');
+    // a slip keeps the token
+    const slip = await p.evaluate(async () => { const M = await import('/src/arcade/PrizeShelf.js'); const c = M._debug().pile.find(x => x.tier === 'gold'); M._setRnd(() => 0); M.steerTo(c.x + 0.05, c.z); const n = M._debug().pile.length; const r = await M.drop(); M._setRnd(null); return { r, n, after: M._debug().pile.length }; });
+    check(slip.r.result === 'slip' && (await S('S.tokens()')) === 1 && slip.after === slip.n && /slipped/.test(await p.textContent('#ps-hint')), `   a loose grip on a gold capsule: it slips back in, and the token is kept ("${(await p.textContent('#ps-hint')).slice(0, 40)}…")`);
+    // the shop: sparkles for a token
+    await setSolo('s.sparkles = 7');
+    await reopen();
+    await p.click('#btn-ps-shop'); await p.click('[data-buy="token"]');
+    check((await S('S.tokens()')) === 2 && (await S('S.sparkles()')) === 1, '   the sparkle shop: 6 sparkles buy a claw token');
     await shot('shelf');
 
     check(!errs.length, `no page errors${errs.length ? ': ' + errs.slice(0, 3).join(' | ') : ''}`);

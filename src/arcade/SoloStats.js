@@ -16,7 +16,8 @@
 //   tokens() / spendToken()         → claw-machine goes, one per daily solved
 //   passes() / usePasses()          → tide passes: all of today's dailies earns one
 //                                     (max 2); a missed day spends one to keep the streak
-//   shelf() / addPrize(id)          → the plush critters won at the claw machine
+//   shelf() / addPrize(id, gain)    → the plush critters won at the claw machine (repeats: sparkles)
+//   freeDropReady() / useFreeDrop() → one free claw drop a day; golds(), setsDone(), spendSparkles(n)
 // ============================================================
 import * as Store from './Store.js';
 
@@ -152,17 +153,33 @@ export const tokens = () => _load().tokens;
 export function spendToken() { const s = _load(); if (s.tokens < 1) return false; s.tokens--; _save(); return true; }
 export const shelf = () => ({ ..._load().shelf });
 export const sparkles = () => _load().sparkles;
-/** A prize won. A new one goes on the shelf; a repeat is a sparkle, and 5 sparkles are a free token. */
-export function addPrize(id) {
+/**
+ * A prize won. A new one goes on the shelf (with today's date); a repeat is
+ * worth `gain` sparkles for the shop. Also counts capsules since the last new one.
+ */
+export function addPrize(id, gain = 1) {
     const s = _load(), fresh = !s.shelf[id];
     s.shelf[id] = (s.shelf[id] || 0) + 1;
-    let bonus = false;
-    if (!fresh) { s.sparkles++; if (s.sparkles >= 5) { s.sparkles -= 5; s.tokens++; bonus = true; } }
+    s.found ||= {};
+    if (fresh) { s.found[id] = today(); s.dry = 0; } else { s.sparkles += gain; s.dry = (s.dry || 0) + 1; }
     _save();
-    return { fresh, bonus };
+    return { fresh, sparkles: fresh ? 0 : gain };
 }
+export const foundOn = id => (_load().found || {})[id] || null;
+export const prizeDry = () => _load().dry || 0;
+export function spendSparkles(n) { const s = _load(); if (s.sparkles < n) return false; s.sparkles -= n; _save(); return true; }
+/** One free claw drop a day. */
+export const freeDropReady = (day = today()) => _load().freeDay !== day;
+export function useFreeDrop(day = today()) { const s = _load(); if (s.freeDay === day) return false; s.freeDay = day; _save(); return true; }
+/** Finished sets (rewarded once each). markSet returns true the first time. */
+export const setsDone = () => (_load().sets || []).slice();
+export function markSet(id) { const s = _load(); s.sets ||= []; if (s.sets.includes(id)) return false; s.sets.push(id); _save(); return true; }
+/** Gold capsules in hand (set rewards, the shop): opened straight away, kept if you leave. */
+export const golds = () => _load().golds || 0;
+export function addGold(n = 1) { const s = _load(); s.golds = (s.golds || 0) + n; _save(); }
+export function useGold() { const s = _load(); if (!s.golds) return false; s.golds--; _save(); return true; }
 /** Probes and gifts: add claw tokens. */
 export function giveTokens(n) { const s = _load(); s.tokens += n; _save(); }
 
 /** Probes: forget everything. */
-export function _reset() { _s = { best: {}, daily: {}, counts: {}, tokens: 0, passes: 0, passDays: {}, shelf: {}, sparkles: 0 }; _save(); }
+export function _reset() { _s = { best: {}, daily: {}, counts: {}, tokens: 0, passes: 0, passDays: {}, shelf: {}, sparkles: 0, found: {}, dry: 0, sets: [], golds: 0 }; _save(); }

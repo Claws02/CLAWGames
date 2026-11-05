@@ -50,9 +50,15 @@ and listed in `Clips.js`. Rerun it after changing how a game looks.
   on Monday and Tuesday, medium Wednesday to Friday, hard at the weekend.
 - A **streak**, and **tide passes**: solving all three earns one (two at most), and a missed day
   spends one so the streak survives.
-- Each daily solved is a **claw token** for the **Prize Shelf** (`PrizeShelf.js`, `Prizes.js`):
-  a claw machine with 60 plush critters (40 common, 15 rare, 5 legendary). Dropping over the
-  lucky spot improves the odds; repeats become sparkles, five sparkles a free token.
+- Each daily solved is a **claw token** for the **Prize Shelf** (`PrizeShelf.js`, `Prizes.js`), and
+  there's one free drop a day. It's a capsule claw machine: steer the claw (its shadow shows where
+  it lands) over sealed blue, silver or gold capsules; the colour sets the odds, never which plush.
+  The nearer the middle, the firmer the grip; gold is slipperiest. A slip or a miss costs nothing:
+  the token goes only when a capsule reaches the chute, then it wobbles, cracks and pops open.
+  60 plushies with names and stories in six sets (Farm & Pets, Woodland, Garden & Pond, Ocean,
+  Rare Wonders, Legends) in a lit display cabinet; a finished set pays tokens (and gold capsules).
+  Repeats are sparkles (1/3/6 by rarity) for the shop: a token, a gold capsule, or the plush you
+  pick. After five capsules in a row with nothing new, the next one is always new.
 - **SHARE** after a daily hands a short result to the phone's share sheet (`Share.js`).
 - 15 trophies for the solo games.
 
