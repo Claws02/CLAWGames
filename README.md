@@ -29,7 +29,7 @@ node qa/critter.mjs   # Critter Square rules: one solution per puzzle at every l
 node qa/critter.js    # Critter Square screen: levels, fences, a clash, hints, solving, best times, CONTINUE, small-phone fit
 node qa/lighthouse.mjs  # Lighthouse Beams (one answer per puzzle, the rules) and Treasure Dig rules; dailies from the date, no browser
 node qa/rebound.mjs  # Rebound physics and mechanics (movers, portals, coral, urchins, gates); all 32 tanks and 12 daily tanks within par, no browser
-node qa/aimgames.mjs # Orbit Putt, Reef Drop, Mirror Lagoon: the rules and every level within par, no browser
+node qa/aimgames.mjs # Orbit Putt, Reef Drop (Shelly, jellyfish, wheels), Mirror Lagoon (colours, glass, bolts): the rules and every level within par, no browser
 node qa/aimgames.js  # the five new games on a small phone: real pull-and-release shots, levels cleared on screen, Mirror by taps, Rebound worlds and daily
 node qa/sologames.js # SOLO GAMES hub: Treasure Dig, Lighthouse Beams, Pearl Diver, Rebound by tapping; dailies, streak, a trophy
 node qa/daily.mjs    # daily systems: three dailies a day by the date, the weekday difficulty, claw tokens, tide passes, the shelf; no browser

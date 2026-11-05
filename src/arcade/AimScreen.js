@@ -10,6 +10,7 @@
 //   failed?(lv, s) (out of shots), origin(lv, s) → [x, y], shots(s),
 //   draw(g, P, lv, s, now), react?(ev, fx, s) (fx.burst(x, y, color, n), fx.shake(n), fx.sfx(name), fx.buzz(p)),
 //   preview?(lv, s, angle, power) → [[x, y]…] (dots drawn while aiming),
+//   idle?(lv, s, dt) (between shots: a level whose pieces move runs its clock here),
 //   hud(lv, s) → text, intro (the picker's line), starsFor?(lv, s) (else par-based)
 // ============================================================
 import * as Solo from './SoloStats.js';
@@ -106,7 +107,7 @@ export function aimGame(logic) {
             if (logic.moving(_s)) {
                 wasMoving = true; acc += dt;
                 while (acc >= DT && logic.moving(_s)) { acc -= DT; const ev = logic.step(_lv, _s); if (logic.react) logic.react(ev, fx, _s); }
-            } else { acc = 0; if (wasMoving) { wasMoving = false; settled(); } }
+            } else { acc = 0; if (wasMoving) { wasMoving = false; settled(); } if (logic.idle) logic.idle(_lv, _s, dt); }
             for (const p of _parts) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; }
             _parts = _parts.filter(p => p.t < p.life);
             _shake = Math.max(0, _shake - dt * 30);
