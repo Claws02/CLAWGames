@@ -1,11 +1,11 @@
 // ============================================================
-// AIM GAMES — Orbit Putt, Crab Cannon, Sea Snooker, Reef Drop and Mirror
+// AIM GAMES — Orbit Putt, Reef Drop and Mirror
 // Lagoon in the browser, on a small phone, plus Rebound's new worlds.
-//   1. the hub has 15 cards, the new games among them
+//   1. the hub has 13 cards, the new games among them
 //   2. each aim game: level 1 opens, a real pull-and-release takes a shot, and
 //      the solver's shots (or a greedy aim, for Reef Drop) clear it on screen
 //      with stars; level 2 opens
-//   3. Mirror Lagoon: tapping the mirrors that differ from the answer lights
+//   3. Mirror Lagoon: turning each mirror round to the answer by taps lights
 //      every lantern
 //   4. Rebound: the four worlds in the picker; the daily tank opens
 //
@@ -32,10 +32,10 @@ const SHOTS = process.env.QA_SHOTS || '';
 
     await p.click('[data-go="solo"]'); await p.waitForSelector('#scr-solo:not([hidden])');
     const cards = await p.$$eval('#solo-list .hub-card', els => els.map(e => e.dataset.game));
-    check(cards.length === 15 && ['orbit', 'cannon', 'snooker', 'reefdrop', 'mirror'].every(c => cards.includes(c)), `1. the hub: ${cards.length} cards (${cards.join(', ')})`);
+    check(cards.length === 13 && ['orbit', 'reefdrop', 'mirror'].every(c => cards.includes(c)) && !['cannon', 'snooker'].some(c => cards.includes(c)), `1. the hub: ${cards.length} cards (${cards.join(', ')})`);
 
     // 2. the aim games
-    const games = [['orbit', 'Orbit', 'OrbitLogic'], ['cannon', 'Cannon', 'CannonLogic'], ['snooker', 'Snooker', 'SnookerLogic'], ['reefdrop', 'ReefDrop', 'ReefDropLogic']];
+    const games = [['orbit', 'Orbit', 'OrbitLogic'], ['reefdrop', 'ReefDrop', 'ReefDropLogic']];
     for (const [id, screen, logic] of games) {
         await p.click(`#solo-list [data-game="${id}"]`);
         await p.click('.rb-lv[data-i="0"]');
@@ -46,7 +46,8 @@ const SHOTS = process.env.QA_SHOTS || '';
         await p.mouse.move(cv.x + cv.width / 2 + 5, cv.y + cv.height * 0.5 + 60, { steps: 4 });
         await shot(`${id}-aim`);
         await p.mouse.up();
-        await p.waitForFunction(m => import(m).then(G => !G._debug().moving), `/src/arcade/${screen}.js`, { timeout: 15000 }).catch(() => {});
+        // (waitForFunction would take the import's promise as truthy and not wait: poll in the page)
+        await p.evaluate(async m => { const G = await import(m); for (let k = 0; k < 300 && G._debug().moving; k++) await new Promise(r => setTimeout(r, 50)); }, `/src/arcade/${screen}.js`);
         await p.waitForTimeout(300);
         const took = await p.evaluate(m => import(m).then(G => G._debug().shots), `/src/arcade/${screen}.js`);
         // then restart and clear it with the solver's shots
@@ -77,13 +78,14 @@ const SHOTS = process.env.QA_SHOTS || '';
     // 3. Mirror Lagoon by taps
     await p.click('#solo-list [data-game="mirror"]');
     await p.click('.rb-lv[data-i="0"]');
-    await p.waitForSelector('#ml-board .ml-sq');
+    await p.waitForSelector('#ml-board .ml-mir');
     await shot('mirror');
     const d = await p.evaluate(() => import('/src/arcade/Mirror.js').then(M => M._debug()));
-    const toFlip = Object.keys(d.lv.solution).filter(k => d.lv.solution[k] !== d.mirrors[k]);
-    for (const k of toFlip) await p.click(`#ml-board button[data-k="${k}"]`);
+    // tap each mirror round to the answer's setting (each tap turns it one step of four)
+    let taps = 0;
+    for (const k of Object.keys(d.lv.solution)) for (let n = (d.lv.solution[k] - d.mirrors[k] + 4) % 4; n > 0; n--) { await p.click(`#ml-board .ml-mir[data-k="${k}"]`); taps++; }
     await p.waitForSelector('#ml-done:not([hidden])', { timeout: 4000 }).catch(() => {});
-    check(await p.isVisible('#ml-done'), `3. Mirror Lagoon: ${toFlip.length} taps light every lantern: "${await p.textContent('#ml-done-h').catch(() => '')}" (${await p.textContent('#ml-done-t').catch(() => '')})`);
+    check(await p.isVisible('#ml-done'), `3. Mirror Lagoon: ${taps} taps light every lantern: "${await p.textContent('#ml-done-h').catch(() => '')}" (${await p.textContent('#ml-done-t').catch(() => '')})`);
     await shot('mirror-done');
     await hub();
 
@@ -91,6 +93,13 @@ const SHOTS = process.env.QA_SHOTS || '';
     await p.click('#solo-list [data-game="rebound"]');
     const worlds = await p.$$eval('.rb-world .panel-h', els => els.map(e => e.textContent.trim().split('★')[0].trim()));
     check(worlds.length === 4 && (await p.$$('.rb-lv')).length === 32, `4. Rebound: ${worlds.join(' · ')}, 32 tanks`);
+    // a moving reef moves while you aim, before any flick
+    const mv = await p.evaluate(async () => {
+        const R = await import('/src/arcade/Rebound.js'); R.play(8);
+        const a = R._debug().t; await new Promise(r => setTimeout(r, 700)); const b = R._debug();
+        return { a, b: b.t, flicks: b.flicks, name: b.name };
+    });
+    check(mv.b - mv.a > 0.4 && mv.flicks === 0, `   ${mv.name}: the reef moves before the first flick (clock ${mv.a.toFixed(2)} → ${mv.b.toFixed(2)})`);
     await hub();
     await p.evaluate(() => import('/src/arcade/SoloHub.js').then(H => H.playDaily('rebound')));
     await p.waitForSelector('#rb-cv');

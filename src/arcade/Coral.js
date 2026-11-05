@@ -105,7 +105,7 @@ export function dropHere(x = _aim) {
 // ---- what the physics reports, turned into juice ----------------------------------
 function _events(evs) {
     for (const e of evs) {
-        if (e.type === 'land') { const v = _v(e.id); v.sq = Math.max(v.sq, e.power * 0.32); v.sqv = 0; if (e.power > 0.5) _sfx('dice_land'); }
+        if (e.type === 'land') { const v = _v(e.id); v.sq = Math.max(v.sq, Math.min(0.14, e.power * 0.16)); v.sqv = 0; if (e.power > 0.5) _sfx('dice_land'); }
         else if (e.type === 'merge') {
             const v = _v(e.id); v.born = 0;     // springs in
             _burst(e.x, e.y, COLORS[e.kind], 10 + e.kind * 3, 1 + e.kind * 0.25);
@@ -148,7 +148,7 @@ function _confetti() {
 function _animate(dt) {
     for (const v of _vis.values()) {
         // squash spring
-        v.sqv += (-170 * v.sq - 12 * v.sqv) * dt; v.sq += v.sqv * dt;
+        v.sqv += (-170 * v.sq - 22 * v.sqv) * dt; v.sq += v.sqv * dt;
         v.born = Math.min(1, v.born + dt * 4);
         v.blink -= dt; if (v.blink <= 0) { v.bt = 0.13; v.blink = 2.5 + Math.random() * 4; }
         v.bt = Math.max(0, v.bt - dt);
@@ -229,7 +229,7 @@ function _draw() {
 // One creature: a coloured glow, the creature itself, squashed on landing, springing in when new, blinking.
 function _creature(c, x, y, r, kind, angle, v) {
     const born = _ease(Math.max(0.001, v.born));
-    const sx = (1 + v.sq) * born, sy = (1 - v.sq) * born * (v.bt > 0 ? 0.82 : 1);
+    const sx = (1 + v.sq) * born, sy = (1 - v.sq) * born;
     c.save(); c.translate(x, y + r * v.sq * 0.6);
     c.globalAlpha = v.ghost ? 0.75 : 1;
     if (kind === BUBBLE) {

@@ -29,12 +29,13 @@ node qa/critter.mjs   # Critter Square rules: one solution per puzzle at every l
 node qa/critter.js    # Critter Square screen: levels, fences, a clash, hints, solving, best times, CONTINUE, small-phone fit
 node qa/lighthouse.mjs  # Lighthouse Beams (one answer per puzzle, the rules) and Treasure Dig rules; dailies from the date, no browser
 node qa/rebound.mjs  # Rebound physics and mechanics (movers, portals, coral, urchins, gates); all 32 tanks and 12 daily tanks within par, no browser
-node qa/aimgames.mjs # Orbit Putt, Crab Cannon, Sea Snooker, Reef Drop, Mirror Lagoon: the rules and every level within par, no browser
+node qa/aimgames.mjs # Orbit Putt, Reef Drop (Shelly, jellyfish, wheels), Mirror Lagoon (colours, glass, bolts): the rules and every level within par, no browser
 node qa/aimgames.js  # the five new games on a small phone: real pull-and-release shots, levels cleared on screen, Mirror by taps, Rebound worlds and daily
 node qa/sologames.js # SOLO GAMES hub: Treasure Dig, Lighthouse Beams, Pearl Diver, Rebound by tapping; dailies, streak, a trophy
 node qa/daily.mjs    # daily systems: three dailies a day by the date, the weekday difficulty, claw tokens, tide passes, the shelf; no browser
 node qa/icefloe.mjs  # Ice Floe (par is the shortest route) and Rock Pool Paths (every pool solvable) rules, no browser
-node qa/coral.mjs    # Coral Merge physics: falling, merging, chains, the treasure burst, the bubble, game over, determinism; no browser
+node qa/coral.mjs    # Coral Merge physics: falling, merging, chains, the treasure burst, the bubble, game over, determinism, no pulsing pile; no browser
+node qa/kite.mjs     # Kite Wind: every ring within reach of the last, gulls clear of rings, a pilot flies 12 × 100 s; no browser
 node qa/dailygames.js # Ice Floe, Rock Pool Paths, Coral Merge, Kite Wind, Prize Shelf by tapping; TODAY, a tide pass, SHARE
 node qa/trophies.js   # trophy rules, persistence, old saves, the screen, a real game
 node qa/yatzy.js      # Yatzy scoring rules, a game vs a bot, a two-player tabletop game
