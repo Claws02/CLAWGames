@@ -41,13 +41,13 @@ const SHOTS = process.env.QA_SHOTS || '';
     // 1. the hub
     await p.click('[data-go="solo"]');
     await p.waitForSelector('#scr-solo:not([hidden])');
-    const days = await p.$$('#solo-today .hub-day'), cards = await p.$$('#solo-list .hub-card');
+    const days = await p.$$('#solo-today .hub-day'), cards = await p.$$('#solo-list .card');
     check(days.length === 3 && cards.length >= 5, `1. SOLO GAMES: ${days.length} daily puzzles, ${cards.length} cards`);
     check(/start a streak/.test(await p.textContent('#solo-streak')), `   no streak yet: "${await p.textContent('#solo-streak')}"`);
     await shot('hub');
 
     // 2. Treasure Dig
-    await p.click('#solo-list [data-game="treasure"]');
+    await p.click('#solo-list [data-game="treasure"]'); await p.click('#pv-play');
     await p.waitForSelector('#td-board .td-sq');
     let d = await mod('TreasureDig', 'M._debug()');
     const notChest = [...Array(49).keys()].filter(k => !d.chests.includes(k)).slice(0, 2);
@@ -56,6 +56,15 @@ const SHOTS = process.env.QA_SHOTS || '';
     const want = await mod('TreasureDig', `${JSON.stringify(notChest)}.map(k => M.reading(k, M._debug().chests, []))`);
     check(JSON.stringify(shown.map(Number)) === JSON.stringify(want), `2. Treasure Dig: holes read ${shown.join(', ')} steps (nearest chest)`);
     await shot('treasure');
+    // marks: in mark mode a tap plants a flag (free); a flagged square can't be dug; tap again to lift it
+    await p.click('#btn-td-mark'); await p.click(`#td-board [data-k="${d.chests[0]}"]`);
+    const mk = await p.evaluate(k => ({ flag: document.querySelector(`#td-board [data-k="${k}"]`).textContent, st: null }), d.chests[0]);
+    await p.click('#btn-td-mark'); await p.click(`#td-board [data-k="${d.chests[0]}"]`);
+    const blocked = await p.evaluate(() => import('/src/arcade/TreasureDig.js').then(T => T._debug()));
+    await p.click('#btn-td-mark'); await p.click(`#td-board [data-k="${d.chests[0]}"]`); await p.click('#btn-td-mark');
+    check(mk.flag === '🚩' && blocked.dug.length === notChest.length && blocked.found.length === 0, `   🚩 a marked square isn't dug by a tap (digs still ${blocked.dug.length}), and marking is free`);
+    const say = await p.textContent('#td-say');
+    check(say.length > 3, `   Polly calls the digs: "${say}"`);
     for (const k of d.chests) await p.click(`#td-board [data-k="${k}"]`);
     await p.waitForSelector('#td-done:not([hidden])', { timeout: 5000 }).catch(() => {});
     check(/★★★/.test(await p.textContent('#td-done-h')) && /5 digs/.test(await p.textContent('#td-done-t')), `   all found: "${await p.textContent('#td-done-h')}" in "${await p.textContent('#td-done-t')}"`);
@@ -65,7 +74,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     check(/best 5 digs/.test(await p.textContent('#solo-list [data-game="treasure"]')), '   the hub shows the best: 5 digs');
 
     // 3. Lighthouse Beams
-    await p.click('#solo-list [data-game="lighthouse"]');
+    await p.click('#solo-list [data-game="lighthouse"]'); await p.click('#pv-play');
     await p.click('.cs-level[data-level="easy"]');
     await p.waitForSelector('#lh-board .lh-sq');
     d = await mod('Lighthouse', 'M._debug()');
@@ -75,10 +84,11 @@ const SHOTS = process.env.QA_SHOTS || '';
     for (const L of d.p.solution) {
         const inBeam = await mod('LighthouseLogic', `M.rays(${d.p.n}, ${JSON.stringify(d.p.grid)}, ${L}).filter(k => ${JSON.stringify(sea)}.includes(k))[0] ?? -1`);
         if (inBeam < 0) continue;
-        await p.click(`#lh-board [data-k="${L}"]`); await p.click(`#lh-board [data-k="${inBeam}"]`);
+        // the wrong one first (L alone may be the whole answer, and would solve it), and L off first after
+        await p.click(`#lh-board [data-k="${inBeam}"]`); await p.click(`#lh-board [data-k="${L}"]`);
         clashed = await p.$eval(`#lh-board [data-k="${inBeam}"]`, el => el.classList.contains('bad'));
         await shot('lighthouse');
-        await p.click(`#lh-board [data-k="${inBeam}"]`); await p.click(`#lh-board [data-k="${L}"]`);
+        await p.click(`#lh-board [data-k="${L}"]`); await p.click(`#lh-board [data-k="${inBeam}"]`);
         break;
     }
     check(clashed, '3. Lighthouse Beams: a lighthouse in another\'s beam turns red');
@@ -88,7 +98,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     await toHub();
 
     // 4. Pearl Diver
-    await p.click('#solo-list [data-game="pearl"]');
+    await p.click('#solo-list [data-game="pearl"]'); await p.click('#pv-play');
     await p.click('#btn-pd-go');
     const cv = await p.$('#pd-cv'), box = await cv.boundingBox();
     const y0 = (await mod('PearlDiver', 'M._debug()')).y;
@@ -117,7 +127,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     check((await mod('PearlDiver', 'M._debug()')) === null, '7. leaving Pearl Diver mid-dive stops it');
 
     // 5. Rebound
-    await p.click('#solo-list [data-game="rebound"]');
+    await p.click('#solo-list [data-game="rebound"]'); await p.click('#pv-play');
     const locked = await p.$$eval('.rb-lv', els => els.map(e => e.classList.contains('locked')));
     check(!locked[0] && locked.slice(1).every(Boolean), `5. Rebound: only level 1 is open (${locked.filter(x => !x).length} of ${locked.length})`);
     await p.click('.rb-lv[data-i="0"]');

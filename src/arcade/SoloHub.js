@@ -27,6 +27,9 @@ import * as ReefDrop from './ReefDrop.js';
 import * as Mirror from './Mirror.js';
 import * as Toast from './Toast.js';
 import * as Trophies from './Trophies.js';
+import * as GameCards from './GameCards.js';
+import * as Catalog from './Catalog.js';
+import * as Arcade from './Solo.js';
 
 const $ = id => document.getElementById(id);
 export const GAMES = [Rebound, Orbit, ReefDrop, Mirror, IceFloe, Paths, TreasureDig, Lighthouse, Coral, Kite, PearlDiver];
@@ -40,10 +43,11 @@ const DAILY = {
     paths: { icon: '🦑', title: 'Rock Pool Paths', levels: true },
     rebound: { icon: '🦪', title: 'Rebound' },
 };
-let _show = null, _game = null;
+let _show = null, _game = null, _arcade = null, _arcadeGames = [];
 
-export function init(show) {
-    _show = show;
+/** show(screen); opts.arcade(type) plays one of the high-score games (opts.arcadeGames) and comes back here. */
+export function init(show, opts = {}) {
+    _show = show; _arcade = opts.arcade || null; _arcadeGames = opts.arcadeGames || [];
     Solo.onWon(() => Trophies.announce(1200));
 }
 
@@ -64,12 +68,26 @@ export function open() {
             `<span class="sd-s bfont">${d ? '✓ DONE' : g.levels ? level.toUpperCase() : 'PLAY'}</span></button>`; }).join('');
     today.querySelectorAll('[data-daily]').forEach(b => b.addEventListener('click', () => playDaily(b.dataset.daily)));
 
-    const cards = [PrizeShelf, { meta: { id: 'critter', icon: '🐾', title: 'Critter Square', blurb: 'Every row and column holds each critter once; fences point to the bigger one.' }, bestText: CritterSquare.bestText }, ...GAMES];
+    const own = [PrizeShelf, { meta: { id: 'critter', icon: '🐾', title: 'Critter Square', blurb: 'Every row and column holds each critter once; fences point to the bigger one.' }, bestText: CritterSquare.bestText }, ...GAMES];
     const list = $('solo-list');
-    list.innerHTML = cards.map(g => `<button class="hub-card${g === PrizeShelf ? ' shelf' : ''}" data-game="${g.meta.id}"><span class="sc-ico">${g.meta.icon}</span>` +
-        `<span class="sc-txt"><span class="sc-t bfont">${g.meta.title}</span><span class="sc-b">${g.meta.blurb}</span>` +
-        `<span class="sc-best">${g.bestText() || 'not played yet'}</span></span><span class="sc-go bfont">›</span></button>`).join('');
-    list.querySelectorAll('[data-game]').forEach(b => b.addEventListener('click', () => play(b.dataset.game)));
+    const card = (id, icon, title, sub, extra = '') => `<div class="card has-clip solo-card${extra}" role="button" tabindex="0" data-game="${id}">${GameCards.media(id, icon)}` +
+        `<span class="cn">${title}</span><span class="cs">${sub}</span></div>`;
+    list.innerHTML =
+        `<div class="grid-head">🧩 Puzzles & games</div>` +
+        own.map(g => card(g.meta.id, g.meta.icon, g.meta.title, g.bestText() || 'not played yet', g === PrizeShelf ? ' shelf' : '')).join('') +
+        (_arcade && _arcadeGames.length ? `<div class="grid-head">🕹️ Arcade · beat your high score</div>` +
+            _arcadeGames.map(t => { const i = Catalog.MG_INFO[t], b = Arcade.best(t); return card(t, i.icon, i.title, b ? `🏆 ${Arcade.fmt(t, b.score)}` : 'no score yet', ' arcade'); }).join('') : '');
+    list.querySelectorAll('[data-game]').forEach(b => b.addEventListener('click', () => _preview(b.dataset.game, own)));
+    GameCards.watch(list);
+}
+
+// A tap on a card: the preview (the clip big, how to play, the best), then PLAY.
+function _preview(id, own) {
+    const g = own.find(x => x.meta.id === id);
+    if (g) return GameCards.preview({ id, icon: g.meta.icon, title: g.meta.title, desc: g.meta.blurb, best: g.bestText() || '', onPlay: () => play(id) });
+    const i = Catalog.MG_INFO[id], b = Arcade.best(id), gen = Catalog.genreOf(id);
+    GameCards.preview({ id, icon: i.icon, title: i.title, tag: Catalog.MG_GENRES[gen]?.name || gen, tagClass: `g-${gen}`, desc: Catalog.descOf(id),
+        best: b ? `🏆 Best ${Arcade.fmt(id, b.score)} · ${b.name}` : 'No score yet: set the first one!', onPlay: () => _arcade && _arcade(id) });
 }
 
 /** Open a game (not its daily). */
@@ -96,6 +114,7 @@ export function playDaily(id) {
 
 /** Leaving the game screen stops the game. */
 export function leaveGame() {
+    GameCards.stopAll(); GameCards.closePreview();
     if (!_game) return;
     try { _game.unmount(); } catch (e) { console.error('[solo] unmount', e); }
     _game = null;

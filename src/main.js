@@ -235,6 +235,15 @@ function playSolo(type) {
         if (res.isBest) Toast.show(`🏆 New high score on ${MG_INFO[type].title}!`, '#2fd67b');
     });
 }
+// The same high-score games, from the SOLO GAMES hub: the result leads back there.
+function playArcadeSolo(type) {
+    Seats.applyToState();
+    Solo.play(type, Seats.seatName(0), res => {
+        show('soloresult');
+        Solo.paintResult(res, () => playArcadeSolo(type), () => show('solo'));
+        if (res.isBest) Toast.show(`🏆 New high score on ${MG_INFO[type].title}!`, '#2fd67b');
+    });
+}
 $('btn-grid-spin').addEventListener('click', () => {
     if (Party.party.active) return;
     Vetoes.reset(); show('wheel'); openQuickWheel();
@@ -315,7 +324,7 @@ Golf.init();
 PlayersScreen.init(openProfile);
 Together.init(show, goHome);
 CritterSquare.init();
-SoloHub.init(show);
+SoloHub.init(show, { arcade: playArcadeSolo, arcadeGames: Solo.GAMES });
 TvHost.init(show, () => _current);
 // The Easter egg: five quick taps on the crab flip party mode ⇄ drinking mode.
 document.querySelector('.logo-claw').addEventListener('click', () => {

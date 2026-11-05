@@ -31,7 +31,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     // Critter Square lives in the SOLO GAMES hub; its back button returns there.
     const openCritter = async () => {
         if (!(await p.isVisible('#scr-solo'))) await p.click('[data-go="solo"]');
-        await p.click('#solo-list [data-game="critter"]');
+        await p.click('#solo-list [data-game="critter"]'); await p.click('#pv-play');
     };
 
     // home → the card → levels
