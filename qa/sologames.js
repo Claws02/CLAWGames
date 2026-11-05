@@ -56,6 +56,15 @@ const SHOTS = process.env.QA_SHOTS || '';
     const want = await mod('TreasureDig', `${JSON.stringify(notChest)}.map(k => M.reading(k, M._debug().chests, []))`);
     check(JSON.stringify(shown.map(Number)) === JSON.stringify(want), `2. Treasure Dig: holes read ${shown.join(', ')} steps (nearest chest)`);
     await shot('treasure');
+    // marks: in mark mode a tap plants a flag (free); a flagged square can't be dug; tap again to lift it
+    await p.click('#btn-td-mark'); await p.click(`#td-board [data-k="${d.chests[0]}"]`);
+    const mk = await p.evaluate(k => ({ flag: document.querySelector(`#td-board [data-k="${k}"]`).textContent, st: null }), d.chests[0]);
+    await p.click('#btn-td-mark'); await p.click(`#td-board [data-k="${d.chests[0]}"]`);
+    const blocked = await p.evaluate(() => import('/src/arcade/TreasureDig.js').then(T => T._debug()));
+    await p.click('#btn-td-mark'); await p.click(`#td-board [data-k="${d.chests[0]}"]`); await p.click('#btn-td-mark');
+    check(mk.flag === '🚩' && blocked.dug.length === notChest.length && blocked.found.length === 0, `   🚩 a marked square isn't dug by a tap (digs still ${blocked.dug.length}), and marking is free`);
+    const say = await p.textContent('#td-say');
+    check(say.length > 3, `   Polly calls the digs: "${say}"`);
     for (const k of d.chests) await p.click(`#td-board [data-k="${k}"]`);
     await p.waitForSelector('#td-done:not([hidden])', { timeout: 5000 }).catch(() => {});
     check(/★★★/.test(await p.textContent('#td-done-h')) && /5 digs/.test(await p.textContent('#td-done-t')), `   all found: "${await p.textContent('#td-done-h')}" in "${await p.textContent('#td-done-t')}"`);
@@ -75,10 +84,11 @@ const SHOTS = process.env.QA_SHOTS || '';
     for (const L of d.p.solution) {
         const inBeam = await mod('LighthouseLogic', `M.rays(${d.p.n}, ${JSON.stringify(d.p.grid)}, ${L}).filter(k => ${JSON.stringify(sea)}.includes(k))[0] ?? -1`);
         if (inBeam < 0) continue;
-        await p.click(`#lh-board [data-k="${L}"]`); await p.click(`#lh-board [data-k="${inBeam}"]`);
+        // the wrong one first (L alone may be the whole answer, and would solve it), and L off first after
+        await p.click(`#lh-board [data-k="${inBeam}"]`); await p.click(`#lh-board [data-k="${L}"]`);
         clashed = await p.$eval(`#lh-board [data-k="${inBeam}"]`, el => el.classList.contains('bad'));
         await shot('lighthouse');
-        await p.click(`#lh-board [data-k="${inBeam}"]`); await p.click(`#lh-board [data-k="${L}"]`);
+        await p.click(`#lh-board [data-k="${L}"]`); await p.click(`#lh-board [data-k="${inBeam}"]`);
         break;
     }
     check(clashed, '3. Lighthouse Beams: a lighthouse in another\'s beam turns red');

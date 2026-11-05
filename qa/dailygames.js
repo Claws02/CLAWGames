@@ -120,7 +120,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     const k2 = await mod('Kite', 'M._debug()');
     check(k2.rings === 2 && k2.combo === 3 && k2.score === 30, `   two rings: ${k2.rings} rings, combo ×${k2.combo}, ${k2.score} points (10 + 20)`);
     await shot('kite');
-    await mod('Kite', "M._place('gull')"); await p.waitForTimeout(200);
+    await mod('Kite', "M._place('gull')"); await p.waitForTimeout(1100);   // (the kite tumbles first)
     const k3 = await mod('Kite', 'M._debug()');
     check(k3.over && /gull/.test(k3.why) && await p.isVisible('#kt-over'), `   a gull ends it: "${k3.why}"`);
     await hub();

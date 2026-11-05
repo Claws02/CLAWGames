@@ -4,6 +4,11 @@
 // Swipe on the floe (or tap an arrow, or use the keyboard) to send the
 // penguin sliding. It only stops at a rock, the edge, or a patch of snow, and
 // it has to STOP on the fish. Par is the fewest slides; UNDO and RESET are free.
+//
+// The juice: the penguin waddles while it waits, leans into a slide (facing
+// the way it goes) leaving an icy streak, squashes when it stops, bonks on a
+// rock, kicks up a puff on snow and shakes its head at a wall; the fish flops;
+// the ice glints; and on the fish it hops up and gobbles it.
 // ============================================================
 import { LEVELS, ROCK, SNOW, DIRS, generate, slide, stars } from './IceFloeLogic.js';
 import * as Solo from './SoloStats.js';
@@ -82,8 +87,10 @@ function _build() {
     const b = _el.querySelector('#if-board'), { w, h, grid } = _p;
     b.style.setProperty('--w', w); b.style.setProperty('--h', h);
     b.style.gridTemplateColumns = `repeat(${w}, var(--cell))`;
-    b.innerHTML = grid.map((v, k) => `<span class="if-sq${v === ROCK ? ' rock' : v === SNOW ? ' snow' : ''}">${v === ROCK ? '🪨' : k === _p.fish ? '🐟' : ''}</span>`).join('') +
-        '<span class="if-peng" id="if-peng">🐧</span>';
+    const crack = k => ((k * 7919) % 11 === 0 ? ' crack' : (k * 104729) % 13 === 0 ? ' crack2' : '');
+    b.innerHTML = grid.map((v, k) => `<span class="if-sq${v === ROCK ? ' rock' : v === SNOW ? ' snow' : crack(k)}" style="--d:${((k % w) + Math.floor(k / w)) * 0.12}">${v === ROCK ? '<i class="if-rock">🪨</i>' : k === _p.fish ? '<i class="if-fish" id="if-fish">🐟</i>' : ''}</span>`).join('') +
+        '<span class="if-peng" id="if-peng"><i class="if-peng-in" id="if-peng-in">🐧</i></span>';
+    _face = 1;
     _place(false);
 }
 
@@ -97,12 +104,16 @@ function _place(animate, cells = 0) {
 export function move(dir) {
     if (_over || _busy || !_p || !DIRS[dir]) return _at;
     const to = slide(_p, _p.grid, _at, dir);
-    if (to === _at) { _sfx('land_bad'); return _at; }
+    if (to === _at) { _sfx('land_bad'); _anim('nope', 400); return _at; }
     const cells = Math.abs(Math.floor(to / _p.w) - Math.floor(_at / _p.w)) + Math.abs((to % _p.w) - (_at % _p.w));
+    const from = _at, dur = Math.min(450, 60 + cells * 45);
     _hist.push(_at); _at = to; _moves++;
+    _trail(from, to, dur);
+    _anim(`slide-${dir}`, dur);
     _place(true, cells);
     _busy = true;
-    setTimeout(() => { _busy = false; }, Math.min(450, 60 + cells * 45));
+    setTimeout(() => { _busy = false; }, dur);
+    setTimeout(() => _landed(to, dir), dur);
     _sfx(_p.grid[to] === SNOW ? 'dice_land' : 'swap');
     try { Audio.haptic(12); } catch (e) {}
     _hud();
@@ -112,12 +123,60 @@ export function move(dir) {
 export function undo() { if (_over || _busy || !_hist.length) return; _at = _hist.pop(); _moves++; _place(true, 1); _hud(); }
 export function reset() { if (_over || _busy) return; _at = _p.start; _hist = []; _moves = 0; _place(false); _hud(); }
 
+// The penguin's inner element plays one animation at a time (it faces left or right).
+let _face = 1;
+function _anim(name, ms) {
+    const pg = _el && _el.querySelector('#if-peng-in');
+    if (!pg) return;
+    if (name === 'slide-left') _face = -1; else if (name === 'slide-right') _face = 1;
+    pg.style.setProperty('--face', _face);
+    pg.className = 'if-peng-in';
+    void pg.offsetWidth;   // restart the animation
+    pg.classList.add(name);
+    clearTimeout(pg._t);
+    if (ms) pg._t = setTimeout(() => { pg.classList.remove(name); }, ms + 40);
+}
+// What it stopped against: a rock (bonk), the edge (bump), or snow (a puff).
+function _landed(k, dir) {
+    if (!_el) return;
+    const [dr, dc] = DIRS[dir], w = _p.w, r = Math.floor(k / w) + dr, c = (k % w) + dc;
+    const out = r < 0 || c < 0 || r >= _p.h || c >= w, next = out ? -1 : r * w + c;
+    if (_p.grid[k] === SNOW) { _anim('land', 380); _fx(k, ['❄️', '❄️', '✨'], 'puff'); }
+    else if (!out && _p.grid[next] === ROCK) { _anim('bonk', 520); _fx(k, ['💫'], 'dizzy'); try { Audio.haptic([15, 30, 15]); } catch (e) {} }
+    else _anim('land', 380);
+}
+// A little effect over square k: each emoji drifts off and fades.
+function _fx(k, emojis, kind) {
+    const b = _el.querySelector('#if-board'), w = _p.w;
+    emojis.forEach((e, i) => {
+        const s = document.createElement('i');
+        s.className = `if-fx ${kind}`; s.textContent = e;
+        s.style.setProperty('--x', k % w); s.style.setProperty('--y', Math.floor(k / w)); s.style.setProperty('--i', i - (emojis.length - 1) / 2);
+        b.appendChild(s); setTimeout(() => s.remove(), 900);
+    });
+}
+// An icy streak along the slide.
+function _trail(a, b, ms) {
+    const bd = _el.querySelector('#if-board'), w = _p.w;
+    const r0 = Math.min(Math.floor(a / w), Math.floor(b / w)), r1 = Math.max(Math.floor(a / w), Math.floor(b / w));
+    const c0 = Math.min(a % w, b % w), c1 = Math.max(a % w, b % w);
+    const t = document.createElement('i');
+    t.className = `if-trail ${r0 === r1 ? 'h' : 'v'}`;
+    t.style.setProperty('--x', c0); t.style.setProperty('--y', r0); t.style.setProperty('--cw', c1 - c0 + 1); t.style.setProperty('--ch', r1 - r0 + 1);
+    t.style.animationDuration = `${ms + 500}ms`;
+    bd.insertBefore(t, bd.querySelector('#if-peng'));
+    setTimeout(() => t.remove(), ms + 600);
+}
+
 function _hud() { const m = _el && _el.querySelector('#if-moves'); if (m) m.textContent = `${_moves} / par ${_p.par}`; }
 
 function _win() {
     if (!_el || _over) return;
     _over = true;
     const st = stars(_moves, _p.par);
+    _el.querySelector('#if-fish')?.classList.add('eaten');
+    _anim('eat', 0);
+    _fx(_at, ['💕', '💖', '💕'], 'love');
     Solo.bump('icefloeWins');
     if (st === 3) Solo.bump('icefloe3');
     if (st === 3 && _p.level === 'hard') Solo.bump('icefloeHard3');

@@ -50,13 +50,13 @@ games, each with its best on its card.
 | Game | What | Files |
 |---|---|---|
 | Critter Square | every row and column holds each critter once; fences open towards the bigger one. Easy 4×4 / Medium 5×5 / Hard 6×6, one solution each | `CritterSquare.js`, `CritterLogic.js` |
-| Ice Floe | slide the penguin; it only stops at rocks, edges and snow; stop on the fish. Par is the shortest route | `IceFloe.js`, `IceFloeLogic.js` |
+| Ice Floe | slide the penguin; it only stops at rocks, edges and snow; stop on the fish. Par is the shortest route. The penguin leans into slides, bonks on rocks and gobbles the fish | `IceFloe.js`, `IceFloeLogic.js` |
 | Rock Pool Paths | join each pair of critters; paths can't cross and every square is used | `Paths.js`, `PathsLogic.js` |
-| Treasure Dig | three chests on a 7×7 beach; every hole reads the steps to the nearest one still buried | `TreasureDig.js` |
+| Treasure Dig | three chests on a 7×7 beach; every hole reads the steps to the nearest one still buried. Polly the parrot calls each dig; 🚩 marks rule squares out for free | `TreasureDig.js` |
 | Lighthouse Beams | light every boat exactly once; lighthouses never shine on each other; one answer each | `Lighthouse.js`, `LighthouseLogic.js` |
 | Coral Merge | drop sea creatures into a tank (real 2D physics); two alike that touch merge into the next kind up; combos, a bubble power-up that lifts the pile | `Coral.js`, `CoralPhysics.js` |
 | Kite Wind | tap to tug the kite up; rings build a combo; gulls and gusts. Every ring is placed within reach of the last, whatever the wind | `Kite.js`, `KiteLogic.js` |
-| Pearl Diver | hold to dive, let go to float; pearls, jellyfish and an air meter | `PearlDiver.js` |
+| Pearl Diver | hold to dive, let go to float; pearls, jellyfish and an air meter; a sunset sea with a parallax reef, pearls in glowing clams | `PearlDiver.js` |
 | Rebound | flick a pearl to pop every clam; 32 tanks in four worlds (moving bumpers, portals, breakable coral, urchins and switches), a daily tank, each par proven by a search | `Rebound.js`, `ReboundLogic.js`, `ReboundDaily.js` |
 | Orbit Putt | putt a ball past planets and black holes into a wormhole that only catches slow balls; 12 levels | `Orbit.js`, `OrbitLogic.js` |
 | Reef Drop | drop pearls through a moving reef: coral, oysters (two hits each), eels that zap, springy jellyfish, turning wheels, sliding rows. Shelly the hermit crab scuttles along the floor: a pearl in her shell comes back (×3). 18 reefs in three worlds | `ReefDrop.js`, `ReefDropLogic.js` |
