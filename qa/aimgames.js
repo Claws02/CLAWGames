@@ -1,7 +1,7 @@
 // ============================================================
 // AIM GAMES — Orbit Putt, Reef Drop and Mirror
 // Lagoon in the browser, on a small phone, plus Rebound's new worlds.
-//   1. the hub has 13 cards, the new games among them
+//   1. the hub has 25 cards (13 of its own, 12 arcade high-score games)
 //   2. each aim game: level 1 opens, a real pull-and-release takes a shot, and
 //      the solver's shots (or a greedy aim, for Reef Drop) clear it on screen
 //      with stars; level 2 opens
@@ -31,13 +31,13 @@ const SHOTS = process.env.QA_SHOTS || '';
     const hub = async () => { await p.click('#scr-sologame [data-back]').catch(() => {}); await p.waitForSelector('#scr-solo:not([hidden])'); };
 
     await p.click('[data-go="solo"]'); await p.waitForSelector('#scr-solo:not([hidden])');
-    const cards = await p.$$eval('#solo-list .hub-card', els => els.map(e => e.dataset.game));
-    check(cards.length === 13 && ['orbit', 'reefdrop', 'mirror'].every(c => cards.includes(c)) && !['cannon', 'snooker'].some(c => cards.includes(c)), `1. the hub: ${cards.length} cards (${cards.join(', ')})`);
+    const cards = await p.$$eval('#solo-list .card', els => els.map(e => e.dataset.game));
+    check(cards.length === 25 && ['orbit', 'reefdrop', 'mirror', 'snapstrike', 'kartgp'].every(c => cards.includes(c)) && !['cannon', 'snooker'].some(c => cards.includes(c)), `1. the hub: ${cards.length} cards (${cards.join(', ')})`);
 
     // 2. the aim games
     const games = [['orbit', 'Orbit', 'OrbitLogic'], ['reefdrop', 'ReefDrop', 'ReefDropLogic']];
     for (const [id, screen, logic] of games) {
-        await p.click(`#solo-list [data-game="${id}"]`);
+        await p.click(`#solo-list [data-game="${id}"]`); await p.click('#pv-play');
         await p.click('.rb-lv[data-i="0"]');
         await p.waitForSelector('#ag-cv');
         // a real pull back and release
@@ -76,7 +76,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     }
 
     // 3. Mirror Lagoon by taps
-    await p.click('#solo-list [data-game="mirror"]');
+    await p.click('#solo-list [data-game="mirror"]'); await p.click('#pv-play');
     await p.click('.rb-lv[data-i="0"]');
     await p.waitForSelector('#ml-board .ml-mir');
     await shot('mirror');
@@ -90,7 +90,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     await hub();
 
     // 4. Rebound
-    await p.click('#solo-list [data-game="rebound"]');
+    await p.click('#solo-list [data-game="rebound"]'); await p.click('#pv-play');
     const worlds = await p.$$eval('.rb-world .panel-h', els => els.map(e => e.textContent.trim().split('★')[0].trim()));
     check(worlds.length === 4 && (await p.$$('.rb-lv')).length === 32, `4. Rebound: ${worlds.join(' · ')}, 32 tanks`);
     // a moving reef moves while you aim, before any flick

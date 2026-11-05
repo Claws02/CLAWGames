@@ -54,7 +54,7 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
     await page.screenshot({ path: 'qa/shot-solo-grid.png' });
 
     // 3. Loot Catch, alone: 17 coins, a new high score.
-    await page.click('#game-grid .card[data-type="lootcatch"]');
+    await page.click('#game-grid .card[data-type="lootcatch"]'); await page.click('#pv-play');
     ok('the game is played alone on the screen', await until('GAME'));
     await page.waitForTimeout(2500);
     const solo1 = await page.evaluate(async () => (await import('/src/claw-core/minigames/SoloArena.js')).isSolo());
@@ -82,7 +82,7 @@ const ok = (n, c, d = '') => (c ? pass : fail).push(`${n}${d ? ` — ${d}` : ''}
     ok('the grid card shows the best', /17 coins/.test(best || ''), best);
 
     // 5. Mini Golf, solo here too.
-    await page.click('#game-grid .card[data-type="minigolf"]');
+    await page.click('#game-grid .card[data-type="minigolf"]'); await page.click('#pv-play');
     await until('GAME');
     await page.waitForTimeout(3000);
     const gs = await page.evaluate(async () => { const M = await import('/src/claw-core/minigames/MiniGolf.js'); const s = M._debugState(); return { n: s.n, mode: s.mode, holes: s.holes.length, turned: s.turned }; });

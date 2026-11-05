@@ -41,13 +41,13 @@ const SHOTS = process.env.QA_SHOTS || '';
     // 1. the hub
     await p.click('[data-go="solo"]');
     await p.waitForSelector('#scr-solo:not([hidden])');
-    const days = await p.$$('#solo-today .hub-day'), cards = await p.$$('#solo-list .hub-card');
+    const days = await p.$$('#solo-today .hub-day'), cards = await p.$$('#solo-list .card');
     check(days.length === 3 && cards.length >= 5, `1. SOLO GAMES: ${days.length} daily puzzles, ${cards.length} cards`);
     check(/start a streak/.test(await p.textContent('#solo-streak')), `   no streak yet: "${await p.textContent('#solo-streak')}"`);
     await shot('hub');
 
     // 2. Treasure Dig
-    await p.click('#solo-list [data-game="treasure"]');
+    await p.click('#solo-list [data-game="treasure"]'); await p.click('#pv-play');
     await p.waitForSelector('#td-board .td-sq');
     let d = await mod('TreasureDig', 'M._debug()');
     const notChest = [...Array(49).keys()].filter(k => !d.chests.includes(k)).slice(0, 2);
@@ -74,7 +74,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     check(/best 5 digs/.test(await p.textContent('#solo-list [data-game="treasure"]')), '   the hub shows the best: 5 digs');
 
     // 3. Lighthouse Beams
-    await p.click('#solo-list [data-game="lighthouse"]');
+    await p.click('#solo-list [data-game="lighthouse"]'); await p.click('#pv-play');
     await p.click('.cs-level[data-level="easy"]');
     await p.waitForSelector('#lh-board .lh-sq');
     d = await mod('Lighthouse', 'M._debug()');
@@ -98,7 +98,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     await toHub();
 
     // 4. Pearl Diver
-    await p.click('#solo-list [data-game="pearl"]');
+    await p.click('#solo-list [data-game="pearl"]'); await p.click('#pv-play');
     await p.click('#btn-pd-go');
     const cv = await p.$('#pd-cv'), box = await cv.boundingBox();
     const y0 = (await mod('PearlDiver', 'M._debug()')).y;
@@ -127,7 +127,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     check((await mod('PearlDiver', 'M._debug()')) === null, '7. leaving Pearl Diver mid-dive stops it');
 
     // 5. Rebound
-    await p.click('#solo-list [data-game="rebound"]');
+    await p.click('#solo-list [data-game="rebound"]'); await p.click('#pv-play');
     const locked = await p.$$eval('.rb-lv', els => els.map(e => e.classList.contains('locked')));
     check(!locked[0] && locked.slice(1).every(Boolean), `5. Rebound: only level 1 is open (${locked.filter(x => !x).length} of ${locked.length})`);
     await p.click('.rb-lv[data-i="0"]');

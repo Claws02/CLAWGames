@@ -37,7 +37,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     const mod = (name, expr) => p.evaluate(([n, e]) => import(`/src/arcade/${n}.js`).then(M => (new Function('M', 'return ' + e))(M)), [name, expr]);
     const shot = async name => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await p.screenshot({ path: `${SHOTS}/${name}.png` }); } };
     const hub = async () => { await p.click('#scr-sologame [data-back]').catch(() => {}); await p.waitForSelector('#scr-solo:not([hidden])'); };
-    const game = async id => { await p.click(`#solo-list [data-game="${id}"]`); await p.waitForSelector('#scr-sologame:not([hidden])'); };
+    const game = async id => { await p.click(`#solo-list [data-game="${id}"]`); await p.click('#pv-play'); await p.waitForSelector('#scr-sologame:not([hidden])'); };
 
     // 2 (set up first). A streak of 3 days ending the day before yesterday, a pass in hand: yesterday was missed.
     await S(`(() => { S._reset(); const d = n => { const x = new Date(); x.setDate(x.getDate() - n); return S.today(x); };
@@ -48,8 +48,8 @@ const SHOTS = process.env.QA_SHOTS || '';
     // 1. the hub
     await p.click('[data-go="solo"]');
     await p.waitForSelector('#scr-solo:not([hidden])');
-    const cards = await p.$$eval('#solo-list .hub-card', els => els.map(e => e.dataset.game));
-    check(cards.length === 13 && cards[0] === 'shelf', `1. the hub: ${cards.length} cards, Prize Shelf first (${cards.join(', ')})`);
+    const cards = await p.$$eval('#solo-list .card', els => els.map(e => e.dataset.game));
+    check(cards.length === 25 && cards[0] === 'shelf', `1. the hub: ${cards.length} cards, Prize Shelf first (${cards.join(', ')})`);
     const today = await p.$$eval('#solo-today .hub-day', els => els.map(e => e.dataset.daily));
     const want = await S('S.todaysDailies()'), level = await S('S.dailyLevel()');
     check(JSON.stringify(today) === JSON.stringify(want), `   TODAY: the date's three dailies (${today.join(', ')})`);

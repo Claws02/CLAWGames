@@ -995,3 +995,39 @@ body.tv #tv-seats { display: grid; grid-template-columns: repeat(auto-fill, minm
 .ml-house-glow { animation: ml-beacon 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes ml-beacon { 0%, 100% { opacity: .2; scale: .9; } 50% { opacity: .45; scale: 1.1; } }
 .ml-svg.won .ml-lan { animation: ml-pop .5s ease-out 2; transform-box: fill-box; transform-origin: center; }
+
+/* ---------- Game cards: a clip of real play on every card, and the preview sheet ---------- */
+.card.has-clip { padding: 0 0 10px; overflow: hidden; gap: 3px; }
+.card.has-clip .cn { padding: 0 8px; margin-top: 4px; }
+.card.has-clip .cs { padding: 0 8px; }
+.card.has-clip .fav { z-index: 3; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,.85); font-size: 16px; }
+.cm { position: relative; display: block; width: 100%; aspect-ratio: 1; overflow: hidden; background: #1e1b4b; border-bottom: var(--line); }
+.cm-img, .cm-vid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.cm-vid { opacity: 0; transition: opacity .3s; }
+.cm.live .cm-vid { opacity: 1; }
+.cm-badge { position: absolute; left: 6px; bottom: 6px; z-index: 2; width: 34px; height: 34px; border-radius: 50%; background: #fff; border: 3px solid var(--ink); display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 2px 0 var(--ink); }
+.cm-none { display: flex; align-items: center; justify-content: center; background: linear-gradient(150deg, #fef3c7, #fde68a); }
+.cm-none .cm-ico { font-size: 52px; }
+.card.has-clip.blocked .cm-vid { display: none; }
+.solo-grid { margin-top: 12px; }
+.solo-card .cs { color: var(--pink); opacity: 1; }
+.solo-card.shelf { background: linear-gradient(135deg, #fff7d6, #ffe08a); }
+.solo-card.arcade .cs { color: #7c3aed; }
+.pv-back { position: fixed; inset: 0; z-index: 900; background: rgba(15,10,40,0); display: flex; align-items: flex-end; justify-content: center; transition: background .2s; }
+.pv-back.open { background: rgba(15,10,40,.55); }
+.pv-sheet { position: relative; width: min(100%, 460px); max-height: 92vh; overflow-y: auto; background: var(--paper); border: var(--line); border-bottom: 0; border-radius: 24px 24px 0 0; padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
+    transform: translateY(100%); transition: transform .24s cubic-bezier(.2,.9,.3,1); box-shadow: 0 -6px 0 rgba(43,18,64,.25); }
+.pv-back.open .pv-sheet { transform: translateY(0); }
+.pv-x { position: absolute; top: 10px; right: 10px; z-index: 2; width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--ink); background: #fff; font-weight: 900; }
+.pv-media { width: 100%; aspect-ratio: 1; max-height: 46vh; margin: 0 auto 10px; border: var(--line); border-radius: 18px; overflow: hidden; background: #1e1b4b; display: flex; align-items: center; justify-content: center; }
+.pv-vid { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pv-ico { font-size: 90px; }
+.pv-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pv-icon { font-size: 28px; }
+.pv-title { font-size: 30px; line-height: 1; }
+.pv-tag { font-size: 11px; font-weight: 900; padding: 2px 8px; border-radius: 99px; color: #fff; }
+.pv-desc { font-size: 14px; font-weight: 700; line-height: 1.35; margin: 8px 0 4px; }
+.pv-best { font-size: 13px; font-weight: 900; color: var(--pink); margin: 4px 0; }
+.pv-why { font-size: 13px; font-weight: 900; color: #b91c1c; margin: 4px 0; }
+.pv-play { width: 100%; margin-top: 10px; }
+.pv-play:disabled { filter: grayscale(1); opacity: .6; }

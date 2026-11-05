@@ -7,6 +7,7 @@ import * as Catalog from './Catalog.js';
 import * as Stats from './Stats.js';
 import { seats } from './Seats.js';
 import * as Solo from './Solo.js';
+import * as GameCards from './GameCards.js';
 
 let _genre = 'all', _onPick = null, _pool = null, _solo = false;
 
@@ -44,13 +45,13 @@ function _card(type) {
     const info = Catalog.MG_INFO[type], g = Catalog.genreOf(type);
     const why = _why(type);
     const el = document.createElement('div');
-    el.className = 'card' + (why ? ' blocked' : '');
+    el.className = 'card has-clip' + (why ? ' blocked' : '');
     el.dataset.type = type;
     el.setAttribute('role', 'button');
     const n = Stats.plays(type);
     el.innerHTML =
         `<button class="fav${Stats.isFav(type) ? ' on' : ''}" aria-label="Favourite">⭐</button>` +
-        `<span class="ci">${info.icon}</span>` +
+        GameCards.media(type, info.icon) +
         `<span class="cn">${info.title}</span>` +
         `<span class="cg g-${g}">${Catalog.MG_GENRES[g]?.name || g}</span>` +
         `<span class="cs">${why || (_solo ? _bestLine(type) : n ? `played ${n}×` : 'new!')}</span>`;
@@ -58,7 +59,12 @@ function _card(type) {
         e.stopPropagation();
         e.currentTarget.classList.toggle('on', Stats.toggleFav(type));
     });
-    el.addEventListener('click', () => { if (!why && _onPick) _onPick(type); });
+    // a tap opens the preview: the clip big, how to play, the best, PLAY
+    el.addEventListener('click', () => GameCards.preview({
+        id: type, icon: info.icon, title: info.title, tag: Catalog.MG_GENRES[g]?.name || g, tagClass: `g-${g}`,
+        desc: Catalog.descOf(type), best: _solo ? _bestLine(type) : n ? `Played ${n}×` : '', blocked: why,
+        onPlay: () => { if (_onPick) _onPick(type); },
+    }));
     return el;
 }
 
@@ -88,8 +94,10 @@ function _render() {
     if (_solo) {
         _section(grid, `🎯 ${ok.length} solo games · beat the high score`, ok);
         _section(grid, '🚫 Need somebody to play against', no);
+        GameCards.watch(grid);
         return;
     }
     _section(grid, `🎮 ${ok.length} ready for ${seats.count} players`, ok);
     _section(grid, _pool ? '🚫 Not available' : `🚫 Not for ${seats.count} players`, no);
+    GameCards.watch(grid);
 }

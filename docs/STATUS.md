@@ -32,8 +32,17 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 
 ## Solo games (one player)
 
-One home-screen card, **SOLO GAMES** (`src/arcade/SoloHub.js`), opens the Prize Shelf and nine
-games, each with its best on its card.
+One home-screen card, **SOLO GAMES** (`src/arcade/SoloHub.js`), opens the Prize Shelf, the solo
+games, and the 12 arcade high-score games from Quick Play (claw-core's parallel games, on the
+same high-score tables as Quick Play's "1"), each with its best on its card.
+
+**Game cards (`GameCards.js`).** Every card in the solo hub and in the party "Pick a game" grid
+leads with a clip of real play: a still, then a short silent loop while the card is on screen
+(loaded lazily, a few playing at once, none with Save-Data or reduced motion). A tap opens a
+preview sheet (the clip big, how to play, your best, PLAY). The clips are made by
+`scripts/capture-clips.js` (bots on both seats for party games, a scripted player for solo
+games; ffmpeg crops them square into `assets/clips/<id>.mp4` + `.jpg`, about 10–40 KB each)
+and listed in `Clips.js`. Rerun it after changing how a game looks.
 
 **Every day (`SoloStats.js`):**
 - **TODAY**: three daily puzzles, picked from five by the date (Critter Square, Treasure Dig,

@@ -54,7 +54,7 @@ const GAMES = 3;
                     const r = document.getElementById('wheel-result');
                     if (!r.hidden) document.getElementById('btn-wheel-play').click();
                     else if (!document.getElementById('btn-spin').disabled) document.getElementById('btn-spin').click();
-                } else if (screen === 'grid') document.querySelector('#game-grid .card:not(.blocked)')?.click();
+                } else if (screen === 'grid') { document.querySelector('#game-grid .card:not(.blocked)')?.click(); document.getElementById('pv-play')?.click(); }
                 else if (screen === 'GAME') {
                     for (const id of ['btn-mg-intro-next', 'btn-mg-launch', 'mg-ready-1']) {
                         const b = document.getElementById(id);
