@@ -34,7 +34,7 @@ const BASE = process.env.QA_BASE || 'http://127.0.0.1:8140/index.html';
     const files = [...new Set([...solo.map(c => c.id), ...party])];
     const absent = files.filter(id => !['mp4', 'jpg'].every(x => fs.existsSync(path.join(__dirname, '..', 'assets', 'clips', `${id}.${x}`))));
     const kb = files.reduce((a, id) => a + (fs.existsSync(path.join(__dirname, '..', 'assets', 'clips', `${id}.mp4`)) ? fs.statSync(path.join(__dirname, '..', 'assets', 'clips', `${id}.mp4`)).size : 0), 0) / 1024;
-    check(solo.length === 25 && !missing.length && !absent.length, `1. ${solo.length} solo cards and ${party.length} party games all have a clip and a poster (${files.length} clips, ${Math.round(kb)} KB in all)${missing.length || absent.length ? ` — missing ${[...missing, ...absent].join(', ')}` : ''}`);
+    check(solo.length === 28 && !missing.length && !absent.length, `1. ${solo.length} solo cards and ${party.length} party games all have a clip and a poster (${files.length} clips, ${Math.round(kb)} KB in all)${missing.length || absent.length ? ` — missing ${[...missing, ...absent].join(', ')}` : ''}`);
 
     // 2. lazy: the last card has no video until it's scrolled to
     const lastId = solo[solo.length - 1].id;
@@ -56,8 +56,9 @@ const BASE = process.env.QA_BASE || 'http://127.0.0.1:8140/index.html';
 
     // 4. PLAY starts the game
     await p.click('#solo-list [data-game="rebound"]'); await p.click('#pv-play');
-    await p.waitForSelector('#rb-cv', { timeout: 4000 }).catch(() => {});
-    check(!!(await p.$('#rb-cv')) && !(await p.$('#pv')), '4. PLAY starts a solo-hub game (Rebound\'s levels)');
+    await p.waitForSelector('#scr-sologame:not([hidden]) .rb-lv', { timeout: 4000 }).catch(() => {});
+    await p.waitForTimeout(300);   // the sheet slides away
+    check((await p.$$('#scr-sologame .rb-lv')).length === 32 && !(await p.$('#pv')), '4. PLAY starts a solo-hub game (Rebound\'s 32 tanks)');
     await p.click('#scr-sologame [data-back]'); await p.waitForSelector('#scr-solo:not([hidden])');
     await p.$eval('#solo-list [data-game="snapstrike"]', e => e.scrollIntoView({ block: 'center' }));
     await p.click('#solo-list [data-game="snapstrike"]');

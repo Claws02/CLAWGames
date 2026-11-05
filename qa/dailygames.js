@@ -49,7 +49,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     await p.click('[data-go="solo"]');
     await p.waitForSelector('#scr-solo:not([hidden])');
     const cards = await p.$$eval('#solo-list .card', els => els.map(e => e.dataset.game));
-    check(cards.length === 25 && cards[0] === 'shelf', `1. the hub: ${cards.length} cards, Prize Shelf first (${cards.join(', ')})`);
+    check(cards.length === 28 && cards[0] === 'shelf', `1. the hub: ${cards.length} cards, Prize Shelf first (${cards.join(', ')})`);
     const today = await p.$$eval('#solo-today .hub-day', els => els.map(e => e.dataset.daily));
     const want = await S('S.todaysDailies()'), level = await S('S.dailyLevel()');
     check(JSON.stringify(today) === JSON.stringify(want), `   TODAY: the date's three dailies (${today.join(', ')})`);

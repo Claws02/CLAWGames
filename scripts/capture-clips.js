@@ -15,27 +15,42 @@ const BASE = process.env.QA_BASE || 'http://127.0.0.1:8140/index.html';
 const ROOT = path.join(__dirname, '..'), OUT = path.join(ROOT, 'assets', 'clips'), TMP = path.join(require('os').tmpdir(), 'claw-clips');
 const SIZE = 320, SECS = 3.6, FPS = 20, VW = 412, VH = 892;
 
+// ---- party games: where the action is (the middle of the square, as a fraction of the
+// screen's height; split-screen games read best from player 1's half, the bottom) and how long
+// into play to start (pieces on the board) -----------------------------------------------
+const BOTTOM = 0.75;
+const PARTY = {
+    snapstrike: { y: BOTTOM }, steadyhand: { y: BOTTOM }, sortrush: { y: BOTTOM }, gridrecall: { y: BOTTOM }, rhythmforge: { y: BOTTOM },
+    lootcatch: { y: BOTTOM }, clearout: { y: BOTTOM }, orbdeflect: { y: BOTTOM, delay: 6 }, bowling: { y: BOTTOM }, penalty: { y: 0.78 },
+    animalstack: { y: 0.62, delay: 9 }, brainrot: { y: 0.3 }, fourinarow: { y: 0.5, delay: 3, human: true }, memorymatch: { y: 0.3, delay: 12 },
+};
+
 // ---- solo games: how to get each one moving (runs in the page; `wait` is a sleep) ----
 // Each returns once the interesting bit has started; recording goes on from there.
 const SOLO = {
-    shelf: { open: 'shelf', sel: '#sg-body canvas', play: async () => { const M = await import('/src/arcade/PrizeShelf.js'); for (let i = 0; i < 2; i++) { try { M.dropClaw(); } catch (e) {} await wait(1600); } } },
+    shelf: { open: 'shelf', sel: '#sg-body', top: true, play: async () => { const M = await import('/src/arcade/PrizeShelf.js'); for (let i = 0; i < 2; i++) { try { M.dropClaw(); } catch (e) {} await wait(1600); } } },
     critter: { open: 'critter', sel: '#scr-critter .cs-board, #scr-critter [class*=board]', play: async () => {
         const M = await import('/src/arcade/CritterSquare.js'); M.start('easy'); await wait(300);
         const d = M._debug(), sol = d.p.solution || d.p.sol;
         for (let k = 0; k < sol.length; k++) if (d.grid[k] == null || d.grid[k] < 0 || d.grid[k] === 0 && !d.p.given?.includes(k)) { M.pick(k); await wait(120); M.place(sol[k]); await wait(220); }
     } },
-    rebound: { open: 'rebound', sel: '#rb-cv', play: async () => {
-        const R = await import('/src/arcade/Rebound.js'), L = await import('/src/arcade/ReboundLogic.js'); R.play(12); await wait(500);
-        const r = L.solve(L.LEVELS[12], { maxDepth: L.LEVELS[12].par, angles: 72, powers: [0.4, 0.7, 1], beam: 4 });
-        for (const [a, p] of r ? r.path : [[-1.4, 0.8]]) { R.shoot(a, p); await wait(200); while (R._debug().moving) await wait(80); await wait(250); }
+    rebound: { open: 'rebound', sel: '#rb-cv', prep: async () => {
+        const R = await import('/src/arcade/Rebound.js'), L = await import('/src/arcade/ReboundLogic.js'); R.play(12);
+        window.__path = (L.solve(L.LEVELS[12], { maxDepth: L.LEVELS[12].par, angles: 72, powers: [0.4, 0.7, 1], beam: 4 }) || { path: [[-1.4, 0.8]] }).path;
+    }, play: async () => {
+        const R = await import('/src/arcade/Rebound.js');
+        for (const [a, p] of window.__path) { R.shoot(a, p); await wait(200); while (R._debug().moving) await wait(80); await wait(250); }
     } },
-    orbit: { open: 'orbit', sel: '#ag-cv', play: async () => {
-        const G = await import('/src/arcade/Orbit.js'), L = await import('/src/arcade/OrbitLogic.js'), A = await import('/src/arcade/AimSearch.js'); G.play(11); await wait(500);
-        const r = A.solve(L, L.LEVELS[11], { maxDepth: L.LEVELS[11].par, ...L.SEARCH });
-        for (const [a, p] of r.path) { G.shoot(a, p); await wait(150); while (G._debug().moving) await wait(80); await wait(300); }
+    orbit: { open: 'orbit', sel: '#ag-cv', prep: async () => {
+        const G = await import('/src/arcade/Orbit.js'), L = await import('/src/arcade/OrbitLogic.js'), A = await import('/src/arcade/AimSearch.js'); G.play(11);
+        window.__path = A.solve(L, L.LEVELS[11], { maxDepth: L.LEVELS[11].par, ...L.SEARCH }).path;
+    }, play: async () => {
+        const G = await import('/src/arcade/Orbit.js');
+        await wait(300);
+        for (const [a, p] of window.__path) { G.shoot(a, p); await wait(150); while (G._debug().moving) await wait(80); await wait(300); }
     } },
-    reefdrop: { open: 'reefdrop', sel: '#ag-cv', play: async () => {
-        const G = await import('/src/arcade/ReefDrop.js'), L = await import('/src/arcade/ReefDropLogic.js'); G.play(16); await wait(400);
+    reefdrop: { open: 'reefdrop', sel: '#ag-cv', prep: async () => { (await import('/src/arcade/ReefDrop.js')).play(16); }, play: async () => {
+        const G = await import('/src/arcade/ReefDrop.js'), L = await import('/src/arcade/ReefDropLogic.js');
         for (let n = 0; n < 3; n++) {
             const s = G._debug().state, lv = L.LEVELS[16]; let best = null;
             for (let a = 0; a < 40; a++) for (const pw of [0.3, 0.6, 1]) { const c = L.copy(s), ang = 0.05 + (a / 40) * (Math.PI - 0.1); L.shot(lv, c, ang, pw); L.settle(lv, c); const sc = L.score(lv, c); if (!best || sc > best.sc) best = { sc, ang, pw }; }
@@ -65,7 +80,9 @@ const SOLO = {
         const M = await import('/src/arcade/Lighthouse.js'); M.start('medium'); await wait(400);
         for (const k of M._debug().p.solution) { M.toggle(k); await wait(380); }
     } },
-    coral: { open: 'coral', sel: '#sg-body canvas', play: async () => {
+    coral: { open: 'coral', sel: '#sg-body canvas', prep: async () => {
+        const C = await import('/src/arcade/Coral.js'); for (let i = 0; i < 9; i++) { C.dropHere(1 + ((i * 2.9) % 5)); await new Promise(r => setTimeout(r, 380)); }
+    }, play: async () => {
         const C = await import('/src/arcade/Coral.js'); for (let i = 0; i < 14; i++) { C.dropHere(1.2 + ((i * 2.3) % 4.6)); await wait(330); }
     } },
     kite: { open: 'kite', sel: '#kt-cv', play: async () => {
@@ -87,7 +104,14 @@ async function record(browser, id, kind) {
     await p.goto(BASE); await p.waitForFunction(() => !!window.__claw);
     let start = 0, box = null;
     if (kind === 'party') {
-        await p.evaluate(type => { const c = window.__claw; c.seats.count = 2; c.seats.bots = [true, true, true, true]; c.show('grid'); c.play(type); }, id);
+        const o = PARTY[id] || {};
+        // (a game whose bots wait for a person gets one who taps at random in their zone, like qa/smoke.js)
+        await p.evaluate(([type, human]) => { const c = window.__claw; c.seats.count = 2; c.seats.bots = [!human, true, true, true]; c.show('grid'); c.play(type); }, [id, !!o.human]);
+        const tapper = o.human ? setInterval(() => p.evaluate(() => {
+            const layer = document.getElementById('minigame-layer'); if (!layer) return;
+            const r = layer.getBoundingClientRect(), x = r.left + Math.random() * r.width, y = r.top + r.height * (0.55 + Math.random() * 0.4), el = document.elementFromPoint(x, y);
+            if (el) for (const t of ['pointerdown', 'pointerup', 'click']) el.dispatchEvent(new PointerEvent(t, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));
+        }).catch(() => {}), 250) : null;
         for (let i = 0; i < 120; i++) {
             const on = await p.evaluate(() => {
                 for (const b of ['btn-mg-intro-next', 'btn-mg-launch', 'mg-ready-1', 'mg-ready-0']) { const e = document.getElementById(b); if (e && e.offsetParent) e.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); }
@@ -96,22 +120,40 @@ async function record(browser, id, kind) {
             if (on) break;
             await p.waitForTimeout(150);
         }
-        await p.waitForTimeout(2500);   // past the countdown, into the action
+        await p.waitForTimeout((o.delay || 2.5) * 1000);   // past the countdown, into the action
         start = (Date.now() - t0) / 1000;
         await p.waitForTimeout((SECS + 0.6) * 1000);
-        box = [0, (VH - VW) / 2, VW, VW];   // the middle of the table
+        if (tapper) clearInterval(tapper);
+        const cy = (o.y ?? 0.5) * VH;
+        box = [0, Math.max(0, Math.min(VH - VW, cy - VW / 2)), VW, VW];
+    } else if (kind === 'arcade') {
+        await p.click('[data-go="solo"]'); await p.waitForSelector('#scr-solo:not([hidden])');
+        await p.$eval(`#solo-list [data-game="${id}"]`, e => e.scrollIntoView({ block: 'center' }));
+        await p.click(`#solo-list [data-game="${id}"]`); await p.click('#pv-play');
+        await p.waitForTimeout(1800);
+        const tap = setInterval(() => p.evaluate(() => {
+            const btns = [...document.querySelectorAll('button, [role=button]')].filter(b => b.offsetParent && b.getBoundingClientRect().height > 30 && !b.closest('#arcade'));
+            const b = btns[Math.floor(Math.random() * btns.length)];
+            if (b) { b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); b.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); b.click(); }
+            else { const x = 60 + Math.random() * 290, y = 300 + Math.random() * 400, el = document.elementFromPoint(x, y); if (el) for (const t of ['pointerdown', 'pointerup', 'click']) el.dispatchEvent(new PointerEvent(t, { bubbles: true, clientX: x, clientY: y })); }
+        }).catch(() => {}), 700);
+        start = (Date.now() - t0) / 1000;
+        await p.waitForTimeout((SECS + 0.6) * 1000);
+        clearInterval(tap);
+        box = [0, (VH - VW) / 2, VW, VW];
     } else {
         const S = SOLO[id];
         await p.click('[data-go="solo"]'); await p.waitForSelector('#scr-solo:not([hidden])');
-        await p.click(`#solo-list [data-game="${S.open}"]`); await p.waitForTimeout(600);
+        await p.click(`#solo-list [data-game="${S.open}"]`); await p.click("#pv-play"); await p.waitForTimeout(600);
         await p.evaluate(() => { window.wait = ms => new Promise(r => setTimeout(r, ms)); });
+        if (S.prep) { await p.evaluate(`(${S.prep.toString()})()`); await p.waitForTimeout(400); }
         const run = p.evaluate(`(${S.play.toString()})()`).catch(e => console.log('   (drive)', id, e.message.slice(0, 120)));
         await p.waitForTimeout(250);
         start = (Date.now() - t0) / 1000;
         box = await p.evaluate(sel => { const e = document.querySelector(sel); if (!e) return null; const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; }, S.sel);
         await Promise.race([run, p.waitForTimeout((SECS + 0.8) * 1000)]);
         await p.waitForTimeout(Math.max(0, (SECS + 0.6) * 1000 - ((Date.now() - t0) / 1000 - start) * 1000));
-        if (box) { const s = Math.min(box[2], box[3]); box = [box[0] + (box[2] - s) / 2, box[1] + (box[3] - s) / 2, s, s]; }
+        if (box) { const s = Math.min(box[2], box[3]); box = [box[0] + (box[2] - s) / 2, box[1] + (S.top ? 0 : (box[3] - s) / 2), s, s]; }
         else box = [0, (VH - VW) / 2, VW, VW];
     }
     const vid = await p.video().path();
@@ -130,9 +172,10 @@ async function record(browser, id, kind) {
     const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage', '--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--mute-audio'] });
     const probe = await browser.newPage(); await probe.goto(BASE); await probe.waitForFunction(() => !!window.__claw);
     const party = await probe.evaluate(async () => (await import('/src/arcade/Catalog.js')).allTypes(false));
+    const arcade = await probe.evaluate(async () => (await import('/src/arcade/Solo.js')).GAMES);
     await probe.close();
     const only = process.argv[2] ? process.argv[2].split(',') : null;
-    const jobs = [...Object.keys(SOLO).map(id => [id, 'solo']), ...party.map(id => [id, 'party'])].filter(([id]) => !only || only.includes(id));
+    const jobs = [...Object.keys(SOLO).map(id => [id, 'solo']), ...party.map(id => [id, 'party']), ...arcade.filter(id => !party.includes(id)).map(id => [id, 'arcade'])].filter(([id]) => !only || only.includes(id));
     for (const [id, kind] of jobs) {
         try { const b = await record(browser, id, kind); console.log(`ok   ${id.padEnd(13)} ${kind}  ${Math.round(b / 1024)} KB`); }
         catch (e) { console.log(`FAIL ${id} ${e.message.slice(0, 160)}`); }

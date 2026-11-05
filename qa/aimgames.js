@@ -1,7 +1,7 @@
 // ============================================================
 // AIM GAMES — Orbit Putt, Reef Drop and Mirror
 // Lagoon in the browser, on a small phone, plus Rebound's new worlds.
-//   1. the hub has 25 cards (13 of its own, 12 arcade high-score games)
+//   1. the hub has 28 cards (13 of its own, 15 arcade high-score games)
 //   2. each aim game: level 1 opens, a real pull-and-release takes a shot, and
 //      the solver's shots (or a greedy aim, for Reef Drop) clear it on screen
 //      with stars; level 2 opens
@@ -32,7 +32,7 @@ const SHOTS = process.env.QA_SHOTS || '';
 
     await p.click('[data-go="solo"]'); await p.waitForSelector('#scr-solo:not([hidden])');
     const cards = await p.$$eval('#solo-list .card', els => els.map(e => e.dataset.game));
-    check(cards.length === 25 && ['orbit', 'reefdrop', 'mirror', 'snapstrike', 'kartgp'].every(c => cards.includes(c)) && !['cannon', 'snooker'].some(c => cards.includes(c)), `1. the hub: ${cards.length} cards (${cards.join(', ')})`);
+    check(cards.length === 28 && ['orbit', 'reefdrop', 'mirror', 'snapstrike', 'kartgp', 'trivia'].every(c => cards.includes(c)) && !['cannon', 'snooker'].some(c => cards.includes(c)), `1. the hub: ${cards.length} cards (${cards.join(', ')})`);
 
     // 2. the aim games
     const games = [['orbit', 'Orbit', 'OrbitLogic'], ['reefdrop', 'ReefDrop', 'ReefDropLogic']];

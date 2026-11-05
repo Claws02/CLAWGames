@@ -33,7 +33,7 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 ## Solo games (one player)
 
 One home-screen card, **SOLO GAMES** (`src/arcade/SoloHub.js`), opens the Prize Shelf, the solo
-games, and the 12 arcade high-score games from Quick Play (claw-core's parallel games, on the
+games, and the 15 arcade high-score games from Quick Play (the parallel games, on the
 same high-score tables as Quick Play's "1"), each with its best on its card.
 
 **Game cards (`GameCards.js`).** Every card in the solo hub and in the party "Pick a game" grid
