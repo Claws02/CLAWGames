@@ -1,6 +1,6 @@
 // ============================================================
 // AIM SCREEN — the shared screen for the aim-and-shoot games (Orbit Putt,
-// Crab Cannon, Sea Snooker, Glow Reef). A game supplies its logic module;
+// Reef Drop). A game supplies its logic module;
 // this gives it a level picker (by world), pull-back aiming with a power
 // arrow, the fixed-step loop, particles and shake, stars against par, bests
 // and unlocking. aimGame(logic) returns a module SoloHub can mount.
@@ -8,7 +8,8 @@
 // logic: meta, LEVELS [{ name, world?, par, hint? }], WORLDS?, W, H, DT,
 //   begin(lv), shot(lv, s, angle, power), step(lv, s) → events, moving(s), cleared(s),
 //   failed?(lv, s) (out of shots), origin(lv, s) → [x, y], shots(s),
-//   draw(g, P, lv, s, now), react?(ev, fx) (fx.burst(x, y, color, n), fx.shake(n), fx.sfx(name), fx.buzz(p)),
+//   draw(g, P, lv, s, now), react?(ev, fx, s) (fx.burst(x, y, color, n), fx.shake(n), fx.sfx(name), fx.buzz(p)),
+//   preview?(lv, s, angle, power) → [[x, y]…] (dots drawn while aiming),
 //   hud(lv, s) → text, intro (the picker's line), starsFor?(lv, s) (else par-based)
 // ============================================================
 import * as Solo from './SoloStats.js';
@@ -104,7 +105,7 @@ export function aimGame(logic) {
             const dt = Math.min(0.1, (now - last) / 1000); last = now;
             if (logic.moving(_s)) {
                 wasMoving = true; acc += dt;
-                while (acc >= DT && logic.moving(_s)) { acc -= DT; const ev = logic.step(_lv, _s); if (logic.react) logic.react(ev, fx); }
+                while (acc >= DT && logic.moving(_s)) { acc -= DT; const ev = logic.step(_lv, _s); if (logic.react) logic.react(ev, fx, _s); }
             } else { acc = 0; if (wasMoving) { wasMoving = false; settled(); } }
             for (const p of _parts) { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; }
             _parts = _parts.filter(p => p.t < p.life);
@@ -159,6 +160,15 @@ export function aimGame(logic) {
             g.strokeStyle = '#ffd23f'; g.lineWidth = 5; g.lineCap = 'round'; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
             g.fillStyle = '#ffd23f'; g.beginPath(); g.arc(x1, y1, 6, 0, 7); g.fill();
             g.fillStyle = 'rgba(255,255,255,.85)'; g.font = '900 12px Nunito, sans-serif'; g.textAlign = 'center'; g.fillText(`${Math.round(a.power * 100)}%`, x1, y1 - 12);
+            if (logic.preview) {   // the first moment of the shot, as fading dots (over the arrow)
+                const pts = logic.preview(_lv, _s, a.angle, a.power);
+                pts.forEach(([x, y], k) => {
+                    g.globalAlpha = 0.95 * (1 - k / (pts.length + 2));
+                    g.fillStyle = '#fff'; g.strokeStyle = 'rgba(30,27,75,.8)'; g.lineWidth = 1.5;
+                    g.beginPath(); g.arc(P(x), P(y), Math.max(1.6, 4 - k * 0.22), 0, 7); g.fill(); g.stroke();
+                });
+                g.globalAlpha = 1;
+            }
         }
         g.restore();
     }

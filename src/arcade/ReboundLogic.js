@@ -183,8 +183,8 @@ export function settle(lv, s, maxSteps = 120 * 20) {
  * The fewest flicks a search finds to clear the level (up to maxDepth), and
  * the flicks themselves. A beam search over a grid of angles and powers.
  */
-export function solve(lv, { maxDepth = 4, angles = 120, powers = [0.3, 0.5, 0.7, 0.9, 1], beam = 8 } = {}) {
-    let frontier = [{ s: begin(lv), path: [] }];
+export function solve(lv, { maxDepth = 4, angles = 120, powers = [0.3, 0.5, 0.7, 0.9, 1], beam = 8, from = null } = {}) {
+    let frontier = [{ s: from ? copy(from) : begin(lv), path: [] }];
     const score = s => s.popped.filter(Boolean).length * 10 + (s.open ? 3 : 0) + s.coral.filter(h => h === 0).length * 2;
     for (let depth = 1; depth <= maxDepth; depth++) {
         const next = [];

@@ -7,18 +7,12 @@
 // drag it down; the streaks show which way. Best score is kept.
 // ============================================================
 import * as Solo from './SoloStats.js';
+import * as K from './KiteLogic.js';
 import * as Audio from '../claw-core/engine/AudioManager.js';
 
 export const meta = { id: 'kite', icon: '🪁', title: 'Kite Wind', blurb: 'Tap to tug the kite up. Fly through rings for a combo, dodge gulls, ride the gusts.' };
 
-export const T = {
-    top: 0.06, ground: 0.9,
-    tug: 0.62, gravity: 1.15, maxFall: 0.95,
-    gust: 0.75,                         // strongest gust, as an acceleration (H/s²)
-    speed: 0.3, speedUp: 50, maxMul: 2.2,
-    gap: 1.0,                           // seconds between rings/gulls (at ×1)
-    kiteR: 0.028, ringR: 0.075, gullR: 0.03,
-};
+export const T = K.T;
 
 let _el = null, _cv = null, _g = null, _W = 0, _H = 0, _raf = 0, _s = null, _offs = [];
 const _sfx = n => { try { Audio.sfx(n); } catch (e) {} };
@@ -57,7 +51,7 @@ function _size() {
     _W = w; _H = h;
 }
 
-const _fresh = () => ({ y: 0.4, vy: 0, t: 0, score: 0, rings: 0, combo: 1, bestCombo: 1, things: [], next: 0.6, wind: 0, windTo: 0, windT: 2, trail: [], streaks: [], over: false, paused: false, why: '' });
+const _fresh = () => ({ ...K.fresh(), streaks: [], paused: false });
 
 export function start() {
     _s = _fresh();
@@ -82,51 +76,22 @@ function _pause() { _s.paused = true; cancelAnimationFrame(_raf); _overlay('⏸ 
 /** A tug on the string. */
 export function tug() {
     if (!_s || _s.over || _s.paused) return;
-    _s.vy = Math.min(_s.vy, 0) - T.tug;
+    K.tug(_s);
     _sfx('react_go');
 }
 
-/** One step (exported for probes). */
+/** One step (exported for probes). The rules are in KiteLogic.js. */
 export function step(dt) {
     const s = _s;
     if (!s || s.over) return;
-    s.t += dt;
-    // The wind drifts toward a new gust every few seconds.
-    s.windT -= dt;
-    if (s.windT <= 0) { s.windTo = (Math.random() * 2 - 1) * T.gust * Math.min(1, 0.4 + s.t / 60); s.windT = 2 + Math.random() * 3; }
-    s.wind += (s.windTo - s.wind) * Math.min(1, dt * 1.5);
-    s.vy = Math.min(T.maxFall, s.vy + (T.gravity - s.wind) * dt);
-    s.y += s.vy * dt;
-    if (s.y < T.top) { s.y = T.top; s.vy = Math.max(0, s.vy); }
-    if (s.y > T.ground - T.kiteR) return _end('Crashed into the sand!');
-    const mul = Math.min(T.maxMul, 1 + s.t / T.speedUp), dx = T.speed * mul * dt * (_W / _H);
-    s.next -= dt * mul;
-    if (s.next <= 0) { _spawn(); s.next = T.gap * (0.75 + Math.random() * 0.5); }
-    const x0 = 0.3 * _W / _H;
-    for (const o of s.things) {
-        o.x -= dx * (o.kind === 'gull' ? 1.35 : 1);
-        if (o.kind === 'gull') o.y += Math.sin((s.t + o.ph) * 3) * 0.05 * dt;
-        const d = Math.hypot(o.x - x0, o.y - s.y);
-        if (o.kind === 'gull' && d < T.kiteR + T.gullR) return _end('Hit a gull!');
-        if (o.kind === 'ring' && !o.done && d < T.ringR * 0.8) {
-            o.done = true; s.rings++; s.score += 10 * s.combo; s.combo++; s.bestCombo = Math.max(s.bestCombo, s.combo - 1);
-            _sfx(s.combo > 4 ? 'coin_gain' : 'land_good');
-        }
-        if (o.kind === 'ring' && !o.done && !o.missed && o.x < x0 - T.ringR) { o.missed = true; s.combo = 1; }
-    }
-    s.things = s.things.filter(o => o.x > -0.15);
-    s.trail.unshift(s.y); if (s.trail.length > 14) s.trail.pop();
-    // Streaks drifting with the wind
+    const ev = K.step(s, dt, _W / _H, Math.random);
+    if (ev.ring) _sfx(s.combo > 4 ? 'coin_gain' : 'land_good');
+    if (ev.end) { s.over = false; return _end(ev.end); }
+    // streaks drifting with the wind
+    const dx = T.speed * K.mul(s) * dt * (_W / _H);
     if (Math.random() < dt * 14) s.streaks.push({ x: _W / _H + 0.02, y: T.top + Math.random() * (T.ground - T.top) });
     for (const st of s.streaks) { st.x -= dx * 1.8; st.y -= s.wind * dt * 0.25; }
     s.streaks = s.streaks.filter(st => st.x > -0.1);
-}
-
-function _spawn(kind) {
-    const s = _s, x = _W / _H + 0.1;
-    const gullOdds = Math.min(0.5, 0.2 + s.t / 100);
-    if ((kind || (Math.random() < gullOdds ? 'gull' : 'ring')) === 'gull') s.things.push({ kind: 'gull', x, y: T.top + 0.05 + Math.random() * (T.ground - T.top - 0.15), ph: Math.random() * 6 });
-    else s.things.push({ kind: 'ring', x, y: T.top + 0.08 + Math.random() * (T.ground - T.top - 0.2) });
 }
 
 function _end(why) {

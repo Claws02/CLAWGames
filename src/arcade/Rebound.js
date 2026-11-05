@@ -19,7 +19,7 @@ export const meta = { id: 'rebound', icon: '🦪', title: 'Rebound', blurb: 'Pul
 
 // The first level with each new thing says what it does.
 const HINTS = {
-    'Drifting Reef': '🌀 Moving reefs slide while your pearl rolls, and wait while you aim.',
+    'Drifting Reef': '🌀 Moving reefs never stop. Watch them, and time your flick.',
     'Whirlpool': '🌊 Roll into a whirlpool and come out of its twin, going the same way.',
     'Brittle': '🪸 Coral cracks on the first hit and breaks on the second.',
     'Prickly': '🦔 Touch an urchin and your pearl goes back to where that flick started.',
@@ -109,13 +109,17 @@ function _size() {
     _g.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
-// Between flicks the tank still breathes (portals spin, effects fade).
+// Between flicks the tank still breathes (portals spin, effects fade), and the
+// moving reefs keep moving: you see what you're shooting into and time it.
+// The flick starts from wherever they are (the clock is the state's own).
 function _idle() {
     _stopLoop();
     let last = performance.now();
     const tick = now => {
         if (!_s || moving(_s)) return;
-        _animate(Math.min(0.05, (now - last) / 1000)); last = now;
+        const dt = Math.min(0.05, (now - last) / 1000); last = now;
+        if (_lv.movers?.length && !cleared(_s)) _s.t += dt;
+        _animate(dt);
         _draw();
         _raf = requestAnimationFrame(tick);
     };
@@ -260,4 +264,4 @@ function _draw() {
 }
 
 /** Probes: the tank. */
-export const _debug = () => (_s ? { level: _li, daily: _daily, x: _s.x, y: _s.y, flicks: _s.flicks, popped: _s.popped.slice(), moving: moving(_s), cleared: cleared(_s), open: _s.open, coral: _s.coral.slice(), par: _lv.par, name: _lv.name } : null);
+export const _debug = () => (_s ? { level: _li, daily: _daily, t: _s.t, x: _s.x, y: _s.y, flicks: _s.flicks, popped: _s.popped.slice(), moving: moving(_s), cleared: cleared(_s), open: _s.open, coral: _s.coral.slice(), par: _lv.par, name: _lv.name } : null);

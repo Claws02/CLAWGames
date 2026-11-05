@@ -57,6 +57,12 @@ ok(g.over, `piling up over the line ends the game (after ${g.drops} drops)`);
 // The same seed and drops make the same game
 const play = () => { const x = create(rng(9)); for (let i = 0; i < 25; i++) { drop(x, 1 + (i * 1.7) % 5); run(x, 0.6); } return JSON.stringify({ s: x.score, k: kinds(x), p: bodies(x).map(b => b.getPosition().x.toFixed(3)) }); };
 ok(play() === play(), 'the same seed and the same drops make the same game');
+// Only real landings thump (squash): a pile shifting under a new drop used to
+// thump every creature in it, so the whole tank pulsed
+{ const x = create(rng(4)); let lands = 0;
+  for (const [i, k] of [3, 4, 2, 5, 3, 6, 1, 2, 4, 3, 5, 2, 6, 4].entries()) { queue(x, [k, 0]); drop(x, 0.8 + (i * 1.3) % 5.5); lands += run(x, 0.9).filter(e => e.type === 'land').length; }
+  const rest = run(x, 4).filter(e => e.type === 'land').length;
+  ok(lands / 14 < 6 && rest === 0, `about ${(lands / 14).toFixed(1)} thumps per drop (was ~15), none from a resting pile`); }
 
 if (fails) { console.log(`CORAL FAIL — ${fails}`); process.exit(1); }
 console.log('CORAL PASS');

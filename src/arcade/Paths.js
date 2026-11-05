@@ -12,7 +12,7 @@ import * as Audio from '../claw-core/engine/AudioManager.js';
 
 export const meta = { id: 'paths', icon: '🦑', title: 'Rock Pool Paths', blurb: 'Join each pair of critters. Paths can\'t cross, and every square must be used.', daily: true };
 
-let _el = null, _p = null, _paths = [], _draw = -1, _daily = false, _t0 = 0, _timer = 0, _over = false, _offs = [], _setTitle = null;
+let _el = null, _p = null, _paths = [], _draw = -1, _daily = false, _t0 = 0, _timer = 0, _over = false, _offs = [], _setTitle = null, _wasJoined = [];
 const _sfx = n => { try { Audio.sfx(n); } catch (e) {} };
 const _fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
@@ -39,7 +39,7 @@ function _pick() {
 /** A new pool at this level (daily: from today's seed). */
 export function start(level, rnd = Math.random, daily = false) {
     _stop(); _offs.splice(0).forEach(off => off());
-    _p = generate(level, rnd); _paths = _p.ends.map(() => []); _draw = -1; _daily = daily; _over = false;
+    _p = generate(level, rnd); _paths = _p.ends.map(() => []); _draw = -1; _daily = daily; _over = false; _wasJoined = [];
     _setTitle(daily ? 'Rock Pool Paths · Daily' : 'Rock Pool Paths');
     _el.innerHTML = `
         <div class="cs-top"><span class="bfont">${daily ? '📅 DAILY · ' : ''}${LEVELS[level].label}</span><span class="cs-time bfont" id="pp-time">0:00</span><button class="ghost-btn bfont" id="btn-pp-clear">CLEAR</button></div>
@@ -68,8 +68,10 @@ export function start(level, rnd = Math.random, daily = false) {
 }
 
 function _cellAt(e) {
-    const r = _el.querySelector('#pp-board').getBoundingClientRect(), n = _p.n;
-    const c = Math.floor((e.clientX - r.left) / (r.width / n)), rr = Math.floor((e.clientY - r.top) / (r.height / n));
+    // inside the border: the squares fill the board's inner box evenly
+    const b = _el.querySelector('#pp-board'), r = b.getBoundingClientRect(), n = _p.n;
+    const x = e.clientX - r.left - b.clientLeft, y = e.clientY - r.top - b.clientTop;
+    const c = Math.floor(x / (b.clientWidth / n)), rr = Math.floor(y / (b.clientHeight / n));
     return c < 0 || c >= n || rr < 0 || rr >= n ? -1 : rr * n + c;
 }
 const _pairAt = k => _p.ends.findIndex(([a, b]) => a === k || b === k);
@@ -110,19 +112,25 @@ export function extend(k) {
 export function end() {
     if (_draw < 0) return;
     _draw = -1;
+    _paint();
     if (check(_p.n, _p.ends, _paths).solved) _win();
 }
 
 function _paint() {
     if (!_el) return;
     const n = _p.n, b = _el.querySelector('#pp-board'), c = check(_p.n, _p.ends, _paths);
+    // a pair pops once, when it's joined (the board is redrawn on every move)
+    const nowJoined = _p.ends.map((_, i) => _joined(i)), fresh = nowJoined.map((j, i) => j && !_wasJoined[i]);
+    _wasJoined = nowJoined;
     let cells = '';
     for (let k = 0; k < n * n; k++) {
         const pair = _pairAt(k), i = c.used.has(k) ? c.used.get(k) : -1;
-        cells += `<span class="pp-sq" style="${i >= 0 ? `background:${COLORS[i]}33` : ''}">${pair >= 0 ? `<b class="pp-end${_joined(pair) ? ' on' : ''}" style="background:${COLORS[pair]}">${CRITTERS[pair]}</b>` : ''}</span>`;
+        const d = Math.floor(k / n) + (k % n);   // the win ripple runs corner to corner
+        cells += `<span class="pp-sq${i >= 0 ? ' used' : ''}" style="--d:${d};${i >= 0 ? `--fill:linear-gradient(150deg, ${COLORS[i]}55, ${COLORS[i]}99)` : ''}">${pair >= 0 ? `<b class="pp-end${nowJoined[pair] ? ' on' : ''}${fresh[pair] ? ' pop' : ''}${_draw === pair && !_joined(pair) ? ' drawing' : ''}" style="background:${COLORS[pair]}">${CRITTERS[pair]}</b>` : ''}</span>`;
     }
     // The paths, as thick lines through the squares' centres.
-    const lines = _paths.map((p, i) => (p.length > 1 ? `<polyline points="${p.map(k => `${(k % n) + 0.5},${Math.floor(k / n) + 0.5}`).join(' ')}" stroke="${COLORS[i]}" />` : '')).join('');
+    const pts = p => p.map(k => `${(k % n) + 0.5},${Math.floor(k / n) + 0.5}`).join(' ');
+    const lines = _paths.map((p, i) => (p.length > 1 ? `<polyline class="pp-edge" points="${pts(p)}" /><polyline class="pp-line" points="${pts(p)}" stroke="${COLORS[i]}" /><polyline class="pp-shine" points="${pts(p)}" />` : '')).join('');
     b.innerHTML = cells + `<svg class="pp-svg" viewBox="0 0 ${n} ${n}" preserveAspectRatio="none">${lines}</svg>`;
     const joined = _p.ends.filter((_, i) => _joined(i)).length;
     _el.querySelector('#pp-status').textContent = `🔗 ${joined} of ${_p.ends.length} joined · ${Math.round((c.used.size / (n * n)) * 100)}% of the pool`;
@@ -131,6 +139,7 @@ function _paint() {
 function _win() {
     _over = true; _stop();
     const t = (performance.now() - _t0) / 1000;
+    _el.querySelector('#pp-board').classList.add('won');
     Solo.bump('pathsWins');
     if (_p.level === 'hard') Solo.bump('pathsHard');
     const isBest = !_daily && Solo.record(`paths:${_p.level}`, Math.round(t * 10) / 10, 'low');

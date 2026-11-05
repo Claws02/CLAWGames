@@ -42,15 +42,21 @@ export function create(rnd = Math.random) {
         sinceBubble: 0, next: 0, after: 0, events: [], merges: 0, bigMerges: 0 };
     g.next = _spawn(g); g.after = _spawn(g);
     // Landing thumps (for squash and stretch) and bubbles touching down.
+    // Only the first solve of a NEW contact is a landing: a creature resting in
+    // the pile is solved every step (it carries the weight above it), and
+    // treating that as a thump made the whole pile pulse.
     world.on('post-solve', (c, imp) => {
+        if (!c.__fresh) return;
+        c.__fresh = false;
         const n = imp.normalImpulses[0] || 0;
-        if (n < 1.2) return;
+        if (n < 2.5) return;
         for (const b of [c.getFixtureA().getBody(), c.getFixtureB().getBody()]) {
             const d = b.getUserData();
             if (d && d.kind !== undefined && g.t - (d.thumpAt || -9) > 0.25) { d.thumpAt = g.t; d.thump = Math.min(1, n / 8); g.events.push({ type: 'land', id: d.id, power: d.thump }); }
         }
     });
     world.on('begin-contact', c => {
+        c.__fresh = true;
         for (const b of [c.getFixtureA().getBody(), c.getFixtureB().getBody()]) {
             const d = b.getUserData();
             if (d && d.kind === BUBBLE && d.popAt == null) d.popAt = g.t + POP_DELAY;

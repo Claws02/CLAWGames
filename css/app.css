@@ -810,12 +810,34 @@ body.tv #tv-seats { display: grid; grid-template-columns: repeat(auto-fill, minm
 .if-pad { display: grid; grid-template-columns: repeat(4, auto); justify-content: center; gap: 8px; }
 
 /* ---------- Rock Pool Paths ---------- */
-.pp-board { --n: 5; position: relative; display: grid; grid-template-columns: repeat(var(--n), 1fr); width: min(100%, 52vh); aspect-ratio: 1; margin: 6px auto; border: var(--line); border-radius: 14px; overflow: hidden; background: #e0f2fe; touch-action: none; user-select: none; -webkit-user-select: none; }
-.pp-sq { border: 1px solid rgba(43,18,64,.12); display: flex; align-items: center; justify-content: center; }
-.pp-end { position: relative; z-index: 2; width: 74%; height: 74%; border-radius: 50%; border: 3px solid var(--ink); display: flex; align-items: center; justify-content: center; font-size: clamp(14px, 5vw, 26px); }
-.pp-end.on { box-shadow: 0 0 0 4px #fff, 0 0 0 7px var(--ink); }
-.pp-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
-.pp-svg polyline { fill: none; stroke-width: .32; stroke-linecap: round; stroke-linejoin: round; }
+/* Every row and column the same size (minmax(0, 1fr): a critter can't stretch its row), so the
+   squares, the drawn paths and where a finger lands all line up. The tiles are drawn inside
+   each square (::before), so there is no gap to throw the lines off. */
+.pp-board { --n: 5; position: relative; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); grid-template-rows: repeat(var(--n), minmax(0, 1fr));
+    width: min(100%, 52vh); aspect-ratio: 1; margin: 6px auto; border: var(--line); border-radius: 18px; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
+    background: radial-gradient(circle at 20% 15%, rgba(255,255,255,.55), transparent 40%), radial-gradient(circle at 85% 90%, rgba(14,165,233,.35), transparent 45%), linear-gradient(160deg, #7dd3fc, #0ea5e9 70%, #0284c7);
+    box-shadow: inset 0 0 18px rgba(2,132,199,.45); }
+.pp-board::after { content: ''; position: absolute; inset: -40%; pointer-events: none; z-index: 0; opacity: .35;
+    background: repeating-radial-gradient(circle at 30% 30%, transparent 0 18px, rgba(255,255,255,.35) 19px 20px, transparent 21px 38px); animation: pp-ripple 9s linear infinite; }
+@keyframes pp-ripple { from { transform: translate(0, 0) rotate(0); } to { transform: translate(6%, 4%) rotate(8deg); } }
+.pp-sq { position: relative; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.pp-sq::before { content: ''; position: absolute; inset: 2px; border-radius: 22%; z-index: 1; transition: background .18s;
+    background: var(--fill, linear-gradient(150deg, #fef9c3, #fde68a)); box-shadow: inset 0 -3px 0 rgba(161,98,7,.22), inset 0 2px 0 rgba(255,255,255,.6); }
+.pp-sq.used::before { box-shadow: inset 0 -3px 0 rgba(0,0,0,.12), inset 0 2px 0 rgba(255,255,255,.45); }
+.pp-end { position: relative; z-index: 3; width: 74%; height: 74%; border-radius: 50%; border: 3px solid var(--ink); display: flex; align-items: center; justify-content: center;
+    font-size: calc(min(100vw, 52vh) / var(--n) * .42); box-shadow: 0 3px 0 rgba(43,18,64,.35); transition: transform .2s; }
+.pp-end.on { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--ink); }
+.pp-end.pop { animation: pp-pop .35s ease-out; }
+@keyframes pp-pop { 0% { transform: scale(1); } 45% { transform: scale(1.28) rotate(-8deg); } 100% { transform: scale(1); } }
+.pp-end.drawing { animation: pp-wiggle .6s ease-in-out infinite; }
+@keyframes pp-wiggle { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg) scale(1.08); } }
+.pp-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: visible; }
+.pp-svg polyline { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.pp-svg .pp-edge { stroke: rgba(43,18,64,.55); stroke-width: .4; }
+.pp-svg .pp-line { stroke-width: .3; }
+.pp-svg .pp-shine { stroke: rgba(255,255,255,.55); stroke-width: .07; transform: translate(-.04px, -.05px); }
+.pp-board.won .pp-sq::before { animation: pp-wave .7s ease-out both; animation-delay: calc(var(--d) * 45ms); }
+@keyframes pp-wave { 0% { transform: scale(1); } 40% { transform: scale(.82); filter: brightness(1.35); } 100% { transform: scale(1); } }
 
 /* ---------- Coral Merge ---------- */
 .cm-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }

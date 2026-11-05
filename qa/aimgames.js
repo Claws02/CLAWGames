@@ -1,7 +1,7 @@
 // ============================================================
-// AIM GAMES — Orbit Putt, Crab Cannon, Sea Snooker, Reef Drop and Mirror
+// AIM GAMES — Orbit Putt, Reef Drop and Mirror
 // Lagoon in the browser, on a small phone, plus Rebound's new worlds.
-//   1. the hub has 15 cards, the new games among them
+//   1. the hub has 13 cards, the new games among them
 //   2. each aim game: level 1 opens, a real pull-and-release takes a shot, and
 //      the solver's shots (or a greedy aim, for Reef Drop) clear it on screen
 //      with stars; level 2 opens
@@ -32,10 +32,10 @@ const SHOTS = process.env.QA_SHOTS || '';
 
     await p.click('[data-go="solo"]'); await p.waitForSelector('#scr-solo:not([hidden])');
     const cards = await p.$$eval('#solo-list .hub-card', els => els.map(e => e.dataset.game));
-    check(cards.length === 15 && ['orbit', 'cannon', 'snooker', 'reefdrop', 'mirror'].every(c => cards.includes(c)), `1. the hub: ${cards.length} cards (${cards.join(', ')})`);
+    check(cards.length === 13 && ['orbit', 'reefdrop', 'mirror'].every(c => cards.includes(c)) && !['cannon', 'snooker'].some(c => cards.includes(c)), `1. the hub: ${cards.length} cards (${cards.join(', ')})`);
 
     // 2. the aim games
-    const games = [['orbit', 'Orbit', 'OrbitLogic'], ['cannon', 'Cannon', 'CannonLogic'], ['snooker', 'Snooker', 'SnookerLogic'], ['reefdrop', 'ReefDrop', 'ReefDropLogic']];
+    const games = [['orbit', 'Orbit', 'OrbitLogic'], ['reefdrop', 'ReefDrop', 'ReefDropLogic']];
     for (const [id, screen, logic] of games) {
         await p.click(`#solo-list [data-game="${id}"]`);
         await p.click('.rb-lv[data-i="0"]');
@@ -91,6 +91,13 @@ const SHOTS = process.env.QA_SHOTS || '';
     await p.click('#solo-list [data-game="rebound"]');
     const worlds = await p.$$eval('.rb-world .panel-h', els => els.map(e => e.textContent.trim().split('★')[0].trim()));
     check(worlds.length === 4 && (await p.$$('.rb-lv')).length === 32, `4. Rebound: ${worlds.join(' · ')}, 32 tanks`);
+    // a moving reef moves while you aim, before any flick
+    const mv = await p.evaluate(async () => {
+        const R = await import('/src/arcade/Rebound.js'); R.play(8);
+        const a = R._debug().t; await new Promise(r => setTimeout(r, 700)); const b = R._debug();
+        return { a, b: b.t, flicks: b.flicks, name: b.name };
+    });
+    check(mv.b - mv.a > 0.4 && mv.flicks === 0, `   ${mv.name}: the reef moves before the first flick (clock ${mv.a.toFixed(2)} → ${mv.b.toFixed(2)})`);
     await hub();
     await p.evaluate(() => import('/src/arcade/SoloHub.js').then(H => H.playDaily('rebound')));
     await p.waitForSelector('#rb-cv');
