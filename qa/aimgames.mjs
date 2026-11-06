@@ -42,7 +42,28 @@ const UP = -Math.PI / 2;
   const wl = D.LEVELS.find(l => l.name === 'Turning Wheel'), ws = D.begin(wl), wp = ws.pegs.find(p => p.orbit);
   const a0 = D.pegAt(wp, ws.t); D.idle(wl, ws, 0.5); const a1 = D.pegAt(wp, ws.t);
   D.shot(wl, ws, 1, 0.5); const t0 = ws.t; D.idle(wl, ws, 1);
-  ok(Math.hypot(a1[0] - a0[0], a1[1] - a0[1]) > 0.05 && ws.t === t0, `Reef Drop: a wheel turns while you aim (moved ${Math.hypot(a1[0] - a0[0], a1[1] - a0[1]).toFixed(2)}), the clock holds mid-drop`); }
+  ok(Math.hypot(a1[0] - a0[0], a1[1] - a0[1]) > 0.05 && ws.t === t0, `Reef Drop: a wheel turns while you aim (moved ${Math.hypot(a1[0] - a0[0], a1[1] - a0[1]).toFixed(2)}), the clock holds mid-drop`);
+  // a puffer swells on the first hit and bursts on the second, popping what's around it (wider than an eel)
+  const pf = { pegs: [{ x: 0.5, y: 0.6, kind: 'p' }, { x: 0.5 + D.ZAP_R + 0.03, y: 0.6, kind: 'c' }, { x: 0.5 - 0.2, y: 0.62, kind: 'o' }] };
+  const p1 = D.begin(pf); D.shot(pf, p1, Math.PI / 2, 0.2); let puffed = false; for (let i = 0; i < 2400 && p1.flying && !puffed; i++) puffed = D.step(pf, p1).puffed.length > 0;
+  const p2 = D.begin(pf); p2.pegs[0].hp = 1; D.shot(pf, p2, Math.PI / 2, 0.2); let burst = 0; for (let i = 0; i < 2400 && p2.flying; i++) burst += D.step(pf, p2).burst.length;
+  ok(puffed && p1.pegs[0].alive && burst === 1 && !p2.pegs[1].alive && p2.pegs[2].hp === 1, `Reef Drop: a puffer swells, then bursts, popping coral ${(D.ZAP_R + 0.03).toFixed(2)} away (past an eel's reach) and cracking an oyster`);
+  // a treasure chest doubles the shot
+  const ch = { pegs: [{ x: 0.5, y: 0.6, kind: 't' }, { x: 0.5, y: 0.9, kind: 'c' }], crab: { a: 0.3, ph: Math.PI / 2, period: 1000 } };
+  const c3 = D.begin(ch); D.shot(ch, c3, Math.PI / 2, 0.2); D.settle(ch, c3);
+  ok(c3.double && c3.score === (50 + 20) * 2, `Reef Drop: a treasure chest makes the shot score double (${c3.score})`);
+  // a whirlpool: in one, out of its twin
+  const wh = { pegs: [], whirls: [[0.5, 0.4, 0.2, 0.9]], crab: { a: 0 } };
+  const w1 = D.begin(wh); D.shot(wh, w1, Math.PI / 2, 0.2); let warped = false, at = null; for (let i = 0; i < 2400 && w1.flying; i++) { const ev = D.step(wh, w1); if (ev.warped && !warped) { warped = true; at = [w1.x, w1.y]; } }
+  ok(warped && Math.hypot(at[0] - 0.2, at[1] - 0.9) < 0.1, `Reef Drop: a whirlpool sends the pearl out of its twin (at ${at ? at.map(v => v.toFixed(2)).join(', ') : '—'})`);
+  // a bubble lift pushes the pearl back up
+  const lf = { pegs: [], lifts: [[0.5, 0.3, 1.1, 0.1]] }, l1 = D.begin(lf); D.shot(lf, l1, Math.PI / 2, 0.2);
+  let rose = false; for (let i = 0; i < 2400 && l1.flying; i++) { D.step(lf, l1); if (l1.y > 0.6 && l1.vy < -0.3) rose = true; }
+  ok(rose && !l1.flying, 'Reef Drop: a bubble lift pushes the pearl back up (and lets it go in the end)');
+  // a pearl resting on something sinks through to the sand: none is ever stuck
+  const cup = { pegs: [{ x: 0.47, y: 0.8, kind: 'r' }, { x: 0.53, y: 0.8, kind: 'r' }] }, cu = D.begin(cup); D.shot(cup, cu, Math.PI / 2, 0.05);
+  cu.x = 0.5; cu.y = 0.75; cu.vx = 0; cu.vy = 0; let n = 0; for (; n < 120 * 10 && cu.flying; n++) D.step(cup, cu);
+  ok(!cu.flying && n < 120 * 3, `Reef Drop: a pearl sitting between two rocks sinks through after a second (${(n / 120).toFixed(1)}s)`); }
 
 // ---- every level ----
 for (const [name, G] of [['Orbit Putt', O]]) {
@@ -58,7 +79,10 @@ for (const [i, lv] of D.LEVELS.entries()) {
         for (let a = 0; a < 60; a++) for (const pw of [0.3, 0.6, 1]) { const c = D.copy(s), ang = 0.05 + (a / 60) * (Math.PI - 0.1); D.shot(lv, c, ang, pw); D.settle(lv, c); const sc = D.score(lv, c); if (!best || sc > best.sc) best = { sc, ang, pw }; }
         D.shot(lv, s, best.ang, best.pw); D.settle(lv, s);
     }
-    ok(D.cleared(s) && s.left >= 5, `Reef Drop ${i + 1}. ${lv.name}: won with ${s.left} pearls left (★★★ needs 5)`);
+    // and no drop gets stuck (random drops at random moments land within 20 s)
+    let worst = 0; const r = (k => () => (k = (k * 16807) % 2147483647) / 2147483647)(i + 9);
+    for (let k = 0; k < 40; k++) { const t = D.begin(lv); D.idle(lv, t, r() * 6); D.shot(lv, t, 0.05 + r() * 3.04, r()); let n = 0; while (t.flying && n < 120 * 30) { D.step(lv, t); n++; } worst = Math.max(worst, n / 120); }
+    ok(D.cleared(s) && s.left >= 5 && D.lowest(lv) <= D.CLEAR_Y + 1e-9 && worst < 20, `Reef Drop ${i + 1}. ${lv.name}: won with ${s.left} pearls left (★★★ needs 5); clear above Shelly (lowest ${D.lowest(lv).toFixed(2)}); longest drop ${worst.toFixed(1)}s`);
 }
 // ---- Mirror Lagoon: the rules ----
 { const [S, F, B, V] = [0, 1, 2, 3];   // ╱ — ╲ │
