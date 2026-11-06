@@ -15,7 +15,7 @@ import { aimGame } from './AimScreen.js';
 
 const rnd = (i, k) => { const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
 const BUBBLES = Array.from({ length: 26 }, (_, i) => ({ x: rnd(i, 1), sp: 0.05 + rnd(i, 2) * 0.08, r: 1.5 + rnd(i, 3) * 3, ph: rnd(i, 4) * 10 }));
-let _zaps = [], _pops = [], _banner = null, _crab = { mood: '', t: 0, x: 0.5, dir: 1 }, _squish = new Map(), _launch = 0;
+let _bursts = [], _warps = [], _zaps = [], _pops = [], _banner = null, _crab = { mood: '', t: 0, x: 0.5, dir: 1 }, _squish = new Map(), _launch = 0;
 
 const now = () => performance.now() / 1000;
 const say = (text, color = '#fff', big = false) => { _banner = { text, color, big, t: now() }; };
@@ -61,6 +61,56 @@ function eel(g, x, y, r, t) {
     g.fillStyle = '#fde047'; g.font = `${Math.round(r * 1.15)}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.globalAlpha = 0.7 + 0.3 * Math.sin(t * 10 + x * 20); g.fillText('⚡', 0, 1); g.globalAlpha = 1;
     g.restore();
+}
+function puffer(g, x, y, r, hp, t) {
+    // a pufferfish: small and spiky, then swollen and twitchy after the first hit
+    const big = hp === 1, R = r * (big ? 1.35 + Math.sin(t * 14) * 0.06 : 1);
+    g.save(); g.translate(x, y);
+    g.strokeStyle = '#a16207'; g.lineWidth = 2;
+    for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; g.beginPath(); g.moveTo(Math.cos(a) * R * 0.85, Math.sin(a) * R * 0.85); g.lineTo(Math.cos(a) * R * 1.25, Math.sin(a) * R * 1.25); g.stroke(); }
+    const body = g.createRadialGradient(-R * 0.3, -R * 0.35, 1, 0, 0, R);
+    body.addColorStop(0, '#fef9c3'); body.addColorStop(1, big ? '#f97316' : '#facc15');
+    g.fillStyle = body; g.strokeStyle = '#78350f'; g.beginPath(); g.arc(0, 0, R, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(-R * 0.35, -R * 0.2, R * 0.28, 0, 7); g.arc(R * 0.35, -R * 0.2, R * 0.28, 0, 7); g.fill();
+    g.fillStyle = '#111'; g.beginPath(); g.arc(-R * 0.3, -R * 0.18, R * 0.13, 0, 7); g.arc(R * 0.3, -R * 0.18, R * 0.13, 0, 7); g.fill();
+    g.strokeStyle = '#78350f'; g.lineWidth = 1.6; g.beginPath(); if (big) g.arc(0, R * 0.32, R * 0.16, 0, 7); else g.arc(0, R * 0.2, R * 0.18, 0.2, Math.PI - 0.2); g.stroke();
+    g.restore();
+}
+function chest(g, x, y, r, t) {
+    // a little treasure chest, glinting
+    g.save(); g.translate(x, y);
+    const gl = g.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 2); gl.addColorStop(0, `rgba(253,224,71,${0.35 + 0.2 * Math.sin(t * 4 + x)})`); gl.addColorStop(1, 'rgba(253,224,71,0)');
+    g.fillStyle = gl; g.beginPath(); g.arc(0, 0, r * 2, 0, 7); g.fill();
+    g.fillStyle = '#92400e'; g.strokeStyle = '#451a03'; g.lineWidth = 2;
+    g.beginPath(); g.rect(-r, -r * 0.2, r * 2, r * 1.05); g.fill(); g.stroke();
+    g.fillStyle = '#b45309'; g.beginPath(); g.moveTo(-r, -r * 0.2); g.quadraticCurveTo(0, -r * 1.1, r, -r * 0.2); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#fbbf24'; g.fillRect(-r, -r * 0.28, r * 2, r * 0.18); g.fillRect(-r * 0.18, -r * 0.4, r * 0.36, r * 0.75);
+    if (Math.sin(t * 3 + x * 9) > 0.9) { g.fillStyle = '#fff'; g.font = `${Math.round(r)}px sans-serif`; g.textAlign = 'center'; g.fillText('✦', r * 0.6, -r * 0.6); }
+    g.restore();
+}
+function whirl(g, x, y, r, t, hue, dir) {
+    // a whirlpool: a glowing spiral turning
+    g.save(); g.translate(x, y);
+    const gl = g.createRadialGradient(0, 0, 1, 0, 0, r * 1.6); gl.addColorStop(0, `hsla(${hue},90%,75%,.6)`); gl.addColorStop(1, `hsla(${hue},90%,60%,0)`);
+    g.fillStyle = gl; g.beginPath(); g.arc(0, 0, r * 1.6, 0, 7); g.fill();
+    for (let arm = 0; arm < 3; arm++) {
+        g.strokeStyle = `hsla(${hue},95%,${70 + arm * 8}%,.9)`; g.lineWidth = 2.5; g.beginPath();
+        for (let k = 0; k <= 20; k++) { const f = k / 20, a = dir * t * 4 + arm * 2.094 + f * 4.5, rr = r * (1.2 - f); k ? g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : g.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+        g.stroke();
+    }
+    g.fillStyle = '#082f49'; g.beginPath(); g.arc(0, 0, r * 0.25, 0, 7); g.fill();
+    g.restore();
+}
+function lift(g, P, lx, top, bottom, w, t) {
+    // a bubble lift: a shimmering column and bubbles streaming up
+    const x0 = P(lx - w / 2), wd = P(w), y0 = P(top), ht = P(bottom - top);
+    const col = g.createLinearGradient(x0, 0, x0 + wd, 0); col.addColorStop(0, 'rgba(186,230,253,0)'); col.addColorStop(0.5, 'rgba(186,230,253,.22)'); col.addColorStop(1, 'rgba(186,230,253,0)');
+    g.fillStyle = col; g.fillRect(x0, y0, wd, ht);
+    for (let k = 0; k < 9; k++) {
+        const f = ((t * 0.55 + k / 9) % 1), by = y0 + ht * (1 - f), bx = x0 + wd * (0.3 + 0.4 * ((k * 37) % 10) / 10) + Math.sin(t * 5 + k) * 3;
+        g.strokeStyle = `rgba(255,255,255,${0.8 * (1 - f * 0.6)})`; g.lineWidth = 1.5; g.beginPath(); g.arc(bx, by, 2 + (k % 3), 0, 7); g.stroke();
+    }
+    g.fillStyle = 'rgba(255,255,255,.6)'; g.font = `${Math.round(wd * 0.5)}px sans-serif`; g.textAlign = 'center'; g.fillText('⬆', x0 + wd / 2, P(bottom) - 4);
 }
 function rock(g, x, y, r, i) {
     g.save(); g.translate(x, y);
@@ -181,7 +231,7 @@ function scene(g, P, t) {
 
 const game = aimGame({
     ...L,
-    meta: { id: 'reefdrop', icon: '🪸', title: 'Reef Drop', blurb: 'Drop pearls into a moving reef. Free every sleepy oyster, and land pearls in Shelly the hermit crab\'s shell to get them back. 18 reefs.' },
+    meta: { id: 'reefdrop', icon: '🪸', title: 'Reef Drop', blurb: 'Drop pearls into a moving reef. Free every sleepy oyster, and land pearls in Shelly the hermit crab\'s shell to get them back. 30 reefs.' },
     intro: 'Pull back to aim, let go to drop a pearl. Hit every <b>oyster twice</b> to free it. ⚡ Eels zap what\'s near them. 🦀 Land a pearl in <b>Shelly\'s shell</b> and you get it back!',
     hud: (lv, s) => `🦪 ${s.pegs.filter(p => p.kind === 'o' && p.alive).length} · 🫧 ${s.left} · ${s.score}`,
     doneText: (lv, s) => `${s.score} points · ${s.left} pearl${s.left === 1 ? '' : 's'} left${s.caught ? ` · Shelly caught ${s.caught}` : ''}`,
@@ -200,9 +250,14 @@ const game = aimGame({
         if (ev.landed === 'crab') { _crab = { ..._crab, mood: 'yum', t }; fx.sfx('win'); fx.buzz([30, 30, 60]); fx.burst(s.x, L.FLOOR_Y - 0.03, '#fde047', 24, 0.6); say(`🦀 CAUGHT! ×${L.CATCH_X}`, '#fde047', true); }
         else if (ev.landed === 'sand') { fx.sfx('dice_land'); if (Math.abs(s.x - _crab.x) < 0.22) _crab = { ..._crab, mood: 'aww', t }; }
         if (ev.bonus) { say('🫧 BIG CHAIN! +1 PEARL', '#fff', true); fx.buzz([40, 30, 80]); }
+        ev.puffed.forEach(p => { const [x, y] = L.pegAt(p, s.t); fx.burst(x, y, '#fde047', 6, 0.25); fx.sfx('boost'); fx.buzz(15); });
+        ev.burst.forEach(p => { const [x, y] = L.pegAt(p, s.t); _bursts.push({ x, y, t }); fx.burst(x, y, '#fb923c', 26, 0.8); fx.shake(9); fx.sfx('win'); fx.buzz([30, 20, 60]); });
+        if (ev.burst.length) say(ev.burst.length > 1 ? `🐡 CHAIN BURST ×${ev.burst.length}!` : '🐡 KABOOM!', '#fb923c', true);
+        if (ev.chest.length) { const [x, y] = L.pegAt(ev.chest[0], s.t); fx.burst(x, y, '#fbbf24', 28, 0.7); fx.sfx('coin_gain'); say('💰 TREASURE! THIS SHOT ×2', '#fde047', true); }
+        if (ev.warped) { _warps.push({ x: s.x, y: s.y, t }); fx.sfx('gate_open'); }
     },
     draw(g, P, lv, s, t) {
-        if (lv.name !== _name) { _name = lv.name; _pops = []; _zaps = []; _banner = null; _crab = { mood: '', t: 0, x: L.crabX(lv, s.t), dir: 1 }; _squish = new Map(); }
+        if (lv.name !== _name) { _name = lv.name; _pops = []; _zaps = []; _bursts = []; _warps = []; _banner = null; _crab = { mood: '', t: 0, x: L.crabX(lv, s.t), dir: 1 }; _squish = new Map(); }
         if (s.flying && !_wasFlying) _launch = t;
         _wasFlying = s.flying;
         const w = P(L.W);
@@ -215,6 +270,9 @@ const game = aimGame({
         g.save(); g.rotate(-open * 0.6); g.beginPath(); g.arc(0, 0, 17, Math.PI, 0); g.fillStyle = '#f9a8d4'; g.fill(); g.stroke(); g.restore();
         if (!s.flying && !L.failed(lv, s) && !L.cleared(s)) { g.fillStyle = '#fff7ed'; g.beginPath(); g.arc(0, 4, P(L.R), 0, 7); g.fill(); g.strokeStyle = '#2b1240'; g.lineWidth = 2; g.stroke(); }
         g.restore();
+        // bubble lifts and whirlpools (each pair shares a colour)
+        for (const [lx, top, bottom, w] of lv.lifts || []) lift(g, P, lx, top, bottom, w, t);
+        (lv.whirls || []).forEach(([ax, ay, bx, by], k) => { const hue = [190, 280, 140][k % 3]; whirl(g, P(ax), P(ay), P(L.WHIRL_R), t, hue, 1); whirl(g, P(bx), P(by), P(L.WHIRL_R), t, hue, -1); });
         // jellyfish
         for (const j of lv.jellies || []) {
             const [jx, jy, jr] = L.jellyAt(j, s.t);
@@ -233,6 +291,8 @@ const game = aimGame({
             if (p.kind === 'c') coral(g, x, y + wob, r, wob);
             else if (p.kind === 'o') oyster(g, x, y + wob * 0.6, r, p.hp, t);
             else if (p.kind === 'e') eel(g, x, y + wob, r, t);
+            else if (p.kind === 'p') puffer(g, x, y + wob, r, p.hp, t);
+            else if (p.kind === 't') chest(g, x, y + wob * 0.5, r, t);
             else rock(g, x, y, r, i);
         });
         // pops: a puff and the points, floating up
@@ -247,6 +307,10 @@ const game = aimGame({
             g.globalAlpha = 1;
         }
         // zaps: a crackle round each eel that went off
+        _bursts = _bursts.filter(b => t - b.t < 0.5);
+        for (const b of _bursts) { const k = (t - b.t) / 0.5; g.strokeStyle = `rgba(251,146,60,${1 - k})`; g.lineWidth = 6 * (1 - k) + 1; g.beginPath(); g.arc(P(b.x), P(b.y), P(L.BOMB_R) * (0.3 + k * 0.8), 0, 7); g.stroke(); g.fillStyle = `rgba(254,240,138,${0.35 * (1 - k)})`; g.fill(); }
+        _warps = _warps.filter(w => t - w.t < 0.4);
+        for (const w of _warps) { const k = (t - w.t) / 0.4; g.strokeStyle = `rgba(165,243,252,${1 - k})`; g.lineWidth = 3; g.beginPath(); g.arc(P(w.x), P(w.y), P(L.WHIRL_R) * (1 + k * 2), 0, 7); g.stroke(); }
         _zaps = _zaps.filter(z => t - z.t < 0.4);
         for (const z of _zaps) {
             g.strokeStyle = `rgba(253,224,71,${1 - (t - z.t) / 0.4})`; g.lineWidth = 2.5;
@@ -265,6 +329,7 @@ const game = aimGame({
             const pg = g.createRadialGradient(P(s.x) - 3, P(s.y) - 3, 1, P(s.x), P(s.y), P(L.R)); pg.addColorStop(0, '#fff'); pg.addColorStop(1, '#fbcfe8');
             g.fillStyle = pg; g.beginPath(); g.arc(P(s.x), P(s.y), P(L.R), 0, 7); g.fill(); g.strokeStyle = '#2b1240'; g.lineWidth = 2; g.stroke();
         } else _trail = [];
+        if (s.flying && s.double) { g.font = '900 16px "Bebas Neue", Nunito, sans-serif'; g.fillStyle = '#fde047'; g.strokeStyle = '#2b1240'; g.lineWidth = 3; g.textAlign = 'center'; g.strokeText('×2', P(s.x) + 16, P(s.y) - 12); g.fillText('×2', P(s.x) + 16, P(s.y) - 12); }
         // the chain while it grows, and banners
         if (s.flying && s.chain > 1) {
             const sc = 1 + Math.min(0.6, s.chain * 0.03);

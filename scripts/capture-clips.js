@@ -56,10 +56,10 @@ const SOLO = {
         await wait(300);
         for (const [a, p] of window.__path) { G.shoot(a, p); await wait(150); while (G._debug().moving) await wait(80); await wait(300); }
     } },
-    reefdrop: { open: 'reefdrop', sel: '#ag-cv', prep: async () => { (await import('/src/arcade/ReefDrop.js')).play(16); }, play: async () => {
+    reefdrop: { open: 'reefdrop', sel: '#ag-cv', prep: async () => { (await import('/src/arcade/ReefDrop.js')).play(29); }, play: async () => {
         const G = await import('/src/arcade/ReefDrop.js'), L = await import('/src/arcade/ReefDropLogic.js');
         for (let n = 0; n < 3; n++) {
-            const s = G._debug().state, lv = L.LEVELS[16]; let best = null;
+            const s = G._debug().state, lv = L.LEVELS[29]; let best = null;
             for (let a = 0; a < 40; a++) for (const pw of [0.3, 0.6, 1]) { const c = L.copy(s), ang = 0.05 + (a / 40) * (Math.PI - 0.1); L.shot(lv, c, ang, pw); L.settle(lv, c); const sc = L.score(lv, c); if (!best || sc > best.sc) best = { sc, ang, pw }; }
             G.shoot(best.ang, best.pw); await wait(150); while (G._debug().moving) await wait(80); await wait(200);
         }
