@@ -112,6 +112,23 @@ function lift(g, P, lx, top, bottom, w, t) {
     }
     g.fillStyle = 'rgba(255,255,255,.6)'; g.font = `${Math.round(wd * 0.5)}px sans-serif`; g.textAlign = 'center'; g.fillText('⬆', x0 + wd / 2, P(bottom) - 4);
 }
+function angler(g, P, a, t, pull) {
+    // an anglerfish: a dark round fish with teeth, a lure on a stalk glowing over it, and its reach as a soft ring
+    const [x, y, reach] = a, X = P(x), Y = P(y), R = P(L.ANGLER_R);
+    for (let k = 0; k < 3; k++) { const f = ((t * 0.5 + k / 3) % 1); g.strokeStyle = `rgba(253,224,71,${0.14 * (1 - f) + pull * 0.1})`; g.lineWidth = 2; g.beginPath(); g.arc(X, Y, P(reach) * (1 - f * 0.8), 0, 7); g.stroke(); }
+    g.save(); g.translate(X, Y);
+    const body = g.createRadialGradient(-R * 0.3, -R * 0.3, 1, 0, 0, R * 1.2); body.addColorStop(0, '#475569'); body.addColorStop(1, '#0f172a');
+    g.fillStyle = body; g.strokeStyle = '#020617'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(R * 1.1, 0); g.lineTo(R * 1.7, -R * 0.6); g.lineTo(R * 1.7, R * 0.6); g.closePath(); g.fill();   // tail
+    g.beginPath(); g.arc(0, 0, R * 1.1, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = '#fff'; for (let k = 0; k < 5; k++) { g.beginPath(); g.moveTo(-R * 0.9 + k * R * 0.32, R * 0.35); g.lineTo(-R * 0.75 + k * R * 0.32, R * 0.62); g.lineTo(-R * 0.6 + k * R * 0.32, R * 0.35); g.fill(); }
+    g.fillStyle = '#fde047'; g.beginPath(); g.arc(-R * 0.35, -R * 0.3, R * 0.2, 0, 7); g.fill();
+    g.strokeStyle = '#64748b'; g.lineWidth = 2; const lx = -R * 0.2 + Math.sin(t * 2) * R * 0.3, ly = -R * 2.1 + Math.cos(t * 3) * R * 0.2;
+    g.beginPath(); g.moveTo(0, -R); g.quadraticCurveTo(R * 0.6, -R * 2.2, lx, ly); g.stroke();
+    const glow = g.createRadialGradient(lx, ly, 1, lx, ly, R * (0.9 + pull)); glow.addColorStop(0, 'rgba(254,249,195,1)'); glow.addColorStop(0.4, 'rgba(253,224,71,.8)'); glow.addColorStop(1, 'rgba(253,224,71,0)');
+    g.fillStyle = glow; g.beginPath(); g.arc(lx, ly, R * (0.9 + pull), 0, 7); g.fill();
+    g.restore();
+}
 function rock(g, x, y, r, i) {
     g.save(); g.translate(x, y);
     const f = g.createLinearGradient(0, -r, 0, r); f.addColorStop(0, '#a8a29e'); f.addColorStop(1, '#57534e');
@@ -231,7 +248,7 @@ function scene(g, P, t) {
 
 const game = aimGame({
     ...L,
-    meta: { id: 'reefdrop', icon: '🪸', title: 'Reef Drop', blurb: 'Drop pearls into a moving reef. Free every sleepy oyster, and land pearls in Shelly the hermit crab\'s shell to get them back. 30 reefs.' },
+    meta: { id: 'reefdrop', icon: '🪸', title: 'Reef Drop', blurb: 'Drop pearls into a moving reef. Free every sleepy oyster, and land pearls in Shelly the hermit crab\'s shell to get them back. 42 reefs.' },
     intro: 'Pull back to aim, let go to drop a pearl. Hit every <b>oyster twice</b> to free it. ⚡ Eels zap what\'s near them. 🦀 Land a pearl in <b>Shelly\'s shell</b> and you get it back!',
     hud: (lv, s) => `🦪 ${s.pegs.filter(p => p.kind === 'o' && p.alive).length} · 🫧 ${s.left} · ${s.score}`,
     doneText: (lv, s) => `${s.score} points · ${s.left} pearl${s.left === 1 ? '' : 's'} left${s.caught ? ` · Shelly caught ${s.caught}` : ''}`,
@@ -280,6 +297,8 @@ const game = aimGame({
             jelly(g, P(jx), P(jy), P(jr), t, Math.max(0, 1 - (t - (_squish.get(j) || -9)) * 4));
         }
         _jellyHit = null;
+        // anglerfish (the lure glows brighter as the pearl comes near)
+        for (const a of lv.anglers || []) { const d = s.flying ? Math.hypot(s.x - a[0], s.y - a[1]) : 9; angler(g, P, a, t, Math.max(0, 1 - d / a[2]) * 0.8); }
         // wheel hubs (so a turning wheel reads as one)
         const hubs = new Map();
         for (const p of s.pegs) if (p.orbit) hubs.set(`${p.orbit[0]},${p.orbit[1]},${p.orbit[2]}`, p.orbit);
@@ -288,12 +307,19 @@ const game = aimGame({
         s.pegs.forEach((p, i) => {
             if (!p.alive) return;
             const [px, py] = L.pegAt(p, s.t), x = P(px), y = P(py), r = P(L.PEG_R) * 1.25, wob = Math.sin(t * 2 + i);
+            const on = L.solid(p, s.t);
+            if (p.blink) {
+                const ph = Math.sin((2 * Math.PI * s.t) / p.blink[0] + (p.blink[1] || 0)), edge = Math.abs(ph + 0.15) < 0.18;
+                g.globalAlpha = on ? (edge ? 0.55 + 0.45 * Math.sin(t * 40) : 1) : 0.18;
+                if (!on) { g.strokeStyle = 'rgba(224,242,254,.8)'; g.lineWidth = 1.5; g.setLineDash([3, 3]); g.beginPath(); g.arc(x, y, r * 1.05, 0, 7); g.stroke(); g.setLineDash([]); }
+            }
             if (p.kind === 'c') coral(g, x, y + wob, r, wob);
             else if (p.kind === 'o') oyster(g, x, y + wob * 0.6, r, p.hp, t);
             else if (p.kind === 'e') eel(g, x, y + wob, r, t);
             else if (p.kind === 'p') puffer(g, x, y + wob, r, p.hp, t);
             else if (p.kind === 't') chest(g, x, y + wob * 0.5, r, t);
             else rock(g, x, y, r, i);
+            g.globalAlpha = 1;
         });
         // pops: a puff and the points, floating up
         _pops = _pops.filter(p => t - p.t < 0.9);

@@ -63,7 +63,18 @@ const UP = -Math.PI / 2;
   // a pearl resting on something sinks through to the sand: none is ever stuck
   const cup = { pegs: [{ x: 0.47, y: 0.8, kind: 'r' }, { x: 0.53, y: 0.8, kind: 'r' }] }, cu = D.begin(cup); D.shot(cup, cu, Math.PI / 2, 0.05);
   cu.x = 0.5; cu.y = 0.75; cu.vx = 0; cu.vy = 0; let n = 0; for (; n < 120 * 10 && cu.flying; n++) D.step(cup, cu);
-  ok(!cu.flying && n < 120 * 3, `Reef Drop: a pearl sitting between two rocks sinks through after a second (${(n / 120).toFixed(1)}s)`); }
+  ok(!cu.flying && n < 120 * 3, `Reef Drop: a pearl sitting between two rocks sinks through after a second (${(n / 120).toFixed(1)}s)`);
+  // a ghost piece: there to hit while solid, passed straight through while not
+  const gh = per => ({ pegs: [{ x: 0.5, y: 0.6, kind: 'c', blink: per }], crab: { a: 0.3, ph: Math.PI / 2, period: 1000 } });
+  const on = gh([1000, Math.PI / 2]), off = gh([1000, -Math.PI / 2]);
+  const g1 = D.begin(on), g2 = D.begin(off); D.shot(on, g1, Math.PI / 2, 0.2); D.settle(on, g1); D.shot(off, g2, Math.PI / 2, 0.2); D.settle(off, g2);
+  ok(!g1.pegs[0].alive && g2.pegs[0].alive && D.solid(on.pegs[0], 0) && !D.solid(off.pegs[0], 0), 'Reef Drop: a ghost piece pops while solid; while faded the pearl goes straight through');
+  // an anglerfish pulls the pearl towards its lure
+  const an = { pegs: [], anglers: [[0.75, 0.8, 0.4, 4]], crab: { a: 0 } }, af = D.begin(an);
+  D.shot(an, af, Math.PI / 2, 0.2);
+  let pulled = 0; for (let i = 0; i < 2400 && af.flying; i++) { D.step(an, af); pulled = Math.max(pulled, af.x); }
+  const base = D.begin({ pegs: [], crab: { a: 0 } }); D.shot({ pegs: [] }, base, Math.PI / 2, 0.2); let bx = 0; for (let i = 0; i < 2400 && base.flying; i++) { D.step({ pegs: [] }, base); bx = Math.max(bx, base.x); }
+  ok(pulled > bx + 0.03 && D.lure(an.anglers[0], 0.75, 0.8)[0] === 0 && D.lure(an.anglers[0], 0.1, 0.1)[0] === 0, `Reef Drop: an anglerfish pulls a straight drop off course (out to x ${pulled.toFixed(2)}, against ${bx.toFixed(2)} without it), only within its reach`); }
 
 // ---- every level ----
 for (const [name, G] of [['Orbit Putt', O]]) {
