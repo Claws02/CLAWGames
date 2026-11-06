@@ -3,3 +3,4 @@ www/
 dist-artifact/
 qa/shot-*.png
 qa/matchlab-*.json
+qa-shots/

@@ -296,7 +296,7 @@ function scene(g, P, t) {
 
 const game = aimGame({
     ...L,
-    meta: { id: 'reefdrop', icon: '🪸', title: 'Reef Drop', blurb: 'Drop pearls into a moving reef. Free every sleepy oyster, and land pearls in Shelly the hermit crab\'s shell to get them back. 54 reefs.' },
+    meta: { id: 'reefdrop', icon: '🪸', title: 'Reef Drop', blurb: `Drop pearls into a moving reef. Free every sleepy oyster, and land pearls in Shelly the hermit crab\'s shell to get them back. ${L.LEVELS.length} reefs.` },
     intro: 'Pull back to aim, let go to drop a pearl. Hit every <b>oyster twice</b> to free it. ⚡ Eels zap what\'s near them. 🦀 Land a pearl in <b>Shelly\'s shell</b> and you get it back!',
     hud: (lv, s) => `🦪 ${s.pegs.filter(p => (p.kind === 'o' || p.kind === 'g') && p.alive).length} · 🫧 ${s.left} · ${s.score}`,
     doneText: (lv, s) => `${s.score} points · ${s.left} pearl${s.left === 1 ? '' : 's'} left${s.caught ? ` · Shelly caught ${s.caught}` : ''}`,
