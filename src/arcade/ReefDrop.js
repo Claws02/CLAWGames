@@ -15,7 +15,7 @@ import { aimGame } from './AimScreen.js';
 
 const rnd = (i, k) => { const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
 const BUBBLES = Array.from({ length: 26 }, (_, i) => ({ x: rnd(i, 1), sp: 0.05 + rnd(i, 2) * 0.08, r: 1.5 + rnd(i, 3) * 3, ph: rnd(i, 4) * 10 }));
-let _bursts = [], _warps = [], _zaps = [], _pops = [], _banner = null, _crab = { mood: '', t: 0, x: 0.5, dir: 1 }, _squish = new Map(), _launch = 0;
+let _starHit = new Map(), _bursts = [], _warps = [], _zaps = [], _pops = [], _banner = null, _crab = { mood: '', t: 0, x: 0.5, dir: 1 }, _squish = new Map(), _launch = 0;
 
 const now = () => performance.now() / 1000;
 const say = (text, color = '#fff', big = false) => { _banner = { text, color, big, t: now() }; };
@@ -111,6 +111,71 @@ function lift(g, P, lx, top, bottom, w, t) {
         g.strokeStyle = `rgba(255,255,255,${0.8 * (1 - f * 0.6)})`; g.lineWidth = 1.5; g.beginPath(); g.arc(bx, by, 2 + (k % 3), 0, 7); g.stroke();
     }
     g.fillStyle = 'rgba(255,255,255,.6)'; g.font = `${Math.round(wd * 0.5)}px sans-serif`; g.textAlign = 'center'; g.fillText('⬆', x0 + wd / 2, P(bottom) - 4);
+}
+function angler(g, P, a, t, pull) {
+    // an anglerfish: a dark round fish with teeth, a lure on a stalk glowing over it, and its reach as a soft ring
+    const [x, y, reach] = a, X = P(x), Y = P(y), R = P(L.ANGLER_R);
+    for (let k = 0; k < 3; k++) { const f = ((t * 0.5 + k / 3) % 1); g.strokeStyle = `rgba(253,224,71,${0.14 * (1 - f) + pull * 0.1})`; g.lineWidth = 2; g.beginPath(); g.arc(X, Y, P(reach) * (1 - f * 0.8), 0, 7); g.stroke(); }
+    g.save(); g.translate(X, Y);
+    const body = g.createRadialGradient(-R * 0.3, -R * 0.3, 1, 0, 0, R * 1.2); body.addColorStop(0, '#475569'); body.addColorStop(1, '#0f172a');
+    g.fillStyle = body; g.strokeStyle = '#020617'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(R * 1.1, 0); g.lineTo(R * 1.7, -R * 0.6); g.lineTo(R * 1.7, R * 0.6); g.closePath(); g.fill();   // tail
+    g.beginPath(); g.arc(0, 0, R * 1.1, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = '#fff'; for (let k = 0; k < 5; k++) { g.beginPath(); g.moveTo(-R * 0.9 + k * R * 0.32, R * 0.35); g.lineTo(-R * 0.75 + k * R * 0.32, R * 0.62); g.lineTo(-R * 0.6 + k * R * 0.32, R * 0.35); g.fill(); }
+    g.fillStyle = '#fde047'; g.beginPath(); g.arc(-R * 0.35, -R * 0.3, R * 0.2, 0, 7); g.fill();
+    g.strokeStyle = '#64748b'; g.lineWidth = 2; const lx = -R * 0.2 + Math.sin(t * 2) * R * 0.3, ly = -R * 2.1 + Math.cos(t * 3) * R * 0.2;
+    g.beginPath(); g.moveTo(0, -R); g.quadraticCurveTo(R * 0.6, -R * 2.2, lx, ly); g.stroke();
+    const glow = g.createRadialGradient(lx, ly, 1, lx, ly, R * (0.9 + pull)); glow.addColorStop(0, 'rgba(254,249,195,1)'); glow.addColorStop(0.4, 'rgba(253,224,71,.8)'); glow.addColorStop(1, 'rgba(253,224,71,0)');
+    g.fillStyle = glow; g.beginPath(); g.arc(lx, ly, R * (0.9 + pull), 0, 7); g.fill();
+    g.restore();
+}
+function starfish(g, x, y, r, t, hit) {
+    // a starfish: five arms, spinning (faster just after it flings the pearl)
+    g.save(); g.translate(x, y); g.rotate(t * (1.2 + hit * 8)); g.scale(1 + hit * 0.25, 1 + hit * 0.25);
+    g.fillStyle = '#fb923c'; g.strokeStyle = '#9a3412'; g.lineWidth = 2; g.beginPath();
+    for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2 - Math.PI / 2, rr = k % 2 ? r * 0.5 : r * 1.25; k ? g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : g.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+    g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#fed7aa'; for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2 - Math.PI / 2; g.beginPath(); g.arc(Math.cos(a) * r * 0.6, Math.sin(a) * r * 0.6, r * 0.1, 0, 7); g.fill(); }
+    g.restore();
+}
+function goldOyster(g, x, y, r, hp, t) {
+    // a golden oyster: gilded, glowing, with pips for the hits it still needs
+    const gl = g.createRadialGradient(x, y, r * 0.3, x, y, r * 2.2); gl.addColorStop(0, `rgba(253,224,71,${0.45 + 0.2 * Math.sin(t * 5 + x)})`); gl.addColorStop(1, 'rgba(253,224,71,0)');
+    g.fillStyle = gl; g.beginPath(); g.arc(x, y, r * 2.2, 0, 7); g.fill();
+    g.save(); g.filter = 'sepia(1) saturate(3) brightness(1.15)'; oyster(g, x, y, r, hp >= 2 ? 2 : 1, t); g.restore();
+    for (let k = 0; k < 3; k++) { g.fillStyle = k < hp ? '#fde047' : 'rgba(255,255,255,.3)'; g.strokeStyle = '#78350f'; g.lineWidth = 1; g.beginPath(); g.arc(x - r * 0.6 + k * r * 0.6, y + r * 1.15, r * 0.18, 0, 7); g.fill(); g.stroke(); }
+}
+function current(g, P, x0, y0, x1, y1, ax, t) {
+    // a current: a band of flowing streaks and arrows the way it pushes
+    const X0 = P(x0), Y0 = P(y0), Wd = P(x1 - x0), Ht = P(y1 - y0), dir = Math.sign(ax);
+    g.fillStyle = 'rgba(125,211,252,.13)'; g.fillRect(X0, Y0, Wd, Ht);
+    g.strokeStyle = 'rgba(224,242,254,.55)'; g.lineWidth = 1.6; g.lineCap = 'round';
+    for (let k = 0; k < 7; k++) {
+        const f = ((t * 0.6 * dir + k / 7) % 1 + 1) % 1, sx = X0 + Wd * f, sy = Y0 + Ht * (0.2 + 0.6 * ((k * 37) % 10) / 10);
+        g.beginPath(); g.moveTo(sx, sy); g.lineTo(sx - dir * 14, sy); g.stroke();
+    }
+    g.fillStyle = 'rgba(255,255,255,.5)'; g.font = `${Math.round(Ht * 0.8)}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    for (const f of [0.25, 0.75]) g.fillText(dir > 0 ? '➜' : '⬅', X0 + Wd * f, Y0 + Ht / 2);
+    g.textBaseline = 'alphabetic';
+}
+function clam(g, P, c, t, layer) {
+    // a giant clam: two big ridged shells swinging open and shut
+    const [x, y] = c, X = P(x), Y = P(y), R = P(L.CLAM_R), open = Math.max(0, Math.min(1, (0.3 - Math.sin((2 * Math.PI * t) / c[2] + (c[3] || 0))) * 2.5));
+    // open, it sits behind what's inside (so you see your target); shut, it covers it
+    if ((layer === 'back') !== (open > 0.5)) return;
+    g.save(); g.translate(X, Y);
+    const half = (sgn) => {
+        g.save(); g.rotate(sgn * open * 1.25);
+        const sh = g.createLinearGradient(0, -R, 0, R); sh.addColorStop(0, '#e9d5ff'); sh.addColorStop(1, '#a855f7');
+        g.fillStyle = sh; g.strokeStyle = '#581c87'; g.lineWidth = 2.5;
+        g.beginPath(); g.moveTo(-R, 0); g.quadraticCurveTo(-R, sgn * -R * 1.15, 0, sgn * -R * 1.05); g.quadraticCurveTo(R, sgn * -R * 1.15, R, 0); g.closePath(); g.fill(); g.stroke();
+        g.strokeStyle = 'rgba(88,28,135,.45)'; g.lineWidth = 1.5;
+        for (let k = -2; k <= 2; k++) { g.beginPath(); g.moveTo(k * R * 0.15, 0); g.lineTo(k * R * 0.42, sgn * -R * 0.95); g.stroke(); }
+        g.restore();
+    };
+    if (open > 0.05) { g.fillStyle = 'rgba(244,114,182,.35)'; g.beginPath(); g.arc(0, 0, R * 0.8, 0, 7); g.fill(); }
+    half(1); half(-1);
+    g.restore();
 }
 function rock(g, x, y, r, i) {
     g.save(); g.translate(x, y);
@@ -231,9 +296,9 @@ function scene(g, P, t) {
 
 const game = aimGame({
     ...L,
-    meta: { id: 'reefdrop', icon: '🪸', title: 'Reef Drop', blurb: 'Drop pearls into a moving reef. Free every sleepy oyster, and land pearls in Shelly the hermit crab\'s shell to get them back. 30 reefs.' },
+    meta: { id: 'reefdrop', icon: '🪸', title: 'Reef Drop', blurb: 'Drop pearls into a moving reef. Free every sleepy oyster, and land pearls in Shelly the hermit crab\'s shell to get them back. 54 reefs.' },
     intro: 'Pull back to aim, let go to drop a pearl. Hit every <b>oyster twice</b> to free it. ⚡ Eels zap what\'s near them. 🦀 Land a pearl in <b>Shelly\'s shell</b> and you get it back!',
-    hud: (lv, s) => `🦪 ${s.pegs.filter(p => p.kind === 'o' && p.alive).length} · 🫧 ${s.left} · ${s.score}`,
+    hud: (lv, s) => `🦪 ${s.pegs.filter(p => (p.kind === 'o' || p.kind === 'g') && p.alive).length} · 🫧 ${s.left} · ${s.score}`,
     doneText: (lv, s) => `${s.score} points · ${s.left} pearl${s.left === 1 ? '' : 's'} left${s.caught ? ` · Shelly caught ${s.caught}` : ''}`,
     threeStars: () => '★★★ with 5 pearls left',
     react(ev, fx, s) {
@@ -250,6 +315,9 @@ const game = aimGame({
         if (ev.landed === 'crab') { _crab = { ..._crab, mood: 'yum', t }; fx.sfx('win'); fx.buzz([30, 30, 60]); fx.burst(s.x, L.FLOOR_Y - 0.03, '#fde047', 24, 0.6); say(`🦀 CAUGHT! ×${L.CATCH_X}`, '#fde047', true); }
         else if (ev.landed === 'sand') { fx.sfx('dice_land'); if (Math.abs(s.x - _crab.x) < 0.22) _crab = { ..._crab, mood: 'aww', t }; }
         if (ev.bonus) { say('🫧 BIG CHAIN! +1 PEARL', '#fff', true); fx.buzz([40, 30, 80]); }
+        ev.star.forEach(p => { _starHit.set(p, t); fx.sfx('dice_land'); fx.buzz(10); });
+        ev.golden.forEach(p => { const [x, y] = L.pegAt(p, s.t); fx.burst(x, y, '#fde047', 34, 0.8); fx.sfx('win'); fx.buzz([40, 30, 80]); say('🟡 GOLDEN PEARL! +1 🫧', '#fde047', true); });
+        if (ev.clam) fx.sfx('gate_close');
         ev.puffed.forEach(p => { const [x, y] = L.pegAt(p, s.t); fx.burst(x, y, '#fde047', 6, 0.25); fx.sfx('boost'); fx.buzz(15); });
         ev.burst.forEach(p => { const [x, y] = L.pegAt(p, s.t); _bursts.push({ x, y, t }); fx.burst(x, y, '#fb923c', 26, 0.8); fx.shake(9); fx.sfx('win'); fx.buzz([30, 20, 60]); });
         if (ev.burst.length) say(ev.burst.length > 1 ? `🐡 CHAIN BURST ×${ev.burst.length}!` : '🐡 KABOOM!', '#fb923c', true);
@@ -280,6 +348,10 @@ const game = aimGame({
             jelly(g, P(jx), P(jy), P(jr), t, Math.max(0, 1 - (t - (_squish.get(j) || -9)) * 4));
         }
         _jellyHit = null;
+        for (const c of lv.currents || []) current(g, P, ...c, t);
+        for (const c of lv.clams || []) clam(g, P, c, s.t, 'back');
+        // anglerfish (the lure glows brighter as the pearl comes near)
+        for (const a of lv.anglers || []) { const d = s.flying ? Math.hypot(s.x - a[0], s.y - a[1]) : 9; angler(g, P, a, t, Math.max(0, 1 - d / a[2]) * 0.8); }
         // wheel hubs (so a turning wheel reads as one)
         const hubs = new Map();
         for (const p of s.pegs) if (p.orbit) hubs.set(`${p.orbit[0]},${p.orbit[1]},${p.orbit[2]}`, p.orbit);
@@ -288,13 +360,23 @@ const game = aimGame({
         s.pegs.forEach((p, i) => {
             if (!p.alive) return;
             const [px, py] = L.pegAt(p, s.t), x = P(px), y = P(py), r = P(L.PEG_R) * 1.25, wob = Math.sin(t * 2 + i);
+            const on = L.solid(p, s.t);
+            if (p.blink) {
+                const ph = Math.sin((2 * Math.PI * s.t) / p.blink[0] + (p.blink[1] || 0)), edge = Math.abs(ph + 0.15) < 0.18;
+                g.globalAlpha = on ? (edge ? 0.55 + 0.45 * Math.sin(t * 40) : 1) : 0.18;
+                if (!on) { g.strokeStyle = 'rgba(224,242,254,.8)'; g.lineWidth = 1.5; g.setLineDash([3, 3]); g.beginPath(); g.arc(x, y, r * 1.05, 0, 7); g.stroke(); g.setLineDash([]); }
+            }
             if (p.kind === 'c') coral(g, x, y + wob, r, wob);
             else if (p.kind === 'o') oyster(g, x, y + wob * 0.6, r, p.hp, t);
+            else if (p.kind === 'g') goldOyster(g, x, y + wob * 0.6, r, p.hp, t);
+            else if (p.kind === 's') starfish(g, x, y, r, t, Math.max(0, 1 - (t - (_starHit.get(p) || -9)) * 3));
             else if (p.kind === 'e') eel(g, x, y + wob, r, t);
             else if (p.kind === 'p') puffer(g, x, y + wob, r, p.hp, t);
             else if (p.kind === 't') chest(g, x, y + wob * 0.5, r, t);
             else rock(g, x, y, r, i);
+            g.globalAlpha = 1;
         });
+        for (const c of lv.clams || []) clam(g, P, c, s.t, 'front');
         // pops: a puff and the points, floating up
         _pops = _pops.filter(p => t - p.t < 0.9);
         g.textAlign = 'center'; g.textBaseline = 'middle';
