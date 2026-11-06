@@ -89,7 +89,7 @@ const WAKE = () => {
     // 3. a phone on another version (same browser context: the loopback doesn't cross contexts)
     const dan = await open('Dan', [], p => p.route('**/src/net/Room.js', async r => {
         const res = await r.fetch();
-        r.fulfill({ response: res, body: (await res.text()).replace('export const PROTO = 2;', 'export const PROTO = 1;') });
+        r.fulfill({ response: res, body: (await res.text()).replace(/export const PROTO = \d+;/, 'export const PROTO = 1;') });
     }));
     await join(dan, code);
     await dan.waitForFunction(() => !document.getElementById('btn-room-refresh').hidden, null, { timeout: 10000 }).catch(() => {});

@@ -8,6 +8,8 @@
     "sync": "bash scripts/sync-assets.sh ../HundredBlockDash",
     "serve": "npx --yes http-server -p 8140 -c-1 .",
     "smoke": "node qa/smoke.js",
+    "reef:levels": "node scripts/reef-levels.mjs",
+    "reef:check": "node scripts/reef-check.mjs",
     "build:web": "node scripts/build-web.js",
     "build:artifact": "node scripts/build-artifact.js",
     "cap:sync": "npm run build:web && npx cap sync",

@@ -344,8 +344,10 @@ function _play() {
         const go = () => {
             $('arcade').hidden = true;
             _ghostLink(Room.mySeats()[scores.length]);
+            _raceLink(r.race ? Room.mySeats()[scores.length] : -1);
             SoloArena.play(r.type, r.seed, score => {
                 SoloArena.setGhostLink?.(null);
+                SoloArena.setRaceLink?.(null);
                 SoloArena.reset();
                 $('arcade').hidden = false;
                 scores.push(score);
@@ -380,10 +382,21 @@ function _ghostLink(seat) {
     });
 }
 
+// Races (Shell Game): each round goes to the fastest right answer on any phone.
+// This phone's picks go to the host (Room.sendPick) and its calls come back.
+function _raceLink(seat) {
+    SoloArena.setRaceLink?.(seat < 0 ? null : {
+        me: seat, to: Room.RACE_TO,
+        pick: (round, right, ms) => Room.sendPick(seat, round, right, ms),
+        call: round => Room.raceCall(round),
+    });
+}
+
 function _abortGame() {
     const was = _playing;
     _playing = false; _handoff = null;
     SoloArena.setGhostLink?.(null);
+    SoloArena.setRaceLink?.(null);
     if (was && $('arcade').hidden) { try { SoloArena.forceEnd(); } catch (e) {} SoloArena.reset(); }
     $('arcade').hidden = false;
 }
