@@ -74,7 +74,28 @@ const UP = -Math.PI / 2;
   D.shot(an, af, Math.PI / 2, 0.2);
   let pulled = 0; for (let i = 0; i < 2400 && af.flying; i++) { D.step(an, af); pulled = Math.max(pulled, af.x); }
   const base = D.begin({ pegs: [], crab: { a: 0 } }); D.shot({ pegs: [] }, base, Math.PI / 2, 0.2); let bx = 0; for (let i = 0; i < 2400 && base.flying; i++) { D.step({ pegs: [] }, base); bx = Math.max(bx, base.x); }
-  ok(pulled > bx + 0.03 && D.lure(an.anglers[0], 0.75, 0.8)[0] === 0 && D.lure(an.anglers[0], 0.1, 0.1)[0] === 0, `Reef Drop: an anglerfish pulls a straight drop off course (out to x ${pulled.toFixed(2)}, against ${bx.toFixed(2)} without it), only within its reach`); }
+  ok(pulled > bx + 0.03 && D.lure(an.anglers[0], 0.75, 0.8)[0] === 0 && D.lure(an.anglers[0], 0.1, 0.1)[0] === 0, `Reef Drop: an anglerfish pulls a straight drop off course (out to x ${pulled.toFixed(2)}, against ${bx.toFixed(2)} without it), only within its reach`);
+  // a starfish flings the pearl off faster than coral and never pops
+  const sf = k => ({ pegs: [{ x: 0.5, y: 0.6, kind: k }], crab: { a: 0.3, ph: Math.PI / 2, period: 1000 } });
+  const s1 = D.begin(sf('s')), s2 = D.begin(sf('r')); D.shot(sf('s'), s1, Math.PI / 2, 0.2); D.shot(sf('r'), s2, Math.PI / 2, 0.2);
+  let up1 = 0, up2 = 0; for (let i = 0; i < 2400 && s1.flying; i++) { D.step(sf('s'), s1); up1 = Math.min(up1, s1.vy); } for (let i = 0; i < 2400 && s2.flying; i++) { D.step(sf('r'), s2); up2 = Math.min(up2, s2.vy); }
+  ok(s1.pegs[0].alive && -up1 > -up2 * 1.4, `Reef Drop: a starfish flings the pearl back up faster than a rock (${(-up1).toFixed(2)} vs ${(-up2).toFixed(2)}) and stays`);
+  // a golden oyster: three hits, and its pearl comes back
+  const go = { pegs: [{ x: 0.5, y: 0.6, kind: 'g' }], crab: { a: 0.3, ph: Math.PI / 2, period: 1000 } }, g3 = D.begin(go);
+  // (a straight drop bounces on it again and again: count its hits as they happen)
+  const hits = []; let paid = false; D.shot(go, g3, Math.PI / 2, 0.2);
+  for (let i = 0; i < 2400 && g3.flying && !paid; i++) { const ev = D.step(go, g3); if (ev.opened.length) hits.push(g3.pegs[0].hp); if (ev.golden.length) { hits.push(0); paid = true; } }
+  ok(hits.join() === '2,1,0' && D.cleared(g3) && g3.left === D.PEARLS - 1 + 1, `Reef Drop: a golden oyster takes three hits (${hits.join(' → ')}), counts towards clearing, and pays a pearl back`);
+  // a current pushes the pearl sideways
+  const cu2 = { pegs: [], currents: [[0, 0.5, 1, 0.8, 3]], crab: { a: 0 } }, cc = D.begin(cu2); D.shot(cu2, cc, Math.PI / 2, 0.2);
+  let drift = 0; for (let i = 0; i < 2400 && cc.flying; i++) { D.step(cu2, cc); drift = Math.max(drift, cc.x); }
+  ok(drift > 0.56, `Reef Drop: a current pushes a straight drop sideways (to x ${drift.toFixed(2)})`);
+  // a giant clam: shut, the pearl bounces off and the oyster inside is safe; open, it can be hit
+  const cl = ph => ({ pegs: [{ x: 0.5, y: 0.7, kind: 'c' }], clams: [[0.5, 0.7, 1000, ph]], crab: { a: 0.3, ph: Math.PI / 2, period: 1000 } });
+  const shutL = cl(Math.PI / 2), openL = cl(-Math.PI / 2), k1 = D.begin(shutL), k2 = D.begin(openL);
+  D.shot(shutL, k1, Math.PI / 2, 0.2); let bonk = false; for (let i = 0; i < 2400 && k1.flying; i++) bonk = D.step(shutL, k1).clam || bonk;
+  D.shot(openL, k2, Math.PI / 2, 0.2); D.settle(openL, k2);
+  ok(bonk && k1.pegs[0].alive && !k2.pegs[0].alive, 'Reef Drop: a shut clam bounces the pearl off and keeps what\'s inside safe; open, it can be hit'); }
 
 // ---- every level ----
 for (const [name, G] of [['Orbit Putt', O]]) {

@@ -19,6 +19,10 @@
 //   bubble lifts 🫧 columns of bubbles that push the pearl back up
 //   ghost pieces 👻 any piece can fade in and out on a timer: it's only there to hit while solid
 //   anglerfish 🎣 their glowing lure pulls the pearl in; the fish is solid and never pops
+//   starfish ⭐   spin and fling the pearl off fast; they never pop
+//   golden oysters 🟡 three hits; free one and its pearl comes back to you (a pearl back)
+//   currents 🌊  streams that push the pearl sideways as it falls through
+//   giant clams 🐚 open and shut on a timer: shut, the pearl bounces off and what's inside is safe
 // Every piece sits clear above Shelly (reef() squeezes a reef up if not).
 // Some pieces move: coral wheels turn, some rows slide. The reef keeps moving
 // while you aim (the screen runs the clock), so a drop is timed as well as aimed.
@@ -32,7 +36,8 @@ export const R = 0.022, PEG_R = 0.026, LAUNCH = [0.5, 0.06], FLOOR_Y = 1.42, PEA
 export const CRAB_W = 0.17, CRAB_Y = 1.42, CATCH_X = 3, JELLY_E = 1.05;
 export const CLEAR_Y = 1.2;                 // nothing lower than this: Shelly's shell (and her hop) stays clear
 export const BOMB_R = 0.24, WHIRL_R = 0.045, LIFT = 6.5, LIFT_MAX = 1.6, LIFT_SECS = 1.2;   // lifts push for this long in all, a drop
-export const ANGLER_R = 0.034, ANGLER_E = 0.7;
+export const ANGLER_R = 0.034, ANGLER_E = 0.7, STAR_E = 1.3, CURRENT_MAX = 1.4, CLAM_R = 0.075, CLAM_E = 0.6;
+const _goal = k => k === 'o' || k === 'g';   // the pieces you have to free to win
 const GRAV = 3.0, PEG_E = 0.72, WALL_E = 0.8, MAX_V = 2.4;
 export const SEARCH = { angles: 60, powers: [0.3, 0.6, 1], angleFrom: 0.05, angleTo: Math.PI - 0.05 };
 
@@ -45,6 +50,10 @@ export const crabX = (lv, t) => { const c = lv.crab || {}; return 0.5 + (c.a ?? 
 export const solid = (p, t) => !p.blink || Math.sin((2 * Math.PI * t) / p.blink[0] + (p.blink[1] || 0)) > -0.15;
 /** An anglerfish's pull at the pearl: [ax, ay]. a = [x, y, reach, strength]. */
 export function lure(a, x, y) { const dx = a[0] - x, dy = a[1] - y, d = Math.hypot(dx, dy); if (d > a[2] || d < 1e-6) return [0, 0]; const k = a[3] * (1 - d / a[2]) / d; return [dx * k, dy * k]; }
+/** A giant clam is shut while its timer says so: [x, y, period, phase]. */
+export const shut = (c, t) => Math.sin((2 * Math.PI * t) / c[2] + (c[3] || 0)) > 0.3;   // open a little more than shut
+/** Is the piece inside a shut clam (safe) at time t? */
+export const guarded = (lv, x, y, t) => (lv.clams || []).some(c => shut(c, t) && Math.hypot(x - c[0], y - c[1]) < CLAM_R);
 export function pegAt(p, t) {
     if (p.orbit) { const [cx, cy, r, a0, w] = p.orbit; return [cx + Math.cos(a0 + w * t) * r, cy + Math.sin(a0 + w * t) * r]; }
     if (p.slide) { const [dx, period, ph = 0] = p.slide; return [p.x + dx * Math.sin(TAU * t / period + ph), p.y]; }
@@ -74,7 +83,7 @@ const reef = (name, world, pts, marks, more = {}) => {
     const ghost = more.ghost || {};   // { index: [period, phase] } for still pieces
     const still = pts.map(([x, y], i) => ({ x: +x.toFixed(3), y: +y.toFixed(3), kind: marks[i] || 'c', ...(ghost[i] ? { blink: ghost[i] } : {}) }));
     const moving = (more.movers || []).map(m => ({ x: m.x ?? 0, y: m.y ?? 0, kind: m.kind || 'c', ...(m.orbit ? { orbit: m.orbit } : {}), ...(m.slide ? { slide: m.slide } : {}), ...(m.blink ? { blink: m.blink } : {}) }));
-    return _clear({ name, world, pegs: [...still, ...moving], jellies: more.jellies || [], whirls: more.whirls || [], lifts: more.lifts || [], anglers: more.anglers || [], crab: more.crab || {}, hint: more.hint });
+    return _clear({ name, world, pegs: [...still, ...moving], jellies: more.jellies || [], whirls: more.whirls || [], lifts: more.lifts || [], anglers: more.anglers || [], currents: more.currents || [], clams: more.clams || [], crab: more.crab || {}, hint: more.hint });
 };
 // The lowest anything reaches (a piece's middle; a wheel's bottom; a jelly with its tentacles; a lift's foot).
 export function lowest(lv) {
@@ -84,6 +93,8 @@ export function lowest(lv) {
     for (const w of lv.whirls) m = Math.max(m, w[1], w[3]);
     for (const l of lv.lifts) m = Math.max(m, l[2]);
     for (const a of lv.anglers || []) m = Math.max(m, a[1] + ANGLER_R);
+    for (const c of lv.currents || []) m = Math.max(m, c[3]);
+    for (const c of lv.clams || []) m = Math.max(m, c[1] + CLAM_R);
     return m;
 }
 // Squeeze a reef upwards (keeping its top where it is) so nothing comes down past CLEAR_Y.
@@ -98,12 +109,14 @@ function _clear(lv) {
     lv.whirls = lv.whirls.map(w => [w[0], Y(w[1]), w[2], Y(w[3])]);
     lv.lifts = lv.lifts.map(l => [l[0], Y(l[1]), Y(l[2]), l[3]]);
     lv.anglers = (lv.anglers || []).map(a => [a[0], Y(a[1]), a[2], a[3]]);
+    lv.currents = (lv.currents || []).map(c => [c[0], Y(c[1]), c[2], Y(c[3]), c[4]]);
+    lv.clams = (lv.clams || []).map(c => [c[0], Y(c[1]), c[2], c[3]]);
     if (lowest(lv) > CLEAR_Y + 1e-6) { const g = CLEAR_Y - lowest(lv); for (const j of lv.jellies) j[1] += g; }   // a jelly's tentacles
     return lv;
 }
 const kinds = (list, marks) => list.map((m, i) => ({ ...m, kind: marks[i] || 'c' }));
 
-export const WORLDS = ['🪸 Shallows', '🌊 Kelp Forest', '🪼 Jelly Drift', '🌀 Grotto', '🏰 Sunken City', '🌙 Moonlit Lagoon', '🌋 Abyssal Vents'];
+export const WORLDS = ['🪸 Shallows', '🌊 Kelp Forest', '🪼 Jelly Drift', '🌀 Grotto', '🏰 Sunken City', '🌙 Moonlit Lagoon', '🌋 Abyssal Vents', '⭐ Starfish Shoals', '🌊 Riptide Reef'];
 export const LEVELS = [
     // ---- Shallows: learn the pieces; Shelly strolls ----
     reef('First Drop', 0, grid(6, 7, 0.45, 1.15), at([10, 17, 24, 31], 'o'), { crab: { period: 4.2 }, hint: '🦪 Hit each oyster twice to free it. 🦀 Land a pearl in Shelly\'s shell to get it back!' }),
@@ -192,18 +205,46 @@ export const LEVELS = [
     reef('Leviathan Deep', 6, [...grid(2, 7, 0.42, 0.54), [0.5, 1.15]], { ...at([3, 10], 'o'), ...at([0, 6], 'p'), 14: 't' },
         { movers: [...kinds(wheel(0.28, 0.85, 0.15, 7, 1.1), { 0: 'o', 3: 'p' }).map((m, k) => (k % 2 ? { ...m, blink: [2, k] } : m)), ...kinds(wheel(0.72, 0.85, 0.15, 7, -1.1), { 0: 'o', 4: 'e' }).map((m, k) => (k % 2 ? { ...m, blink: [2, k + 1] } : m))],
           anglers: [[0.5, 0.72, 0.28, 3.5]], jellies: [[0.5, 1.02, 0.04, 0.3, 2.6]], lifts: [[0.06, 0.6, 1.15, 0.07], [0.94, 0.6, 1.15, 0.07]], crab: { period: 2.2, a: 0.38 } }),
+    // ---- Starfish Shoals: starfish fling, golden oysters pay a pearl back ----
+    reef('Starfish Springs', 7, grid(6, 7, 0.45, 1.15), { ...at([10, 17, 24, 31], 'o'), ...at([0, 6, 35, 41, 20], 's') },
+        { hint: '⭐ Starfish never pop, and they fling your pearl off fast!' }),
+    reef('Golden Find', 7, [...ring(0.5, 0.8, 0.28, 14), [0.5, 0.8], ...grid(2, 7, 0.42, 0.54)], { 14: 'g', ...at([0, 7], 'o'), ...at([3, 10], 's'), ...at([17, 20], 'o') },
+        { hint: '🟡 A golden oyster takes three hits, and its pearl comes back to you.' }),
+    reef('Pinball Shoal', 7, [[0.2, 0.5], [0.8, 0.5], [0.5, 0.62], [0.3, 0.78], [0.7, 0.78], [0.5, 0.95], [0.15, 1.05], [0.85, 1.05], ...grid(2, 6, 0.4, 0.48, 0.22, 0.78), ...grid(2, 7, 1.08, 1.18)],
+        { 0: 's', 1: 's', 2: 's', 3: 's', 4: 's', 5: 's', 6: 's', 7: 's', ...at([9, 12, 15, 18], 'o'), ...at([21, 25, 29], 'o') }, { crab: { period: 3 } }),
+    reef('Starry Wheel', 7, grid(2, 7, 1.05, 1.17), { ...at([2, 11], 'o') },
+        { movers: [...kinds(wheel(0.5, 0.7, 0.25, 12, 0.8), { 0: 'g', 2: 's', 4: 'o', 6: 's', 8: 'o', 10: 's' }), ...kinds(wheel(0.5, 0.7, 0.11, 5, -1.4), { 0: 'o', 2: 's' })] }),
+    reef('Gold Rush', 7, [...wave(0.45, 0.06, 9), ...wave(0.72, 0.06, 9, 2), ...wave(0.98, 0.05, 9, 4)], { 4: 'g', 22: 'g', ...at([0, 8, 18, 26], 's'), ...at([11, 15], 'p'), ...at([2, 6, 20, 24], 'o') },
+        { jellies: [[0.5, 1.15, 0.04, 0.3, 2.6]] }),
+    reef('Shoal Showdown', 7, [...grid(2, 7, 0.42, 0.54), [0.5, 0.82]], { ...at([3, 10], 'o'), 14: 'g', ...at([0, 6], 's'), 12: 't' },
+        { movers: [...kinds(slider(0.68, 5, 0.14, 2.2, 0.2, 0.8), { 0: 's', 2: 'o', 4: 's' }), ...kinds(slider(0.98, 5, -0.14, 2.2, 0.2, 0.8), { 1: 'p', 3: 'o' })], lifts: [[0.06, 0.5, 1.15, 0.07]], crab: { period: 2.6 } }),
+    // ---- Riptide Reef: currents push, giant clams open and shut ----
+    reef('Riptide', 8, [...grid(2, 7, 0.4, 0.5), ...grid(3, 7, 0.95, 1.15)], { ...at([2, 5, 9, 12], 'o'), ...at([16, 19, 24, 31], 'o') },
+        { currents: [[0, 0.6, 1, 0.68, 2.2], [0, 0.78, 1, 0.86, -2.2]], hint: '🌊 Currents push your pearl sideways as it falls through.' }),
+    reef('Clam Cove', 8, [[0.25, 0.75], [0.5, 0.75], [0.75, 0.75], ...grid(2, 7, 0.42, 0.54), ...grid(2, 7, 1.05, 1.17)], { 0: 'o', 1: 'o', 2: 'o', ...at([5, 12], 'o') },
+        { clams: [[0.25, 0.75, 3, 0], [0.5, 0.75, 3, 2.1], [0.75, 0.75, 3, 4.2]], hint: '🐚 Giant clams open and shut. Hit the oyster inside while its clam is open!' }),
+    reef('Crosscurrent', 8, grid(5, 6, 0.48, 1.12, 0.2, 0.84), { ...at([2, 9, 14, 21, 26], 'o'), ...at([6, 17], 's') },
+        { currents: [[0, 0.62, 0.5, 0.7, 2.4], [0.5, 0.62, 1, 0.7, -2.4], [0, 0.92, 1, 0.98, 1.8]], whirls: [[0.06, 0.4, 0.94, 1.0]] }),
+    reef('Pearl Divers', 8, [[0.3, 0.7], [0.7, 0.7], [0.5, 0.95], ...ring(0.5, 0.82, 0.38, 14)], { 0: 'g', 1: 'o', 2: 'o', ...at([3, 10], 's'), ...at([6, 13], 'o'), 8: 'p' },
+        { clams: [[0.3, 0.7, 2.6, 0], [0.7, 0.7, 2.6, Math.PI], [0.5, 0.95, 3.2, 1.6]], jellies: [[0.5, 0.45, 0.04, 0.3, 2.8]] }),
+    reef('Undertow', 8, [...grid(2, 7, 0.42, 0.54), ...grid(2, 7, 1.02, 1.14)], { ...at([3, 10], 'o'), ...at([16, 23], 'o'), 19: 'g' },
+        { currents: [[0, 0.62, 1, 0.7, -2], [0, 0.86, 1, 0.94, 2]], anglers: [[0.5, 0.78, 0.25, 3.5]], ghost: { 15: [2, 0], 17: [2, 2], 21: [2, 4], 26: [2, 1] } }),
+    reef('Riptide Finale', 8, [[0.5, 0.75], ...grid(2, 7, 0.42, 0.54), [0.2, 1.1], [0.8, 1.1]], { 0: 'g', ...at([3, 10], 'o'), ...at([1, 13], 's'), 15: 'o', 16: 'o' },
+        { clams: [[0.5, 0.75, 2.4, 0], [0.2, 1.1, 3, 1], [0.8, 1.1, 3, 4]],
+          movers: [...kinds(wheel(0.5, 0.75, 0.2, 8, 0.9), { 0: 's', 2: 'p', 4: 's', 6: 't' })],
+          currents: [[0, 0.95, 1, 1.0, 2]], lifts: [[0.06, 0.6, 1.0, 0.07], [0.94, 0.6, 1.0, 0.07]], crab: { period: 2.4, a: 0.36 } }),
 ];
 
-const _pegs = lv => lv.pegs.map(p => ({ ...p, hp: p.kind === 'o' || p.kind === 'p' ? 2 : 1, alive: true }));
+const _pegs = lv => lv.pegs.map(p => ({ ...p, hp: p.kind === 'g' ? 3 : p.kind === 'o' || p.kind === 'p' ? 2 : 1, alive: true }));
 export const begin = lv => ({ x: LAUNCH[0], y: LAUNCH[1], vx: 0, vy: 0, flying: false, used: 0, left: PEARLS, score: 0, chain: 0, shot: 0, pegs: _pegs(lv), t: 0, caught: 0, bonus: 0, last: '', double: false, warpT: -9, still: 0, sink: false, lifted: 0 });
 export const copy = s => ({ ...s, pegs: s.pegs.map(p => ({ ...p })) });
 export const moving = s => s.flying;
-export const cleared = s => s.pegs.every(p => p.kind !== 'o' || !p.alive);
+export const cleared = s => s.pegs.every(p => !_goal(p.kind) || !p.alive);
 export const failed = (lv, s) => !s.flying && !cleared(s) && s.left <= 0;
 export const shots = s => s.used;
 export const origin = () => LAUNCH;
-export const where = s => [s.pegs.filter(p => p.kind === 'o' && p.alive).length, s.pegs.filter(p => p.alive).length / 100];
-export const score = (lv, s) => -s.pegs.reduce((a, p) => a + (p.kind === 'o' && p.alive ? p.hp * 10 : 0), 0) + s.pegs.filter(p => !p.alive).length * 0.1 + s.left * 4;
+export const where = s => [s.pegs.filter(p => _goal(p.kind) && p.alive).length, s.pegs.filter(p => p.alive).length / 100];
+export const score = (lv, s) => -s.pegs.reduce((a, p) => a + (_goal(p.kind) && p.alive ? p.hp * 10 : 0), 0) + s.pegs.filter(p => !p.alive).length * 0.1 + s.left * 4;
 export const starsFor = (lv, s) => (s.left >= 5 ? 3 : s.left >= 2 ? 2 : 1);
 
 /** The reef keeps moving between drops (the screen calls this while you aim). */
@@ -218,28 +259,30 @@ export function shot(lv, s, angle, power) {
 }
 
 function _pop(s, p, ev) {
-    if (!p.alive || p.kind === 'r') return;
+    if (!p.alive || p.kind === 'r' || p.kind === 's') return;
     p.hp--;
-    if (p.kind === 'o' && p.hp > 0) { ev.opened.push(p); return; }
+    if ((p.kind === 'o' || p.kind === 'g') && p.hp > 0) { ev.opened.push(p); return; }
     if (p.kind === 'p' && p.hp > 0) { ev.puffed.push(p); return; }
     p.alive = false;
     s.chain++;
-    const pts = (p.kind === 'o' ? 100 : p.kind === 't' ? 50 : p.kind === 'p' ? 30 : 10) * s.chain;
+    const pts = (p.kind === 'g' ? 300 : p.kind === 'o' ? 100 : p.kind === 't' ? 50 : p.kind === 'p' ? 30 : 10) * s.chain;
+    if (p.kind === 'g') { s.left++; ev.golden.push(p); }   // a golden pearl: one back
     if (p.kind === 't' && !s.double) { s.double = true; ev.chest.push(p); }
     s.shot += pts;
     ev.popped.push(p); ev.points.push(pts);
     if (p.kind === 'p') {   // burst: everything around it (oysters and puffers lose a hit each)
         ev.burst.push(p);
         const [px, py] = pegAt(p, s.t);
-        for (const q of s.pegs) if (q.alive && q !== p && solid(q, s.t)) { const [qx, qy] = pegAt(q, s.t); if (Math.hypot(qx - px, qy - py) < BOMB_R) _pop(s, q, ev); }
+        for (const q of s.pegs) if (q.alive && q !== p && solid(q, s.t)) { const [qx, qy] = pegAt(q, s.t); if (Math.hypot(qx - px, qy - py) < BOMB_R && !guarded(s.lv || {}, qx, qy, s.t)) _pop(s, q, ev); }
     }
     if (p.kind === 'e') {   // zap everything near it (oysters lose a hit each)
         ev.zapped.push(p);
         const [px, py] = pegAt(p, s.t);
-        for (const q of s.pegs) if (q.alive && q !== p && solid(q, s.t)) { const [qx, qy] = pegAt(q, s.t); if (Math.hypot(qx - px, qy - py) < ZAP_R) _pop(s, q, ev); }
+        for (const q of s.pegs) if (q.alive && q !== p && solid(q, s.t)) { const [qx, qy] = pegAt(q, s.t); if (Math.hypot(qx - px, qy - py) < ZAP_R && !guarded(s.lv || {}, qx, qy, s.t)) _pop(s, q, ev); }
     }
 }
 
+function _cap(s, max) { const sp = Math.hypot(s.vx, s.vy); if (sp > max) { s.vx *= max / sp; s.vy *= max / sp; } }
 function _bounce(s, cx, cy, cr, e) {
     const dx = s.x - cx, dy = s.y - cy, d = Math.hypot(dx, dy), min = cr + R;
     if (d >= min || d === 0) return false;
@@ -255,7 +298,8 @@ function _bounce(s, cx, cy, cr, e) {
 
 /** One step. Events: popped, points, opened, zapped, jelly (bounced off one), landed: 'crab' | 'sand', bonus. */
 export function step(lv, s) {
-    const ev = { popped: [], points: [], opened: [], zapped: [], puffed: [], burst: [], chest: [], warped: false, jelly: false, landed: '', bonus: false };
+    const ev = { popped: [], points: [], opened: [], zapped: [], puffed: [], burst: [], chest: [], star: [], golden: [], warped: false, jelly: false, landed: '', bonus: false };
+    s.lv = lv;
     if (!s.flying) return ev;
     for (let k = 0; k < 2; k++) {
         s.t += DT / 2;
@@ -268,10 +312,15 @@ export function step(lv, s) {
         if (Math.hypot(s.vx, s.vy) < 0.15) { s.still += DT / 2; if (s.still > 1) s.sink = true; } else s.still = 0;
         for (const p of s.sink ? [] : s.pegs) {
             if (!p.alive || !solid(p, s.t)) continue;
+            if (lv.clams && lv.clams.length) { const [gx, gy] = pegAt(p, s.t); if (guarded(lv, gx, gy, s.t)) continue; }
             const [px, py] = pegAt(p, s.t);
-            if (_bounce(s, px, py, PEG_R, PEG_E)) _pop(s, p, ev);
+            if (_bounce(s, px, py, PEG_R, p.kind === 's' ? STAR_E : PEG_E)) { if (p.kind === 's') { ev.star.push(p); _cap(s, 2.6); } _pop(s, p, ev); }
         }
         for (const j of lv.jellies || []) { const [jx, jy, jr] = jellyAt(j, s.t); if (_bounce(s, jx, jy, jr, JELLY_E)) ev.jelly = true; }
+        for (const c of lv.clams || []) if (shut(c, s.t) && _bounce(s, c[0], c[1], CLAM_R, CLAM_E)) ev.clam = true;
+        for (const [x0, y0, x1, y1, ax] of lv.currents || []) {
+            if (s.x > x0 && s.x < x1 && s.y > y0 && s.y < y1) { s.vx = Math.max(-CURRENT_MAX, Math.min(CURRENT_MAX, s.vx + ax * DT / 2)); ev.current = true; }
+        }
         for (const a of lv.anglers || []) {
             if (!s.sink) { const [ax, ay] = lure(a, s.x, s.y); s.vx += ax * DT / 2; s.vy += ay * DT / 2; }
             if (_bounce(s, a[0], a[1], ANGLER_R, ANGLER_E)) ev.angler = true;
