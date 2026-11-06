@@ -1,6 +1,6 @@
 # CLAWGames: where things stand
 
-Last updated 2026-11-01. Live at **https://claws02.github.io/CLAWGames/** (GitHub
+Last updated 2026-11-06. Live at **https://claws02.github.io/CLAWGames/** (GitHub
 Pages from `main`). For the design and its history read [`DESIGN.md`](DESIGN.md); to
 audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 
@@ -17,6 +17,7 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 | CLAWGames #38 | **Trivia**: 167 questions, Massachusetts-flavoured general knowledge |
 | CLAWGames #40 | **HOST PLAYS TOO** switch: a phone host can run the room without playing |
 | CLAWGames #41 | **iPhone Add to Home Screen**: manifest, icons, the Share → Add to Home Screen tip |
+| claw-core #42, CLAWGames #54 | **Shell Game race**: first right answer takes the round, wrong picks locked out, first to 3, on one screen and across phones (Room `PICK`/`CALL`, protocol 3) |
 
 ## How to play it
 
@@ -87,7 +88,8 @@ all work at 12 players (see claw-core's README, "Playing across phones").
 | Kind | Games |
 |---|---|
 | Score attack | Snap Strike, Odd One Out, Steady Hand, Loot Catch, Tree Climb, Mini Golf, Balloon Pump, Pancake Stack |
-| Knockout / streak | Shell Game, Higher or Lower |
+| Race | Shell Game: the first right answer on any phone takes the round, a wrong pick is locked out, first to 3 (a room with a shared phone plays the old streak) |
+| Streak | Higher or Lower |
 | Precision / quiz | Stop the Clock, Trivia |
 | Time trials with ghosts | Kart GP, Speed Boat, Rift Dive |
 
@@ -111,7 +113,7 @@ for one has them.
 
 `README.md` lists every probe. The online ones, all on the `?net=local` loopback in
 headless Chromium: `qa/together.js`, `qa/hostwatch.js`, `qa/tv.js`, `qa/drinking.js`
-(12 phones), `qa/ghosts.js`, `qa/phonegames.js`. **None of the online play has been
+(12 phones), `qa/ghosts.js`, `qa/phonegames.js`, `qa/shellrace.js`. **None of the online play has been
 tried on real phones over real WiFi yet**: that's the first job of the audit.
 
 ## How to continue

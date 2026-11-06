@@ -20,6 +20,7 @@ node qa/tv.js         # a TV host, a passed phone with two players and a second 
 node qa/drinks.mjs    # drinking-mode rules (sips by place, house rules, the crab tap), no browser
 node qa/ghosts.js     # time trials (Kart GP, Speed Boat, Rift Dive): a TV and three phones racing with live ghosts
 node qa/phonegames.js # online-only games (Stop the Clock, Higher or Lower, Trivia): lists, same seed same challenge, scores
+node qa/shellrace.js  # Shell Game race: a wrong pick locked out, first right answer takes the round, first to 3 (same screen and two phones)
 node qa/netfaults.js  # lost ROUND / GO / RESULT recovered, START WITHOUT a phone that never readies, forged ROSTER and stale SCORE ignored
 node qa/rejoin.js     # phones and the host dropping off and reloading: same seats, same points, REOPEN ROOM
 node qa/latejoin.js   # wake lock, joining mid-round, an older version told to refresh, the 13th player told it's full
