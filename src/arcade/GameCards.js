@@ -93,6 +93,8 @@ export function closePreview() {
     if (!_sheet) return;
     const el = _sheet; _sheet = null;
     el.querySelector('video')?.pause();
+    // it slides away for a moment: give up its ids now, so a new sheet's are the only ones
+    el.removeAttribute('id'); el.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
     window.removeEventListener('keydown', _onKey);
     el.classList.remove('open');
     setTimeout(() => el.remove(), 220);
