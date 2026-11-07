@@ -23,6 +23,17 @@
 //   golden oysters 🟡 three hits; free one and its pearl comes back to you (a pearl back)
 //   currents 🌊  streams that push the pearl sideways as it falls through
 //   giant clams 🐚 open and shut on a timer: shut, the pearl bounces off and what's inside is safe
+//   sea urchins 🦔 spiky: touch one and that pearl is lost on the spot (it keeps its points,
+//                 but Shelly can't catch it). They never pop, not even in a zap or a burst
+//   sponges 🧽    soak up a bounce: the pearl drops off them almost dead; they never pop
+//   sea mines 💣  pop on a hit and blow up everything near them, freeing oysters outright
+//                 (one blast is enough; mines set each other off)
+//   anemones 🌸   split the pearl in two the first time one is hit (then it's gone)
+//   barnacles 🐚  lock the oysters chained to them: a locked oyster can't be hurt by
+//                 anything until its barnacle pops
+//   kelp 🌿       patches that slow the pearl right down as it drifts through
+//   magnet shells 🧲 tug the pearl sideways towards them while it's level with one
+//   flip portals 🔄 send the pearl back up, and gravity stays upside down for a moment
 // Every piece sits clear above Shelly (reef() squeezes a reef up if not).
 // Some pieces move: coral wheels turn, some rows slide. The reef keeps moving
 // while you aim (the screen runs the clock), so a drop is timed as well as aimed.
@@ -38,7 +49,7 @@ export const R = 0.022, PEG_R = 0.026, LAUNCH = [0.5, 0.06], FLOOR_Y = 1.42, PEA
 export const CRAB_W = 0.17, CRAB_Y = 1.42, CATCH_X = 3, JELLY_E = 1.05;
 export const CLEAR_Y = 1.2;                 // nothing lower than this: Shelly's shell (and her hop) stays clear
 export const BOMB_R = 0.24, WHIRL_R = 0.045, LIFT = 6.5, LIFT_MAX = 1.6, LIFT_SECS = 1.2;   // lifts push for this long in all, a drop
-export const ANGLER_R = 0.034, ANGLER_E = 0.7, STAR_E = 1.3, CURRENT_MAX = 1.4, CLAM_R = 0.075, CLAM_E = 0.6;
+export const URCHIN_R = 0.028, SPONGE_E = 0.08, MINE_R = 0.2, MAX_SPLIT = 3, KELP_DRAG = 5, MAGNET_R = 0.03, FLIP_R = 0.04, FLIP_SECS = 0.7, MAX_AIR = 14, ANGLER_R = 0.034, ANGLER_E = 0.7, STAR_E = 1.3, CURRENT_MAX = 1.4, CLAM_R = 0.075, CLAM_E = 0.6;
 const _goal = k => k === 'o' || k === 'g';   // the pieces you have to free to win
 const GRAV = 3.0, PEG_E = 0.72, WALL_E = 0.8, MAX_V = 2.4;
 export const SEARCH = { angles: 60, powers: [0.3, 0.6, 1], angleFrom: 0.05, angleTo: Math.PI - 0.05 };
@@ -74,6 +85,9 @@ export function lowest(lv) {
     for (const a of lv.anglers || []) m = Math.max(m, a[1] + ANGLER_R);
     for (const c of lv.currents || []) m = Math.max(m, c[3]);
     for (const c of lv.clams || []) m = Math.max(m, c[1] + CLAM_R);
+    for (const k of lv.kelp || []) m = Math.max(m, k[3]);
+    for (const g of lv.magnets || []) m = Math.max(m, g[1] + MAGNET_R);
+    for (const f of lv.flips || []) m = Math.max(m, f[1] + FLIP_R);
     return m;
 }
 
@@ -82,8 +96,14 @@ export const WORLDS = Data.WORLDS;
 export const LEVELS = Data.LEVELS;
 
 const _pegs = lv => lv.pegs.map(p => ({ ...p, hp: p.kind === 'g' ? 3 : p.kind === 'o' || p.kind === 'p' ? 2 : 1, alive: true }));
-export const begin = lv => ({ x: LAUNCH[0], y: LAUNCH[1], vx: 0, vy: 0, flying: false, used: 0, left: PEARLS, score: 0, chain: 0, shot: 0, pegs: _pegs(lv), t: 0, caught: 0, bonus: 0, last: '', double: false, warpT: -9, still: 0, sink: false, lifted: 0 });
-export const copy = s => ({ ...s, pegs: s.pegs.map(p => ({ ...p })) });
+export const begin = lv => ({ x: LAUNCH[0], y: LAUNCH[1], vx: 0, vy: 0, flying: false, used: 0, left: PEARLS, score: 0, chain: 0, shot: 0, pegs: _pegs(lv), t: 0, caught: 0, bonus: 0, last: '', double: false, warpT: -9, still: 0, sink: false, lifted: 0, flipT: -9, extra: [], parked: false, crabbed: false });
+export const copy = s => ({ ...s, pegs: s.pegs.map(p => ({ ...p })), extra: (s.extra || []).map(b => ({ ...b })) });
+/** Every pearl in the air: [{ x, y }] (a split drop has more than one). */
+export const pearls = s => (s.flying ? [...(s.parked ? [] : [s]), ...(s.extra || [])] : []);
+/** Is this piece locked by a barnacle that's still there? */
+export const locked = (s, p) => p.lock != null && s.pegs.some(q => q.kind === 'b' && q.alive && q.key === p.lock);
+/** A magnet shell's sideways tug at the pearl. m = [x, y, reach, strength]. */
+export function tug(m, x, y) { const dx = m[0] - x; if (Math.abs(y - m[1]) > 0.15 || Math.abs(dx) > m[2] || Math.abs(dx) < MAGNET_R + R) return 0; /* (not while right over it: it would hold the pearl up) */ return Math.sign(dx) * m[3] * (1 - Math.abs(dx) / m[2]); }
 export const moving = s => s.flying;
 export const cleared = s => s.pegs.every(p => !_goal(p.kind) || !p.alive);
 export const failed = (lv, s) => !s.flying && !cleared(s) && s.left <= 0;
@@ -101,17 +121,17 @@ export function shot(lv, s, angle, power) {
     const a = Math.max(SEARCH.angleFrom, Math.min(SEARCH.angleTo, angle < 0 ? angle + Math.PI * 2 > Math.PI ? (angle < -Math.PI / 2 ? Math.PI - 0.05 : 0.05) : angle : angle));
     const v = (0.35 + 0.65 * Math.max(0, Math.min(1, power))) * MAX_V;
     s.x = LAUNCH[0]; s.y = LAUNCH[1]; s.vx = Math.cos(a) * v; s.vy = Math.sin(a) * v;
-    s.flying = true; s.used++; s.left--; s.chain = 0; s.shot = 0; s.last = ''; s.double = false; s.still = 0; s.sink = false; s.lifted = 0;
+    s.flying = true; s.used++; s.left--; s.chain = 0; s.shot = 0; s.last = ''; s.double = false; s.still = 0; s.sink = false; s.lifted = 0; s.flipT = -9; s.warpT = -9; s.extra = []; s.parked = false; s.crabbed = false; s.air = 0;
 }
 
 function _pop(s, p, ev) {
-    if (!p.alive || p.kind === 'r' || p.kind === 's') return;
+    if (!p.alive || p.kind === 'r' || p.kind === 's' || p.kind === 'u' || p.kind === 'd' || locked(s, p)) return;
     p.hp--;
     if ((p.kind === 'o' || p.kind === 'g') && p.hp > 0) { ev.opened.push(p); return; }
     if (p.kind === 'p' && p.hp > 0) { ev.puffed.push(p); return; }
     p.alive = false;
     s.chain++;
-    const pts = (p.kind === 'g' ? 300 : p.kind === 'o' ? 100 : p.kind === 't' ? 50 : p.kind === 'p' ? 30 : 10) * s.chain;
+    const pts = (p.kind === 'g' ? 300 : p.kind === 'o' ? 100 : p.kind === 't' ? 50 : p.kind === 'm' ? 40 : p.kind === 'p' ? 30 : p.kind === 'b' ? 25 : p.kind === 'a' ? 20 : 10) * s.chain;
     if (p.kind === 'g') { s.left++; ev.golden.push(p); }   // a golden pearl: one back
     if (p.kind === 't' && !s.double) { s.double = true; ev.chest.push(p); }
     s.shot += pts;
@@ -120,6 +140,11 @@ function _pop(s, p, ev) {
         ev.burst.push(p);
         const [px, py] = pegAt(p, s.t);
         for (const q of s.pegs) if (q.alive && q !== p && solid(q, s.t)) { const [qx, qy] = pegAt(q, s.t); if (Math.hypot(qx - px, qy - py) < BOMB_R && !guarded(s.lv || {}, qx, qy, s.t)) _pop(s, q, ev); }
+    }
+    if (p.kind === 'm') {   // a sea mine: everything near it goes, oysters freed outright
+        ev.mines.push(p);
+        const [px, py] = pegAt(p, s.t);
+        for (const q of s.pegs) if (q.alive && q !== p && solid(q, s.t) && !locked(s, q)) { const [qx, qy] = pegAt(q, s.t); if (Math.hypot(qx - px, qy - py) < MINE_R && !guarded(s.lv || {}, qx, qy, s.t)) { if (_goal(q.kind) || q.kind === 'p') q.hp = 1; _pop(s, q, ev); } }
     }
     if (p.kind === 'e') {   // zap everything near it (oysters lose a hit each)
         ev.zapped.push(p);
@@ -142,60 +167,108 @@ function _bounce(s, cx, cy, cr, e) {
     return true;
 }
 
-/** One step. Events: popped, points, opened, zapped, jelly (bounced off one), landed: 'crab' | 'sand', bonus. */
+/** One step. Events: popped, points, opened, zapped, jelly (bounced off one), landed: 'crab' | 'sand' | 'urchin'
+ *  (each pearl as it comes down; a split drop has more than one), done (the drop is over), bonus. */
 export function step(lv, s) {
-    const ev = { popped: [], points: [], opened: [], zapped: [], puffed: [], burst: [], chest: [], star: [], golden: [], warped: false, jelly: false, landed: '', bonus: false };
+    const ev = { popped: [], points: [], opened: [], zapped: [], puffed: [], burst: [], chest: [], star: [], golden: [], mines: [], split: [], sealed: [], warped: false, jelly: false, landed: '', bonus: false, done: false };
     s.lv = lv;
     if (!s.flying) return ev;
     for (let k = 0; k < 2; k++) {
         s.t += DT / 2;
-        s.vy += GRAV * DT / 2;
-        s.x += s.vx * DT / 2; s.y += s.vy * DT / 2;
-        if (s.x < R) { s.x = R; s.vx = Math.abs(s.vx) * WALL_E; }
-        if (s.x > W - R) { s.x = W - R; s.vx = -Math.abs(s.vx) * WALL_E; }
-        if (s.y < R) { s.y = R; s.vy = Math.abs(s.vy) * WALL_E; }
-        // resting on something for a second? it sinks through to the sand
-        if (Math.hypot(s.vx, s.vy) < 0.15) { s.still += DT / 2; if (s.still > 1) s.sink = true; } else s.still = 0;
-        for (const p of s.sink ? [] : s.pegs) {
-            if (!p.alive || !solid(p, s.t)) continue;
-            if (lv.clams && lv.clams.length) { const [gx, gy] = pegAt(p, s.t); if (guarded(lv, gx, gy, s.t)) continue; }
-            const [px, py] = pegAt(p, s.t);
-            if (_bounce(s, px, py, PEG_R, p.kind === 's' ? STAR_E : PEG_E)) { if (p.kind === 's') { ev.star.push(p); _cap(s, 2.6); } _pop(s, p, ev); }
+        if (!s.parked) { const w = _move(lv, s, s, ev); if (w) { _down(lv, s, w, ev); s.parked = true; } }
+        for (let i = s.extra.length - 1; i >= 0; i--) { const w = _move(lv, s, s.extra[i], ev); if (w) { _down(lv, s, w, ev); s.extra.splice(i, 1); } }
+        if (s.parked && !s.extra.length) break;
+    }
+    // the sea floor (checked once a whole step, as always)
+    const floor = b => (b.y > FLOOR_Y ? (Math.abs(b.x - crabX(lv, s.t)) < CRAB_W / 2 ? 'crab' : 'sand') : '');
+    if (!s.parked) { const w = floor(s); if (w) { _down(lv, s, w, ev); s.parked = true; } }
+    for (let i = s.extra.length - 1; i >= 0; i--) { const w = floor(s.extra[i]); if (w) { _down(lv, s, w, ev); s.extra.splice(i, 1); } }
+    if (s.parked && !s.extra.length) _end(s, ev);
+    return ev;
+}
+const _gravity = (s, b) => (s.t - (b.flipT ?? -9) < FLIP_SECS ? -GRAV * 0.5 : GRAV);
+// Half a step for one pearl b (the main one is s itself). Returns where it came down, or ''.
+function _move(lv, s, b, ev) {
+    const h = DT / 2;
+    b.vy += _gravity(s, b) * h;
+    b.x += b.vx * h; b.y += b.vy * h;
+    if (b.x < R) { b.x = R; b.vx = Math.abs(b.vx) * WALL_E; }
+    if (b.x > W - R) { b.x = W - R; b.vx = -Math.abs(b.vx) * WALL_E; }
+    if (b.y < R) { b.y = R; b.vy = Math.abs(b.vy) * WALL_E; }
+    // resting on something for a second? it sinks through to the sand
+    if (Math.hypot(b.vx, b.vy) < 0.15) { b.still += h; if (b.still > 1) b.sink = true; } else b.still = 0;
+    // in the air too long (caught between a magnet and a wall, say)? it sinks, and nothing holds it up
+    b.air = (b.air || 0) + h; if (b.air > MAX_AIR) b.sink = true;
+    if (b.sink && b.air > MAX_AIR) return '';
+    for (const p of b.sink ? [] : s.pegs) {
+        if (!p.alive || !solid(p, s.t)) continue;
+        const [px, py] = pegAt(p, s.t);
+        if (lv.clams && lv.clams.length && guarded(lv, px, py, s.t)) continue;
+        if (p.kind === 'u') {   // spiked: this pearl is lost here, with what it earned
+            if (Math.hypot(b.x - px, b.y - py) < URCHIN_R + R) { ev.spiked = p; return 'urchin'; }
+            continue;
         }
-        for (const j of lv.jellies || []) { const [jx, jy, jr] = jellyAt(j, s.t); if (_bounce(s, jx, jy, jr, JELLY_E)) ev.jelly = true; }
-        for (const c of lv.clams || []) if (shut(c, s.t) && _bounce(s, c[0], c[1], CLAM_R, CLAM_E)) ev.clam = true;
-        for (const [x0, y0, x1, y1, ax] of lv.currents || []) {
-            if (s.x > x0 && s.x < x1 && s.y > y0 && s.y < y1) { s.vx = Math.max(-CURRENT_MAX, Math.min(CURRENT_MAX, s.vx + ax * DT / 2)); ev.current = true; }
+        const e = p.kind === 's' ? STAR_E : p.kind === 'd' ? SPONGE_E : PEG_E;
+        if (!_bounce(b, px, py, PEG_R, e)) continue;
+        if (p.kind === 's') { ev.star.push(p); _cap(b, 2.6); }
+        if (locked(s, p)) { ev.sealed.push(p); continue; }
+        _pop(s, p, ev);
+        if (p.kind === 'a' && !p.alive && s.extra.length < MAX_SPLIT) {   // an anemone: one pearl becomes two
+            const sp = Math.max(0.6, Math.hypot(b.vx, b.vy));
+            s.extra.push({ x: px + (b.x < px ? 1 : -1) * (PEG_R + R + 0.004), y: b.y, vx: (b.x < px ? 1 : -1) * sp * 0.7, vy: -Math.abs(b.vy) * 0.4 - 0.3, still: 0, sink: false, warpT: -9, lifted: 0, flipT: -9, air: 0 });
+            ev.split.push(p);
         }
-        for (const a of lv.anglers || []) {
-            if (!s.sink) { const [ax, ay] = lure(a, s.x, s.y); s.vx += ax * DT / 2; s.vy += ay * DT / 2; }
-            if (_bounce(s, a[0], a[1], ANGLER_R, ANGLER_E)) ev.angler = true;
-        }
-        // a whirlpool: in one, out of its twin (just past it, the same way), then a moment before another
-        if (s.t - s.warpT > 0.35) for (const [ax, ay, bx, by] of lv.whirls || []) {
+    }
+    for (const j of lv.jellies || []) { const [jx, jy, jr] = jellyAt(j, s.t); if (_bounce(b, jx, jy, jr, JELLY_E)) ev.jelly = true; }
+    for (const c of lv.clams || []) if (shut(c, s.t) && _bounce(b, c[0], c[1], CLAM_R, CLAM_E)) ev.clam = true;
+    for (const [x0, y0, x1, y1, ax] of lv.currents || []) {
+        if (b.x > x0 && b.x < x1 && b.y > y0 && b.y < y1) { b.vx = Math.max(-CURRENT_MAX, Math.min(CURRENT_MAX, b.vx + ax * h)); ev.current = true; }
+    }
+    // kelp: the pearl drifts through slowly
+    for (const [x0, y0, x1, y1] of lv.kelp || []) if (b.x > x0 && b.x < x1 && b.y > y0 && b.y < y1) { const f = Math.exp(-KELP_DRAG * h); b.vx *= f; b.vy *= f; ev.kelp = true; }
+    for (const a of lv.anglers || []) {
+        if (!b.sink) { const [ax, ay] = lure(a, b.x, b.y); b.vx += ax * h; b.vy += ay * h; }
+        if (_bounce(b, a[0], a[1], ANGLER_R, ANGLER_E)) ev.angler = true;
+    }
+    // magnet shells: tug the pearl sideways towards them while it's level with one
+    for (const m of lv.magnets || []) {
+        if (!b.sink) b.vx += tug(m, b.x, b.y) * h;
+        if (!b.sink && _bounce(b, m[0], m[1], MAGNET_R, PEG_E)) ev.magnet = true;
+    }
+    // a flip portal: gravity turns upside down for a moment
+    for (const [fx, fy] of lv.flips || []) if (s.t - (b.flipT ?? -9) > FLIP_SECS + 0.5 && Math.hypot(b.x - fx, b.y - fy) < FLIP_R) { b.flipT = s.t; b.vy = -Math.abs(b.vy) * 0.8; ev.flipped = true; }
+    // a whirlpool: in one, out of its twin (just past it, the same way), then a moment before another
+    if (s.t - b.warpT > 0.35) {
+        let warped = false;
+        for (const [ax, ay, bx, by] of lv.whirls || []) {
             for (const [ix, iy, ox, oy] of [[ax, ay, bx, by], [bx, by, ax, ay]]) {
-                if (Math.hypot(s.x - ix, s.y - iy) < WHIRL_R) {
-                    const sp = Math.hypot(s.vx, s.vy) || 1;
-                    s.x = ox + (s.vx / sp) * (WHIRL_R + R + 0.005); s.y = oy + (s.vy / sp) * (WHIRL_R + R + 0.005);
-                    s.warpT = s.t; ev.warped = true; break;
+                if (Math.hypot(b.x - ix, b.y - iy) < WHIRL_R) {
+                    const sp = Math.hypot(b.vx, b.vy) || 1;
+                    b.x = ox + (b.vx / sp) * (WHIRL_R + R + 0.005); b.y = oy + (b.vy / sp) * (WHIRL_R + R + 0.005);
+                    b.warpT = s.t; warped = ev.warped = true; break;
                 }
             }
-            if (ev.warped) break;
-        }
-        // a bubble lift: pushes up while the pearl is in its column
-        for (const [lx, top, bottom, w] of lv.lifts || []) {
-            if (s.lifted < LIFT_SECS && Math.abs(s.x - lx) < w / 2 && s.y > top && s.y < bottom) { s.vy = Math.max(-LIFT_MAX, s.vy - LIFT * DT / 2); s.lifted += DT / 2; ev.lifted = true; }
+            if (warped) break;
         }
     }
-    if (s.y > FLOOR_Y) {
-        const inShell = Math.abs(s.x - crabX(lv, s.t)) < CRAB_W / 2;
-        ev.landed = s.last = inShell ? 'crab' : 'sand';
-        s.score += s.shot * (inShell ? CATCH_X : 1) * (s.double ? 2 : 1);
-        if (inShell) { s.left++; s.caught++; }
-        if (s.chain >= BIG_CHAIN) { s.left++; s.bonus++; ev.bonus = true; }
-        s.flying = false; s.vx = s.vy = 0;
+    // a bubble lift: pushes up while the pearl is in its column
+    for (const [lx, top, bottom, w] of lv.lifts || []) {
+        if (b.lifted < LIFT_SECS && Math.abs(b.x - lx) < w / 2 && b.y > top && b.y < bottom) { b.vy = Math.max(-LIFT_MAX, b.vy - LIFT * h); b.lifted += h; ev.lifted = true; }
     }
-    return ev;
+    return '';
+}
+// One pearl came down (Shelly's shell gives it back).
+function _down(lv, s, where, ev) {
+    ev.landed = where;
+    if (where === 'crab') { s.left++; s.caught++; s.crabbed = true; }
+    s.last = s.crabbed ? 'crab' : where;
+}
+// The drop is over: bank the shot (×3 if Shelly caught a pearl, ×2 after a chest).
+function _end(s, ev) {
+    s.score += s.shot * (s.crabbed ? CATCH_X : 1) * (s.double ? 2 : 1);
+    if (s.chain >= BIG_CHAIN) { s.left++; s.bonus++; ev.bonus = true; }
+    s.flying = false; s.vx = s.vy = 0; s.parked = false;
+    ev.done = true;
 }
 
 export function settle(lv, s, maxSteps = 120 * 20) {

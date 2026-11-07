@@ -57,16 +57,32 @@ function attempt(rc, world, r) {
     if (x.whirls) more.whirls = Array.from({ length: x.whirls }, (_, k) => { const w = [k % 2 ? 0.92 : 0.08, range(r, 0.35, 0.7), k % 2 ? range(r, 0.15, 0.5) : range(r, 0.5, 0.85), range(r, 0.85, 1.05)]; clear([w[0], w[1]], 0.09); clear([w[2], w[3]], 0.09); return w; });
     if (x.lifts) more.lifts = Array.from({ length: x.lifts }, (_, k) => { const lx = k % 2 ? 0.93 : 0.07; pts = pts.filter(p => Math.abs(p[0] - lx) > 0.08); return [lx, range(r, 0.3, 0.55), range(r, 1.0, 1.15), 0.08]; });
     if (x.anglers) more.anglers = Array.from({ length: x.anglers }, (_, k) => { const a = [x.anglers === 1 ? 0.5 : k ? 0.75 : 0.25, range(r, 0.7, 0.88), range(r, 0.24, 0.32), range(r, 3.2, 4.4)]; clear(a, 0.09); return a; });
+    if (x.magnets) more.magnets = Array.from({ length: x.magnets }, (_, k) => { const m = [+(k % 2 ? range(r, 0.84, 0.92) : range(r, 0.08, 0.16)).toFixed(3), +range(r, 0.5, 0.95).toFixed(3), +range(r, 0.35, 0.5).toFixed(3), +range(r, 7, 10).toFixed(2)]; clear(m, 0.08); return m; });
+    if (x.flips) more.flips = Array.from({ length: x.flips }, (_, k) => { const f = [+(x.flips === 1 ? range(r, 0.3, 0.7) : k % 2 ? range(r, 0.6, 0.8) : range(r, 0.2, 0.4)).toFixed(3), +range(r, 0.62, 1.0).toFixed(3)]; clear(f, 0.08); return f; });
+    if (x.kelp) more.kelp = Array.from({ length: x.kelp }, () => { const w = range(r, 0.22, 0.38), h = range(r, 0.12, 0.2), x0 = range(r, 0.04, 0.96 - w), y0 = range(r, 0.45, 1.0 - h); return [x0, y0, x0 + w, y0 + h].map(v => +v.toFixed(3)); });
     if (x.currents) more.currents = Array.from({ length: x.currents }, (_, k) => { const y0 = 0.6 + k * 0.22 + range(r, -0.03, 0.03), c = [0, y0, 1, y0 + 0.07, (k % 2 ? -1 : 1) * range(r, 1.8, 2.6)]; pts = pts.filter(p => p[1] < y0 - 0.04 || p[1] > y0 + 0.11); return c; });
     // the kinds: goals first, then the rest, on distinct still points (a wheel's own pieces count as still points here too)
     const all = [...pts.map(p => ({ p })), ...movers.map(m => ({ m }))], free = [...all.keys()];
     const take = n => { const out = []; for (let k = 0; k < n && free.length; k++) out.push(free.splice(Math.floor(r() * free.length), 1)[0]); return out; };
-    const want = { o: rc.oysters || 0, g: rc.golden || 0, p: rc.puffers || 0, e: rc.eels || 0, r: rc.rocks || 0, t: rc.chests || 0, s: rc.starfish || 0 };
+    const want = { o: rc.oysters || 0, g: rc.golden || 0, p: rc.puffers || 0, e: rc.eels || 0, r: rc.rocks || 0, t: rc.chests || 0, s: rc.starfish || 0,
+                   u: rc.urchins || 0, d: rc.sponges || 0, m: rc.mines || 0, a: rc.anemones || 0 };
     if (want.o + want.g < 1) want.o = 3;
     const kindOf = {};
     for (const [k, n] of Object.entries(want)) for (const i of take(n)) kindOf[i] = k;
     if (Object.keys(kindOf).length < Object.values(want).reduce((a, b) => a + b, 0)) return null;
     if (x.clams) { more.clams = []; for (const i of Object.keys(kindOf).filter(i => (kindOf[i] === 'o' || kindOf[i] === 'g') && all[i].p).slice(0, x.clams)) { const q = all[i].p; more.clams.push([q[0], q[1], range(r, 2.4, 3.2), r() * 6]); } }
+    // barnacles: each locks the one or two nearest still oysters (and is never one itself)
+    if (x.locks) {
+        more.keys = {}; more.locks = {};
+        const goals = Object.keys(kindOf).map(Number).filter(i => all[i].p && (kindOf[i] === 'o' || kindOf[i] === 'g'));
+        for (let k = 0; k < x.locks && goals.length; k++) {
+            const [b] = take(1); if (b == null || !all[b].p) return null;
+            kindOf[b] = 'b'; more.keys[b] = k;
+            const q = all[b].p, near2 = goals.filter(i => more.locks[i] == null).sort((i, j) => Math.hypot(all[i].p[0] - q[0], all[i].p[1] - q[1]) - Math.hypot(all[j].p[0] - q[0], all[j].p[1] - q[1])).slice(0, 1 + Math.floor(r() * 2));
+            if (!near2.length) return null;
+            for (const i of near2) more.locks[i] = k;
+        }
+    }
     if (x.ghosts) { more.ghost = {}; const stills = [...pts.keys()]; for (let k = 0; k < x.ghosts && stills.length; k++) { const i = stills.splice(Math.floor(r() * stills.length), 1)[0]; more.ghost[i] = [+range(r, 1.8, 2.6).toFixed(2), +(r() * 6).toFixed(2)]; } }
     const marks = {}; pts.forEach((_, i) => { if (kindOf[i]) marks[i] = kindOf[i]; });
     more.movers = movers.map((m, k) => ({ ...m, kind: kindOf[pts.length + k] || 'c' }));

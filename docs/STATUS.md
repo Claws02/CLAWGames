@@ -1,6 +1,6 @@
 # CLAWGames: where things stand
 
-Last updated 2026-11-06. Live at **https://claws02.github.io/CLAWGames/** (GitHub
+Last updated 2026-11-07. Live at **https://claws02.github.io/CLAWGames/** (GitHub
 Pages from `main`). For the design and its history read [`DESIGN.md`](DESIGN.md); to
 audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 
@@ -17,6 +17,7 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 | CLAWGames #38 | **Trivia**: 167 questions, Massachusetts-flavoured general knowledge |
 | CLAWGames #40 | **HOST PLAYS TOO** switch: a phone host can run the room without playing |
 | CLAWGames #41 | **iPhone Add to Home Screen**: manifest, icons, the Share → Add to Home Screen tip |
+| CLAWGames #54 | **Reef Drop**: levels as recipes (`docs/REEF_LEVELS.md`), 8 new pieces and 24 new reefs (78 in all) |
 | claw-core #42, CLAWGames #54 | **Shell Game race**: first right answer takes the round, wrong picks locked out, first to 3, on one screen and across phones (Room `PICK`/`CALL`, protocol 3) |
 
 ## How to play it
@@ -75,7 +76,7 @@ and listed in `Clips.js`. Rerun it after changing how a game looks.
 | Pearl Diver | hold to dive, let go to float; pearls, jellyfish and an air meter; a sunset sea with a parallax reef, pearls in glowing clams | `PearlDiver.js` |
 | Rebound | flick a pearl to pop every clam; 32 tanks in four worlds (moving bumpers, portals, breakable coral, urchins and switches), a daily tank, each par proven by a search | `Rebound.js`, `ReboundLogic.js`, `ReboundDaily.js` |
 | Orbit Putt | putt a ball past planets and black holes into a wormhole that only catches slow balls; 12 levels | `Orbit.js`, `OrbitLogic.js` |
-| Reef Drop | drop pearls through a moving reef: coral, oysters (two hits each), eels that zap, puffers that swell and burst (chain reactions), treasure chests (the shot scores double), springy jellyfish, whirlpool pairs, bubble lifts, ghost pieces that fade in and out, anglerfish whose lures pull the pearl in, bumper starfish, golden oysters (three hits, a pearl back), currents that push sideways, giant clams that open and shut, turning wheels, sliding rows. Shelly the hermit crab scuttles along the floor: a pearl in her shell comes back (×3); every piece stays clear above her (`CLEAR_Y`). A pearl that rests for a second sinks through, so none is ever stuck. 54 reefs in nine worlds; new ones are recipes (`docs/REEF_LEVELS.md`) | `ReefDrop.js`, `ReefDropLogic.js`, `ReefDropLevels.js` (generated), `ReefBuild.js` |
+| Reef Drop | drop pearls through a moving reef: coral, oysters (two hits each), eels that zap, puffers that swell and burst (chain reactions), treasure chests (the shot scores double), springy jellyfish, whirlpool pairs, bubble lifts, ghost pieces that fade in and out, anglerfish whose lures pull the pearl in, bumper starfish, golden oysters (three hits, a pearl back), currents that push sideways, giant clams that open and shut, turning wheels, sliding rows. Shelly the hermit crab scuttles along the floor: a pearl in her shell comes back (×3); every piece stays clear above her (`CLEAR_Y`). Worlds 10–13 add sea urchins (a touch loses the pearl), sponges, sea mines, anemones that split the pearl in two, barnacles that lock oysters, kelp, magnet shells and flip portals. A pearl that rests for a second sinks through, so none is ever stuck. 78 reefs in 13 worlds; new ones are recipes (`docs/REEF_LEVELS.md`) | `ReefDrop.js`, `ReefDropLogic.js`, `ReefDropLevels.js` (generated), `ReefBuild.js` |
 | Mirror Lagoon | turn mirrors (four ways) so red and blue lighthouse beams light every lantern of their colour (purple needs both); bolted mirrors, coloured glass, rocks. 30 levels made by `scripts/mirror-levels.mjs`, each par from an exact search | `Mirror.js`, `MirrorLogic.js`, `MirrorLevels.js` |
 
 The aim games (Orbit Putt, Reef Drop) share `AimScreen.js` (picker, pull-back aim, loop, done panel) and `AimSearch.js` (the beam search that proves each par).

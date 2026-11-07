@@ -4,7 +4,7 @@ Reefs are data. Don't hand-place coordinates, and don't touch `ReefDropLogic.js`
 
 | File | What it is |
 |---|---|
-| `scripts/reef-recipes.mjs` | **Edit this.** Short recipes for generated worlds. |
+| `scripts/reef-recipes.mjs` | **Edit this.** Short recipes for generated worlds (worlds 10–13 so far). |
 | `scripts/reef-base.json` | The 54 hand-made reefs (worlds 1–9), frozen. Leave alone. |
 | `scripts/reef-levels.mjs` | The generator: base plus recipes → `src/arcade/ReefDropLevels.js`. |
 | `scripts/reef-check.mjs` | A quiet check of every reef, with an optional contact sheet. |
@@ -29,12 +29,28 @@ Reefs are data. Don't hand-place coordinates, and don't touch `ReefDropLogic.js`
 Recipe fields:
 - `band`: `easy`, `medium` or `hard`. This is how often a random flinger wins: 25–80%, 8–40% or 2–18%.
 - `layout`: `grid`, `rings`, `waves`, `diamond`, `bands`, `spiral` or `any`.
-- Piece counts: `oysters`, `golden`, `puffers`, `eels`, `rocks`, `chests`, `starfish`.
+- Piece counts: `oysters`, `golden`, `puffers`, `eels`, `rocks`, `chests`, `starfish`, `urchins`, `sponges`, `mines`, `anemones`.
 - `movers`: `none`, `wheel`, `slider` or `both`.
-- `extras`: `{ jellies, whirls, lifts, anglers, currents, clams, ghosts }`, as counts.
+- `extras`: `{ jellies, whirls, lifts, anglers, currents, clams, ghosts, locks, kelp, magnets, flips }`, as counts. `locks` is barnacles: each one locks the one or two nearest oysters.
 - Optional: `crab: { period, a }` and `hint`.
 
 The same recipe always makes the same reef: the seed comes from the world and reef name.
+
+## The pieces
+| In a recipe | What it does |
+|---|---|
+| `oysters`, `golden` | The goals: two hits (golden: three, and a pearl back) |
+| `puffers`, `eels`, `mines` | Set off what's near them. A mine frees oysters outright and sets off other mines |
+| `chests` | That shot scores double |
+| `rocks`, `starfish`, `sponges` | Never pop. Starfish fling the pearl off fast; sponges soak up the bounce |
+| `urchins` | Never pop. A pearl that touches one is lost on the spot (it keeps its points) |
+| `anemones` | Split the pearl in two the first time one is hit (three extra pearls at most) |
+| `locks` | Barnacles: their oysters can't be hurt, not even by a zap or blast, until the barnacle pops |
+| `jellies`, `clams`, `anglers`, `magnets` | Bodies that bounce the pearl. A shut clam guards what's inside; anglers pull towards their lure; magnets tug sideways when the pearl is level with them |
+| `currents`, `kelp`, `lifts`, `whirls`, `flips` | Zones: push sideways, slow right down, push up, teleport, or send the pearl back up with gravity upside down for a moment |
+| `ghosts`, `movers` | Any still piece can blink in and out; wheels and sliders move pieces |
+
+A pearl still in the air after 14 s sinks to the sand, so nothing can hold one up forever.
 
 ## Every reef must pass (`scripts/reef-lib.mjs`)
 - A greedy player wins it with at least 5 pearls left.
