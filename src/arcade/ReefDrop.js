@@ -15,7 +15,7 @@ import { aimGame } from './AimScreen.js';
 
 const rnd = (i, k) => { const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
 const BUBBLES = Array.from({ length: 26 }, (_, i) => ({ x: rnd(i, 1), sp: 0.05 + rnd(i, 2) * 0.08, r: 1.5 + rnd(i, 3) * 3, ph: rnd(i, 4) * 10 }));
-let _starHit = new Map(), _bursts = [], _warps = [], _zaps = [], _pops = [], _banner = null, _crab = { mood: '', t: 0, x: 0.5, dir: 1 }, _squish = new Map(), _launch = 0;
+let _blasts = [], _spiked = [], _sealHit = new Map(), _starHit = new Map(), _bursts = [], _warps = [], _zaps = [], _pops = [], _banner = null, _crab = { mood: '', t: 0, x: 0.5, dir: 1 }, _squish = new Map(), _launch = 0;
 
 const now = () => performance.now() / 1000;
 const say = (text, color = '#fff', big = false) => { _banner = { text, color, big, t: now() }; };
@@ -177,6 +177,101 @@ function clam(g, P, c, t, layer) {
     half(1); half(-1);
     g.restore();
 }
+function urchin(g, x, y, r, t, i) {
+    // a sea urchin: a dark ball bristling with long spines that sway
+    g.save(); g.translate(x, y);
+    g.strokeStyle = '#1e1b4b'; g.lineCap = 'round';
+    for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2 + Math.sin(t * 2 + i + k) * 0.06, rr = r * (1.35 + (k % 2) * 0.3); g.lineWidth = k % 2 ? 1.6 : 2.4; g.beginPath(); g.moveTo(Math.cos(a) * r * 0.6, Math.sin(a) * r * 0.6); g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); g.stroke(); }
+    const b = g.createRadialGradient(-r * 0.25, -r * 0.3, 1, 0, 0, r * 0.8); b.addColorStop(0, '#a78bfa'); b.addColorStop(1, '#312e81');
+    g.fillStyle = b; g.strokeStyle = '#1e1b4b'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, r * 0.75, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = '#fff'; for (const ex of [-0.25, 0.25]) { g.beginPath(); g.arc(ex * r, -r * 0.1, r * 0.13, 0, 7); g.fill(); }
+    g.fillStyle = '#111'; for (const ex of [-0.25, 0.25]) { g.beginPath(); g.arc(ex * r, -r * 0.06, r * 0.07, 0, 7); g.fill(); }
+    g.restore();
+}
+function sponge(g, x, y, r, sq, i) {
+    // a sponge: a soft yellow block full of holes that squashes when hit
+    g.save(); g.translate(x, y); g.scale(1 + sq * 0.25, 1 - sq * 0.3);
+    g.fillStyle = '#facc15'; g.strokeStyle = '#a16207'; g.lineWidth = 2;
+    g.beginPath(); g.roundRect ? g.roundRect(-r, -r * 0.85, r * 2, r * 1.7, r * 0.35) : g.rect(-r, -r * 0.85, r * 2, r * 1.7); g.fill(); g.stroke();
+    g.fillStyle = '#ca8a04';
+    for (let k = 0; k < 6; k++) { g.beginPath(); g.arc((rnd(i, k) - 0.5) * r * 1.4, (rnd(i, k + 9) - 0.5) * r * 1.2, r * (0.12 + rnd(i, k + 3) * 0.1), 0, 7); g.fill(); }
+    g.restore();
+}
+function mine(g, x, y, r, t) {
+    // a sea mine: a round iron shell with studs and a blinking light
+    g.save(); g.translate(x, y);
+    g.strokeStyle = '#1f2937'; g.lineWidth = 3; g.lineCap = 'round';
+    for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; g.beginPath(); g.moveTo(Math.cos(a) * r * 0.8, Math.sin(a) * r * 0.8); g.lineTo(Math.cos(a) * r * 1.25, Math.sin(a) * r * 1.25); g.stroke(); }
+    const b = g.createRadialGradient(-r * 0.3, -r * 0.3, 1, 0, 0, r); b.addColorStop(0, '#6b7280'); b.addColorStop(1, '#111827');
+    g.fillStyle = b; g.strokeStyle = '#030712'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, r * 0.9, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = Math.sin(t * 6 + x) > 0 ? '#ef4444' : '#7f1d1d'; g.beginPath(); g.arc(0, -r * 0.2, r * 0.22, 0, 7); g.fill();
+    g.restore();
+}
+function anemone(g, x, y, r, t) {
+    // an anemone: a pink cup of waving tentacles (it splits the pearl)
+    g.save(); g.translate(x, y);
+    g.strokeStyle = '#f472b6'; g.lineWidth = 3; g.lineCap = 'round';
+    for (let k = 0; k < 9; k++) { const a = -Math.PI + (k / 8) * Math.PI, w = Math.sin(t * 3 + k) * 0.25; g.beginPath(); g.moveTo(Math.cos(a) * r * 0.4, Math.sin(a) * r * 0.2); g.quadraticCurveTo(Math.cos(a + w) * r * 1.0, Math.sin(a) * r * 0.9, Math.cos(a + w * 2) * r * 1.3, Math.sin(a) * r * 1.3 - r * 0.2); g.stroke(); }
+    g.fillStyle = '#ffe4e6'; for (let k = 0; k < 9; k++) { const a = -Math.PI + (k / 8) * Math.PI, w = Math.sin(t * 3 + k) * 0.25; g.beginPath(); g.arc(Math.cos(a + w * 2) * r * 1.3, Math.sin(a) * r * 1.3 - r * 0.2, r * 0.16, 0, 7); g.fill(); }
+    g.fillStyle = '#db2777'; g.strokeStyle = '#831843'; g.lineWidth = 2; g.beginPath(); g.ellipse(0, r * 0.3, r * 0.75, r * 0.55, 0, 0, 7); g.fill(); g.stroke();
+    g.restore();
+}
+function barnacle(g, x, y, r, i) {
+    // a barnacle: a little volcano of plates with a keyhole top (it locks oysters)
+    g.save(); g.translate(x, y);
+    g.fillStyle = '#e7e5e4'; g.strokeStyle = '#44403c'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(-r, r * 0.8); g.lineTo(-r * 0.45, -r * 0.8); g.lineTo(r * 0.45, -r * 0.8); g.lineTo(r, r * 0.8); g.closePath(); g.fill(); g.stroke();
+    g.strokeStyle = '#a8a29e'; g.lineWidth = 1.2; for (const k of [-0.5, 0, 0.5]) { g.beginPath(); g.moveTo(k * r * 0.5, -r * 0.8); g.lineTo(k * r * 1.4, r * 0.8); g.stroke(); }
+    g.fillStyle = '#44403c'; g.beginPath(); g.arc(0, -r * 0.35, r * 0.18, 0, 7); g.fill(); g.fillRect(-r * 0.07, -r * 0.35, r * 0.14, r * 0.4);
+    g.restore();
+}
+const KEY_HUE = [32, 190, 300, 110];   // each barnacle and its locked oysters share a colour
+function lockMark(g, x, y, r, key) {
+    // a locked oyster: crusted over, with a padlock in its barnacle's colour
+    g.save(); g.translate(x, y);
+    g.strokeStyle = `hsla(${KEY_HUE[key % 4]},80%,60%,.9)`; g.lineWidth = 3; g.setLineDash([3, 3]); g.beginPath(); g.arc(0, 0, r * 1.35, 0, 7); g.stroke(); g.setLineDash([]);
+    g.fillStyle = `hsl(${KEY_HUE[key % 4]},80%,55%)`; g.strokeStyle = '#1c1917'; g.lineWidth = 1.5;
+    g.beginPath(); g.rect(r * 0.55, -r * 1.35, r * 0.7, r * 0.55); g.fill(); g.stroke();
+    g.beginPath(); g.arc(r * 0.9, -r * 1.35, r * 0.22, Math.PI, 0); g.stroke();
+    g.restore();
+}
+function kelp(g, P, x0, y0, x1, y1, t) {
+    // a kelp patch: a soft green haze with fronds swaying up through it
+    const X0 = P(x0), Y0 = P(y0), Wd = P(x1 - x0), Ht = P(y1 - y0);
+    g.fillStyle = 'rgba(74,222,128,.12)'; g.fillRect(X0, Y0, Wd, Ht);
+    g.strokeStyle = 'rgba(34,197,94,.75)'; g.lineWidth = 3; g.lineCap = 'round';
+    const n = Math.max(3, Math.round(Wd / 18));
+    for (let k = 0; k < n; k++) {
+        const bx = X0 + (k + 0.5) * (Wd / n);
+        g.beginPath(); g.moveTo(bx, Y0 + Ht);
+        for (let s2 = 1; s2 <= 6; s2++) g.lineTo(bx + Math.sin(t * 1.6 + k + s2 * 0.7) * 5, Y0 + Ht - (s2 / 6) * Ht);
+        g.stroke();
+    }
+}
+function magnet(g, P, m, t, on) {
+    // a magnet shell: a red horseshoe with field lines, pointing into the reef
+    const [x, y, reach] = m, X = P(x), Y = P(y), R = P(L.MAGNET_R), dir = x < 0.5 ? 1 : -1;
+    g.save(); g.translate(X, Y);
+    g.strokeStyle = `rgba(248,113,113,${0.18 + on * 0.4})`; g.lineWidth = 2; g.setLineDash([5, 7]); g.lineDashOffset = -t * 30 * dir;
+    for (const dy of [-0.06, 0, 0.06]) { g.beginPath(); g.moveTo(0, P(dy)); g.lineTo(dir * P(reach), P(dy)); g.stroke(); }
+    g.setLineDash([]);
+    g.rotate(dir > 0 ? -Math.PI / 2 : Math.PI / 2);
+    g.strokeStyle = '#1c1917'; g.lineWidth = R * 0.9 + 3; g.beginPath(); g.arc(0, 0, R * 0.8, Math.PI, 0); g.stroke();
+    g.strokeStyle = '#ef4444'; g.lineWidth = R * 0.9; g.beginPath(); g.arc(0, 0, R * 0.8, Math.PI, 0); g.stroke();
+    g.fillStyle = '#e5e7eb'; g.fillRect(-R * 1.25, 0, R * 0.9, R * 0.45); g.fillRect(R * 0.35, 0, R * 0.9, R * 0.45);
+    g.restore();
+}
+function flip(g, P, f, t) {
+    // a flip portal: a ring of arrows turning round, pointing up
+    const X = P(f[0]), Y = P(f[1]), R = P(L.FLIP_R);
+    g.save(); g.translate(X, Y);
+    const gl = g.createRadialGradient(0, 0, 1, 0, 0, R * 1.6); gl.addColorStop(0, 'rgba(250,204,21,.5)'); gl.addColorStop(1, 'rgba(250,204,21,0)');
+    g.fillStyle = gl; g.beginPath(); g.arc(0, 0, R * 1.6, 0, 7); g.fill();
+    g.rotate(t * 2); g.strokeStyle = '#fde047'; g.lineWidth = 3;
+    for (let k = 0; k < 2; k++) { g.beginPath(); g.arc(0, 0, R, k * Math.PI, k * Math.PI + 2.4); g.stroke(); const a = k * Math.PI + 2.4; g.beginPath(); g.moveTo(Math.cos(a) * R, Math.sin(a) * R); g.lineTo(Math.cos(a - 0.4) * R * 1.3, Math.sin(a - 0.4) * R * 1.3); g.lineTo(Math.cos(a - 0.4) * R * 0.7, Math.sin(a - 0.4) * R * 0.7); g.closePath(); g.fillStyle = '#fde047'; g.fill(); }
+    g.rotate(-t * 2); g.fillStyle = '#fff'; g.font = `900 ${Math.round(R)}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⇧', 0, 1);
+    g.restore();
+}
 function rock(g, x, y, r, i) {
     g.save(); g.translate(x, y);
     const f = g.createLinearGradient(0, -r, 0, r); f.addColorStop(0, '#a8a29e'); f.addColorStop(1, '#57534e');
@@ -296,8 +391,8 @@ function scene(g, P, t) {
 
 const game = aimGame({
     ...L,
-    meta: { id: 'reefdrop', icon: '🪸', title: 'Reef Drop', blurb: 'Drop pearls into a moving reef. Free every sleepy oyster, and land pearls in Shelly the hermit crab\'s shell to get them back. 54 reefs.' },
-    intro: 'Pull back to aim, let go to drop a pearl. Hit every <b>oyster twice</b> to free it. ⚡ Eels zap what\'s near them. 🦀 Land a pearl in <b>Shelly\'s shell</b> and you get it back!',
+    meta: { id: 'reefdrop', icon: '🪸', title: 'Reef Drop', blurb: `Drop pearls into a moving reef. Free every sleepy oyster, and land pearls in Shelly the hermit crab\'s shell to get them back. ${L.LEVELS.length} reefs.` },
+    intro: 'Pull back to aim, let go to drop a pearl. Hit every <b>oyster twice</b> to free it. ⚡ Eels zap what\'s near them. 🦀 Land a pearl in <b>Shelly\'s shell</b> and you get it back! 🦔 Steer clear of sea urchins.',
     hud: (lv, s) => `🦪 ${s.pegs.filter(p => (p.kind === 'o' || p.kind === 'g') && p.alive).length} · 🫧 ${s.left} · ${s.score}`,
     doneText: (lv, s) => `${s.score} points · ${s.left} pearl${s.left === 1 ? '' : 's'} left${s.caught ? ` · Shelly caught ${s.caught}` : ''}`,
     threeStars: () => '★★★ with 5 pearls left',
@@ -312,6 +407,12 @@ const game = aimGame({
         ev.opened.forEach(p => { const [x, y] = L.pegAt(p, s.t); fx.burst(x, y, '#fef3c7', 8, 0.3); fx.sfx('gate_open'); });
         ev.zapped.forEach(p => { const [x, y] = L.pegAt(p, s.t); _zaps.push({ x, y, t }); fx.sfx('boost'); fx.shake(6); fx.buzz([20, 20, 40]); });
         if (ev.jelly) { fx.sfx('dice_land'); _jellyHit = { x: s.x, y: s.y, rt: s.t, t }; }
+        ev.mines.forEach(p => { const [x, y] = L.pegAt(p, s.t); _blasts.push({ x, y, t }); fx.burst(x, y, '#f87171', 30, 0.9); fx.shake(12); fx.sfx('win'); fx.buzz([40, 20, 80]); });
+        if (ev.mines.length) say(ev.mines.length > 1 ? `💣 CHAIN BLAST ×${ev.mines.length}!` : '💣 BOOM!', '#f87171', true);
+        ev.split.forEach(p => { const [x, y] = L.pegAt(p, s.t); fx.burst(x, y, '#f9a8d4', 18, 0.5); fx.sfx('coin_gain'); say('🌸 SPLIT! TWO PEARLS', '#f9a8d4', true); });
+        ev.sealed.forEach(p => { _sealHit.set(p, t); fx.sfx('gate_close'); });
+        if (ev.flipped) { fx.sfx('boost'); fx.buzz(15); }
+        if (ev.spiked) { const [x, y] = L.pegAt(ev.spiked, s.t); _spiked.push({ x, y, t }); fx.burst(x, y, '#a78bfa', 16, 0.4); fx.sfx('land_bad'); fx.buzz([50]); fx.shake(5); say('🦔 OUCH! PEARL LOST', '#c4b5fd'); }
         if (ev.landed === 'crab') { _crab = { ..._crab, mood: 'yum', t }; fx.sfx('win'); fx.buzz([30, 30, 60]); fx.burst(s.x, L.FLOOR_Y - 0.03, '#fde047', 24, 0.6); say(`🦀 CAUGHT! ×${L.CATCH_X}`, '#fde047', true); }
         else if (ev.landed === 'sand') { fx.sfx('dice_land'); if (Math.abs(s.x - _crab.x) < 0.22) _crab = { ..._crab, mood: 'aww', t }; }
         if (ev.bonus) { say('🫧 BIG CHAIN! +1 PEARL', '#fff', true); fx.buzz([40, 30, 80]); }
@@ -325,7 +426,7 @@ const game = aimGame({
         if (ev.warped) { _warps.push({ x: s.x, y: s.y, t }); fx.sfx('gate_open'); }
     },
     draw(g, P, lv, s, t) {
-        if (lv.name !== _name) { _name = lv.name; _pops = []; _zaps = []; _bursts = []; _warps = []; _banner = null; _crab = { mood: '', t: 0, x: L.crabX(lv, s.t), dir: 1 }; _squish = new Map(); }
+        if (lv.name !== _name) { _name = lv.name; _pops = []; _zaps = []; _bursts = []; _warps = []; _blasts = []; _spiked = []; _sealHit = new Map(); _banner = null; _crab = { mood: '', t: 0, x: L.crabX(lv, s.t), dir: 1 }; _squish = new Map(); }
         if (s.flying && !_wasFlying) _launch = t;
         _wasFlying = s.flying;
         const w = P(L.W);
@@ -349,6 +450,14 @@ const game = aimGame({
         }
         _jellyHit = null;
         for (const c of lv.currents || []) current(g, P, ...c, t);
+        for (const k of lv.kelp || []) kelp(g, P, ...k, t);
+        for (const f of lv.flips || []) flip(g, P, f, t);
+        for (const m of lv.magnets || []) { const on = L.pearls(s).some(b => L.tug(m, b.x, b.y) !== 0) ? 1 : 0; magnet(g, P, m, t, on); }
+        // barnacles and what they lock: a faint line in the barnacle's colour
+        for (const b of s.pegs) if (b.kind === 'b' && b.alive) for (const o of s.pegs) if (o.alive && o.lock === b.key) {
+            const [bx, by] = L.pegAt(b, s.t), [ox, oy] = L.pegAt(o, s.t);
+            g.strokeStyle = `hsla(${KEY_HUE[b.key % 4]},80%,60%,.45)`; g.lineWidth = 2; g.setLineDash([2, 5]); g.beginPath(); g.moveTo(P(bx), P(by)); g.lineTo(P(ox), P(oy)); g.stroke(); g.setLineDash([]);
+        }
         for (const c of lv.clams || []) clam(g, P, c, s.t, 'back');
         // anglerfish (the lure glows brighter as the pearl comes near)
         for (const a of lv.anglers || []) { const d = s.flying ? Math.hypot(s.x - a[0], s.y - a[1]) : 9; angler(g, P, a, t, Math.max(0, 1 - d / a[2]) * 0.8); }
@@ -373,7 +482,13 @@ const game = aimGame({
             else if (p.kind === 'e') eel(g, x, y + wob, r, t);
             else if (p.kind === 'p') puffer(g, x, y + wob, r, p.hp, t);
             else if (p.kind === 't') chest(g, x, y + wob * 0.5, r, t);
+            else if (p.kind === 'u') urchin(g, x, y, r, t, i);
+            else if (p.kind === 'd') sponge(g, x, y, r, Math.max(0, 1 - (t - (_sealHit.get(p) || -9)) * 4), i);
+            else if (p.kind === 'm') mine(g, x, y, r, t);
+            else if (p.kind === 'a') anemone(g, x, y, r, t);
+            else if (p.kind === 'b') barnacle(g, x, y, r, i);
             else rock(g, x, y, r, i);
+            if (p.lock != null && L.locked(s, p)) { const sh = Math.max(0, 1 - (t - (_sealHit.get(p) || -9)) * 5); lockMark(g, x + sh * Math.sin(t * 60) * 3, y, r, p.lock); }
             g.globalAlpha = 1;
         });
         for (const c of lv.clams || []) clam(g, P, c, s.t, 'front');
@@ -391,6 +506,10 @@ const game = aimGame({
         // zaps: a crackle round each eel that went off
         _bursts = _bursts.filter(b => t - b.t < 0.5);
         for (const b of _bursts) { const k = (t - b.t) / 0.5; g.strokeStyle = `rgba(251,146,60,${1 - k})`; g.lineWidth = 6 * (1 - k) + 1; g.beginPath(); g.arc(P(b.x), P(b.y), P(L.BOMB_R) * (0.3 + k * 0.8), 0, 7); g.stroke(); g.fillStyle = `rgba(254,240,138,${0.35 * (1 - k)})`; g.fill(); }
+        _blasts = _blasts.filter(b => t - b.t < 0.6);
+        for (const b of _blasts) { const k = (t - b.t) / 0.6; g.strokeStyle = `rgba(248,113,113,${1 - k})`; g.lineWidth = 8 * (1 - k) + 1; g.beginPath(); g.arc(P(b.x), P(b.y), P(L.MINE_R) * (0.3 + k * 0.9), 0, 7); g.stroke(); g.fillStyle = `rgba(254,202,202,${0.4 * (1 - k)})`; g.fill(); }
+        _spiked = _spiked.filter(b => t - b.t < 0.6);
+        for (const b of _spiked) { const k = (t - b.t) / 0.6; g.globalAlpha = 1 - k; g.fillStyle = '#fff'; for (let j = 0; j < 6; j++) { const a = j * 1.05; g.beginPath(); g.arc(P(b.x) + Math.cos(a) * k * 26, P(b.y) + Math.sin(a) * k * 26, 3 * (1 - k) + 1, 0, 7); g.fill(); } g.globalAlpha = 1; }
         _warps = _warps.filter(w => t - w.t < 0.4);
         for (const w of _warps) { const k = (t - w.t) / 0.4; g.strokeStyle = `rgba(165,243,252,${1 - k})`; g.lineWidth = 3; g.beginPath(); g.arc(P(w.x), P(w.y), P(L.WHIRL_R) * (1 + k * 2), 0, 7); g.stroke(); }
         _zaps = _zaps.filter(z => t - z.t < 0.4);
@@ -405,11 +524,15 @@ const game = aimGame({
         shelly(g, P, lv, s, t);
         // the pearl, with a shimmering trail
         if (s.flying) {
-            _trail.unshift([s.x, s.y]); if (_trail.length > 14) _trail.pop();
+            if (!s.parked) { _trail.unshift([s.x, s.y]); if (_trail.length > 14) _trail.pop(); } else _trail.pop();
             _trail.forEach(([x, y], k) => { g.globalAlpha = 0.35 * (1 - k / 14); g.fillStyle = '#fff'; g.beginPath(); g.arc(P(x), P(y), P(L.R) * (1 - k / 18), 0, 7); g.fill(); });
             g.globalAlpha = 1;
-            const pg = g.createRadialGradient(P(s.x) - 3, P(s.y) - 3, 1, P(s.x), P(s.y), P(L.R)); pg.addColorStop(0, '#fff'); pg.addColorStop(1, '#fbcfe8');
-            g.fillStyle = pg; g.beginPath(); g.arc(P(s.x), P(s.y), P(L.R), 0, 7); g.fill(); g.strokeStyle = '#2b1240'; g.lineWidth = 2; g.stroke();
+            for (const b of L.pearls(s)) {
+                const up = s.t - (b.flipT ?? -9) < L.FLIP_SECS;   // floating: a golden glow
+                if (up) { g.fillStyle = 'rgba(253,224,71,.35)'; g.beginPath(); g.arc(P(b.x), P(b.y), P(L.R) * 2, 0, 7); g.fill(); }
+                const pg = g.createRadialGradient(P(b.x) - 3, P(b.y) - 3, 1, P(b.x), P(b.y), P(L.R)); pg.addColorStop(0, '#fff'); pg.addColorStop(1, b === s ? '#fbcfe8' : '#ddd6fe');
+                g.fillStyle = pg; g.beginPath(); g.arc(P(b.x), P(b.y), P(L.R), 0, 7); g.fill(); g.strokeStyle = '#2b1240'; g.lineWidth = 2; g.stroke();
+            }
         } else _trail = [];
         if (s.flying && s.double) { g.font = '900 16px "Bebas Neue", Nunito, sans-serif'; g.fillStyle = '#fde047'; g.strokeStyle = '#2b1240'; g.lineWidth = 3; g.textAlign = 'center'; g.strokeText('×2', P(s.x) + 16, P(s.y) - 12); g.fillText('×2', P(s.x) + 16, P(s.y) - 12); }
         // the chain while it grows, and banners

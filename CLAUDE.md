@@ -1,6 +1,7 @@
 # CLAWGames: notes for Claude
 
 Start with `docs/STATUS.md` (what exists, what's next). Online work (Play Together, TV mode, `src/net/Room.js`) follows `docs/ONLINE_AUDIT.md`.
+New Reef Drop levels are recipes, not code: follow `docs/REEF_LEVELS.md` (`npm run reef:levels`, then `npm run reef:check`).
 
 ## Shipping: every change must be playable from GitHub Pages
 

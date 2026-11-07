@@ -95,7 +95,50 @@ const UP = -Math.PI / 2;
   const shutL = cl(Math.PI / 2), openL = cl(-Math.PI / 2), k1 = D.begin(shutL), k2 = D.begin(openL);
   D.shot(shutL, k1, Math.PI / 2, 0.2); let bonk = false; for (let i = 0; i < 2400 && k1.flying; i++) bonk = D.step(shutL, k1).clam || bonk;
   D.shot(openL, k2, Math.PI / 2, 0.2); D.settle(openL, k2);
-  ok(bonk && k1.pegs[0].alive && !k2.pegs[0].alive, 'Reef Drop: a shut clam bounces the pearl off and keeps what\'s inside safe; open, it can be hit'); }
+  ok(bonk && k1.pegs[0].alive && !k2.pegs[0].alive, 'Reef Drop: a shut clam bounces the pearl off and keeps what\'s inside safe; open, it can be hit');
+  // ---- the newer pieces (worlds 10–13) ----
+  const away = { a: 0.3, ph: Math.PI / 2, period: 1000 };   // Shelly off to the side
+  const drop = (lv, f) => { const st = D.begin(lv); D.shot(lv, st, Math.PI / 2, 0.2); const evs = []; for (let i = 0; i < 4000 && st.flying; i++) { const ev = D.step(lv, st); evs.push(ev); if (f) f(st, ev); } return { st, evs }; };
+  // a sea urchin: the pearl is lost on it at once, keeping what it earned; urchins never pop, not even in a zap
+  const ur = { pegs: [{ x: 0.5, y: 0.5, kind: 'c' }, { x: 0.5, y: 0.75, kind: 'u' }], crab: { a: 0 } };
+  const u1 = drop(ur), spikedAt = u1.evs.findIndex(e => e.landed === 'urchin');
+  ok(spikedAt >= 0 && u1.st.last === 'urchin' && u1.st.left === D.PEARLS - 1 && u1.st.score === 10 && u1.st.pegs[1].alive && u1.st.y < 0.8,
+     `Reef Drop: a sea urchin takes the pearl on the spot (at y ${u1.st.y.toFixed(2)}, Shelly right below can't catch it), it keeps its ${u1.st.score} points, and the urchin stays`);
+  const uz = { pegs: [{ x: 0.5, y: 0.6, kind: 'e' }, { x: 0.58, y: 0.62, kind: 'u' }], crab: away }, u2 = drop(uz);
+  ok(!u2.st.pegs[0].alive && u2.st.pegs[1].alive, 'Reef Drop: an eel\'s zap leaves a sea urchin alone');
+  // a sponge: soaks up the bounce, never pops
+  const bounceUp = k => { let up = 0; drop({ pegs: [{ x: 0.5, y: 0.6, kind: k }], crab: away }, st => { up = Math.min(up, st.vy); }); return -up; };
+  const upSponge = bounceUp('d'), upRock = bounceUp('r');
+  ok(upSponge < upRock * 0.25, `Reef Drop: a sponge soaks up the bounce (back up at ${upSponge.toFixed(2)} against ${upRock.toFixed(2)} off a rock)`);
+  // a sea mine: pops, and blows up what's near, freeing an unhit oyster outright
+  const mn = { pegs: [{ x: 0.5, y: 0.6, kind: 'm' }, { x: 0.5 + D.MINE_R - 0.03, y: 0.6, kind: 'o' }, { x: 0.38, y: 0.66, kind: 'm' }, { x: 0.25, y: 0.7, kind: 'c' }], crab: away };
+  const m1 = drop(mn), blasts = m1.evs.reduce((a, e) => a + e.mines.length, 0);
+  ok(!m1.st.pegs[1].alive && blasts === 2 && !m1.st.pegs[3].alive, `Reef Drop: a sea mine frees an unhit oyster outright and sets off the next mine (${blasts} blasts)`);
+  // an anemone: one pearl becomes two, and the drop ends only when both are down
+  const an2 = { pegs: [{ x: 0.5, y: 0.5, kind: 'a' }, { x: 0.3, y: 0.9, kind: 'c' }, { x: 0.7, y: 0.9, kind: 'c' }], crab: away };
+  let most = 0; const a2 = drop(an2, st => { most = Math.max(most, D.pearls(st).length); });
+  const downs = a2.evs.filter(e => e.landed).length, dones = a2.evs.filter(e => e.done).length;
+  ok(most === 2 && downs === 2 && dones === 1 && !a2.st.pegs[0].alive && !a2.st.flying && a2.st.left === D.PEARLS - 1,
+     `Reef Drop: an anemone splits the pearl in two (${most} in the air, ${downs} came down, the drop ended once)`);
+  const a3 = D.copy(D.begin(an2)); a3.extra.push({ x: 1 }); const a4 = D.copy(a3); a4.extra[0].x = 2;
+  ok(a3.extra[0].x === 1, 'Reef Drop: copying a reef copies its split pearls too');
+  // a barnacle: its oysters can't be hurt until it pops
+  const bn = hit => ({ pegs: [{ x: 0.5, y: 0.6, kind: 'o', lock: 1 }, { x: hit ? 0.5 : 0.9, y: hit ? 0.45 : 0.3, kind: 'b', key: 1 }], crab: away });
+  const b1 = drop(bn(false)), b2 = drop(bn(true));
+  ok(b1.st.pegs[0].hp === 2 && b1.evs.some(e => e.sealed.length) && D.locked(b1.st, b1.st.pegs[0]) && !b2.st.pegs[1].alive && b2.st.pegs[0].hp < 2 && !D.locked(b2.st, b2.st.pegs[0]),
+     'Reef Drop: a barnacle locks its oyster (hits bounce off); pop the barnacle and the oyster can be hit');
+  const bz = { pegs: [{ x: 0.5, y: 0.6, kind: 'e' }, { x: 0.58, y: 0.62, kind: 'o', lock: 2 }, { x: 0.1, y: 0.2, kind: 'b', key: 2 }], crab: away }, b3 = drop(bz);
+  ok(b3.st.pegs[1].hp === 2, 'Reef Drop: a locked oyster is safe from zaps too');
+  // kelp: the pearl drifts through slowly
+  const slowest = lv => { let t = 0; const r = drop(lv, () => { t++; }); return t; };
+  const tK = slowest({ pegs: [], kelp: [[0.3, 0.4, 0.7, 0.9]], crab: away }), tN = slowest({ pegs: [], crab: away });
+  ok(tK > tN * 1.5, `Reef Drop: kelp slows the pearl down (${(tK / 120).toFixed(1)}s to the sand, ${(tN / 120).toFixed(1)}s without)`);
+  // a magnet shell: tugs the pearl sideways while it's level with it
+  let mx = 0; drop({ pegs: [], magnets: [[0.8, 0.7, 0.4, 9]], crab: away }, st => { mx = Math.max(mx, st.x); });
+  ok(mx > 0.56 && D.tug([0.8, 0.7, 0.4, 9], 0.5, 0.2) === 0, `Reef Drop: a magnet shell tugs a straight drop sideways (to x ${mx.toFixed(2)}), only when level with it`);
+  // a flip portal: gravity turns upside down for a moment, then comes back
+  let rose2 = false, flipped = false; const fp = drop({ pegs: [], flips: [[0.5, 0.6]], crab: away }, (st, ev) => { if (ev.flipped) flipped = true; if (flipped && st.vy < -0.2) rose2 = true; });
+  ok(flipped && rose2 && !fp.st.flying, 'Reef Drop: a flip portal sends the pearl floating back up for a moment (and it comes down in the end)'); }
 
 // ---- every level ----
 for (const [name, G] of [['Orbit Putt', O]]) {

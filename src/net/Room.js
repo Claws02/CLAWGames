@@ -22,6 +22,10 @@
 //   host   → all    RESULT {type, scores, pay, totals, n, drinks?, rules}
 //   any    → all    BYE    {}                    leaving on purpose (a host's BYE closes the room)
 //   captain → TV    CMD    {}                    "spin / play it / next" from the couch
+//   any    → host   PICK   {n, round, seat, right, ms}  a race's answer (Shell Game): right or
+//                                                not, ms after that phone's cups stopped (-1: none)
+//   host   → all    CALL   {n, round, winner, name, wins, done}  who answered first (fastest right
+//                                                pick); repeated each tick until the next round
 //   any     → all   GHOST  {n, seat, s}          a racer's whereabouts, ~9 a second, during
 //                                                a time trial (SoloArena ghosts); straight to
 //                                                every phone, not through the host
@@ -50,10 +54,10 @@ import * as Drinks from '../arcade/Drinks.js';
 
 export const MAX_SEATS = 12;
 const V = 1;                  // the envelope: never change it
-export const PROTO = 2;       // the protocol: bump on any change an older build would get wrong
+export const PROTO = 3;       // the protocol: bump on any change an older build would get wrong (3: races)
 const MSG = {
     HELLO: 'hello', REFUSE: 'refuse', WAIT: 'wait', ROSTER: 'roster', ROUND: 'round', READY: 'ready', GO: 'go',
-    SCORE: 'score', SYNC: 'sync', RESULT: 'result', BYE: 'bye', CMD: 'cmd', GHOST: 'ghost',
+    SCORE: 'score', SYNC: 'sync', RESULT: 'result', BYE: 'bye', CMD: 'cmd', GHOST: 'ghost', PICK: 'pick', CALL: 'call',
 };
 const SELF = 'self';
 const TICK_MS = 3000;         // how often lagging phones are caught up
@@ -227,7 +231,7 @@ async function _teardown(forget) {
     _tick = null; _reconnect = null; _kicked = 0;
     _round = null; _last = null; _role = null; _hostPeer = null; _rid = null; _seats = []; _totals = []; _tv = false; _rules = [];
     _waiting = new Map(); _status = null; _refusal = null; _cur = null; _readyN = _goN = _scoredN = _resN = 0; _sent = []; _collided = false;
-    _ghosts.clear(); _ghostN = 0;
+    _ghosts.clear(); _ghostN = 0; _raceReset(0);
     _offs.splice(0).forEach(off => { try { off(); } catch (e) {} });
     if (T.isOpen()) await T.disconnect();
 }
@@ -338,7 +342,7 @@ function _seatsChanged() {
 function _catchUp(peer) {
     const r = _round;
     if (!r) return;
-    _send(MSG.ROUND, { type: r.type, seed: r.seed, n: r.n }, peer);
+    _send(MSG.ROUND, _roundMsg(r), peer);
     if (r.started) _send(MSG.GO, { n: r.n }, peer);
 }
 
@@ -348,9 +352,10 @@ function _hostTick() {
     if (!r) return;
     for (const p of _livePeers()) {
         if (p === SELF) continue;
-        if (!r.started) { if (!r.ready.has(p)) _send(MSG.ROUND, { type: r.type, seed: r.seed, n: r.n }, p); }
+        if (!r.started) { if (!r.ready.has(p)) _send(MSG.ROUND, _roundMsg(r), p); }
         else if (_seats.some(s => s.peer === p && !s.away && !r.scores.has(s))) _catchUp(p);
     }
+    if (r.started && r.race) _repeatCalls();
     if (r.started) _checkRound();   // an away seat's grace may be up
     if (!_round) return;
     // Stuck on somebody: let the host go on without them.
@@ -381,10 +386,12 @@ export function startRound(type) {
     if (!isHost() || _seats.length < 2 || _round) return false;
     const seed = (Math.random() * 0xffffffff) >>> 0;
     _n++;
-    _round = { type, seed, n: _n, ready: new Set(), scores: new Map(), started: false, progressAt: _now(), stalled: false };
-    _send(MSG.ROUND, { type, seed, n: _n });
+    const race = RACES.includes(type) && raceable();
+    _round = { type, seed, n: _n, race, ready: new Set(), scores: new Map(), started: false, progressAt: _now(), stalled: false };
+    _send(MSG.ROUND, _roundMsg(_round));
     _ghosts.clear(); _ghostN = _n;
-    _emit('round', { type, seed, n: _n });
+    _raceReset(_n);
+    _emit('round', { type, seed, n: _n, race });
     _hostReady(null);
     return true;
 }
@@ -607,9 +614,73 @@ function _onGhost(m, peer) {
     _ghosts.set(m.seat, { s: m.s, at: _now() });
 }
 
+// ---- races: who answered first (Shell Game across phones) ------------------------
+// A race is a parallel game where each round goes to the fastest RIGHT answer on
+// any phone. Every phone plays the same shuffles and sends PICK with how long it
+// took after ITS cups stopped, so the network can't make a fast hand slow. The
+// host calls the round once everyone has picked, or RACE_GRACE_MS after the first
+// right answer arrives (a slower link still gets heard), or RACE_WAIT_MS after the
+// first pick at all (a phone that dropped off). Only when every phone holds one
+// player: a passed-round phone can't race itself (that room plays it as before).
+export const RACES = ['shellgame'];
+export const RACE_TO = 3;
+const RACE_GRACE_MS = 700, RACE_WAIT_MS = 7000;
+let _raceN = 0, _wins = {};
+const _calls = new Map(), _picks = new Map(), _raceTimers = [];
+
+/** Can this room race? Two or more players, each on a phone of their own. */
+export function raceable() {
+    const per = new Map();
+    for (const s of _seats) if (!s.bye) per.set(s.peer, (per.get(s.peer) || 0) + 1);
+    return per.size >= 2 && [...per.values()].every(n => n === 1);
+}
+function _roundMsg(r) { return { type: r.type, seed: r.seed, n: r.n, ...(r.race ? { race: true } : {}) }; }
+function _raceReset(n) { _raceN = n; _wins = {}; _calls.clear(); _picks.clear(); _raceTimers.splice(0).forEach(clearTimeout); }
+
+/** This phone's answer for round `round` of the race (seat: the player). ms < 0 or Infinity: no answer. */
+export function sendPick(seat, round, right, ms) {
+    if (!_role || !_raceN) return;
+    const m = { n: _raceN, round, seat, right: !!right, ms: Number.isFinite(ms) && ms >= 0 ? Math.round(ms) : -1 };
+    if (isHost()) return _hostPick(SELF, m);
+    _send(MSG.PICK, m, _hostPeer);
+}
+/** The call for round `round` (null until the host has made it). */
+export const raceCall = round => _calls.get(round) || null;
+
+function _hostPick(peer, m) {
+    const r = _round, seat = _seats[m.seat];
+    if (!r || !r.race || m.n !== r.n || !seat || seat.peer !== peer || _calls.has(m.round)) return;
+    let picks = _picks.get(m.round);
+    if (!picks) { picks = new Map(); _picks.set(m.round, picks); _raceTimers.push(setTimeout(() => _judge(m.round, true), RACE_WAIT_MS)); }
+    if (picks.has(m.seat)) return;
+    picks.set(m.seat, { right: !!m.right && m.ms >= 0, ms: m.ms });
+    if (m.right && m.ms >= 0 && !picks.rightAt) { picks.rightAt = _now(); _raceTimers.push(setTimeout(() => _judge(m.round, true), RACE_GRACE_MS)); }
+    _judge(m.round, false);
+}
+function _judge(round, timeUp) {
+    const picks = _picks.get(round);
+    if (!picks || _calls.has(round) || !_round || _raceN !== _round.n) return;
+    const racers = _seats.map((s, i) => i).filter(i => !_seats[i].away && !_seats[i].bye);
+    const allIn = racers.every(i => picks.has(i));
+    const graceUp = picks.rightAt && _now() - picks.rightAt >= RACE_GRACE_MS - 5;
+    if (!allIn && !(timeUp && (graceUp || !picks.rightAt))) return;
+    if (!allIn && timeUp && picks.rightAt && !graceUp) return;
+    let winner = -1, best = Infinity;
+    for (const [i, p] of picks) if (p.right && p.ms < best) { best = p.ms; winner = i; }
+    if (winner >= 0) _wins[winner] = (_wins[winner] || 0) + 1;
+    const call = { winner, name: winner >= 0 ? _seats[winner].name : '', wins: { ..._wins }, done: winner >= 0 && _wins[winner] >= RACE_TO };
+    _calls.set(round, call);
+    _send(MSG.CALL, { n: _raceN, round, ...call });
+}
+function _repeatCalls() {
+    const rounds = [..._calls.keys()].sort((a, b) => b - a).slice(0, 3);
+    for (const round of rounds) _send(MSG.CALL, { n: _raceN, round, ..._calls.get(round) });
+}
+
 // ---- messages --------------------------------------------------------------------
 function _onMsg(m, peer) {
     if (m.t === MSG.GHOST) return _onGhost(m, peer);
+    if (m.t === MSG.CALL) { if (_role === 'client' && peer === _hostPeer && m.n === _raceN && !_calls.has(m.round)) _calls.set(m.round, { winner: m.winner, name: m.name, wins: m.wins || {}, done: !!m.done }); return; }
     if (_role === 'host') return _hostMsg(m, peer);
     if (_role !== 'client') return;
     if (m.t === MSG.ROSTER) return _onRoster(m, peer);
@@ -639,8 +710,9 @@ function _onMsg(m, peer) {
             return;
         }
         if (_cur && m.n < _cur.n) return;
-        _cur = { type: m.type, seed: m.seed, n: m.n };
+        _cur = { type: m.type, seed: m.seed, n: m.n, race: !!m.race };
         _ghosts.clear(); _ghostN = m.n;
+        _raceReset(m.n);
         _emit('round', { ..._cur });
     } else if (m.t === MSG.GO) {
         if (!_cur || m.n !== _cur.n || _goN === m.n) return;
@@ -660,6 +732,7 @@ function _hostMsg(m, peer) {
     if (m.t === MSG.ROSTER) { if (!_collided) { _collided = true; _emit('collision'); } return; }
     const r = _round;
     if (m.t === MSG.READY) { if (r && m.n === r.n) _hostReady(peer); }
+    else if (m.t === MSG.PICK) { if (r && r.race && m.n === r.n) _hostPick(peer, m); }
     else if (m.t === MSG.SCORE) { if (r && m.n === r.n) _hostScore(peer, m.scores || []); }
     else if (m.t === MSG.SYNC) {
         if (r && r.n === m.n) _hostScore(peer, m.scores || []);              // their scores never arrived
