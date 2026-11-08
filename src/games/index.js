@@ -37,6 +37,13 @@ MG_ORIENTATIONS.stacktable = {
     instructions: 'Lay the phone <b>flat on the table</b> between you: <b style="color:#ff3b3b">P1</b> at the <b>bottom</b> end, <b style="color:#3b8eff">P2</b> at the <b>top</b>.<br><br>You take it in <b>turns</b>. On your go the picture <b>turns round to face you</b>: drag to move the animal, <b>ROTATE</b> to turn it, <b>DROP</b> to let go.',
 };
 
+// The same hold, worded for Shut the Box.
+MG_ORIENTATIONS.boxtable = {
+    ...MG_ORIENTATIONS.dicetable,
+    icon: '📦',
+    instructions: 'Lay the phone <b>flat on the table</b> between you: <b style="color:#ff3b3b">P1</b> at the <b>bottom</b> end, <b style="color:#3b8eff">P2</b> at the <b>top</b>.<br><br>You each play your <b>whole box</b> in turn, and it <b>turns round to face you</b>: ROLL, then shut one tile, either die or the two added up.',
+};
+
 // Online only: played alone on every phone for a score (claw-core's
 // SoloArena), so a room seats up to twelve. `onlineOnly` keeps them off the
 // shared-screen grid, wheel and parties (Catalog.allTypes); Quick Play for
@@ -76,6 +83,16 @@ const GAMES = {
         // No clock. Each turn pushes the watchdog on (extendWatchdog), so this
         // only has to cover the first turn.
         watchdogMs: 300000,
+        net: 'local',
+        shape: 'table',
+        profile: { genre: 'brain', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
+    },
+    shutbox: {
+        load: () => import('./ShutTheBox.js'),
+        info: { icon: '📦', title: 'SHUT THE BOX', desc: 'A box of tiles 1 to 12 each. Roll two dice and shut ONE tile: either die\'s number, or the two added up (a 3 and a 4 shuts the 3, the 4 or the 7). When all three are already shut, you\'re stuck. Play your whole box, then the other player tries to beat it. Most tiles shut wins.' },
+        orientation: 'boxtable',
+        // No clock: each roll pushes the watchdog on (extendWatchdog).
+        watchdogMs: 180000,
         net: 'local',
         shape: 'table',
         profile: { genre: 'brain', control: 'tap', wire: 'exact', seats: [2, 2], live: false },

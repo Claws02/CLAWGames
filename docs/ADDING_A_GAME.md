@@ -66,3 +66,22 @@ Then go through MINIGAME_STANDARD §8, the shipping checklist.
 
 **Reference:** Yatzy (`src/games/Yatzy.js`, `qa/yatzy.js`) is a CLAWGames-only
 game. It is turn-based, uses the tabletop hold, and extends the watchdog each turn.
+
+## A quick board game (two players, one phone)
+
+Build it on `src/games/board/`, as Shut the Box does (`src/games/ShutTheBox.js`,
+about 200 lines, `qa/shutbox.js`):
+
+- `tabletop({ isBot, onWin, cls, css, html, cols, rows, onAct })` makes the
+  overlay and sizes it (one unit `--c`). Give any button `data-act="…"`; taps
+  arrive at `onAct(act, el)` unless the table is locked. Then use `face(p)` to
+  turn the frame round to whoever's up (it stays with the human against a bot),
+  `botTurn(p)`, `after(fn, ms)` for tracked timers, and `end({ winner,
+  standings, head, html })` for the end card and the single `onWin`.
+- `Dice.js`: `DICE_CSS`, `paint(el, v)`, and `await roll(table, els)` for the
+  tumble, which returns the faces.
+- Keep the rules as pure exported functions so the probe can test them
+  without a game running, and give the bot real strategy.
+- Register it with the `boxtable` or `dicetable` hold (or a new hold worded
+  for the game) and `profile.seats: [2, 2]`, then capture its card clip with
+  `node scripts/capture-clips.js <id>`.

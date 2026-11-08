@@ -42,6 +42,7 @@ node qa/kite.mjs     # Kite Wind: every ring within reach of the last, gulls cle
 node qa/dailygames.js # Ice Floe, Rock Pool Paths, Coral Merge, Kite Wind, Prize Shelf by tapping; TODAY, a tide pass, SHARE
 node qa/trophies.js   # trophy rules, persistence, old saves, the screen, a real game
 node qa/yatzy.js      # Yatzy scoring rules, a game vs a bot, a two-player tabletop game
+node qa/shutbox.js    # Shut the Box rules and the bot's odds, a game vs a bot, a two-player tabletop game
 node qa/pinball.js    # four fingers, nudge/tilt, saver, claw lock, multiball, missions, attacks, a full game vs the bot
 node qa/pinball-lab.mjs [n]   # pinball balance: idle vs each bot tier, n simulated games each
 node qa/animalstack.js   # drag/rotate/drop, the picture turning, turn clock, edge drop loses, a game vs the bot
@@ -54,7 +55,7 @@ There's no build step: the app is ES modules served as static files, with vendor
 - `src/claw-core/`: shared games, stage engine and game registry (the claw-core submodule). A change there is a commit in claw-core, then a pointer bump here and in HundredBlockDash; take the latest with `git submodule update --remote src/claw-core`.
 - `src/AppHost.js`: the 14 names the core imports from its host (listed in claw-core's README). This is CLAWGames' side of the contract.
 - `src/host/`: the arcade's `state`, bot tiers and a generated biome-data snapshot.
-- `src/games/`: games only the arcade has (Yatzy, Pinball, Animal Stack). Animal Stack uses planck.js (`vendor/planck-esm.js`), loaded only when it starts. They register themselves into claw-core's tables at startup, so HundredBlockDash never gets them.
+- `src/games/`: games only the arcade has (Yatzy, Shut the Box, Pinball, Animal Stack). Quick two-player board games build on `src/games/board/` (`Tabletop.js`: the flat-on-the-table frame that turns to whoever's up, timers, cleanup, end card; `Dice.js`: dice and the roll). Animal Stack uses planck.js (`vendor/planck-esm.js`), loaded only when it starts. They register themselves into claw-core's tables at startup, so HundredBlockDash never gets them.
 - `src/arcade/`: the shell screens (seats, grid, wheel, party, play together, trophies), stats, trophy rules and the game catalog.
 - `src/net/Room.js`: the Play Together session protocol, running on claw-core's `NetTransport`.
 - `src/arcade/TvHost.js`: the arcade on a TV. The TV tab hosts the room without a seat, while phones join by code (or `?join=CODE`) and play.
