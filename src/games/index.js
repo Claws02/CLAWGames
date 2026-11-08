@@ -37,6 +37,23 @@ MG_ORIENTATIONS.stacktable = {
     instructions: 'Lay the phone <b>flat on the table</b> between you: <b style="color:#ff3b3b">P1</b> at the <b>bottom</b> end, <b style="color:#3b8eff">P2</b> at the <b>top</b>.<br><br>You take it in <b>turns</b>. On your go the picture <b>turns round to face you</b>: drag to move the animal, <b>ROTATE</b> to turn it, <b>DROP</b> to let go.',
 };
 
+// The same hold, worded for Shut the Box.
+MG_ORIENTATIONS.boxtable = {
+    ...MG_ORIENTATIONS.dicetable,
+    icon: '📦',
+    instructions: 'Lay the phone <b>flat on the table</b> between you: <b style="color:#ff3b3b">P1</b> at the <b>bottom</b> end, <b style="color:#3b8eff">P2</b> at the <b>top</b>.<br><br>You each play your <b>whole box</b> in turn, and it <b>turns round to face you</b>: ROLL, then shut one tile, either die or the two added up.',
+};
+
+// The rest of the quick board games: the same hold, each in its own words.
+const tableHold = (icon, how) => ({
+    ...MG_ORIENTATIONS.dicetable, icon,
+    instructions: `Lay the phone <b>flat on the table</b> between you: <b style="color:#ff3b3b">P1</b> at the <b>bottom</b> end, <b style="color:#3b8eff">P2</b> at the <b>top</b>.<br><br>${how}`,
+});
+MG_ORIENTATIONS.pigtable = tableHold('🐷', 'You take it in <b>turns</b>, and it <b>turns round to face you</b>. ROLL as often as you dare (a <b>1</b> loses this turn\'s points), then HOLD to bank them. First to <b>100</b>.');
+MG_ORIENTATIONS.dotstable = tableHold('✏️', 'You take it in <b>turns</b>, and it <b>turns round to face you</b>. Tap between two dots to draw a line; close a box to claim it and <b>go again</b>.');
+MG_ORIENTATIONS.mancalatable = tableHold('🫘', 'Your pits are the <b>near row</b>, your store on your <b>right</b>, and it <b>turns round to face you</b>. Tap a pit to sow its seeds round to the right.');
+MG_ORIENTATIONS.liartable = tableHold('🤥', 'Your dice hide under your cup: on your go, <b>hold the cup to peek</b> while the other player looks away. Bid how many of a face are on the table, or call <b>LIAR!</b>');
+
 // Online only: played alone on every phone for a score (claw-core's
 // SoloArena), so a room seats up to twelve. `onlineOnly` keeps them off the
 // shared-screen grid, wheel and parties (Catalog.allTypes); Quick Play for
@@ -76,6 +93,52 @@ const GAMES = {
         // No clock. Each turn pushes the watchdog on (extendWatchdog), so this
         // only has to cover the first turn.
         watchdogMs: 300000,
+        net: 'local',
+        shape: 'table',
+        profile: { genre: 'brain', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
+    },
+    shutbox: {
+        load: () => import('./ShutTheBox.js'),
+        info: { icon: '📦', title: 'SHUT THE BOX', desc: 'A box of tiles 1 to 12 each. Roll two dice and shut ONE tile: either die\'s number, or the two added up (a 3 and a 4 shuts the 3, the 4 or the 7). When all three are already shut, you\'re stuck. Play your whole box, then the other player tries to beat it. Most tiles shut wins.' },
+        orientation: 'boxtable',
+        // No clock: each roll pushes the watchdog on (extendWatchdog).
+        watchdogMs: 180000,
+        net: 'local',
+        shape: 'table',
+        profile: { genre: 'brain', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
+    },
+    pig: {
+        load: () => import('./Pig.js'),
+        info: { icon: '🐷', title: 'PIG', desc: 'Push your luck. On your go, roll one die as often as you dare: every roll adds to this turn\'s points, but roll a 1 and you lose them all and your go ends. HOLD to bank what you have. First to 100 wins.' },
+        orientation: 'pigtable',
+        watchdogMs: 180000,
+        net: 'local',
+        shape: 'table',
+        profile: { genre: 'brain', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
+    },
+    dotsboxes: {
+        load: () => import('./DotsBoxes.js'),
+        info: { icon: '✏️', title: 'DOTS AND BOXES', desc: 'Take turns drawing a line between two dots. Close the fourth side of a box to claim it, and go again. When every line is drawn, most boxes wins.' },
+        orientation: 'dotstable',
+        watchdogMs: 180000,
+        net: 'local',
+        shape: 'table',
+        profile: { genre: 'brain', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
+    },
+    mancala: {
+        load: () => import('./Mancala.js'),
+        info: { icon: '🫘', title: 'MANCALA', desc: 'Pick up the seeds in one of your pits and sow them one by one round to the right, into your store too. Last seed in your store: go again. Last seed in an empty pit on your side: capture it and everything opposite. When a side runs out, most seeds in the store wins.' },
+        orientation: 'mancalatable',
+        watchdogMs: 180000,
+        net: 'local',
+        shape: 'table',
+        profile: { genre: 'brain', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
+    },
+    liarsdice: {
+        load: () => import('./LiarsDice.js'),
+        info: { icon: '🤥', title: "LIAR'S DICE", desc: 'Five dice each, hidden under your cup. Bid how many of one face are on the whole table (yours and theirs): each bid must go up. Or call LIAR! and the cups come off: whoever was wrong loses a die. Lose all five and you are out.' },
+        orientation: 'liartable',
+        watchdogMs: 180000,
         net: 'local',
         shape: 'table',
         profile: { genre: 'brain', control: 'tap', wire: 'exact', seats: [2, 2], live: false },

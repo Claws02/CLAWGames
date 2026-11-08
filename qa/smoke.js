@@ -56,9 +56,12 @@ const PER_GAME_S = +(process.env.QA_PER_GAME || 150);
                     const b = document.getElementById(id);
                     if (b && b.offsetParent) b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
                 }
-                // The human taps and drags at random inside their own zone.
-                const layer = document.getElementById('minigame-layer');
-                if (vis('minigame-layer')) {
+                // A board game says what a sensible player would tap (window.__clawProbe);
+                // otherwise the human taps and drags at random inside their own zone.
+                const layer = document.getElementById('minigame-layer'), sel = window.__clawProbe && window.__clawProbe();
+                if (sel) { const el = document.querySelector(sel); if (el) el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); }
+                else if (window.__clawProbe) { /* the bot's go, or something moving: wait */ }
+                else if (vis('minigame-layer')) {
                     const r = layer.getBoundingClientRect();
                     const x = r.left + Math.random() * r.width, y = r.top + r.height * (0.6 + Math.random() * 0.38);
                     const el = document.elementFromPoint(x, y);

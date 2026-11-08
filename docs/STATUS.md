@@ -1,6 +1,6 @@
 # CLAWGames: where things stand
 
-Last updated 2026-11-07. Live at **https://claws02.github.io/CLAWGames/** (GitHub
+Last updated 2026-11-08. Live at **https://claws02.github.io/CLAWGames/** (GitHub
 Pages from `main`). For the design and its history read [`DESIGN.md`](DESIGN.md); to
 audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 
@@ -17,6 +17,7 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 | CLAWGames #38 | **Trivia**: 167 questions, Massachusetts-flavoured general knowledge |
 | CLAWGames #40 | **HOST PLAYS TOO** switch: a phone host can run the room without playing |
 | CLAWGames #41 | **iPhone Add to Home Screen**: manifest, icons, the Share → Add to Home Screen tip |
+| CLAWGames #55 | **Quick board games** on a shared base (`src/games/board/`): Shut the Box, Pig, Dots and Boxes, Mancala, Liar's Dice |
 | CLAWGames #54 | **Reef Drop**: levels as recipes (`docs/REEF_LEVELS.md`), 8 new pieces and 24 new reefs (78 in all) |
 | claw-core #42, CLAWGames #54 | **Shell Game race**: first right answer takes the round, wrong picks locked out, first to 3, on one screen and across phones (Room `PICK`/`CALL`, protocol 3) |
 
@@ -31,6 +32,24 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 - **Drinking mode**: 🦀 ×5 on the home screen (per device), or the host's 🍺 switch in a
   room. After every round: who drinks how many sips (one sip per player, split by
   place), the winner's handout, and a house rule for last place.
+
+## Quick board games (two players, one phone)
+
+Lay the phone flat between you; it turns to whoever's up, and player 2 can be a bot.
+These are party games (the grid, wheel and parties) built on `src/games/board/` (`Tabletop.js`,
+`Dice.js`; how to add one: `docs/ADDING_A_GAME.md`).
+
+| Game | What | Files |
+|---|---|---|
+| Yatzy | the full 13-box card, three rolls a turn | `Yatzy.js` (before the shared base) |
+| Shut the Box | tiles 1–12 each. Roll two dice, shut one tile: either die or the total; stuck when all three are shut. Each plays their whole box in turn; most tiles shut wins, the same is a draw. The bot knows its odds exactly | `ShutTheBox.js` |
+| Pig | roll one die as often as you dare; a 1 loses this turn's pot; HOLD banks it; first to 100. The bot's hold target moves with the score | `Pig.js` |
+| Dots and Boxes | 4×4 boxes; close a box to claim it and go again; most boxes wins. The bot takes boxes, plays safe lines, then gives away the shortest chain | `DotsBoxes.js` |
+| Mancala | Kalah: 6 pits each, 4 seeds; last seed in your store goes again; last in your empty pit captures the pit opposite. The bot looks ahead (minimax, deeper with skill) | `Mancala.js` |
+| Liar's Dice | 5 dice each under a cup (hold to peek); bid how many of a face are on the table or call LIAR; the loser loses a die; 1s not wild. The bot knows the odds of every bid | `LiarsDice.js` |
+
+All five are tested by `qa/shutbox.js` and `qa/boardgames.js`. Ideas for more: Farkle, ultimate tic-tac-toe,
+a Ludo-style race.
 
 ## Solo games (one player)
 
