@@ -55,7 +55,7 @@ const BASE_CSS = `
 .bt-endbox p{margin:0;font-size:12px;opacity:.7}
 `;
 
-export function tabletop({ isBot, onWin, cls = '', css = '', html, cols = 7.5, rows = 15, onAct }) {
+export function tabletop({ isBot, onWin, cls = '', css = '', html, cols = 7.5, rows = 15, onAct, probe }) {
     const timers = [], cleanups = [];
     let facing = 0, lockUntil = 0, ended = null;
     const t = {
@@ -120,6 +120,8 @@ export function tabletop({ isBot, onWin, cls = '', css = '', html, cols = 7.5, r
     }
 
     registerMinigameCleanup(destroy);
+    // Test hook: what a sensible player would tap now (qa/smoke.js plays the human with it).
+    if (probe) { window.__clawProbe = () => (t.done ? null : probe()); cleanups.push(() => { if (window.__clawProbe) delete window.__clawProbe; }); }
     const mg = document.getElementById('minigame-layer');
     t.el = document.createElement('div');
     t.el.className = `bt ${cls}`;

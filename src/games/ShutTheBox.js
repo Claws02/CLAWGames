@@ -87,7 +87,7 @@ export function start(isBot, onWin, botSkill = 0.55) {
     _boxes = [0, 0]; _played = [false, false]; _dice = [0, 0]; _opts = []; _note = ''; _botSkill = botSkill; _flash = 0;
     _turn = _first = Math.random() < 0.5 ? 0 : 1;
     T = tabletop({
-        isBot, onWin, cls: 'sb', css: CSS + Dice.DICE_CSS, cols: 7.5, rows: 14,
+        isBot, onWin, probe: () => _probeTap(), cls: 'sb', css: CSS + Dice.DICE_CSS, cols: 7.5, rows: 14,
         html: `<div class="bt-head"><div class="bt-turn"></div><div class="bt-hint"></div></div>
             <div class="bt-chips">${[0, 1].map(p => `<div class="bt-chip sb-chip" data-p="${p}"><span class="sb-top"><span class="sb-name"></span><b>0</b></span><span class="sb-mini">${'<s></s>'.repeat(TILES)}</span></div>`).join('')}</div>
             <div class="sb-box"><div class="sb-felt">${Array.from({ length: TILES }, (_, i) => `<div class="sb-tile" data-act="tile" data-n="${i + 1}">${i + 1}</div>`).join('')}</div></div>
@@ -220,5 +220,12 @@ function _render(botAim = 0) {
     });
 }
 
+/** Probes: what a sensible player would tap now (null: wait). */
+export function _probeTap() {
+    if (!T || T.done || T.botTurn(_turn) || T.locked()) return null;
+    if (_phase === 'roll') return '.sb .bt-btn';
+    if (_phase === 'pick') return `.sb-tile[data-n="${bestTile(_dice, _boxes[_turn])}"]`;
+    return null;
+}
 /** Probes: the game's state. */
 export function _debugState() { return { turn: _turn, phase: _phase, dice: [..._dice], opts: [..._opts], boxes: [..._boxes], played: [..._played], first: _first }; }

@@ -96,7 +96,7 @@ export function start(isBot, onWin, botSkill = 0.55) {
     _turn = Math.random() < 0.5 ? 0 : 1;
     const side = who => `<div class="ld-side" data-side="${who}"><div class="ld-who"></div><div class="ld-row"></div></div>`;
     T = tabletop({
-        isBot, onWin, cls: 'ld', css: CSS + Dice.DICE_CSS, cols: 7.5, rows: 15,
+        isBot, onWin, probe: () => _probeTap(), cls: 'ld', css: CSS + Dice.DICE_CSS, cols: 7.5, rows: 15,
         html: `<div class="bt-head"><div class="bt-turn"></div><div class="bt-hint"></div></div>
             ${side('them')}
             <div class="ld-bid"><small></small><b></b></div>

@@ -103,7 +103,7 @@ export function start(isBot, onWin, botSkill = 0.55) {
     let pits = '';
     for (let k = 0; k < 6; k++) pits += cell(12 - k, 1, k + 2) + cell(k, 2, k + 2);
     T = tabletop({
-        isBot, onWin, cls: 'mc', css: CSS, cols: 9, rows: 11,
+        isBot, onWin, probe: () => _probeTap(), cls: 'mc', css: CSS, cols: 9, rows: 11,
         html: `<div class="bt-head"><div class="bt-turn"></div><div class="bt-hint"></div></div>
             <div class="bt-chips">${[0, 1].map(p => `<div class="bt-chip" data-p="${p}"><span class="nm"></span><b>0</b></div>`).join('')}</div>
             <div class="mc-board"><div class="mc-store p1" data-i="13"><div class="mc-seeds"></div><b></b></div>${pits}<div class="mc-store p0" data-i="6"><div class="mc-seeds"></div><b></b></div></div>`,

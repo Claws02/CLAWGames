@@ -94,7 +94,7 @@ export function start(isBot, onWin, botSkill = 0.55) {
     for (let r = 0; r < N; r++) for (let c = 0; c <= N; c++) html += `<div class="db-line v" data-act="line" data-l="${V(r, c)}" style="top:${r * g + 3}%;left:calc(${c * g}% - ${g * 0.22}%);height:${g - 6}%;width:${g * 0.44}%"><i></i></div>`;
     for (let r = 0; r <= N; r++) for (let c = 0; c <= N; c++) html += `<div class="db-dot" style="left:${c * g}%;top:${r * g}%"></div>`;
     T = tabletop({
-        isBot, onWin, cls: 'db', css: CSS, cols: 7.5, rows: 12,
+        isBot, onWin, probe: () => _probeTap(), cls: 'db', css: CSS, cols: 7.5, rows: 12,
         html: `<div class="bt-head"><div class="bt-turn"></div><div class="bt-hint"></div></div>
             <div class="bt-chips">${[0, 1].map(p => `<div class="bt-chip" data-p="${p}"><span class="nm"></span><b>0</b></div>`).join('')}</div>
             <div class="db-board" style="--bw:calc(var(--c)*6.2)"><div class="db-in">${html}</div></div>`,

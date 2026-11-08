@@ -51,7 +51,7 @@ export function start(isBot, onWin, botSkill = 0.55) {
     _bank = [0, 0]; _pot = 0; _face = 0; _rolls = []; _note = ''; _skill = botSkill;
     _turn = Math.random() < 0.5 ? 0 : 1;
     T = tabletop({
-        isBot, onWin, cls: 'pg', css: CSS + Dice.DICE_CSS, cols: 7.5, rows: 12,
+        isBot, onWin, probe: () => _probeTap(), cls: 'pg', css: CSS + Dice.DICE_CSS, cols: 7.5, rows: 12,
         html: `<div class="bt-head"><div class="bt-turn"></div><div class="bt-hint"></div></div>
             <div class="pg-bank">${[0, 1].map(p => `<div class="pg-lane" data-p="${p}"><span class="nm"></span><div class="pg-track"><div class="pg-fill"></div><div class="pg-pot"></div></div><b>0</b></div>`).join('')}</div>
             <div class="pg-mid"><div class="bd-die blank" data-act="roll"></div><div class="pg-potbox"><small>THIS TURN</small><b>0</b></div></div>
