@@ -22,7 +22,7 @@ const BOTTOM = 0.75;
 const PARTY = {
     snapstrike: { y: BOTTOM }, steadyhand: { y: BOTTOM }, sortrush: { y: BOTTOM }, gridrecall: { y: BOTTOM }, rhythmforge: { y: BOTTOM },
     lootcatch: { y: BOTTOM }, clearout: { y: BOTTOM }, orbdeflect: { y: BOTTOM, delay: 6 }, bowling: { y: BOTTOM }, penalty: { y: 0.78 },
-    animalstack: { y: 0.62, delay: 9 }, brainrot: { y: 0.3 }, fourinarow: { y: 0.5, delay: 3, human: true }, memorymatch: { y: 0.3, delay: 12 }, shutbox: { y: 0.45, delay: 5, human: true },
+    animalstack: { y: 0.62, delay: 9 }, brainrot: { y: 0.3 }, fourinarow: { y: 0.5, delay: 3, human: true }, memorymatch: { y: 0.3, delay: 12 }, shutbox: { y: 0.45, delay: 5, human: true }, pig: { y: 0.45, delay: 16, human: true }, dotsboxes: { y: 0.5, delay: 10, human: true }, mancala: { y: 0.45, delay: 6, human: true }, liarsdice: { y: 0.45, delay: 5, human: true },
 };
 
 // ---- solo games: how to get each one moving (runs in the page; `wait` is a sleep) ----

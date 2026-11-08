@@ -16,7 +16,8 @@
 //
 // A game: const t = tabletop({ isBot, onWin, cls, css, html, cols, rows, onAct });
 // then t.q(sel), t.face(p), t.lock(ms), t.botTurn(p), t.after(fn, ms),
-// t.name(p), t.hex(p), t.end({ winner, standings, head, html }).
+// t.head(p, title, hint), t.wow(text), t.name(p), t.hex(p), t.end({ winner, standings, head, html }).
+// Head markup: <div class="bt-head"><div class="bt-turn"></div><div class="bt-hint"></div></div>
 // ============================================================
 import { state } from '../../AppHost.js';
 import { sfx, haptic } from '../../claw-core/engine/AudioManager.js';
@@ -25,7 +26,8 @@ import { registerMinigameCleanup } from '../../claw-core/minigames/MinigameManag
 export const TURN_MS = 450;   // the frame turning round to the next player
 
 const BASE_CSS = `
-.bt{position:absolute;inset:0;overflow:hidden;touch-action:none;font-family:Nunito,system-ui,sans-serif;user-select:none;-webkit-user-select:none;transition:background .45s}
+.bt{background:#f4997b;position:absolute;inset:0;overflow:hidden;touch-action:none;font-family:Nunito,system-ui,sans-serif;user-select:none;-webkit-user-select:none;transition:background .45s}
+.bt.p2{background:#7fb3e6}
 .bt-frame{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--c)*.3);padding:12px;box-sizing:border-box;transition:transform ${TURN_MS}ms cubic-bezier(.5,0,.3,1)}
 .bt-frame.flip{transform:rotate(180deg)}
 .bt-head{display:flex;flex-direction:column;align-items:center;gap:4px;min-height:calc(var(--c)*1.1)}
@@ -37,6 +39,11 @@ const BASE_CSS = `
 .bt-chip{display:flex;align-items:baseline;gap:6px;background:#fff;border:3px solid var(--pc);border-radius:999px;padding:2px 14px;font:800 calc(var(--c)*.2) Nunito,system-ui,sans-serif;color:#3f4652}
 .bt-chip b{font:calc(var(--c)*.46) 'Bebas Neue',Impact,sans-serif}
 .bt-chip.up{box-shadow:0 0 0 3px #3f4652}
+.bt-row{display:flex;gap:calc(var(--c)*.25);align-items:center;justify-content:center}
+.bt-btn.alt{background:#3f4652}
+.bt-btn.go{background:#2fae67}
+.bt-wow{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;font:calc(var(--c)*1.0) 'Bebas Neue',Impact,sans-serif;color:#ffd200;-webkit-text-stroke:3px #3f4652;letter-spacing:3px;text-align:center;animation:btwow 1.8s ease-out forwards}
+@keyframes btwow{0%{transform:scale(.3) rotate(-10deg);opacity:0}20%{transform:scale(1.1) rotate(-4deg);opacity:1}80%{opacity:1}100%{transform:scale(1) rotate(-4deg);opacity:0}}
 .bt-end{position:absolute;inset:0;display:flex;flex-direction:column;background:rgba(40,30,40,.55)}
 .bt-endhalf{flex:1;display:flex;align-items:center;justify-content:center}
 .bt-endhalf.top{transform:rotate(180deg)}
@@ -66,6 +73,15 @@ export function tabletop({ isBot, onWin, cls = '', css = '', html, cols = 7.5, r
             facing = f; t.frame.classList.toggle('flip', f === 1);
             if (!first) t.lock(TURN_MS);
         },
+        /** The head: whose go it is (the chip and the table turn their colour) and the hint line. */
+        head(p, title, hint = '') {
+            const tu = t.q('.bt-turn'), hi = t.q('.bt-hint');
+            if (tu) { tu.textContent = title; tu.style.background = t.hex(p); }
+            if (hi) hi.textContent = hint;
+            t.el.classList.toggle('p2', p === 1);
+        },
+        /** A big word that pops up over the table and fades. */
+        wow(text) { const d = document.createElement('div'); d.className = 'bt-wow'; d.textContent = text; t.frame.appendChild(d); t.after(() => d.remove(), 1900); },
         lock(ms) { lockUntil = Math.max(lockUntil, performance.now() + ms); },
         locked: () => performance.now() < lockUntil,
         /** The end card (from both ends; against a bot, the human's only), then onWin. */

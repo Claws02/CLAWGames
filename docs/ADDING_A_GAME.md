@@ -82,6 +82,10 @@ about 200 lines, `qa/shutbox.js`):
   tumble, which returns the faces.
 - Keep the rules as pure exported functions so the probe can test them
   without a game running, and give the bot real strategy.
+- Export `_probeTap()`: the selector a sensible human would tap now (or null
+  while it's the bot's go or something is moving). Then add the game to
+  `GAMES` in `qa/boardgames.js`, which plays it through the real buttons vs a
+  bot and two-player. Pig, Dots and Boxes, Mancala and Liar's Dice all do this.
 - Register it with the `boxtable` or `dicetable` hold (or a new hold worded
   for the game) and `profile.seats: [2, 2]`, then capture its card clip with
   `node scripts/capture-clips.js <id>`.
