@@ -34,6 +34,14 @@
 //   kelp 🌿       patches that slow the pearl right down as it drifts through
 //   magnet shells 🧲 tug the pearl sideways towards them while it's level with one
 //   flip portals 🔄 send the pearl back up, and gravity stays upside down for a moment
+//   bubble shields 🫧 a piece in a bubble: the first hit (or zap, or blast) only pops the bubble
+//   sand dollars 🪙 pop for 75; every third one in a reef gives a pearl back
+//   bumpers 🔴    kick the pearl away harder than it came (25 a hit); they never pop
+//   seesaws 🪵    planks that tip: land on the raised end and it snaps over, flinging the pearl up
+//   sharks 🦈     swim to and fro along a row; one that touches the pearl eats it (like an urchin)
+//   conveyor rails ➡️ the pearl lands on one, rides along it and drops off the end
+//   colour gates 🚪 walls that stay solid until you hit the switch of their colour; a switch
+//                 flips its gates open or shut again, once a drop (switches never pop)
 // Every piece sits clear above Shelly (reef() squeezes a reef up if not).
 // Some pieces move: coral wheels turn, some rows slide. The reef keeps moving
 // while you aim (the screen runs the clock), so a drop is timed as well as aimed.
@@ -49,7 +57,7 @@ export const R = 0.022, PEG_R = 0.026, LAUNCH = [0.5, 0.06], FLOOR_Y = 1.42, PEA
 export const CRAB_W = 0.17, CRAB_Y = 1.42, CATCH_X = 3, JELLY_E = 1.05;
 export const CLEAR_Y = 1.2;                 // nothing lower than this: Shelly's shell (and her hop) stays clear
 export const BOMB_R = 0.24, WHIRL_R = 0.045, LIFT = 6.5, LIFT_MAX = 1.6, LIFT_SECS = 1.2;   // lifts push for this long in all, a drop
-export const URCHIN_R = 0.028, SPONGE_E = 0.08, MINE_R = 0.2, MAX_SPLIT = 3, KELP_DRAG = 5, MAGNET_R = 0.03, FLIP_R = 0.04, FLIP_SECS = 0.7, MAX_AIR = 14, ANGLER_R = 0.034, ANGLER_E = 0.7, STAR_E = 1.3, CURRENT_MAX = 1.4, CLAM_R = 0.075, CLAM_E = 0.6;
+export const URCHIN_R = 0.028, SPONGE_E = 0.08, MINE_R = 0.2, MAX_SPLIT = 3, KELP_DRAG = 5, MAGNET_R = 0.03, FLIP_R = 0.04, FLIP_SECS = 0.7, MAX_AIR = 14, COIN_PEARL = 3, BUMPER_E = 1.45, BUMPER_KICK = 1.4, TILT = 0.32, FLING = 2.3, SHARK_R = 0.04, RAIL_T = 0.012, GATE_T = 0.012, ANGLER_R = 0.034, ANGLER_E = 0.7, STAR_E = 1.3, CURRENT_MAX = 1.4, CLAM_R = 0.075, CLAM_E = 0.6;
 const _goal = k => k === 'o' || k === 'g';   // the pieces you have to free to win
 const GRAV = 3.0, PEG_E = 0.72, WALL_E = 0.8, MAX_V = 2.4;
 export const SEARCH = { angles: 60, powers: [0.3, 0.6, 1], angleFrom: 0.05, angleTo: Math.PI - 0.05 };
@@ -75,6 +83,13 @@ export function pegAt(p, t) {
 /** Where a jellyfish is: [x, y, r]. */
 export const jellyAt = (j, t) => [j[0] + j[3] * Math.sin(TAU * t / j[4] + (j[5] || 0)), j[1] + Math.sin(TAU * t / (j[4] * 0.7)) * 0.015, j[2]];
 
+/** A seesaw's two ends at tilt (+1: right end down). w = [x, y, half]. */
+export function seesawEnds(w, tilt) { const a = tilt * TILT, c = Math.cos(a) * w[2], d = Math.sin(a) * w[2]; return [w[0] - c, w[1] - d, w[0] + c, w[1] + d]; }
+/** Where a shark is: [x, y, facing (+1 right)]. sh = [y, x0, x1, period, phase]. */
+export function sharkAt(sh, t) { const k = TAU * t / sh[3] + (sh[4] || 0); return [sh[1] + (sh[2] - sh[1]) * (0.5 + 0.5 * Math.sin(k)), sh[0], Math.cos(k) >= 0 ? 1 : -1]; }
+/** Is a colour gate solid? (closed until its switch flips it) */
+export const gateShut = (s, g) => !(s.open || [])[g[4]];
+
 // The lowest anything reaches (a piece's middle; a wheel's bottom; a jelly with its tentacles; a lift's foot).
 export function lowest(lv) {
     let m = 0;
@@ -88,6 +103,10 @@ export function lowest(lv) {
     for (const k of lv.kelp || []) m = Math.max(m, k[3]);
     for (const g of lv.magnets || []) m = Math.max(m, g[1] + MAGNET_R);
     for (const f of lv.flips || []) m = Math.max(m, f[1] + FLIP_R);
+    for (const w of lv.seesaws || []) m = Math.max(m, w[1] + Math.sin(TILT) * w[2] + 0.015);
+    for (const sh of lv.sharks || []) m = Math.max(m, sh[0] + SHARK_R);
+    for (const r of lv.rails || []) m = Math.max(m, r[1] + RAIL_T);
+    for (const g of lv.gates || []) m = Math.max(m, g[1], g[3]);
     return m;
 }
 
@@ -96,8 +115,8 @@ export const WORLDS = Data.WORLDS;
 export const LEVELS = Data.LEVELS;
 
 const _pegs = lv => lv.pegs.map(p => ({ ...p, hp: p.kind === 'g' ? 3 : p.kind === 'o' || p.kind === 'p' ? 2 : 1, alive: true }));
-export const begin = lv => ({ x: LAUNCH[0], y: LAUNCH[1], vx: 0, vy: 0, flying: false, used: 0, left: PEARLS, score: 0, chain: 0, shot: 0, pegs: _pegs(lv), t: 0, caught: 0, bonus: 0, last: '', double: false, warpT: -9, still: 0, sink: false, lifted: 0, flipT: -9, extra: [], parked: false, crabbed: false });
-export const copy = s => ({ ...s, pegs: s.pegs.map(p => ({ ...p })), extra: (s.extra || []).map(b => ({ ...b })) });
+export const begin = lv => ({ x: LAUNCH[0], y: LAUNCH[1], vx: 0, vy: 0, flying: false, used: 0, left: PEARLS, score: 0, chain: 0, shot: 0, pegs: _pegs(lv), t: 0, caught: 0, bonus: 0, last: '', double: false, warpT: -9, still: 0, sink: false, lifted: 0, flipT: -9, extra: [], parked: false, crabbed: false, coins: 0, open: [false, false, false], tilt: (lv.seesaws || []).map(w => w[3] || 1) });
+export const copy = s => ({ ...s, pegs: s.pegs.map(p => ({ ...p })), extra: (s.extra || []).map(b => ({ ...b })), open: [...(s.open || [])], tilt: [...(s.tilt || [])] });
 /** Every pearl in the air: [{ x, y }] (a split drop has more than one). */
 export const pearls = s => (s.flying ? [...(s.parked ? [] : [s]), ...(s.extra || [])] : []);
 /** Is this piece locked by a barnacle that's still there? */
@@ -125,14 +144,16 @@ export function shot(lv, s, angle, power) {
 }
 
 function _pop(s, p, ev) {
-    if (!p.alive || p.kind === 'r' || p.kind === 's' || p.kind === 'u' || p.kind === 'd' || locked(s, p)) return;
+    if (!p.alive || p.kind === 'r' || p.kind === 's' || p.kind === 'u' || p.kind === 'd' || p.kind === 'q' || p.kind === 'w' || locked(s, p)) return;
+    if (p.bubble) { p.bubble = 0; ev.bubbled.push(p); return; }   // a bubble shield takes the hit
     p.hp--;
     if ((p.kind === 'o' || p.kind === 'g') && p.hp > 0) { ev.opened.push(p); return; }
     if (p.kind === 'p' && p.hp > 0) { ev.puffed.push(p); return; }
     p.alive = false;
     s.chain++;
-    const pts = (p.kind === 'g' ? 300 : p.kind === 'o' ? 100 : p.kind === 't' ? 50 : p.kind === 'm' ? 40 : p.kind === 'p' ? 30 : p.kind === 'b' ? 25 : p.kind === 'a' ? 20 : 10) * s.chain;
+    const pts = (p.kind === 'g' ? 300 : p.kind === 'o' ? 100 : p.kind === 'n' ? 75 : p.kind === 't' ? 50 : p.kind === 'm' ? 40 : p.kind === 'p' ? 30 : p.kind === 'b' ? 25 : p.kind === 'a' ? 20 : 10) * s.chain;
     if (p.kind === 'g') { s.left++; ev.golden.push(p); }   // a golden pearl: one back
+    if (p.kind === 'n') { s.coins = (s.coins || 0) + 1; ev.coins.push(p); if (s.coins % COIN_PEARL === 0) { s.left++; ev.coinPearl = true; } }
     if (p.kind === 't' && !s.double) { s.double = true; ev.chest.push(p); }
     s.shot += pts;
     ev.popped.push(p); ev.points.push(pts);
@@ -167,10 +188,18 @@ function _bounce(s, cx, cy, cr, e) {
     return true;
 }
 
+// The pearl against a line segment (thick t): bounces it off. Returns the point along it (0–1), or -1.
+function _seg(b, x0, y0, x1, y1, t, e) {
+    const dx = x1 - x0, dy = y1 - y0, L2 = dx * dx + dy * dy || 1e-9;
+    const u = Math.max(0, Math.min(1, ((b.x - x0) * dx + (b.y - y0) * dy) / L2));
+    const cx = x0 + u * dx, cy = y0 + u * dy;
+    return _bounce(b, cx, cy, t, e) ? u : -1;
+}
+
 /** One step. Events: popped, points, opened, zapped, jelly (bounced off one), landed: 'crab' | 'sand' | 'urchin'
  *  (each pearl as it comes down; a split drop has more than one), done (the drop is over), bonus. */
 export function step(lv, s) {
-    const ev = { popped: [], points: [], opened: [], zapped: [], puffed: [], burst: [], chest: [], star: [], golden: [], mines: [], split: [], sealed: [], warped: false, jelly: false, landed: '', bonus: false, done: false };
+    const ev = { popped: [], points: [], opened: [], zapped: [], puffed: [], burst: [], chest: [], star: [], golden: [], mines: [], split: [], sealed: [], bubbled: [], coins: [], bumped: [], switched: [], coinPearl: false, warped: false, jelly: false, landed: '', bonus: false, done: false };
     s.lv = lv;
     if (!s.flying) return ev;
     for (let k = 0; k < 2; k++) {
@@ -208,9 +237,17 @@ function _move(lv, s, b, ev) {
             if (Math.hypot(b.x - px, b.y - py) < URCHIN_R + R) { ev.spiked = p; return 'urchin'; }
             continue;
         }
-        const e = p.kind === 's' ? STAR_E : p.kind === 'd' ? SPONGE_E : PEG_E;
+        const e = p.kind === 's' ? STAR_E : p.kind === 'd' ? SPONGE_E : p.kind === 'q' ? BUMPER_E : PEG_E;
         if (!_bounce(b, px, py, PEG_R, e)) continue;
         if (p.kind === 's') { ev.star.push(p); _cap(b, 2.6); }
+        if (p.kind === 'q') {   // a bumper: a kick of at least BUMPER_KICK, and points
+            const sp = Math.hypot(b.vx, b.vy) || 1; if (sp < BUMPER_KICK) { b.vx *= BUMPER_KICK / sp; b.vy *= BUMPER_KICK / sp; }
+            s.shot += 25; ev.bumped.push(p); continue;
+        }
+        if (p.kind === 'w') {   // a switch: flips its colour's gates (once a drop, however often it's touched)
+            if (p.drop !== s.used) { s.open[p.color || 0] = !s.open[p.color || 0]; p.drop = s.used; ev.switched.push(p); }
+            continue;
+        }
         if (locked(s, p)) { ev.sealed.push(p); continue; }
         _pop(s, p, ev);
         if (p.kind === 'a' && !p.alive && s.extra.length < MAX_SPLIT) {   // an anemone: one pearl becomes two
@@ -223,6 +260,24 @@ function _move(lv, s, b, ev) {
     for (const c of lv.clams || []) if (shut(c, s.t) && _bounce(b, c[0], c[1], CLAM_R, CLAM_E)) ev.clam = true;
     for (const [x0, y0, x1, y1, ax] of lv.currents || []) {
         if (b.x > x0 && b.x < x1 && b.y > y0 && b.y < y1) { b.vx = Math.max(-CURRENT_MAX, Math.min(CURRENT_MAX, b.vx + ax * h)); ev.current = true; }
+    }
+    // sharks: a touch and the pearl is eaten
+    if (!b.sink) for (const sh of lv.sharks || []) { const [sx, sy] = sharkAt(sh, s.t); if (Math.hypot(b.x - sx, (b.y - sy) * 1.6) < SHARK_R + R) { ev.eaten = true; return 'shark'; } }
+    // colour gates: solid while shut
+    if (!b.sink) for (const g of lv.gates || []) if (gateShut(s, g) && _seg(b, g[0], g[1], g[2], g[3], GATE_T, 0.6) >= 0) ev.gate = true;
+    // seesaws: land on the raised end and it snaps over, flinging the pearl up
+    if (!b.sink) (lv.seesaws || []).forEach((w, k) => {
+        const tilt = s.tilt[k] ?? (w[3] || 1), [x0, y0, x1, y1] = seesawEnds(w, tilt), vy = b.vy;
+        const u = _seg(b, x0, y0, x1, y1, RAIL_T, 0.4);
+        if (u < 0) return;
+        const raised = tilt > 0 ? u < 0.45 : u > 0.55;
+        if (raised && vy > 0.3 && s.t - (b.sawT ?? -9) > 0.3) { s.tilt[k] = -tilt; b.vy = -FLING; b.vx = (tilt > 0 ? -1 : 1) * 0.35 + b.vx * 0.3; b.sawT = s.t; ev.seesaw = true; }
+    });
+    // conveyor rails: land on top and ride to the end; from underneath, bonk
+    if (!b.sink) for (const [x0, y, x1, sp] of lv.rails || []) {
+        if (b.x < x0 || b.x > x1) continue;
+        if (b.vy >= 0 && b.y < y && b.y > y - R - RAIL_T - 0.025) { b.y = y - R - RAIL_T; b.vy = 0; b.vx = sp; ev.rail = true; }
+        else if (b.vy < 0 && b.y > y && b.y < y + R + RAIL_T) { b.y = y + R + RAIL_T; b.vy = -b.vy * 0.5; }
     }
     // kelp: the pearl drifts through slowly
     for (const [x0, y0, x1, y1] of lv.kelp || []) if (b.x > x0 && b.x < x1 && b.y > y0 && b.y < y1) { const f = Math.exp(-KELP_DRAG * h); b.vx *= f; b.vy *= f; ev.kelp = true; }

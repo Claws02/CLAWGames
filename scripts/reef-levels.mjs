@@ -60,12 +60,17 @@ function attempt(rc, world, r) {
     if (x.magnets) more.magnets = Array.from({ length: x.magnets }, (_, k) => { const m = [+(k % 2 ? range(r, 0.84, 0.92) : range(r, 0.08, 0.16)).toFixed(3), +range(r, 0.5, 0.95).toFixed(3), +range(r, 0.35, 0.5).toFixed(3), +range(r, 7, 10).toFixed(2)]; clear(m, 0.08); return m; });
     if (x.flips) more.flips = Array.from({ length: x.flips }, (_, k) => { const f = [+(x.flips === 1 ? range(r, 0.3, 0.7) : k % 2 ? range(r, 0.6, 0.8) : range(r, 0.2, 0.4)).toFixed(3), +range(r, 0.62, 1.0).toFixed(3)]; clear(f, 0.08); return f; });
     if (x.kelp) more.kelp = Array.from({ length: x.kelp }, () => { const w = range(r, 0.22, 0.38), h = range(r, 0.12, 0.2), x0 = range(r, 0.04, 0.96 - w), y0 = range(r, 0.45, 1.0 - h); return [x0, y0, x0 + w, y0 + h].map(v => +v.toFixed(3)); });
+    const f3 = v => +v.toFixed(3);
+    if (x.seesaws) more.seesaws = Array.from({ length: x.seesaws }, (_, k) => { const w = [f3(x.seesaws === 1 ? range(r, 0.3, 0.7) : k % 2 ? range(r, 0.6, 0.78) : range(r, 0.22, 0.4)), f3(range(r, 0.6, 1.0)), f3(range(r, 0.09, 0.12)), r() < 0.5 ? 1 : -1]; pts = pts.filter(p => Math.abs(p[0] - w[0]) > w[2] + 0.05 || Math.abs(p[1] - w[1]) > 0.08); return w; });
+    if (x.sharks) more.sharks = Array.from({ length: x.sharks }, (_, k) => { const y = f3(0.55 + k * 0.2 + range(r, -0.03, 0.05)), sh = [y, f3(range(r, 0.12, 0.3)), f3(range(r, 0.7, 0.88)), +range(r, 3, 5).toFixed(2), +(r() * 6).toFixed(2)]; pts = pts.filter(p => Math.abs(p[1] - y) > 0.07); return sh; });
+    if (x.rails) more.rails = Array.from({ length: x.rails }, () => { const len = range(r, 0.25, 0.4), x0 = range(r, 0.08, 0.92 - len), y = range(r, 0.5, 1.0), rl = [f3(x0), f3(y), f3(x0 + len), +((r() < 0.5 ? -1 : 1) * range(r, 0.6, 1.0)).toFixed(2)]; pts = pts.filter(p => Math.abs(p[1] - y) > 0.06 || p[0] < x0 - 0.04 || p[0] > x0 + len + 0.04); return rl; });
+    if (x.gates) more.gates = Array.from({ length: x.gates }, (_, k) => { const len = range(r, 0.3, 0.5), x0 = range(r, 0.08, 0.92 - len), y = range(r, 0.55, 1.0), g = [f3(x0), f3(y), f3(x0 + len), f3(y), k % 3]; pts = pts.filter(p => Math.abs(p[1] - y) > 0.06 || p[0] < x0 - 0.04 || p[0] > x0 + len + 0.04); return g; });
     if (x.currents) more.currents = Array.from({ length: x.currents }, (_, k) => { const y0 = 0.6 + k * 0.22 + range(r, -0.03, 0.03), c = [0, y0, 1, y0 + 0.07, (k % 2 ? -1 : 1) * range(r, 1.8, 2.6)]; pts = pts.filter(p => p[1] < y0 - 0.04 || p[1] > y0 + 0.11); return c; });
     // the kinds: goals first, then the rest, on distinct still points (a wheel's own pieces count as still points here too)
     const all = [...pts.map(p => ({ p })), ...movers.map(m => ({ m }))], free = [...all.keys()];
     const take = n => { const out = []; for (let k = 0; k < n && free.length; k++) out.push(free.splice(Math.floor(r() * free.length), 1)[0]); return out; };
     const want = { o: rc.oysters || 0, g: rc.golden || 0, p: rc.puffers || 0, e: rc.eels || 0, r: rc.rocks || 0, t: rc.chests || 0, s: rc.starfish || 0,
-                   u: rc.urchins || 0, d: rc.sponges || 0, m: rc.mines || 0, a: rc.anemones || 0 };
+                   u: rc.urchins || 0, d: rc.sponges || 0, m: rc.mines || 0, a: rc.anemones || 0, n: rc.coins || 0, q: rc.bumpers || 0 };
     if (want.o + want.g < 1) want.o = 3;
     const kindOf = {};
     for (const [k, n] of Object.entries(want)) for (const i of take(n)) kindOf[i] = k;
@@ -83,6 +88,18 @@ function attempt(rc, world, r) {
             for (const i of near2) more.locks[i] = k;
         }
     }
+    // a switch for every gate (a still piece, well clear of its gate)
+    if (more.gates) {
+        more.colors = {};
+        for (const g of more.gates) {
+            const cand = free.filter(i => all[i].p && Math.abs(all[i].p[1] - g[1]) > 0.12);
+            if (!cand.length) return null;
+            const i = cand[Math.floor(r() * cand.length)]; free.splice(free.indexOf(i), 1);
+            kindOf[i] = 'w'; more.colors[i] = g[4];
+        }
+    }
+    // bubble shields on some of the goal pieces
+    if (x.bubbles) { more.bubbles = {}; const goals = Object.keys(kindOf).map(Number).filter(i => all[i].p && (kindOf[i] === 'o' || kindOf[i] === 'g')); for (let k = 0; k < x.bubbles && goals.length; k++) more.bubbles[goals.splice(Math.floor(r() * goals.length), 1)[0]] = 1; }
     if (x.ghosts) { more.ghost = {}; const stills = [...pts.keys()]; for (let k = 0; k < x.ghosts && stills.length; k++) { const i = stills.splice(Math.floor(r() * stills.length), 1)[0]; more.ghost[i] = [+range(r, 1.8, 2.6).toFixed(2), +(r() * 6).toFixed(2)]; } }
     const marks = {}; pts.forEach((_, i) => { if (kindOf[i]) marks[i] = kindOf[i]; });
     more.movers = movers.map((m, k) => ({ ...m, kind: kindOf[pts.length + k] || 'c' }));

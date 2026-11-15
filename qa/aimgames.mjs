@@ -138,7 +138,41 @@ const UP = -Math.PI / 2;
   ok(mx > 0.56 && D.tug([0.8, 0.7, 0.4, 9], 0.5, 0.2) === 0, `Reef Drop: a magnet shell tugs a straight drop sideways (to x ${mx.toFixed(2)}), only when level with it`);
   // a flip portal: gravity turns upside down for a moment, then comes back
   let rose2 = false, flipped = false; const fp = drop({ pegs: [], flips: [[0.5, 0.6]], crab: away }, (st, ev) => { if (ev.flipped) flipped = true; if (flipped && st.vy < -0.2) rose2 = true; });
-  ok(flipped && rose2 && !fp.st.flying, 'Reef Drop: a flip portal sends the pearl floating back up for a moment (and it comes down in the end)'); }
+  ok(flipped && rose2 && !fp.st.flying, 'Reef Drop: a flip portal sends the pearl floating back up for a moment (and it comes down in the end)');
+  // ---- worlds 14–19 ----
+  // a bubble shield: the first hit pops the bubble, the oyster is untouched
+  const bb = drop({ pegs: [{ x: 0.5, y: 0.6, kind: 'o', bubble: 1 }], crab: away }, (st, ev) => {});
+  const bEv = bb.evs.findIndex(e => e.bubbled.length), oEv = bb.evs.findIndex(e => e.opened.length);
+  ok(bEv >= 0 && (oEv < 0 || oEv > bEv) && D.begin({ pegs: [{ x: 0, y: 0, kind: 'o', bubble: 1 }] }).pegs[0].bubble, `Reef Drop: a bubble shield takes the first hit, then the oyster can be hit (bubble at step ${bEv}, opened at ${oEv})`);
+  const bz2 = drop({ pegs: [{ x: 0.5, y: 0.6, kind: 'e' }, { x: 0.58, y: 0.62, kind: 'o', bubble: 1 }], crab: away });
+  ok(!bz2.st.pegs[1].bubble && bz2.st.pegs[1].hp === 2, 'Reef Drop: a zap pops a bubble shield and leaves what\'s inside');
+  // sand dollars: 75 each, every third gives a pearl back
+  // drop straight onto each sand dollar in turn, in one reef
+  const sdl = { pegs: [{ x: 0.5, y: 0.5, kind: 'n' }, { x: 0.5, y: 0.75, kind: 'n' }, { x: 0.5, y: 1.0, kind: 'n' }], crab: away }, sdS = D.begin(sdl);
+  let paid2 = false; D.shot(sdl, sdS, Math.PI / 2, 0.2); for (let i = 0; i < 4000 && sdS.flying; i++) if (D.step(sdl, sdS).coinPearl) paid2 = true;
+  ok(sdS.coins === 3 && paid2 && sdS.left === D.PEARLS && sdS.score >= 75, `Reef Drop: sand dollars pay 75 and every third gives a pearl back (${sdS.coins} coins, ${sdS.left} pearls left, ${sdS.score} pts)`);
+  // a bumper: kicks harder than a rock, never pops, 25 a hit
+  const upB = (() => { let up = 0; const r2 = drop({ pegs: [{ x: 0.5, y: 0.6, kind: 'q' }], crab: away }, st => { up = Math.min(up, st.vy); }); return { up: -up, alive: r2.st.pegs[0].alive, score: r2.st.score }; })();
+  ok(upB.up > upRock * 1.15 && upB.alive && upB.score >= 25, `Reef Drop: a bumper kicks the pearl back harder than a rock (${upB.up.toFixed(2)} vs ${upRock.toFixed(2)}), scores, and stays`);
+  // a seesaw: landing on the raised end flips it and flings the pearl up
+  const ssw = { pegs: [], seesaws: [[0.6, 0.7, 0.12, 1]], crab: away };   // tilt +1: right end down, left end (x≈0.49) raised
+  let flung = false, minVy = 0; const sw = drop(ssw, (st, ev) => { if (ev.seesaw) flung = true; minVy = Math.min(minVy, st.vy); });
+  ok(flung && sw.st.tilt[0] === -1 && minVy <= -D.FLING + 0.05, `Reef Drop: landing on a seesaw's raised end snaps it over and flings the pearl up (tilt now ${sw.st.tilt[0]}, up at ${(-minVy).toFixed(2)})`);
+  // a shark eats the pearl, wherever it has swum to
+  const shk = { pegs: [], sharks: [[0.7, 0.45, 0.55, 1000, 0]], crab: { a: 0 } }, sk = drop(shk);
+  ok(sk.st.last === 'shark' && sk.st.y < 0.8 && sk.st.left === D.PEARLS - 1, `Reef Drop: a shark eats the pearl (lost at y ${sk.st.y.toFixed(2)}, Shelly can't catch it)`);
+  const shAt = [D.sharkAt([0.7, 0.2, 0.8, 4, 0], 0)[0], D.sharkAt([0.7, 0.2, 0.8, 4, 0], 1)[0]];
+  ok(Math.abs(shAt[0] - 0.5) < 1e-9 && shAt[1] > 0.75, `Reef Drop: sharks swim to and fro along their row (x ${shAt.map(v => v.toFixed(2)).join(' → ')})`);
+  // a conveyor rail: the pearl rides along it and drops off the end
+  let rode = false, maxX = 0; const rl = drop({ pegs: [], rails: [[0.4, 0.6, 0.85, 0.8]], crab: away }, (st, ev) => { if (ev.rail) rode = true; maxX = Math.max(maxX, st.x); });
+  ok(rode && maxX > 0.85 && !rl.st.flying, `Reef Drop: a conveyor rail carries the pearl along and drops it off the end (out to x ${maxX.toFixed(2)})`);
+  // colour gates: solid until their switch is hit; the switch flips them open
+  const gl = { pegs: [{ x: 0.5, y: 0.9, kind: 'c' }], gates: [[0.3, 0.7, 0.7, 0.7, 1]], crab: away }, gate0 = drop(gl);
+  const gOpen = D.begin(gl); gOpen.open[1] = true; D.shot(gl, gOpen, Math.PI / 2, 0.2); D.settle(gl, gOpen);
+  const swl = { pegs: [{ x: 0.5, y: 0.4, kind: 'w', color: 1 }], gates: [[0.3, 0.7, 0.7, 0.7, 1]], crab: away }, gsw = drop(swl);
+  const flips = gsw.evs.reduce((a, e) => a + e.switched.length, 0);
+  ok(gate0.st.pegs[0].alive && gate0.evs.some(e => e.gate) && !gOpen.st && !gOpen.pegs[0].alive, 'Reef Drop: a shut colour gate blocks the pearl; open, the pearl goes through');
+  ok(gsw.st.open[1] && flips === 1 && gsw.st.pegs[0].alive, `Reef Drop: a switch opens its colour's gates, flips once a drop however often it's touched (${flips}), and stays`); }
 
 // ---- every level ----
 for (const [name, G] of [['Orbit Putt', O]]) {
