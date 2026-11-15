@@ -17,7 +17,7 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 | CLAWGames #38 | **Trivia**: 167 questions, Massachusetts-flavoured general knowledge |
 | CLAWGames #40 | **HOST PLAYS TOO** switch: a phone host can run the room without playing |
 | CLAWGames #41 | **iPhone Add to Home Screen**: manifest, icons, the Share → Add to Home Screen tip |
-| CLAWGames #56 | **Reef Drop**: 8 more pieces and 36 more reefs (114 in all) |
+| CLAWGames #57 | **Reef Drop**: 8 more pieces and 36 more reefs (114 in all) |
 | CLAWGames #55 | **Quick board games** on a shared base (`src/games/board/`): Shut the Box, Pig, Dots and Boxes, Mancala, Liar's Dice |
 | CLAWGames #54 | **Reef Drop**: levels as recipes (`docs/REEF_LEVELS.md`), 8 new pieces and 24 new reefs (78 in all) |
 | claw-core #42, CLAWGames #54 | **Shell Game race**: first right answer takes the round, wrong picks locked out, first to 3, on one screen and across phones (Room `PICK`/`CALL`, protocol 3) |
