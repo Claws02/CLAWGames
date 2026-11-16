@@ -156,7 +156,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     await M(`(() => { const s = M._game(), th = s.builds.find(b => b.kind === 'trick'); s.trickArmed = true; s.crab.p = L.walk(th.p, L.tangent(th.p, [1, 0, 0]), 0.7 / s.R); return 1; })()`);
     await p.waitForSelector('.tp-lvl');
     const lvls = await p.$$eval('.tp-lvl', els => els.map(e => !e.disabled));
-    check((await M('M._debug().mode')) === 'trick' && lvls.length === 6 && lvls[0] && !lvls[1] && !(await p.isVisible('#tp-bar')), `7b. walking into the Trick Hut opens the Coconut Trials: six, the first one open`);
+    check((await M('M._debug().mode')) === 'trick' && lvls.length === 10 && lvls[0] && !lvls[1] && lvls[6] && !lvls[7] && !(await p.isVisible('#tp-bar')), `7b. walking into the Trick Hut opens the Coconut Trials: six coconut puzzles and four skill courses, the first of each open`);
     await shot('trials-list');
     await p.click('.tp-lvl[data-arg="0"]');
     await p.waitForTimeout(400);
@@ -187,22 +187,25 @@ const SHOTS = process.env.QA_SHOTS || '';
     await p.click('#btn-tp-city');
     d = await M('M._debug()');
     check(open2[1] && !open2[2] && d.mode === 'play' && !d.trial && d.pop === city0.pop && d.shells >= city0.shells + 10 && d.shells <= city0.shells + 13 && await p.isVisible('#tp-bar'), `    the next trial is open; BACK TO THE CITY: the same city, 10 shells richer`);
-    for (let i = 1; i < 6; i++) {
+    let noThrow = true;
+    for (let i = 1; i < 10; i++) {
         await M('(M.enterTrials(), 1)');
         await p.evaluate(i => import('/src/arcade/Planet.js').then(M => { M.playTrial(i); }), i);
-        await MK(`(() => { const t = M._trialNow(); K.run(t.level, t.level.answer, { s: t.state() }); return 1; })()`);
+        if (i >= 6) { await p.waitForTimeout(150); noThrow = noThrow && !(await p.isVisible('#btn-tp-act')) && /NO FALLS YET/.test(await p.textContent('#tp-trial-s')); }
+        // (a coconut puzzle by its own answer; a skill course by the player that looks ahead, the long way round for the shell)
+        await MK(`(() => { const t = M._trialNow(), lv = t.level; if (lv.answer) K.run(lv, lv.answer, { s: t.state() }); else K.autoplay(lv, { s: t.state(), via: lv.shellRoute, limit: 120 }); return 1; })()`);
         await p.waitForSelector('.tp-big', { timeout: 6000 });
         await p.click('[data-do="city"]');
     }
     d = await M('M._debug()');
-    check(Object.keys(d.trick).length === 6 && Object.values(d.trick).every(st => st.every(Boolean)) && d.dust === city0.dust + 54 && d.shells >= city0.shells + 60, `    all six trials play through on screen with three stars each (18 ⭐, +54 stardust)`);
+    check(Object.keys(d.trick).length === 10 && Object.values(d.trick).every(st => st.every(Boolean)) && d.dust === city0.dust + 126 && d.shells >= city0.shells + 140 && noThrow, `    all ten play through on screen with three stars each: 30 ⭐, +126 stardust and +140 shells (the chillies multiply the pay); the skill courses have no throw button and count falls`);
 
     // 8. the end
     await p.click('#btn-tp-pause'); await p.click('[data-do="giveup"]');
     d = await M('M._debug()');
     const card = await p.textContent('#tp-over');
     const best = await p.evaluate(() => JSON.parse(localStorage.getItem('claw.solo') || '{}').best?.planetCity);
-    check(d.mode === 'over' && d.dust > 54 && best >= want.pop && /STARDUST/.test(card) && /biggest yet/i.test(card) && !d.saved, `8. the end: the card counts the city (${best} crabs), pays +${d.dust} stardust, and the save is gone`);
+    check(d.mode === 'over' && d.dust > 126 && best >= want.pop && /STARDUST/.test(card) && /biggest yet/i.test(card) && !d.saved, `8. the end: the card counts the city (${best} crabs), pays +${d.dust} stardust, and the save is gone`);
     await shot('planet-over');
 
     // 9. the workshop
