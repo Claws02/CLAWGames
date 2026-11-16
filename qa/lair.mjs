@@ -7,7 +7,9 @@ import * as P from '../src/arcade/PlanetLogic.js';
 let fails = 0;
 const ok = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) fails++; };
 const { at, TOP, STAIR: L } = K, DT = 1 / 60;
-const A = L.vents[0], B = L.vents[1];
+const A = L.vents[0], B = L.vents[1], [R1, R2] = L.rocks, BANK = L.bank, HOMEWARD = at(BANK + 2.5, 180);
+const beach = (lon, d = BANK + 0.45) => at(d, lon);        // a place on the near bank
+const lobbed = (s, p, land) => { s.crab.p = p.slice(); face(s, land); const n = K.throwNut(s, chargeFor(s, land)); return n; };
 const stickTo = (s, p, mag = 1) => { const c = s.crab, d = P.toward(c.p, p), r = P.cross(c.f, c.p); return { x: P.dot(d, r) * mag, y: P.dot(d, c.f) * mag }; };
 const run = (s, secs, stick = { x: 0, y: 0 }) => { const ev = []; for (let t = 0; t < secs; t += DT) ev.push(...K.step(s, DT, stick)); return ev; };
 // the moves a player makes
@@ -23,17 +25,19 @@ const chargeFor = (s, p, high = 0) => { let best = 0, bd = 9; for (let ch = 0; c
   ok(n0.loose === 3 && n0.held === 0 && s.nuts.every(n => K.dist(n.p, L.palm) < 1.2) && !K.throwNut(s, 0.5), 'three coconuts lie under the palm; with none in its claws the crab can\'t throw');
   const ev = gather(s);
   ok(s.crab.nuts === 3 && ev.filter(e => e.type === 'pick').length === 3 && K.count(s).loose === 0, 'walking into them picks them up: three carried');
-  face(s, TOP); const n = K.throwNut(s, 0.2); run(s, 1.2);
+  face(s, at(BANK + 4, 100)); const n = K.throwNut(s, 0.2); run(s, 1.2);
   ok(n && s.crab.nuts === 2 && n.state === 'rest' && K.count(s).loose === 1, 'a throw takes one from the claws and leaves it lying where it lands');
   go(s, n.p, [], 0.3);
   ok(s.crab.nuts === 3 && !s.nuts.includes(n), 'and walking to it picks it up again'); }
-{ const s = K.create(L); s.crab.p = at(13.5, -60).slice(); s.crab.f = P.toward(s.crab.p, TOP); const lon0 = K.lonOf(s.crab.p);
-  run(s, 0.5, { x: 0, y: 1 }); const inWater = !!K.currentAt(s, s.crab.p); const ev = run(s, 8, { x: 0, y: 1 });
-  ok(inWater && ev.some(e => e.type === 'ouch') && s.falls === 1 && K.dist(s.crab.p, L.start) < 2, 'wading into the rip current: it doesn\'t hurt, but it carries the crab down onto the urchins, and back to the start');
-  const s2 = K.create(L); s2.crab.p = at(11.2, -60).slice(); run(s2, 0.4);
+{ const s = K.create(L); s.crab.p = at(BANK - 0.2, -60).slice(); s.crab.f = P.toward(s.crab.p, TOP); let ev = [];
+  for (let i = 0; i < 12 / DT && !s.falls; i++) { ev.push(...K.step(s, DT, { x: 0, y: 1 })); if (i === 30) var inWater = !!K.currentAt(s, s.crab.p); }
+  ok(inWater && ev.some(e => e.type === 'ouch') && s.falls === 1 && K.dist(s.crab.p, L.start) < 2 && K.lonOf(s.crab.p) !== undefined, 'wading into the rip current: it doesn\'t hurt, but it carries the crab down onto the urchins, and back to the start');
+  const s2 = K.create(L); s2.crab.p = at(12, -60).slice(); run(s2, 0.4);
   ok(K.lonOf(s2.crab.p) > -60 + 12, `the current runs east at ${L.currents[0].speed} a second, faster than a crab can wade against it (${(K.SPEED * K.WADE).toFixed(1)})`);
-  const s3 = K.create(L); s3.crab.p = L.rocks[0].p.slice(); const p0 = s3.crab.p.slice(); run(s3, 1);
-  ok(K.dist(s3.crab.p, p0) < 0.01, 'a rock in the channel is somewhere to stand: the current doesn\'t take a crab on one'); }
+  const s3 = K.create(L); s3.crab.p = R1.p.slice(); const p0 = s3.crab.p.slice(); run(s3, 1);
+  ok(K.dist(s3.crab.p, p0) < 0.01, 'a rock in the channel is somewhere to stand: the current doesn\'t take a crab on one');
+  const s4 = K.create(L); s4.crab.p = A.p.slice(); run(s4, 1.5);
+  ok(K.dist(s4.crab.p, A.p) < 0.2 && !K.currentAt(s4, A.p), 'and the cove is still water: a crab that gets in stays there until it chooses to leave'); }
 { const s = K.create(L); ok(K.blowing(s).id === 'A', 'vent A is open, so A is the one that blows');
   s.crab.p = B.p.slice(); const ev = run(s, 1.5);
   ok(!ev.some(e => e.type === 'lift') && s.crab.h === 0, 'standing on vent B does nothing while A blows');
@@ -46,11 +50,11 @@ const solve = (opt = {}) => {
   const s = K.create(L), ev = [], note = {};
   gather(s, ev);
   // 1. the far side of the current, upstream of the cove: the water does the rest
-  go(s, at(13.7, -30), ev); face(s, at(10, -30)); K.throwNut(s, chargeFor(s, at(10.7, -30)));
+  go(s, beach(-20), ev); face(s, at(10.8, -20)); K.throwNut(s, chargeFor(s, at(10.8, -20)));
   for (let i = 0; i < 12 / DT && !s.plug.A; i++) ev.push(...K.step(s, DT));
   note.plugged = !!s.plug.A; note.t1 = s.t;
   // 2. across the rocks to vent B, and up
-  go(s, at(13.55, 11), ev); hop(s, L.rocks[0].p, ev); hop(s, L.rocks[1].p, ev); hop(s, at(10.3, 25.5), ev);
+  go(s, beach(6, BANK + 0.1), ev); hop(s, R1.p, ev); hop(s, R2.p, ev); hop(s, B.p, ev);
   note.onB = K.dist(s.crab.p, B.p) < B.r + 0.4 && !s.falls;
   go(s, B.p, ev, 0.2, 2);
   for (let i = 0; i < 4 / DT && s.crab.h < B.lift - 0.2; i++) ev.push(...K.step(s, DT));
@@ -102,8 +106,8 @@ const solve = (opt = {}) => {
   ok(ev.some(e => e.type === 'lost' && e.why === 'urchin') && ev.some(e => e.type === 'washed') && n.loose === 3 && s.nuts.filter(x => K.dist(x.p, L.palm) < 1.3).length === 3, 'a coconut the urchins get isn\'t gone: it washes up under the palm (there are always three)'); }
 { // wading: from anywhere on the bank, walking at vent B's rock, with a jump or without
   let onB = 0, tries = 0;
-  for (let lon = -105; lon <= 60; lon += 5) for (const jumpAt of [-1, 0.2, 0.5, 0.9, 1.4]) for (const aim of [B.p, at(9.4, lon + 20), at(9.4, lon)]) {
-    const s = K.create(L); s.crab.p = at(13.4, lon).slice(); tries++;
+  for (let lon = -112; lon <= 100; lon += 4) for (const jumpAt of [-1, 0.2, 0.5, 0.9, 1.4]) for (const aimLon of [-40, -20, 0, 10, 20, 30, 40]) {
+    const aim = at(10.5, aimLon), s = K.create(L); s.crab.p = at(BANK + 0.1, lon).slice(); tries++;
     for (let i = 0; i < 9 / DT && !s.falls; i++) { if (Math.abs(i * DT - jumpAt) < DT / 2) K.jump(s); K.step(s, DT, stickTo(s, aim)); if (!s.crab.air && K.dist(s.crab.p, B.p) < B.r) { onB++; break; } } }
   ok(onB === 0, `wading or jumping in from the bank and making for vent B's rock (${tries} tries): never reached. The stepping rocks are the way`); }
 { // up the cliff without the vent: the best a crab can do is a bounce, then a trick shot off each coconut it has left
@@ -123,9 +127,15 @@ const solve = (opt = {}) => {
   go(s, at(4.4, 20)); go(s, pl.p, [], 0.2); const heldOn = !!s.held.plate, eye = !!s.open.eye;
   go(s, TOP, [], 0.3, 6);
   ok(eye && heldOn && !s.won && !s.held.plate && K.dist(s.crab.p, TOP) >= 1.8 - 0.05, 'the bullseye opens its gate for good, but the plate\'s gate shuts the moment the crab steps off: one coconut inside is not enough');
-  // and getting back out for the other one
-  go(s, at(5.2, 40)); K.jump(s); for (let i = 0; i < 90; i++) K.step(s, DT, stickTo(s, at(8, 40)));
-  ok(K.dist(s.crab.p, TOP) < 5.6, 'nor can it jump back out over the step for the one it left'); }
+  // a plain jump doesn't take it back out over the step (with no coconut lying about)
+  const s5 = solve({ stopAtShelf: true }).s; s5.nuts = s5.nuts.filter(n => n.state === 'plug'); go(s5, at(4.9, 40)); s5.crab.p = at(5.0, 40).slice(); s5.crab.f = P.toward(s5.crab.p, at(8, 40)); K.jump(s5); for (let i = 0; i < 90; i++) K.step(s5, DT, stickTo(s5, at(8, 40)));
+  ok(K.dist(s5.crab.p, TOP) < 5.6, 'a plain jump from inside does not clear the step outward either');
+  // the shelf is never a dead end, but the step always costs a coconut: out over the one left at its foot, in again, and the crab is never inside with more than one
+  const s6 = solve({ stopAtShelf: true }).s, crossed = []; s6.gull = null;
+  const crossIn = () => { go(s6, at(7.4, 40)); face(s6, TOP); K.throwNut(s6, 0.05); run(s6, 1); hop(s6, s6.nuts.find(n => n.state === 'rest' && K.dist(n.p, TOP) > 5).p); for (let i = 0; i < 120 && s6.crab.air; i++) K.step(s6, DT, stickTo(s6, TOP)); crossed.push([K.dist(s6.crab.p, TOP) < 5.6, s6.crab.nuts]); };
+  const outAgain = () => { go(s6, at(5.1, 40)); face(s6, at(8, 40)); K.jump(s6); for (let i = 0; i < 90; i++) K.step(s6, DT, stickTo(s6, at(8, 40))); const n = s6.nuts.find(x => x.state === 'rest' && K.dist(x.p, TOP) > 5); if (n) go(s6, n.p, [], 0.3, 4); };
+  crossIn(); const first = K.dist(s6.crab.p, TOP) < 5.6; outAgain(); const out = K.dist(s6.crab.p, TOP) > 5.6 && s6.crab.nuts === 2; crossIn();
+  ok(first && out && crossed.length === 2 && crossed.every(([ins, n]) => ins && n === 1), 'the shelf is never a dead end: a coconut left at the step\'s foot bounces a crab back out, and picks up again. But over the step it is in with one coconut every time, never two'); }
 { // the gull
   const s = solve({ stopAtShelf: true }).s; go(s, at(7.2, 26)); const before = s.crab.nuts; let ev = [];
   for (let i = 0; i < 20 / DT && !ev.some(e => e.type === 'steal'); i++) ev.push(...K.step(s, DT));

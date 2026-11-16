@@ -44,7 +44,7 @@ export const JUMP_V = 6.84, BOUNCE_V = 9.67;             // apex 1.3 and 2.6 abo
 export const CARRY = 3, PICK_R = 0.6, PICK_AGE = 0.8;    // coconuts carried; how near picks one up; how soon after a throw
 export const NUT_R = 0.6, NUT_TOP = 0.45;
 export const TRICK_R = 0.85, TRICK_GAP = 1.1, HIT_R = 0.8, GOAL_R = 0.9, CHECK_R = 1;
-export const COYOTE_S = 0.1, JUMP_BUFFER = 0.15, WADE = 0.55, RESPAWN_S = 1.4;
+export const COYOTE_S = 0.1, JUMP_BUFFER = 0.15, WADE = 0.35, RESPAWN_S = 1.4;
 export const THROW = { range0: 1.6, range1: 7, t0: 0.55, t1: 1.0, up: 0.75, ahead: 0.45 };
 export const GULL = { speed: 1.5, see: 7, rise: 0.8, circle: 1.4, dive: 0.55, high: 5, ground: 2.8, stun: 3.2, flee: 3, cool: 2.2, hit: 0.8, top: 0.55 };
 
@@ -78,23 +78,23 @@ export const covers = (o, p) => { const a = lonOf(p, o.c || TOP); return o.only 
 // the two coconuts that are left. (3) Three jobs up there and two coconuts: so
 // the step is climbed off the gull, and the coconuts go on the plate and into
 // the bullseye.
-const A = at(10.05, 70), B = at(9.95, 26), SHELF = at(7.9, 26);
+const A = at(10.05, 70), B = at(9.95, 30), SHELF = at(7.9, 26), BANK = 15.4;
 export const STAIR = {
-    id: 'stair', name: 'THE DROWNED STAIR', start: at(18.2, 0), goal: TOP, palm: at(17.3, -14),
+    id: 'stair', name: 'THE DROWNED STAIR', start: at(18.4, 0), goal: TOP, palm: at(17.5, -14), bank: BANK,
     story: 'Old Ink has the Tide Pearl. His lair starts here: a rip current, a cliff, and a gull on watch. Three coconuts are all you have.',
-    hints: ['Vent A is bubbling in its cove. Only one vent blows at a time.', 'A coconut floats. The current goes past the cove.', 'Drop one in upstream, on the FAR side of the current.', 'Up on the shelf there are three jobs and only two coconuts. What else bounces?'],
-    checks: [at(18.2, 0), SHELF], zones: { 1: [5.7, 9.1] },          // (anywhere on the shelf counts as reaching its flag)
+    hints: ['Vent A is bubbling in its cove. Only one vent blows at a time.', 'A coconut floats. The current goes past the cove.', 'Drop one in the water above the cove, on the far side of the current.', 'Up on the shelf there are three jobs and only two coconuts. What else bounces?'],
+    checks: [at(18.4, 0), SHELF], zones: { 1: [5.7, 9.1] },          // (anywhere on the shelf counts as reaching its flag)
     rings: [
         { r: 9.2, h: 8.5, gap: [180, 9], kind: 'cliff' }, { r: 9.2, h: 8.5, only: [180, 9], way: 'out', kind: 'slide' },   // the cliff, and a slide back down
         { c: A, r: 1.25, h: 9, gap: [lonOf(at(10.25, 58), A), 52], kind: 'cove' },
         { r: 5.6, h: 2, kind: 'step' }, { r: 3, h: 9, gate: 'eye', kind: 'gate' }, { r: 1.8, h: 9, gate: 'plate', kind: 'gate' },
     ],
-    bars: [{ a: at(13.2, -115), b: at(9.2, -115), h: 9 }],
-    currents: [{ r0: 9.2, r1: 13.2, only: [0, 115], speed: 5 }],
+    bars: [{ a: at(BANK, -115), b: at(9.2, -115), h: 9 }],
+    currents: [{ r0: 9.2, r1: BANK, only: [0, 115], speed: 6.5 }],
     eddies: [{ p: at(10.35, 61), r: 1.55, to: A, speed: 4.5 }],
-    urchins: [{ p: at(12.75, 108), r: 0.75 }, { p: at(11.55, 108), r: 0.75 }, { p: at(10.35, 108), r: 0.75 }, { p: at(9.5, 108), r: 0.6 }, { p: at(10.3, 16), r: 0.55 }, { p: at(9.6, 16), r: 0.45 }],
-    rocks: [{ p: at(12.2, 13), r: 0.62 }, { p: at(11.0, 20), r: 0.62 }, { p: B, r: 0.9 }],
-    vents: [{ id: 'A', p: A, r: 0.55 }, { id: 'B', p: B, r: 0.8, lift: 9.5 }],
+    urchins: [at(14.6, 108), at(13.4, 108), at(12.2, 108), at(11.0, 108), at(9.8, 108)].map(p => ({ p, r: 0.75 })),
+    rocks: [{ p: at(13.6, 6), r: 0.62 }, { p: at(11.9, 19), r: 0.62 }, { p: B, r: 0.9 }],
+    vents: [{ id: 'A', p: A, r: 0.55, float: true }, { id: 'B', p: B, r: 0.8, lift: 9.5 }],
     plates: [{ p: at(4.3, 100), r: 0.9, gate: 'plate' }],
     targets: [{ p: at(4.2, -100), gate: 'eye' }],
     gull: { ring: 7.5, from: 60 },
@@ -118,6 +118,7 @@ export const blowing = s => (s.lv.vents || []).find(v => !s.plug[v.id]) || null;
 export const rockUnder = (s, p) => (s.lv.rocks || []).find(k => dist(k.p, p) < k.r) || null;
 /** The current at place p: { d (a tangent), speed } or null. Rocks stand clear of it. */
 export function currentAt(s, p) {
+    if ((s.lv.rings || []).some(w => w.kind === 'cove' && dist(p, w.c) < w.r)) return null;      // still water inside the cove
     const dTop = dist(p, TOP);
     const cu = (s.lv.currents || []).find(c => dTop > c.r0 && dTop < c.r1 && covers(c, p));
     if (!cu) return null;
@@ -200,10 +201,9 @@ function _nut(s, n, dt, ev) {
     if (!d) { n.state = 'rest'; return; }
     const q = walk(n.p, d, (sp * dt) / R);
     if (_blocked(s, n.p, q, 0)) n.still += dt; else { n.p = q; n.still = 0; }
-    const v = (s.lv.vents || []).find(x => !s.plug[x.id] && dist(x.p, n.p) < x.r + 0.15);
+    const v = (s.lv.vents || []).find(x => x.float && !s.plug[x.id] && dist(x.p, n.p) < x.r + 0.15);   // (only the cove's vent takes a floating coconut)
     if (v) { n.state = 'plug'; n.p = v.p.slice(); s.plug[v.id] = n.id; ev.push({ type: 'plug', vent: v, nut: n, now: blowing(s) }); return; }
     if (urchinAt(s, n.p)) return _lose(s, n, ev, 'urchin');
-    if (rockUnder(s, n.p)) { n.state = 'rest'; return; }
     if (n.still > 1.5) _lose(s, n, ev, 'wedged');                         // (jammed against a wall where nothing can reach it)
 }
 
@@ -271,7 +271,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
         c.face = tangent(c.p, d);
         move(walk(c.p, d, (SPEED * (cu ? WADE : 1) * m * dt) / R));
     }
-    if (cu) { const ed = (lv.eddies || []).find(e => dist(e.p, c.p) < e.r); move(walk(c.p, ed ? toward(c.p, ed.to) : cu.d, ((ed ? ed.speed : cu.speed) * dt) / R)); }
+    if (cu) move(walk(c.p, cu.d, (cu.speed * dt) / R));          // (the eddy by the cove is for coconuts: a crab is only ever swept past it)
     c.wet = !!cu;
     for (const n of s.nuts.slice()) _nut(s, n, dt, ev);
 

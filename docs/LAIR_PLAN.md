@@ -51,38 +51,28 @@ The answer:
 3. Up there are three jobs (step, plate, bullseye) and two coconuts. So the step is climbed
    by jumping on the gull's back, and the coconuts go on the plate and into the bullseye.
 
-## Status when paused
+## Status
 
-- Done: `src/arcade/LairLogic.js` (all the rules above: carrying and picking up coconuts,
-  the current, eddy, urchins, rocks, linked vents and the lift, the gull, plates, bullseyes,
-  gates, flags, the one-way slide).
-- In progress: `qa/lair.mjs`, the proof. 15 of 30 checks fail. Most cascade from the first:
-  the scripted answer's opening throw doesn't end with vent A plugged, so everything after it
-  in `solve()` fails too. The search check shows 1615 of 14508 bank throws DO plug A, so the
-  mechanic works; the script's aim (or the eddy's reach, or where the throw lands) is off.
-  Other things the output suggests need a look:
-  - a crab that wades in is not reaching the urchins (it may be stopping somewhere);
-  - some plugging throws land as far round as 74 degrees (the cove is at 70): tighten the
-    eddy or the cove's mouth so only upstream drops work;
-  - a coconut lost to the urchins isn't ending up back under the palm in that test;
-  - wading can reach vent B's rock from the bank, which should be impossible.
+- Done: `src/arcade/LairLogic.js` (the rules) and `qa/lair.mjs`: 33 checks pass. Beyond the rules,
+  it plays the intended answer through (a coconut dropped in the current is carried into the
+  cove and plugs vent A; across the stepping rocks to B; up over the cliff; the gull's back for
+  the step; one coconut on the plate, one in the bullseye) and searches that the other ways are
+  shut: 14,508 throws from the bank (none lands in the cove; every one that plugs A is carried
+  there by the water), 540 straight at the vent (never), 1,890 wading or jumping strategies at
+  vent B's rock (never reached), a bounce plus a trick shot off every coconut without the vent
+  (6.3 high, the cliff is 8.5), and the step economy (over the step you are in with one coconut
+  every time, never two, so the gull is the way).
+- Design changes made while proving it: the channel is wider (cliff at 9.2, bank at 15.4) so a
+  single jump can't reach vent B's rock; floating coconuts drift past rocks; only the cove's vent
+  takes a floating coconut (a drift over B's rock can't spoil B); the eddy moves coconuts only,
+  never a crab; the current is 6.5 and a wading crab makes 1.5.
 - Not started: `LairScreen.js` (the 3D), wiring into `Planet.js`, the browser probe, docs.
-- The app still plays the archived trials (Planet.js imports them from `archive/`), so
-  nothing is broken while this is unfinished.
+- The app still plays the archived trials (Planet.js imports them from `archive/`).
 
 ## Next steps, in order
 
-1. Get `node qa/lair.mjs` to pass: fix the rules or the level until the answer plays through
-   and every "other way" check holds. Tune the level, not the tests, where the test states
-   the intended design.
-2. `src/arcade/LairScreen.js`: the scene for a chamber, on Tiny Planet's renderer (start from
-   `archive/TrickScreen.js`). New things to draw: the current (moving streaks), urchins,
-   rocks, vents with bubbles (and the cove), the cliff, the palm and coconuts, the gull (its
-   shadow and landing ring are the telegraph), the plate, bullseye, gates, the pearl, and
-   Old Ink behind the last gate. HUD: coconuts held (up to 3), a hint button that reveals
-   `hints` one at a time, restart.
-3. Wire into `Planet.js` in place of the trials: the Trick Hut opens "Old Ink's Lair" with the
-   story and chamber 1. First clear pays shells and stardust into the city.
-4. Browser probe: enter through the hut, pick up coconuts, throw, and play the answer on
-   screen. Update `qa/planet.js`, README, `docs/STATUS.md`. Smoke. PR with a "Play it" line.
-5. Caleb plays it. Tune. Then write down the template for chamber 2.
+1. `src/arcade/LairScreen.js`: the scene for a chamber on Tiny Planet's renderer (start from
+   `archive/TrickScreen.js`).
+2. Wire into `Planet.js` in place of the trials.
+3. Browser probe, README, STATUS, smoke, PR.
+4. Caleb plays it. Tune. Then write down the template for chamber 2.
