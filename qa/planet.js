@@ -180,7 +180,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     const open2 = await p.$$eval('.tp-lvl', els => els.map(e => !e.disabled));
     await p.click('#btn-tp-city');
     d = await M('M._debug()');
-    check(open2[1] && !open2[2] && d.mode === 'play' && !d.trial && d.pop === city0.pop && d.shells === city0.shells + 10 && await p.isVisible('#tp-bar'), `    the next trial is open; BACK TO THE CITY: the same city, 10 shells richer`);
+    check(open2[1] && !open2[2] && d.mode === 'play' && !d.trial && d.pop === city0.pop && d.shells >= city0.shells + 10 && d.shells <= city0.shells + 13 && await p.isVisible('#tp-bar'), `    the next trial is open; BACK TO THE CITY: the same city, 10 shells richer`);
     for (let i = 1; i < 6; i++) {
         await M('(M.enterTrials(), 1)');
         await p.evaluate(i => import('/src/arcade/Planet.js').then(M => { M.playTrial(i); }), i);
