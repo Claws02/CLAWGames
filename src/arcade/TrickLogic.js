@@ -25,7 +25,7 @@
 //   create(level)                 a fresh go at it
 //   step(s, dt, { x, y })         advance; the stick is screen-relative. → events
 //   jump(s) / throwNut(s, charge) charge 0..1
-//   aim(s, charge)                where a throw from here would come down
+//   aim(s, charge)                where a throw from here would come down, its path, and where it banks
 //   stars(s)                      [finished, par, shell] once won
 //   run(level, script)            play a list of moves (the probes; the levels' own answers)
 // ============================================================
@@ -89,10 +89,10 @@ export const LEVELS = [
         plates: [{ p: at(7.5, 50), r: 0.9, gate: 'a' }],
         answer: [['go', at(9.5, 150)], ['go', at(9.6, 38)], ['face', at(7.5, 50)], ['throw', 0.16], ['wait', 1.2], ['go', TOP]] },
     { id: 'bank', name: 'BANK SHOT', par: 1, start: at(11, 180), flag: TOP, shell: at(8.8, -120),
-        hint: 'The 🎯 is walled in, open only on the far side, over the water. Bounce a coconut in off the wall behind it.',
+        hint: 'The 🎯 is walled in, open only on the far side. Throw at the ORANGE BUMPER across the water: the dots show the bounce. Stand off to one side so it bounces in.',
         rings: [{ r: 2.6, h: 9, gate: 'a' }, { c: at(5.2, 0), r: 1.25, h: 9, from: -158, to: 158 }],
         moats: [{ r0: 2.6, r1: 4.4, from: -50, to: 50 }],
-        bars: [{ a: BANK_A, b: BANK_B, h: 9 }],
+        bars: [{ a: BANK_A, b: BANK_B, h: 9, bumper: true }],
         targets: [{ p: at(5.2, 0), gate: 'a' }],
         answer: [['go', at(8.8, -120)], ['go', at(8, 120)], ['go', at(6.5, 60)], ['go', at(4.6, 24)], ['face', at(2.8, 4)], ['throw', 0.5], ['wait', 1.6], ['go', at(6, 70)], ['go', at(5, 110)], ['go', TOP]] },
     { id: 'trick', name: 'TRICK SHOT', par: 1, start: at(10.5, 0), flag: TOP, shell: at(1.8, 90),
@@ -220,8 +220,9 @@ export function throwNut(s, charge = 0) {
 export function aim(s, charge = 0) {
     const t = { ...s, nuts: [], open: { ...s.open }, held: { ...s.held }, crab: { ...s.crab }, throws: 0, id: 1 };
     const n = throwNut(t, charge), path = [];
-    for (let i = 0; i < 240 && n.state === 'fly'; i++) { _nut(t, n, 1 / 60, []); if (i % 4 === 0) path.push([n.p, n.h]); }
-    return { p: n.p, path };
+    let bank = null;
+    for (let i = 0; i < 240 && n.state === 'fly'; i++) { const ev = []; _nut(t, n, 1 / 60, ev); if (!bank && ev.some(e => e.type === 'bank')) bank = [n.p, n.h]; if (i % 3 === 0) path.push([n.p, n.h]); }
+    return { p: n.p, path, bank };
 }
 
 function _nut(s, n, dt, ev) {

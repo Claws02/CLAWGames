@@ -250,7 +250,7 @@ export function pause() {
 export function resume() { if (!_paused) return; _paused = false; $('tp-over').hidden = true; _last = performance.now(); }
 function _leave() { _autosave(); document.querySelector('#scr-sologame [data-back]')?.click(); }
 
-function _hud_show(on) { $('tp-trial').hidden = true; $('tp-top').classList.remove('trial'); $('tp-goal').classList.remove('wide'); $('btn-tp-act').style.removeProperty('--k'); ['tp-top', 'tp-bar', 'tp-acts', 'tp-goal'].forEach(id => { $(id).hidden = !on; }); if (!on) { $('tp-hint').textContent = ''; $('tp-tip').hidden = true; } }
+function _hud_show(on) { $('tp-trial').hidden = true; $('tp-top').classList.remove('trial'); $('tp-goal').classList.remove('wide'); $('btn-tp-act').style.removeProperty('--k'); $('btn-tp-act').hidden = false; ['tp-top', 'tp-bar', 'tp-acts', 'tp-goal'].forEach(id => { $(id).hidden = !on; }); if (!on) { $('tp-hint').textContent = ''; $('tp-tip').hidden = true; } }
 
 function _menu() {
     // The autopilot's island, behind the card.
@@ -329,7 +329,8 @@ function _do(what, arg) {
 // ── The Coconut Trials (through the Trick Hut) ──────────────────────────────
 const _starsOf = id => sv().trick[id] || [false, false, false];
 const _starText = st => st.map(x => (x ? '⭐' : '☆')).join('');
-const _trialOpen = i => i === 0 || _starsOf(K.LEVELS[i - 1].id)[0];
+// (each set opens in order; the first skill course is open from the start)
+const _trialOpen = i => i === 0 || _starsOf(K.LEVELS[i - 1].id)[0] || (!!K.LEVELS[i].route && !K.LEVELS[i - 1].route);
 /** Walk into the Trick Hut: the city waits, saved, while the trials are on. */
 export function enterTrials() {
     if (_mode !== 'play' || !_s || _s.over) return;
@@ -345,8 +346,8 @@ function _trialsCard() {
     const total = K.LEVELS.reduce((n, l) => n + _starsOf(l.id).filter(Boolean).length, 0);
     _card(`<div class="tp-title bfont">🥥 COCONUT TRIALS</div>
         <div class="tp-sub">Puzzle planets. <b>Throw</b> coconuts the way you face (hold to throw further) and <b>jump on them</b> to bounce.</div>
-        <div class="tp-stat">${total}/${K.LEVELS.length * 3} ⭐ · each new star pays 3 ✨, each trial 10 🐚 for your city</div>
-        <div class="tp-lvls">${K.LEVELS.map((l, i) => `<button class="tp-lvl" data-do="trial" data-arg="${i}" ${_trialOpen(i) ? '' : 'disabled'}><b class="bfont">${i + 1}</b><span>${_trialOpen(i) ? l.name : '🔒'}</span><i>${_starText(_starsOf(l.id))}</i></button>`).join('')}</div>
+        <div class="tp-stat">${total}/${K.LEVELS.length * 3} ⭐ · a new star pays 3 ✨ a chilli, a first clear 10 🐚 a chilli</div>
+        <div class="tp-lvls">${K.LEVELS.map((l, i) => `${i === 0 ? '<div class="tp-h">🥥 Coconut puzzles</div>' : l.route && !K.LEVELS[i - 1].route ? '<div class="tp-h">⏱️ Skill courses · timing and jumping</div>' : ''}<button class="tp-lvl" data-do="trial" data-arg="${i}" ${_trialOpen(i) ? '' : 'disabled'}><b class="bfont">${i + 1}</b><span>${_trialOpen(i) ? `${l.name} ${'🌶️'.repeat(l.tier || 1)}` : '🔒'}</span><i>${_starText(_starsOf(l.id))}</i></button>`).join('')}</div>
         <button class="go-btn bfont tp-alt" data-do="city" id="btn-tp-city">‹ BACK TO THE CITY</button>`, true);
 }
 /** Start trial i (0-based). */
@@ -368,29 +369,29 @@ export function holdThrow(on) { if (_mode === 'trick' && _trial && !_paused) ret
 function _trialHud() {
     const s = _trial.state(), lv = _trial.level, i = K.LEVELS.indexOf(lv), k = _trial.charging();
     const hint = _hintT > 0 ? _hintMsg : '';
-    const sig = [lv.id, s.throws, s.shell, hint, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
+    const sig = [lv.id, s.throws, s.falls, s.shell, hint, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
     if (sig === _lastHud) return;
     _lastHud = sig;
     $('tp-trial-n').textContent = `🥥 ${i + 1}/${K.LEVELS.length} ${lv.name}`;
-    $('tp-trial-s').textContent = `THROWS ${s.throws} · PAR ${lv.par} · ${s.shell ? '🐚 GOT IT' : '🐚 FIND THE GOLDEN SHELL'}`;
+    $('tp-trial-s').textContent = `${lv.clean ? (s.falls ? `FALLS ${s.falls}` : 'NO FALLS YET') : `THROWS ${s.throws} · PAR ${lv.par}`} · ${s.shell ? '🐚 GOT IT' : '🐚 FIND THE GOLDEN SHELL'}`;
     const goal = $('tp-goal'); goal.textContent = `💡 ${lv.hint}`; goal.classList.remove('tut'); goal.classList.add('wide');
-    const ab = $('btn-tp-act'); ab.classList.remove('off', 'idle'); ab.querySelector('span').textContent = '🥥'; ab.querySelector('small').textContent = k >= 0 ? 'LET GO!' : 'HOLD: THROW';
+    const ab = $('btn-tp-act'); ab.classList.remove('off', 'idle'); ab.hidden = !!lv.route; ab.querySelector('span').textContent = '🥥'; ab.querySelector('small').textContent = k >= 0 ? 'LET GO!' : 'HOLD: THROW';
     ab.style.setProperty('--k', k >= 0 ? k : 0);
     $('btn-tp-jump').classList.toggle('off', s.crab.air);
     $('tp-hint').textContent = hint;
 }
 function _trialWon(lv, st, s) {
     const save = sv(), had = _starsOf(lv.id), now = had.map((x, i) => x || st[i]);
-    const fresh = now.filter(Boolean).length - had.filter(Boolean).length, first = !had[0];
-    save.trick[lv.id] = now; save.dust += fresh * 3; persist();
-    if (first) _trialOwed += 10;
+    const fresh = now.filter(Boolean).length - had.filter(Boolean).length, first = !had[0], tier = lv.tier || 1, dust = fresh * 3 * tier, shells = first ? 10 * tier : 0;
+    save.trick[lv.id] = now; save.dust += dust; persist();
+    _trialOwed += shells;
     Solo.bump('planetTrials', fresh);
     const i = K.LEVELS.indexOf(lv), next = K.LEVELS[i + 1];
     _paused = true;
     _card(`<div class="tp-title bfont">🚩 TRIAL DONE!</div>
         <div class="tp-big bfont">${_starText(st)}</div>
-        <div class="tp-sub">${st[1] ? `In ${s.throws} throw${s.throws === 1 ? '' : 's'}: on par!` : `${s.throws} throws (par ${lv.par})`} · ${st[2] ? 'golden shell found' : 'the golden shell is still out there'}</div>
-        ${fresh || first ? `<div class="tp-dust bfont">${fresh ? `+${fresh * 3} ✨` : ''}${first ? ` +10 🐚` : ''}</div>` : ''}
+        <div class="tp-sub">${lv.clean ? (st[1] ? 'Without a single fall!' : `${s.falls} fall${s.falls === 1 ? '' : 's'}: do it clean for the second star`) : st[1] ? `In ${s.throws} throw${s.throws === 1 ? '' : 's'}: on par!` : `${s.throws} throws (par ${lv.par})`} · ${st[2] ? 'golden shell found' : 'the golden shell is still out there'}</div>
+        ${dust || shells ? `<div class="tp-dust bfont">${dust ? `+${dust} ✨` : ''}${shells ? ` +${shells} 🐚` : ''}</div>` : ''}
         ${next ? `<button class="go-btn bfont" data-do="trial" data-arg="${i + 1}" id="btn-tp-next">NEXT TRIAL</button>` : '<div class="tp-stat">That was the last one. More worlds to come!</div>'}
         <button class="go-btn bfont tp-alt" data-do="trial" data-arg="${i}">↻ AGAIN</button>
         <button class="go-btn bfont tp-alt" data-do="trials">ALL TRIALS</button>
