@@ -29,7 +29,7 @@
 //   stars(s)                      [finished, par, shell] once won
 //   run(level, script)            play a list of moves (the probes; the levels' own answers)
 // ============================================================
-import { dot, cross, norm, mix, angle, tangent, toward, walk } from './PlanetLogic.js';
+import { dot, cross, norm, mix, angle, tangent, toward, walk } from '../PlanetLogic.js';
 
 export const R = 5, SPEED = 4.2, G = 18;
 export const JUMP_V = 6.84, BOUNCE_V = 9.67;            // apex 1.3 and 2.6 above where you left

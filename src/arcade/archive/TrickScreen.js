@@ -14,7 +14,7 @@
 //   t.dispose()
 // ============================================================
 import * as K from './TrickLogic.js';
-import { cross, mix, norm, tangent, toward, walk } from './PlanetLogic.js';
+import { cross, mix, norm, tangent, toward, walk } from '../PlanetLogic.js';
 
 const CHARGE_S = 0.9;                      // how long a full wind-up takes
 // A look for each trial: ground, grass, sky.

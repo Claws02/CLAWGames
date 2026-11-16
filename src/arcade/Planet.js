@@ -18,8 +18,8 @@ import * as L from './PlanetLogic.js';
 import * as Solo from './SoloStats.js';
 import * as Store from './Store.js';
 import * as Audio from '../claw-core/engine/AudioManager.js';
-import * as K from './TrickLogic.js';
-import { createTrial } from './TrickScreen.js';
+import * as K from './archive/TrickLogic.js';
+import { createTrial } from './archive/TrickScreen.js';
 
 export const meta = { id: 'planet', icon: '🪐', title: 'Tiny Planet', blurb: 'A crab, a very small planet, and shooting stars. Gather shells, plant palms and build homes to grow a city of crabs, and catch the stars before they flatten it. How big can your city get?' };
 

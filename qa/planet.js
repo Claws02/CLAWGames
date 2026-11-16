@@ -151,7 +151,7 @@ const SHOTS = process.env.QA_SHOTS || '';
         `   SAVE & LEAVE goes back to the hub; "${cont.trim()}" brings the same city back (${d.pop} crabs, ${d.builds.length} things built)`);
 
     // 7b. the Coconut Trials, through the Trick Hut
-    const MK = expr => p.evaluate(e => Promise.all([import('/src/arcade/Planet.js'), import('/src/arcade/PlanetLogic.js'), import('/src/arcade/TrickLogic.js')]).then(([M, L, K]) => (new Function('M', 'L', 'K', 'return ' + e))(M, L, K)), expr);
+    const MK = expr => p.evaluate(e => Promise.all([import('/src/arcade/Planet.js'), import('/src/arcade/PlanetLogic.js'), import('/src/arcade/archive/TrickLogic.js')]).then(([M, L, K]) => (new Function('M', 'L', 'K', 'return ' + e))(M, L, K)), expr);
     const city0 = await M('M._debug()');
     await M(`(() => { const s = M._game(), th = s.builds.find(b => b.kind === 'trick'); s.trickArmed = true; s.crab.p = L.walk(th.p, L.tangent(th.p, [1, 0, 0]), 0.7 / s.R); return 1; })()`);
     await p.waitForSelector('.tp-lvl');
