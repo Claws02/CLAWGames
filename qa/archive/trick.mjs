@@ -1,7 +1,7 @@
 // Coconut Trials rules (the puzzle planets inside Tiny Planet), no browser.
 // usage: node qa/trick.mjs
-import * as K from '../src/arcade/TrickLogic.js';
-import * as P from '../src/arcade/PlanetLogic.js';
+import * as K from '../../src/arcade/archive/TrickLogic.js';
+import * as P from '../../src/arcade/PlanetLogic.js';
 
 let fails = 0;
 const ok = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) fails++; };

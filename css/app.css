@@ -951,6 +951,7 @@ body.tv #tv-seats { display: grid; grid-template-columns: repeat(auto-fill, minm
 .tp-trial { position: absolute; left: 8px; right: 58px; top: calc(var(--st, 0px) + 8px); background: rgba(255, 255, 255, .93); border: 3px solid var(--ink); border-radius: 14px; box-shadow: 0 3px 0 var(--ink); padding: 3px 10px 4px; color: var(--ink); pointer-events: none; }
 .tp-trial b { display: block; font-size: 20px; letter-spacing: .5px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tp-trial span { font-weight: 900; font-size: 11px; opacity: .85; }
+.tp-hintbtn { background: #fde047; }
 .tp-acts .tp-r.tp-act { background-image: conic-gradient(#fb923c calc(var(--k, 0) * 360deg), transparent 0); }
 .tp-lvls { display: flex; flex-direction: column; gap: 5px; margin: 8px 0; }
 .tp-lvl { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border: 3px solid var(--ink); border-radius: 14px; background: #fff; box-shadow: 0 3px 0 var(--ink); color: var(--ink); font-family: Nunito, system-ui, sans-serif; font-weight: 900; font-size: 15px; cursor: pointer; text-align: left; }
