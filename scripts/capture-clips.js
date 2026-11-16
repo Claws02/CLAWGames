@@ -92,6 +92,11 @@ const SOLO = {
     }, play: async () => {
         const C = await import('/src/arcade/Coral.js'); for (let i = 0; i < 14; i++) { C.dropHere(1.2 + ((i * 2.3) % 4.6)); await wait(330); }
     } },
+    planet: { open: 'planet', sel: '#tp-wrap', prep: async () => {
+        const M = await import('/src/arcade/Planet.js'); document.querySelector('#btn-tp-play').click(); M._game().shells = 30; M._game().nuts = 8; M._pilot(true, 8);
+        for (let i = 0; i < 60 && !(M._debug().phase === 'day' && M._debug().day === 2 && M._game().pt > 20); i++) await new Promise(r => setTimeout(r, 200));
+        M._pilot(true, 1);
+    }, play: async () => { await wait(9000); } },
     kite: { open: 'kite', sel: '#kt-cv', play: async () => {
         document.querySelector('#btn-kt-go').click(); const K = await import('/src/arcade/Kite.js');
         for (let i = 0; i < 70; i++) { const d = K._debug(); if (d.over) break; if (d.y > 0.42) K.tug(); if (i === 20 || i === 40) K._place('ring', -0.02); await wait(90); }
