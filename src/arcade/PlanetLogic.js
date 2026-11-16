@@ -531,7 +531,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
 /** The tracker's line: the first steps one at a time, then the next size of city. */
 export function goal(s) {
     const st = s.stats, n = pop(s), next = nextTown(s);
-    if (st.walked < 3) return { tut: true, text: 'DRAG ANYWHERE TO WALK' };
+    if (st.walked < 3) return { tut: true, text: 'DRAG THE LEFT HALF TO WALK · THE RIGHT TO LOOK' };
     if (!st.palms && s.shells < costOf(s, 'palm').shells) return { tut: true, text: `PICK UP SHELLS 🐚 ${s.shells}/${costOf(s, 'palm').shells}` };
     if (!st.palms) return { tut: true, text: 'TAP 🌴 TO PLANT A PALM' };
     if (!st.huts && s.nuts < costOf(s, 'hut').nuts) return { tut: true, text: `COLLECT COCONUTS 🥥 ${s.nuts}/${costOf(s, 'hut').nuts} · ✋ SHAKES A PALM` };

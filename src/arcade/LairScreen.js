@@ -173,7 +173,7 @@ export function createLair(kit, level, hooks) {
         col.needsUpdate = true;
     };
 
-    let shelfK = 0, s = K.create(level), t = 0, charge = -1, cheer = 0, camP = null, shake = 0, doneAt = 0, told = false, disposed = false, intro = 0, snap = false, shown = 0, inkMad = 0;
+    let pitch = 0, shelfK = 0, s = K.create(level), t = 0, charge = -1, cheer = 0, camP = null, shake = 0, doneAt = 0, told = false, disposed = false, intro = 0, snap = false, shown = 0, inkMad = 0;
 
     function events(evs) {
         for (const e of evs) {
@@ -287,7 +287,7 @@ export function createLair(kit, level, hooks) {
 
         // The camera: behind and above, higher when the crab is, and swinging in from far out on a fresh go.
         const dT = K.dist(c.p, TOP); shelfK += ((dT < 9.7 && dT > 5.0 ? 1 : 0) - shelfK) * Math.min(1, dt * 3);
-        const up = V(c.p), f = V(c.f), want = up.clone().multiplyScalar(R + 9.6 + 3.2 * shelfK + c.h * 0.45).addScaledVector(f, -(8.6 - 3.6 * shelfK));
+        const up = V(c.p), f = V(c.f), want = up.clone().multiplyScalar(R + (9.6 + 3.2 * shelfK) * (1 + 0.4 * pitch) + c.h * 0.45).addScaledVector(f, -(8.6 - 3.6 * shelfK) * (1 - 0.35 * pitch));
         if (snap && camP) { camP.copy(want); snap = false; }
         if (!camP) { camP = up.clone().multiplyScalar(R * 4.2).addScaledVector(f, R * 1.4); intro = 1.8; }
         intro = Math.max(0, intro - dt);
@@ -315,6 +315,8 @@ export function createLair(kit, level, hooks) {
             if (doneAt && t >= doneAt) { doneAt = 0; told = true; hooks.won(s); }
             draw(dt);
         },
+        /** The right thumb: turn the camera round the crab, and tilt it. */
+        look(a, dpitch = 0) { if (a) K.turnView(s, a); pitch = Math.max(-0.9, Math.min(0.9, pitch + dpitch)); },
         jump() { if (K.jump(s)) { hooks.sfx('swap'); hooks.buzz(8); return true; } return false; },
         /** The throw button: down winds up, up lets go. now: throw at once with that much charge. */
         hold(on, now = null) {
