@@ -20,6 +20,7 @@ import * as Store from './Store.js';
 import * as Audio from '../claw-core/engine/AudioManager.js';
 import * as LL from './LairLogic.js';
 import { createLair } from './LairScreen.js';
+import { makeToon } from './Toon.js';
 
 export const meta = { id: 'planet', icon: '🪐', title: 'Tiny Planet', blurb: 'A crab, a very small planet, and shooting stars. Gather shells, plant palms and build homes to grow a city of crabs, and catch the stars before they flatten it. How big can your city get?' };
 
@@ -71,7 +72,7 @@ let _el = null, _offs = [], _raf = 0, _last = 0, _hidden = false, _paused = fals
 let _s = null, _mode = 'menu';             // 'menu' (the autopilot's island behind the card) | 'play' | 'over' | 'trick' (the Coconut Trials)
 let _trial = null, _trialOwed = 0;          // the trial on screen (null: its cards), and shells won there for the city
 let _stick = { x: 0, y: 0 }, _keys = {}, _ptr = null, _look = null, _pitch = 0, _auto = false, _speed = 1;      // _ptr: the left thumb (walk); _look: the right thumb (turn the camera)
-let T = null;                               // window.THREE, taken at mount
+let T = null, Y = null;                     // window.THREE, taken at mount; Y: the ink-outlined toon style (Toon.js)
 let _gl = null;                             // { renderer, scene, camera, ... } or null without WebGL
 let _visR = L.R0, _shake = 0, _nightK = 0, _t = 0, _banner = 0, _overAt = 0, _lastHud = '', _lift = 0, _cheer = 0;
 let _tips = [], _tipT = 0, _hintT = 0, _hintMsg = '';
@@ -87,7 +88,7 @@ const _h = p => 1 + 0.028 * (Math.sin(3.1 * p[0] + 1) * Math.sin(2.7 * p[1] + 2)
 const PLANK_H = 0.55;                        // how high the boardwalk stands
 
 export function mount(el) {
-    _el = el; T = window.THREE;
+    _el = el; T = window.THREE; Y = T ? makeToon(T) : null;
     el.innerHTML = `<div class="tp-wrap full" id="tp-wrap">
         <canvas class="tp-cv" id="tp-cv"></canvas>
         <div class="tp-top" id="tp-top">
@@ -372,7 +373,7 @@ export function playTrial(i) {
     if (!lv || !_gl || _mode !== 'trick') return null;
     if (_trial) _trial.dispose();
     _paused = false; _hintN = 0; $('tp-over').hidden = true;
-    _trial = createLair({ T, renderer: _gl.renderer, crab: color => _crab(color, 0.62), pose: _crabPose, skin: skin().color }, lv, {
+    _trial = createLair({ T, renderer: _gl.renderer, toon: Y, crab: color => _crab(color, 0.62, null, true), pose: _crabPose, skin: skin().color }, lv, {
         say: _say, hint: _hintNow, sfx: _sfx, buzz: _buzz, pop: (v, text) => _popAt(v, text, _trial?.camera), won: s => _lairWon(lv, s),
     });
     $('tp-trial').hidden = false; $('tp-acts').hidden = false; $('tp-goal').hidden = false; $('tp-top').hidden = false; $('tp-top').classList.add('trial'); $('btn-tp-hint').hidden = false;
@@ -679,7 +680,7 @@ function _buildScene(canvas) {
     far.position.set(70, 40, -90); scene.add(far);
 
     // The crab, its shadow, and the rock it may be holding.
-    const crab = _crab(0xff5a4d, 0.62); scene.add(crab.g);
+    const crab = _crab(0xff5a4d, 0.62, null, true); scene.add(crab.g);
     const shadow = new T.Mesh(new T.CircleGeometry(0.5, 16), new T.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false }));
     shadow.geometry.rotateX(-Math.PI / 2); scene.add(shadow);
 
@@ -728,7 +729,7 @@ function _buildScene(canvas) {
 
 // A crab from balls and sticks: body, eyes on stalks, two claws, six legs.
 // hat: a party hat in that colour (the city's crabs wear them).
-function _crab(color, scale, hat = null) {
+function _crab(color, scale, hat = null, ink = false) {
     const g = new T.Group(), body = new T.Group(); g.add(body);
     const shell = _lam(color), dark = _lam(new T.Color(color).multiplyScalar(0.72).getHex());
     const b = _mesh(new T.SphereGeometry(0.5, 12, 9), shell, 0, 0.42, 0); b.scale.set(1.15, 0.62, 0.9); body.add(b);
@@ -739,6 +740,12 @@ function _crab(color, scale, hat = null) {
     const mats = [shell, dark];
     if (hat != null) { const hm = _lam(hat); mats.push(hm); const hc = _mesh(new T.ConeGeometry(0.24, 0.5, 7), hm, 0, 0.98, -0.02); body.add(hc); }
     g.scale.setScalar(scale);
+    if (ink && Y) {
+        // the player's own crab is drawn in the game's ink-outlined style (villagers stay plain: there can be fifty of them)
+        Y.inkify(g, 0.1);
+        const kinds = new Map(); g.traverse(o => { if (o.isMesh && o.material && o.material.isMeshToonMaterial) kinds.set(o.material.color.getHex(), o.material); });
+        return { g, body, claws, legs, eyes, shell: kinds.get(shell.color.getHex()) || shell, dark: kinds.get(dark.color.getHex()) || dark, mats, phase: 0 };
+    }
     return { g, body, claws, legs, eyes, shell, dark, mats, phase: 0 };
 }
 function _crabPose(c, dt, moving, cheer, lift = 0) {
