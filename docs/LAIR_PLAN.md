@@ -80,3 +80,12 @@ The answer:
 3. Then chamber 2: the next new rule (ideas: ink pools that can be crossed by a coconut raft;
    hot rock to hop across between cooling platforms; a tentacle that sweeps a bridge; bubble
    vents that lift a coconut as well as a crab).
+
+## Changes after the first play-test (Caleb on a phone)
+
+- He fell through the floating rocks to the sea floor: rocks now have a height (`ROCK_H`) so a crab stands on top and falls off the sides, with a blink of grace for a jump off an edge.
+- The vent didn't lift him: nothing said which vent was blowing, and he may never have stood on B. Standing on a quiet vent now says "only one vent blows, and it's A", and a bubble column shows the lift. The lift is tested with a held stick and a jump, not a teleport.
+- A wall "broken if I go backwards": the invisible barrier at the channel's west end. It is needed (without it a crab walks the dry ledge to the cliff foot and is carried straight onto B's rock), so it is now drawn as a dam of spring rocks with a waterfall, where the current starts.
+- Walking off a rock fell only 0.22 s, enough to glide across a small gap; and rocks set one downstream of another let the current deliver a crab from one to the next. Now two rocks in a straight line across the current, gaps of about 1.4 to 1.5.
+- Controls: left half stick, right half camera.
+- Art: the ink-outlined cartoon style (`Toon.js`).
