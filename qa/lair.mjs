@@ -2,7 +2,7 @@
 // that the other ways are shut. No browser.
 // usage: node qa/lair.mjs
 
-import { K, P, at, TOP, L, DT, A, B, R1, R2, BANK, beach, lobbed, stickTo, run, go, hop, face, gather, chargeFor, solve } from './lair-solve.mjs';
+import { K, P, at, TOP, L, DT, A, B, R1, BANK, beach, lobbed, stickTo, run, go, hop, face, gather, chargeFor, solve } from './lair-solve.mjs';
 
 let fails = 0;
 const ok = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) fails++; };
@@ -17,8 +17,8 @@ const ok = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) f
   go(s, n.p, [], 0.3);
   ok(s.crab.nuts === 3 && !s.nuts.includes(n), 'and walking to it picks it up again'); }
 { const s = K.create(L); s.crab.p = at(BANK - 0.2, -60).slice(); s.crab.f = P.toward(s.crab.p, TOP); let ev = [];
-  for (let i = 0; i < 12 / DT && !s.falls; i++) { ev.push(...K.step(s, DT, { x: 0, y: 1 })); if (i === 30) var inWater = !!K.currentAt(s, s.crab.p); }
-  ok(inWater && ev.some(e => e.type === 'ouch') && s.falls === 1 && K.dist(s.crab.p, L.start) < 2 && K.lonOf(s.crab.p) !== undefined, 'wading into the rip current: it doesn\'t hurt, but it carries the crab down onto the urchins, and back to the start');
+  for (let i = 0; i < 12 / DT && !s.falls; i++) { ev.push(...K.step(s, DT, { x: 0, y: 0 })); if (i === 30) var inWater = !!K.currentAt(s, s.crab.p); }
+  ok(inWater && ev.some(e => e.type === 'ouch') && s.falls === 1 && K.dist(s.crab.p, L.start) < 2 && K.lonOf(s.crab.p) !== undefined, 'standing in the rip current: it doesn\'t hurt, but it carries the crab down onto the urchins, and back to the start');
   const s2 = K.create(L); s2.crab.p = at(12, -60).slice(); run(s2, 0.4);
   ok(K.lonOf(s2.crab.p) > -60 + 12, `the current runs east at ${L.currents[0].speed} a second, faster than a crab can wade against it (${(K.SPEED * K.WADE).toFixed(1)})`);
   const s3 = K.create(L); s3.crab.p = R1.p.slice(); const p0 = s3.crab.p.slice(); run(s3, 1);
@@ -27,7 +27,7 @@ const ok = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) f
   ok(K.dist(s4.crab.p, A.p) < 0.2 && !K.currentAt(s4, A.p), 'and the cove is still water: a crab that gets in stays there until it chooses to leave'); }
 { const s = K.create(L); ok(K.blowing(s).id === 'A', 'vent A is open, so A is the one that blows');
   s.crab.p = B.p.slice(); const ev = run(s, 1.5);
-  ok(!ev.some(e => e.type === 'lift') && s.crab.h === 0, 'standing on vent B does nothing while A blows');
+  ok(!ev.some(e => e.type === 'lift') && s.crab.h === K.ROCK_H && ev.filter(e => e.type === 'calm').length === 1 && ev.find(e => e.type === 'calm').blowing.id === 'A', 'standing on vent B does nothing while A blows, and it says so (once): the vent is calm and A is the one blowing');
   s.plug.A = 99; ok(K.blowing(s).id === 'B', 'plug A and B blows');
   const ev2 = run(s, 1.4); const top = s.crab.h;
   ok(ev2.some(e => e.type === 'lift') && top > 8.5, `and it lifts a crab standing on it ${top.toFixed(1)} high: over the ${L.rings[0].h} cliff`); }
@@ -100,6 +100,49 @@ const ok = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) f
 { // never stuck: the slide
   const s = solve({ stopAtShelf: true }).s; go(s, at(8.4, 100)); go(s, at(8.4, 180)); go(s, at(10.5, 180), [], 0.3, 5);
   ok(K.dist(s.crab.p, TOP) > 9.2, 'a slide at the back of the shelf goes down to the beach again (and only down), so nothing up there is a dead end'); }
+
+// ── what a person does with a thumb: held stick and jump button, no teleports ───
+{ // standing on top of the rocks
+  const s = K.create(L); s.crab.p = beach(30, BANK + 0.1).slice(); s.crab.f = P.toward(s.crab.p, R1.p); const ev = [];
+  K.jump(s); for (let i = 0; i < 120 && (s.crab.air || !i); i++) ev.push(...K.step(s, DT, stickTo(s, R1.p, Math.min(1, K.dist(s.crab.p, R1.p) / 0.5))));
+  const land = ev.find(e => e.type === 'land');
+  ok(land && land.onRock && !s.falls && Math.abs(s.crab.h - K.ROCK_H) < 1e-6 && K.dist(s.crab.p, R1.p) < R1.r, `a jump from the bank lands ON the first rock: the crab stands ${K.ROCK_H} high on top of it, not down on the sea floor`);
+  const p0 = s.crab.p.slice(); run(s, 2);
+  ok(K.dist(s.crab.p, p0) < 0.01 && s.crab.h === K.ROCK_H && !s.falls, 'and stays there: the current doesn\'t take a crab off a rock');
+  // walking off the far edge: it falls, and then the water has it
+  const off = K.create(L); off.crab.p = R1.p.slice(); off.crab.h = K.ROCK_H; off.crab.f = P.toward(R1.p, at(10, 60)); const ev2 = []; let air = false;
+  for (let i = 0; i < 60; i++) { ev2.push(...K.step(off, DT, { x: 0, y: 1 })); air = air || off.crab.air; }
+  ok(air && off.crab.h < K.ROCK_H && K.dist(off.crab.p, R1.p) > R1.r, 'walking off the edge of a rock: the crab drops to the water, and is carried');
+  // a gap between rocks can't be walked across (the fall off a rock is too short to glide over it), but can be jumped
+  const gapWalk = (from, to, jumpAt) => { const w = K.create(L); w.crab.p = from.p.slice(); w.crab.h = K.ROCK_H; w.crab.f = P.toward(from.p, to.p); let ended = null;
+    for (let i = 0; i < 4 / DT && !w.falls; i++) { if (jumpAt != null && Math.abs(i * DT - jumpAt) < DT / 2) K.jump(w); K.step(w, DT, stickTo(w, to.p)); if (!w.crab.air && K.dist(w.crab.p, to.p) < to.r) { ended = 'on'; break; } } return ended; };
+  ok(!gapWalk(R1, B, null), 'walking from the first rock toward vent B\'s without jumping never gets there: the fall off the rock is too short to glide across, and the current carries a crab past');
+  ok(gapWalk(R1, B, 0.05) === 'on', 'jumping at the edge does'); }
+{ // the vent, with a person steering: jump from the rock onto B, hold the stick at the shelf, and the crab goes up and over the cliff
+  const trip = (plan, plug) => {
+    const s = K.create(L); if (plug) s.plug.A = 99; s.nuts = [];
+    s.crab.p = R1.p.slice(); s.crab.h = K.ROCK_H; s.crab.f = P.toward(R1.p, B.p); K.jump(s);
+    let maxH = 0, landedB = false, lifted = false; const ev = [], toShelf = at(7.6, 30), t0 = s.t;
+    for (let i = 0; i < 7 / DT; i++) {
+      const st = plan === 'always' ? stickTo(s, toShelf) : plan === 'late' ? (s.crab.h > L.rings[0].h + 0.3 || !s.crab.lifted && !s.crab.air ? stickTo(s, toShelf) : { x: 0, y: 1 }) : (landedB || lifted ? { x: 0, y: 0 } : { x: 0, y: 1 });
+      const e = K.step(s, DT, st); ev.push(...e); maxH = Math.max(maxH, s.crab.h);
+      if (e.some(x => x.type === 'land' && x.onRock)) landedB = K.dist(s.crab.p, B.p) < B.r + 0.1;
+      if (e.some(x => x.type === 'lift')) lifted = true;
+      if (i > 60 && !s.crab.air && s.t - t0 > 0.5) break;
+    }
+    return { s, ev, maxH, lifted, landedB, over: K.dist(s.crab.p, TOP) < 9.2 };
+  };
+  for (const [name, plan] of [['the stick held at the shelf the whole time', 'always'], ['forward in the air, at the shelf once it is up', 'late']]) {
+    const r = trip(plan, true);
+    ok(r.lifted && r.maxH > L.rings[0].h && r.over && !r.s.falls, `the lift with a person steering (${name}): up ${r.maxH.toFixed(1)}, over the ${L.rings[0].h} cliff, down on the shelf`); }
+  const still = trip('none', true);
+  ok(still.lifted && still.maxH > L.rings[0].h && !still.over, 'letting go of the stick on B: it goes straight up and comes straight down again on the rock; the lift alone doesn\'t carry a crab over, the stick does');
+  const dead = trip('always', false);
+  ok(!dead.lifted && dead.maxH < 2 && !dead.over, 'with vent A still open B never lifts the crab, however it steers'); }
+{ // the dam: the dry ledge west of the current can't be walked along to the cliff foot
+  const s = K.create(L); s.crab.p = at(9.5, -150).slice(); s.crab.f = P.toward(s.crab.p, at(9.5, -100)); let lonMax = -999;
+  for (let i = 0; i < 12 / DT; i++) { K.step(s, DT, stickTo(s, at(9.5, 60))); lonMax = Math.max(lonMax, K.lonOf(s.crab.p)); }
+  ok(lonMax < -114 && !s.falls, `walking east along the dry ledge at the cliff's foot stops at the dam of spring rocks (as far as ${lonMax.toFixed(0)}°, the dam is at -115°): no free ride onto vent B's rock`); }
 
 console.log(fails ? `\nLAIR FAIL (${fails})` : '\nLAIR PASS');
 process.exit(fails ? 1 : 0);

@@ -5,7 +5,7 @@ import * as K from '../src/arcade/LairLogic.js';
 import * as P from '../src/arcade/PlanetLogic.js';
 export { K, P };
 export const { at, TOP, STAIR: L } = K; export const DT = 1 / 60;
-export const A = L.vents[0], B = L.vents[1], [R1, R2] = L.rocks, BANK = L.bank;
+export const A = L.vents[0], B = L.vents[1], [R1] = L.rocks, BANK = L.bank;
 export const beach = (lon, d = BANK + 0.45) => at(d, lon);        // a place on the near bank
 export const lobbed = (s, p, land) => { s.crab.p = p.slice(); face(s, land); const n = K.throwNut(s, chargeFor(s, land)); return n; };
 export const stickTo = (s, p, mag = 1) => { const c = s.crab, d = P.toward(c.p, p), r = P.cross(c.f, c.p); return { x: P.dot(d, r) * mag, y: P.dot(d, c.f) * mag }; };
@@ -27,7 +27,7 @@ export const solve = (opt = {}) => {
   for (let i = 0; i < 12 / DT && !s.plug.A; i++) ev.push(...K.step(s, DT));
   note.plugged = !!s.plug.A; note.t1 = s.t;
   // 2. across the rocks to vent B, and up
-  go(s, beach(6, BANK + 0.1), ev); hop(s, R1.p, ev); hop(s, R2.p, ev); hop(s, B.p, ev);
+  go(s, beach(30, BANK + 0.1), ev); hop(s, R1.p, ev); hop(s, B.p, ev);
   note.onB = K.dist(s.crab.p, B.p) < B.r + 0.4 && !s.falls;
   go(s, B.p, ev, 0.2, 2);
   for (let i = 0; i < 4 / DT && s.crab.h < B.lift - 0.2; i++) ev.push(...K.step(s, DT));

@@ -603,3 +603,9 @@ export function autopilot(s) {
     if (near) go(near.p);
     return out;
 }
+
+/** Turn the camera (and so what 'up the screen' means) round the crab by a radians. */
+export function turnView(s, a) {
+    const c = s.crab;
+    c.f = tangent(c.p, mix(c.f, cross(c.p, c.f), Math.cos(a), Math.sin(a)));
+}
