@@ -20,6 +20,7 @@ import * as Store from './Store.js';
 import * as Audio from '../claw-core/engine/AudioManager.js';
 import * as LL from './LairLogic.js';
 import { createLair } from './LairScreen.js';
+import { makeToon } from './Toon.js';
 
 export const meta = { id: 'planet', icon: '🪐', title: 'Tiny Planet', blurb: 'A crab, a very small planet, and shooting stars. Gather shells, plant palms and build homes to grow a city of crabs, and catch the stars before they flatten it. How big can your city get?' };
 
@@ -70,8 +71,8 @@ export function pickTheme(id) { const t = THEMES.find(x => x.id === id); if (!t 
 let _el = null, _offs = [], _raf = 0, _last = 0, _hidden = false, _paused = false;
 let _s = null, _mode = 'menu';             // 'menu' (the autopilot's island behind the card) | 'play' | 'over' | 'trick' (the Coconut Trials)
 let _trial = null, _trialOwed = 0;          // the trial on screen (null: its cards), and shells won there for the city
-let _stick = { x: 0, y: 0 }, _keys = {}, _ptr = null, _auto = false, _speed = 1;
-let T = null;                               // window.THREE, taken at mount
+let _stick = { x: 0, y: 0 }, _keys = {}, _ptr = null, _look = null, _pitch = 0, _auto = false, _speed = 1;      // _ptr: the left thumb (walk); _look: the right thumb (turn the camera)
+let T = null, Y = null;                     // window.THREE, taken at mount; Y: the ink-outlined toon style (Toon.js)
 let _gl = null;                             // { renderer, scene, camera, ... } or null without WebGL
 let _visR = L.R0, _shake = 0, _nightK = 0, _t = 0, _banner = 0, _overAt = 0, _lastHud = '', _lift = 0, _cheer = 0;
 let _tips = [], _tipT = 0, _hintT = 0, _hintMsg = '';
@@ -87,7 +88,7 @@ const _h = p => 1 + 0.028 * (Math.sin(3.1 * p[0] + 1) * Math.sin(2.7 * p[1] + 2)
 const PLANK_H = 0.55;                        // how high the boardwalk stands
 
 export function mount(el) {
-    _el = el; T = window.THREE;
+    _el = el; T = window.THREE; Y = T ? makeToon(T) : null;
     el.innerHTML = `<div class="tp-wrap full" id="tp-wrap">
         <canvas class="tp-cv" id="tp-cv"></canvas>
         <div class="tp-top" id="tp-top">
@@ -101,6 +102,7 @@ export function mount(el) {
         <div class="tp-banner bfont" id="tp-banner"></div>
         <div class="tp-pops" id="tp-pops"></div>
         <div class="tp-stick" id="tp-stick" hidden><i></i></div>
+        <div class="tp-zones" id="tp-zones" hidden><span>☝️ LEFT THUMB<br>TO WALK</span><span>👀 RIGHT THUMB<br>TO LOOK AROUND</span></div>
         <div class="tp-tip" id="tp-tip" hidden></div>
         <div class="tp-hint" id="tp-hint"></div>
         <div class="tp-bar" id="tp-bar">
@@ -117,25 +119,36 @@ export function mount(el) {
     </div>`;
     const on = (t, ev, fn, o) => { t.addEventListener(ev, fn, o); _offs.push(() => t.removeEventListener(ev, fn, o)); };
     const wrap = $('tp-wrap'), cv = $('tp-cv');
-    // The thumb stick floats: it starts wherever the finger lands.
+    // Two thumbs: the LEFT half of the screen is a floating stick (it starts wherever the finger lands) and walks; the RIGHT half
+    // turns the camera (drag sideways to go round, up and down to tilt it). The buttons keep their own taps.
     on(cv, 'pointerdown', e => {
-        if ((_mode !== 'play' && !(_mode === 'trick' && _trial)) || _paused || _ptr) return;
+        if ((_mode !== 'play' && !(_mode === 'trick' && _trial)) || _paused) return;
         e.preventDefault();
-        const r = wrap.getBoundingClientRect();
-        _ptr = { id: e.pointerId, x: e.clientX, y: e.clientY };
-        const st = $('tp-stick'); st.hidden = false; st.style.left = `${e.clientX - r.left}px`; st.style.top = `${e.clientY - r.top}px`; st.firstElementChild.style.transform = '';
+        const r = wrap.getBoundingClientRect(), left = e.clientX - r.left < r.width / 2;
+        if (left) {
+            if (_ptr) return;
+            _ptr = { id: e.pointerId, x: e.clientX, y: e.clientY }; _ctl.stick = true;
+            const st = $('tp-stick'); st.hidden = false; st.style.left = `${e.clientX - r.left}px`; st.style.top = `${e.clientY - r.top}px`; st.firstElementChild.style.transform = '';
+        } else if (!_look) { _look = { id: e.pointerId, x: e.clientX, y: e.clientY }; _ctl.look = true; }
     }, { passive: false });
     on(window, 'pointermove', e => {
-        if (!_ptr || e.pointerId !== _ptr.id) return;
-        const R = 46; let dx = e.clientX - _ptr.x, dy = e.clientY - _ptr.y; const len = Math.hypot(dx, dy);
-        if (len > R) { dx *= R / len; dy *= R / len; }
-        _stick = { x: dx / R, y: -dy / R };
-        const k = $('tp-stick'); if (k) k.firstElementChild.style.transform = `translate(${dx}px,${dy}px)`;
+        if (_ptr && e.pointerId === _ptr.id) {
+            const R = 46; let dx = e.clientX - _ptr.x, dy = e.clientY - _ptr.y; const len = Math.hypot(dx, dy);
+            if (len > R) { dx *= R / len; dy *= R / len; }
+            _stick = { x: dx / R, y: -dy / R };
+            const k = $('tp-stick'); if (k) k.firstElementChild.style.transform = `translate(${dx}px,${dy}px)`;
+        } else if (_look && e.pointerId === _look.id) {
+            const dx = e.clientX - _look.x, dy = e.clientY - _look.y; _look.x = e.clientX; _look.y = e.clientY;
+            turnView(dx * 0.012, dy * 0.006);
+        }
     });
-    const up = e => { if (!_ptr || e.pointerId !== _ptr.id) return; _ptr = null; _stick = { x: 0, y: 0 }; const k = $('tp-stick'); if (k) k.hidden = true; };
+    const up = e => {
+        if (_ptr && e.pointerId === _ptr.id) { _ptr = null; _stick = { x: 0, y: 0 }; const k = $('tp-stick'); if (k) k.hidden = true; }
+        if (_look && e.pointerId === _look.id) _look = null;
+    };
     on(window, 'pointerup', up); on(window, 'pointercancel', up);
     const key = (e, d) => {
-        const k = { ArrowLeft: 'l', a: 'l', ArrowRight: 'r', d: 'r', ArrowUp: 'u', w: 'u', ArrowDown: 'd', s: 'd' }[e.key];
+        const k = { ArrowLeft: 'l', a: 'l', ArrowRight: 'r', d: 'r', ArrowUp: 'u', w: 'u', ArrowDown: 'd', s: 'd', q: 'tl', r: 'tr' }[e.key];
         if (k) { _keys[k] = d; if (_mode === 'play' || _mode === 'trick') e.preventDefault(); return; }
         if (_mode === 'trick') {
             if (!_trial || e.repeat) return;
@@ -188,7 +201,7 @@ export function unmount() {
     }
     if (_trial) { _trial.dispose(); _trial = null; }
     Object.values(_vis).forEach(m => m.clear()); _courseVis = null;
-    _el = null; _s = null; _ptr = null; _keys = {}; _stick = { x: 0, y: 0 }; _auto = false; _speed = 1; _paused = false; _tips = [];
+    _el = null; _s = null; _ptr = null; _look = null; _pitch = 0; _keys = {}; _stick = { x: 0, y: 0 }; _auto = false; _speed = 1; _paused = false; _tips = [];
 }
 
 function _size() {
@@ -360,7 +373,7 @@ export function playTrial(i) {
     if (!lv || !_gl || _mode !== 'trick') return null;
     if (_trial) _trial.dispose();
     _paused = false; _hintN = 0; $('tp-over').hidden = true;
-    _trial = createLair({ T, renderer: _gl.renderer, crab: color => _crab(color, 0.62), pose: _crabPose, skin: skin().color }, lv, {
+    _trial = createLair({ T, renderer: _gl.renderer, toon: Y, crab: color => _crab(color, 0.62, null, true), pose: _crabPose, skin: skin().color }, lv, {
         say: _say, hint: _hintNow, sfx: _sfx, buzz: _buzz, pop: (v, text) => _popAt(v, text, _trial?.camera), won: s => _lairWon(lv, s),
     });
     $('tp-trial').hidden = false; $('tp-acts').hidden = false; $('tp-goal').hidden = false; $('tp-top').hidden = false; $('tp-top').classList.add('trial'); $('btn-tp-hint').hidden = false;
@@ -417,6 +430,13 @@ function _backToCity() {
     _autosave();
 }
 
+/** Turn the camera round the crab (a radians) and tilt it (pitch: higher or lower). */
+export function turnView(a, dpitch = 0) {
+    _pitch = Math.max(-0.9, Math.min(0.9, _pitch + dpitch));
+    if (_mode === 'play' && _s) L.turnView(_s, a);
+    else if (_mode === 'trick' && _trial) _trial.look(a, dpitch);
+}
+
 // ── The buttons ─────────────────────────────────────────────────────────────
 const NAMES = { palm: 'PALM', hut: 'HOME', tower: 'TOWER', market: 'MARKET' };
 const _live = () => _mode === 'play' && _s && !_s.over && !_paused;
@@ -452,6 +472,15 @@ export function pressAct() {
     return e;
 }
 function _hintNow(msg, secs) { _hintMsg = msg; _hintT = secs; }
+// The two-thumb cue: faint labels on each half until each thumb has been used once (remembered).
+const _ctl = { stick: false, look: false };
+function _zones() {
+    const z = $('tp-zones'); if (!z) return;
+    const shown = (_mode === 'play' || (_mode === 'trick' && _trial)) && !_paused && !_auto && !sv().seen.ctl;
+    if (shown && _ctl.stick && _ctl.look) { sv().seen.ctl = 1; persist(); }
+    z.hidden = !shown || !!sv().seen.ctl;
+    if (!z.hidden) { z.children[0].style.opacity = _ctl.stick ? 0.15 : 1; z.children[1].style.opacity = _ctl.look ? 0.15 : 1; }
+}
 /** A tip, shown the first time only (and remembered). */
 function _tip(key, text) {
     if (_mode !== 'play' || sv().seen[key]) return;
@@ -463,6 +492,8 @@ function _tip(key, text) {
 function _frame(dt) {
     _t += dt;
     if (_mode === 'trick') {
+        if (_keys.tl || _keys.tr) turnView(((_keys.tl ? 1 : 0) - (_keys.tr ? 1 : 0)) * 1.8 * dt);
+        _zones();
         _shake = 0;
         if (_banner && _t > _banner) { _banner = 0; $('tp-banner').classList.remove('on'); }
         _hintT = Math.max(0, _hintT - dt);
@@ -497,6 +528,8 @@ function _frame(dt) {
     if (_banner && _t > _banner) { _banner = 0; $('tp-banner').classList.remove('on'); }
     _hintT = Math.max(0, _hintT - dt);
     if (_mode === 'play') { _watch(); _hud(dt); }
+    if (_keys.tl || _keys.tr) turnView(((_keys.tl ? 1 : 0) - (_keys.tr ? 1 : 0)) * 1.8 * dt);
+    _zones();
     if (_gl) _draw(_paused ? 0 : dt);
 }
 
@@ -647,7 +680,7 @@ function _buildScene(canvas) {
     far.position.set(70, 40, -90); scene.add(far);
 
     // The crab, its shadow, and the rock it may be holding.
-    const crab = _crab(0xff5a4d, 0.62); scene.add(crab.g);
+    const crab = _crab(0xff5a4d, 0.62, null, true); scene.add(crab.g);
     const shadow = new T.Mesh(new T.CircleGeometry(0.5, 16), new T.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22, depthWrite: false }));
     shadow.geometry.rotateX(-Math.PI / 2); scene.add(shadow);
 
@@ -696,7 +729,7 @@ function _buildScene(canvas) {
 
 // A crab from balls and sticks: body, eyes on stalks, two claws, six legs.
 // hat: a party hat in that colour (the city's crabs wear them).
-function _crab(color, scale, hat = null) {
+function _crab(color, scale, hat = null, ink = false) {
     const g = new T.Group(), body = new T.Group(); g.add(body);
     const shell = _lam(color), dark = _lam(new T.Color(color).multiplyScalar(0.72).getHex());
     const b = _mesh(new T.SphereGeometry(0.5, 12, 9), shell, 0, 0.42, 0); b.scale.set(1.15, 0.62, 0.9); body.add(b);
@@ -707,6 +740,12 @@ function _crab(color, scale, hat = null) {
     const mats = [shell, dark];
     if (hat != null) { const hm = _lam(hat); mats.push(hm); const hc = _mesh(new T.ConeGeometry(0.24, 0.5, 7), hm, 0, 0.98, -0.02); body.add(hc); }
     g.scale.setScalar(scale);
+    if (ink && Y) {
+        // the player's own crab is drawn in the game's ink-outlined style (villagers stay plain: there can be fifty of them)
+        Y.inkify(g, 0.1);
+        const kinds = new Map(); g.traverse(o => { if (o.isMesh && o.material && o.material.isMeshToonMaterial) kinds.set(o.material.color.getHex(), o.material); });
+        return { g, body, claws, legs, eyes, shell: kinds.get(shell.color.getHex()) || shell, dark: kinds.get(dark.color.getHex()) || dark, mats, phase: 0 };
+    }
     return { g, body, claws, legs, eyes, shell, dark, mats, phase: 0 };
 }
 function _crabPose(c, dt, moving, cheer, lift = 0) {
@@ -989,7 +1028,7 @@ function _draw(dt) {
     // The camera rides behind and above the crab.
     // (In the menu it stands well back, so the whole planet hangs over the card.)
     const up = V(c.p), f = V(c.f), R = _visR, menu = _mode !== 'play';
-    const back = menu ? R * 2.5 : 6.4 + R * 0.32, high = menu ? R * 1.9 : 6.8 + R * 0.42;
+    const back = menu ? R * 2.5 : (6.4 + R * 0.32) * (1 - 0.35 * _pitch), high = menu ? R * 1.9 : (6.8 + R * 0.42) * (1 + 0.4 * _pitch);
     const want = up.clone().multiplyScalar(R + high).addScaledVector(f, -back);
     if (!g.camP) g.camP = want.clone();
     g.camP.lerp(want, dt ? Math.min(1, dt * 7) : 0);

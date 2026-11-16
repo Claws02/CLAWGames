@@ -42,7 +42,7 @@ import { dot, cross, norm, mix, angle, tangent, toward, walk } from './PlanetLog
 export const R = 6.5, SPEED = 4.2, G = 18;
 export const JUMP_V = 6.84, BOUNCE_V = 9.67;             // apex 1.3 and 2.6 above where you left
 export const CARRY = 3, PICK_R = 0.6, PICK_AGE = 0.8;    // coconuts carried; how near picks one up; how soon after a throw
-export const NUT_R = 0.6, NUT_TOP = 0.45;
+export const NUT_R = 0.6, NUT_TOP = 0.45, ROCK_H = 0.45;      // ROCK_H: how high a stepping rock stands, so a crab on one is that high
 export const TRICK_R = 0.85, TRICK_GAP = 1.1, HIT_R = 0.8, GOAL_R = 0.9, CHECK_R = 1;
 export const COYOTE_S = 0.1, JUMP_BUFFER = 0.15, WADE = 0.35, RESPAWN_S = 1.4;
 export const THROW = { range0: 1.6, range1: 7, t0: 0.55, t1: 1.0, up: 0.75, ahead: 0.45 };
@@ -89,11 +89,15 @@ export const STAIR = {
         { c: A, r: 1.25, h: 9, gap: [lonOf(at(10.25, 58), A), 52], kind: 'cove' },
         { r: 5.6, h: 2, kind: 'step' }, { r: 3, h: 9, gate: 'eye', kind: 'gate' }, { r: 1.8, h: 9, gate: 'plate', kind: 'gate' },
     ],
-    bars: [{ a: at(BANK, -115), b: at(9.2, -115), h: 9 }],
+    // The spring rocks: the current starts here, at a dam of boulders across the channel. (Without them a crab could walk the dry
+    // ledge to the foot of the cliff and be carried straight onto vent B's rock.)
+    bars: [{ a: at(BANK, -115), b: at(9.2, -115), h: 9, kind: 'dam' }],
     currents: [{ r0: 9.2, r1: BANK, only: [0, 115], speed: 6.5 }],
     eddies: [{ p: at(10.35, 61), r: 1.55, to: A, speed: 4.5 }],
     urchins: [at(14.6, 108), at(13.4, 108), at(12.2, 108), at(11.0, 108), at(9.8, 108)].map(p => ({ p, r: 0.75 })),
-    rocks: [{ p: at(13.6, 6), r: 0.62 }, { p: at(11.9, 19), r: 0.62 }, { p: B, r: 0.9 }],
+    // Two rocks in a straight line across the current: a crab swept off the first is carried past the second, so only a jump gets
+    // across. (Rocks set one downstream of another would let the current deliver a crab from one to the next.)
+    rocks: [{ p: at(13.15, 30), r: 0.75 }, { p: B, r: 1.0 }],
     vents: [{ id: 'A', p: A, r: 0.55, float: true }, { id: 'B', p: B, r: 0.8, lift: 9.5 }],
     plates: [{ p: at(4.3, 100), r: 0.9, gate: 'plate' }],
     targets: [{ p: at(4.2, -100), gate: 'eye' }],
@@ -103,7 +107,7 @@ export const CHAMBERS = [STAIR];
 
 // ── A go at a chamber ───────────────────────────────────────────────────────
 export function create(lv) {
-    const s = { lv, t: 0, id: 1, won: false, falls: 0, cp: 0, throws: 0, open: {}, held: {}, plug: {}, nuts: [], back: [],
+    const s = { lv, t: 0, id: 1, won: false, falls: 0, cp: 0, throws: 0, calm: null, open: {}, held: {}, plug: {}, nuts: [], back: [],
         crab: { p: lv.start.slice(), f: tangent(lv.start, lv.goal), face: tangent(lv.start, lv.goal), h: 0, vh: 0, moving: false, air: false, coy: COYOTE_S, jbuf: 0, nuts: 0, lifted: false },
         gull: lv.gull ? { p: at(lv.gull.ring, lv.gull.from), h: 0, state: 'walk', t: 0, cool: 1, loot: 0, tx: null, from: null } : null };
     for (let i = 0; i < CARRY; i++) _palmNut(s, i);
@@ -125,6 +129,8 @@ export function currentAt(s, p) {
     return { d: tangent(p, cross(TOP, p)), speed: cu.speed };            // east: the way lon grows
 }
 export const urchinAt = (s, p, pad = 0) => (s.lv.urchins || []).find(u => dist(u.p, p) < u.r + pad) || null;
+/** How high the ground is at place p: the top of a rock, or the sea floor. */
+export const floorAt = (s, p) => (rockUnder(s, p) ? ROCK_H : 0);
 export const nutUnder = (s, p) => s.nuts.find(n => (n.state === 'rest' || n.state === 'float') && dist(n.p, p) < NUT_R) || null;
 
 // Does the step from a to b cross a wall standing taller than h? → { n } (its normal in the ground at b).
@@ -149,7 +155,8 @@ function _blocked(s, a, b, h) {
 export function jump(s) {
     const c = s.crab;
     if (s.won) return false;
-    if (c.air) { c.jbuf = JUMP_BUFFER; return false; }
+    // (a blink of grace after walking off an edge, so a jump off the side of a rock still counts)
+    if (c.air && !(c.coy > 0 && c.vh <= 0 && !c.lifted)) { c.jbuf = JUMP_BUFFER; return false; }
     c.vh = JUMP_V; c.air = true; c.jbuf = 0; c.coy = 0;
     return true;
 }
@@ -186,8 +193,9 @@ function _nut(s, n, dt, ev) {
         }
         const g = s.gull;
         if (g && g.state !== 'stun' && Math.hypot(dist(n.p, g.p), n.h - (g.h + 0.4)) < GULL.hit + 0.1) { _stun(s, ev, 'nut'); n.vh = Math.min(n.vh, -2); n.v *= 0.3; }
-        if (n.h <= 0) {
-            n.h = 0;
+        const fl = floorAt(s, n.p);
+        if (n.h <= fl) {
+            n.h = fl;
             if (urchinAt(s, n.p)) return _lose(s, n, ev, 'urchin');
             n.state = currentAt(s, n.p) && !rockUnder(s, n.p) ? 'float' : 'rest';
             ev.push({ type: n.state === 'float' ? 'plop' : 'thud', nut: n, p: n.p });
@@ -275,6 +283,13 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     c.wet = !!cu;
     for (const n of s.nuts.slice()) _nut(s, n, dt, ev);
 
+    // The ground under the crab: walk up onto a rock, or off its edge and fall.
+    if (!c.air) {
+        const f = floorAt(s, c.p);
+        if (c.h < f && f - c.h <= 0.6) c.h = f; else if (c.h > f + 1e-6) { c.air = true; c.vh = 0; }
+        if (!c.air) c.coy = COYOTE_S;
+    } else c.coy = Math.max(0, c.coy - dt);
+
     // A vent that is blowing lifts a crab standing in it, high.
     const v = blowing(s);
     if (v && v.lift && dist(c.p, v.p) < v.r && c.h < v.lift) {
@@ -289,12 +304,15 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
         else if (c.vh < 0 && g && g.state !== 'rise' && g.state !== 'circle' && g.h < 3 && dist(g.p, c.p) < GULL.hit + 0.1 && was >= g.h + GULL.top && c.h <= g.h + GULL.top + 0.05) {
             c.h = g.h + GULL.top; c.vh = BOUNCE_V; ev.push({ type: 'stomp' }); _stun(s, ev, 'stomp');
         } else if (c.vh < 0) {
-            const n = nutUnder(s, c.p);
-            if (n && was >= NUT_TOP && c.h <= NUT_TOP) { c.h = NUT_TOP; c.vh = BOUNCE_V; ev.push({ type: 'bounce', nut: n }); }
-            else if (c.h <= 0) { c.h = 0; c.vh = 0; c.air = false; c.lifted = false; ev.push({ type: 'land' }); if (c.jbuf > 0) jump(s); }
+            const n = nutUnder(s, c.p), nt = n ? floorAt(s, n.p) + NUT_TOP : 0, fl = floorAt(s, c.p);
+            if (n && was >= nt && c.h <= nt) { c.h = nt; c.vh = BOUNCE_V; ev.push({ type: 'bounce', nut: n }); }
+            else if (c.h <= fl) { c.h = fl; c.vh = 0; c.air = false; c.lifted = false; ev.push({ type: 'land', onRock: fl > 0 }); if (c.jbuf > 0) jump(s); }
         }
     }
 
+    // Standing on a lift vent that is not the one blowing: say so, once.
+    const stand = (lv.vents || []).find(x => x.lift && dist(c.p, x.p) < x.r);
+    if (stand && stand !== v && !c.air) { if (s.calm !== stand.id) { s.calm = stand.id; ev.push({ type: 'calm', vent: stand, blowing: v }); } } else if (!stand) s.calm = null;
     // Urchins.
     if (c.h < 0.7 && urchinAt(s, c.p, 0.15)) { _reset(s, ev, 'ouch'); return ev; }
     // Picking coconuts up: walk into one that is lying or floating.
@@ -313,4 +331,10 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     lv.checks.forEach((p, i) => { const z = lv.zones && lv.zones[i], dT = dist(c.p, TOP); if (i > s.cp && !c.air && (dist(c.p, p) < CHECK_R || (z && dT > z[0] && dT < z[1]))) { s.cp = i; ev.push({ type: 'check', i, p }); } });
     if (!c.air && dist(c.p, lv.goal) < GOAL_R) { s.won = true; ev.push({ type: 'won', t: s.t, falls: s.falls }); }
     return ev;
+}
+
+/** Turn the camera (and so what 'up the screen' means) round the crab by a radians. */
+export function turnView(s, a) {
+    const c = s.crab;
+    c.f = tangent(c.p, mix(c.f, cross(c.p, c.f), Math.cos(a), Math.sin(a)));
 }

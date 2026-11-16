@@ -2,6 +2,7 @@
 // TINY PLANET in the browser, on a small phone.
 //   1. the hub card opens it over the whole screen: the title card, a planet being drawn
 //   2. PLAY: a real finger drag walks the crab; the tracker moves on from "drag to walk"
+//   2b. two thumbs at once: the left half walks, the right half turns the camera
 //   3. the 🌴 button plants a palm; a locked building says what opens it
 //   4. JUMP hops; the action button shakes a palm, picks up a rock and throws it at a star
 //   5. a fiendish boardwalk is drawn (sweepers, a crumbling bridge, a spring, checkpoints); timed and
@@ -65,6 +66,23 @@ const SHOTS = process.env.QA_SHOTS || '';
     const d2 = await M('M._debug()'), goal1 = await p.textContent('#tp-goal');
     const moved = Math.hypot(d2.crab[0] - d.crab[0], d2.crab[1] - d.crab[1], d2.crab[2] - d.crab[2]);
     check(d.mode === 'play' && stick && moved > 0.2 && !(await p.isVisible('#tp-stick')) && /DRAG/.test(goal0) && !/DRAG/.test(goal1), `2. PLAY, then a finger drag: the stick shows, the crab walks, and the tracker moves on ("${goal0.trim()}" → "${goal1.trim()}")`);
+
+    // 2b. two thumbs: the left half walks, the right half turns the camera, both at once
+    const finger = (type, id, x, y) => p.evaluate(([type, id, x, y]) => { const ev = new PointerEvent(type, { pointerId: id, clientX: x, clientY: y, bubbles: true }); (type === 'pointerdown' ? document.getElementById('tp-cv') : window).dispatchEvent(ev); }, [type, id, x, y]);
+    const ang = (a, b) => Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2])));
+    const view0 = await M('M._game().crab.f.slice()'), pos0 = await M('M._game().crab.p.slice()');
+    await finger('pointerdown', 21, 300, 420); await finger('pointermove', 21, 360, 420); await finger('pointerup', 21, 360, 420);
+    const view1 = await M('M._game().crab.f.slice()'), pos1 = await M('M._game().crab.p.slice()');
+    check(Math.abs(ang(view0, view1) - 0.72) < 0.08 && ang(pos0, pos1) < 0.02 && !(await p.isVisible('#tp-stick')), `2b. a drag on the right half turns the camera by ${ang(view0, view1).toFixed(2)} rad (60 px) and doesn't move the crab or show the stick`);
+    await finger('pointerdown', 22, 100, 420); await finger('pointermove', 22, 100, 360);        // left thumb: walk forward
+    await finger('pointerdown', 23, 300, 420);
+    const walkFrom = await M('M._game().crab.p.slice()'), turnFrom = await M('M._game().crab.f.slice()');
+    for (let k = 1; k <= 8; k++) { await finger('pointermove', 23, 300 - k * 10, 420); await p.waitForTimeout(90); }
+    const stickShown = await p.isVisible('#tp-stick');
+    await finger('pointerup', 22, 100, 360); await finger('pointerup', 23, 220, 420);
+    const walkTo = await M('M._game().crab.p.slice()'), turnTo = await M('M._game().crab.f.slice()');
+    check(stickShown && ang(walkFrom, walkTo) > 0.1 && ang(turnFrom, turnTo) > 0.5, `    both thumbs at once: the crab walked (${ang(walkFrom, walkTo).toFixed(2)} rad round) while the view turned (${ang(turnFrom, turnTo).toFixed(2)} rad)`);
+    check(await p.evaluate(() => { const z = document.getElementById('tp-zones'); return !!z && z.hidden; }), '    and the "left thumb walks, right thumb looks" cue goes away once both have been used');
 
     // 3. the palm button, and a locked one
     await M('(M._game().shells = 9, M._game().course = null, 1)');

@@ -961,6 +961,8 @@ body.tv #tv-seats { display: grid; grid-template-columns: repeat(auto-fill, minm
 .tp-banner { position: absolute; left: 0; right: 0; top: calc(var(--st, 0px) + 128px); text-align: center; font-size: clamp(22px, 6.4vw, 32px); letter-spacing: 1px; -webkit-text-stroke: 5px var(--ink); paint-order: stroke fill; opacity: 0; pointer-events: none; padding: 0 10px; }
 .tp-banner.on { animation: tp-ban 2.6s ease both; }
 @keyframes tp-ban { 0% { opacity: 0; transform: scale(.6); } 10% { opacity: 1; transform: scale(1.08); } 16% { transform: scale(1); } 82% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }
+.tp-zones { position: absolute; left: 0; right: 0; top: 38%; display: flex; pointer-events: none; }
+.tp-zones span { flex: 1; text-align: center; font-weight: 900; font-size: 14px; line-height: 1.25; color: #fff; text-shadow: 0 2px 0 var(--ink), 0 0 10px rgba(43, 18, 64, .7); transition: opacity .6s; animation: tp-fix 1.6s ease-in-out infinite; }
 .tp-hint { position: absolute; left: 0; right: 0; bottom: calc(var(--sb, 0px) + 196px); text-align: center; font-weight: 900; font-size: 14px; letter-spacing: .5px; color: #fff; text-shadow: 0 2px 0 var(--ink), 0 0 10px rgba(43, 18, 64, .7); pointer-events: none; padding: 0 12px; }
 .tp-tip { position: absolute; left: 10px; right: 10px; top: calc(var(--st, 0px) + 170px); margin: 0 auto; max-width: 340px; padding: 8px 12px; border: 3px solid var(--ink); border-radius: 14px; background: #fff8ee; box-shadow: 0 4px 0 var(--ink); color: var(--ink); font-weight: 800; font-size: 14px; line-height: 1.25; text-align: center; pointer-events: none; animation: tp-tip .3s ease both; }
 @keyframes tp-tip { from { opacity: 0; transform: translateY(-8px) scale(.94); } }
