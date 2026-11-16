@@ -1,6 +1,6 @@
 # CLAWGames: where things stand
 
-Last updated 2026-11-15. Live at **https://claws02.github.io/CLAWGames/** (GitHub
+Last updated 2026-11-16. Live at **https://claws02.github.io/CLAWGames/** (GitHub
 Pages from `main`). For the design and its history read [`DESIGN.md`](DESIGN.md); to
 audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 
@@ -17,7 +17,7 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 | CLAWGames #38 | **Trivia**: 167 questions, Massachusetts-flavoured general knowledge |
 | CLAWGames #40 | **HOST PLAYS TOO** switch: a phone host can run the room without playing |
 | CLAWGames #41 | **iPhone Add to Home Screen**: manifest, icons, the Share → Add to Home Screen tip |
-| CLAWGames #57 | **Reef Drop**: 8 more pieces and 36 more reefs (114 in all) |
+| CLAWGames #57 | **Tiny Planet**: a 3D solo island builder with a workshop of upgrades kept between runs. **Reef Drop**: 8 more pieces and 36 more reefs (114 in all) |
 | CLAWGames #55 | **Quick board games** on a shared base (`src/games/board/`): Shut the Box, Pig, Dots and Boxes, Mancala, Liar's Dice |
 | CLAWGames #54 | **Reef Drop**: levels as recipes (`docs/REEF_LEVELS.md`), 8 new pieces and 24 new reefs (78 in all) |
 | claw-core #42, CLAWGames #54 | **Shell Game race**: first right answer takes the round, wrong picks locked out, first to 3, on one screen and across phones (Room `PICK`/`CALL`, protocol 3) |
@@ -93,6 +93,7 @@ and listed in `Clips.js`. Rerun it after changing how a game looks.
 | Lighthouse Beams | light every boat exactly once; lighthouses never shine on each other; one answer each | `Lighthouse.js`, `LighthouseLogic.js` |
 | Coral Merge | drop sea creatures into a tank (real 2D physics); two alike that touch merge into the next kind up; combos, a bubble power-up that lifts the pile | `Coral.js`, `CoralPhysics.js` |
 | Kite Wind | tap to tug the kite up; rings build a combo; gulls and gusts. Every ring is placed within reach of the last, whatever the wind | `Kite.js`, `KiteLogic.js` |
+| Tiny Planet | **3D** (three.js, its own renderer on the solo screen). A crab on a very small planet: drag anywhere to walk (a floating thumb stick), pick up shells, plant palms (coconuts), build huts (villagers bring shells) and bubble towers. At night shooting stars fall: stand in a ring and the crab catches it; towers soak up three a night; the big red ones every fifth night can't be caught. The planet grows every third dawn. Lost when the last hut goes; the score is the day reached. Each run pays **stardust** for the **workshop**: six upgrades, crab colours, and planets that open with your best day (Store key `planet`). The title card sits over an island the autopilot is playing | `Planet.js`, `PlanetLogic.js` (rules, no DOM; `autopilot()` is the bot the probes and the clip use) |
 | Pearl Diver | hold to dive, let go to float; pearls, jellyfish and an air meter; a sunset sea with a parallax reef, pearls in glowing clams | `PearlDiver.js` |
 | Rebound | flick a pearl to pop every clam; 32 tanks in four worlds (moving bumpers, portals, breakable coral, urchins and switches), a daily tank, each par proven by a search | `Rebound.js`, `ReboundLogic.js`, `ReboundDaily.js` |
 | Orbit Putt | putt a ball past planets and black holes into a wormhole that only catches slow balls; 12 levels | `Orbit.js`, `OrbitLogic.js` |
