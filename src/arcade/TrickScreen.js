@@ -56,16 +56,18 @@ export function createTrial(kit, level, hooks) {
     const G = {
         slab: new T.BoxGeometry(1, 1, 0.22), nut: new T.SphereGeometry(0.3, 10, 8), cap: new T.SphereGeometry(0.17, 7, 5),
         pole: new T.CylinderGeometry(0.05, 0.05, 2.2, 6), flag: new T.BoxGeometry(0.8, 0.5, 0.04), disc: new T.CircleGeometry(1, 28), ring: new T.RingGeometry(0.82, 1, 32),
+        pad: new T.CylinderGeometry(1, 0.86, 0.28, 18), arm: new T.BoxGeometry(0.3, 1, 1), coil: new T.CylinderGeometry(0.34, 0.42, 0.2, 12),
         post: new T.CylinderGeometry(0.07, 0.09, 1.1, 6), shell: new T.ConeGeometry(0.26, 0.44, 9), dot: new T.SphereGeometry(0.08, 6, 5),
     };
     G.disc.rotateX(-Math.PI / 2); G.ring.rotateX(-Math.PI / 2);
     const M = {
-        wood: lam(0xb9824d), stone: lam(0x9aa3b5), tall: lam(0x6f7a90), gate: lam(0xe0569a), nut: lam(0x7a4a26), cap: lam(0x3f2a16),
+        wood: lam(0xb9824d), stone: lam(0x9aa3b5), tall: lam(0x6f7a90), gate: lam(0xe0569a), beat: lam(0x22c1c3), bumper: new T.MeshLambertMaterial({ color: 0xff8a1f, emissive: 0x7a3300, flatShading: true }),
+        sand: lam(0xf1d9a0), raft: lam(0xa9743f), crumbly: lam(0xb9b2a6), lowArm: lam(0xff5a4d), tallArm: lam(0x7c3aed), spring: lam(0xff4d6d), flagOff: lam(0xf5f5f5), flagOn: lam(0x4ade80), nut: lam(0x7a4a26), cap: lam(0x3f2a16),
         pole: lam(0xf5f5f5), flag: lam(0xff4d6d), plate: lam(0xff7a5a), plateOn: lam(0x4ade80), post: lam(0xd9d9e3),
         gold: new T.MeshLambertMaterial({ color: 0xffd84a, emissive: 0x8a6200, flatShading: true }), water: basic(0x3fa9f5, { transparent: true, opacity: 0.78, side: T.DoubleSide }),
         aim: basic(0xffe45a, { transparent: true, opacity: 0.95, depthWrite: false, side: T.DoubleSide }), dot: basic(0xffffff, { transparent: true, opacity: 0.8 }), shade: basic(0x000000, { transparent: true, opacity: 0.22, depthWrite: false }),
     };
-    const wallMat = w => (w.gate ? M.gate : w.h <= 1 ? M.wood : w.h <= 2.4 ? M.stone : M.tall);
+    const wallMat = w => (w.bumper ? M.bumper : w.beat ? M.beat : w.gate ? M.gate : w.h <= 1 ? M.wood : w.h <= 2.4 ? M.stone : M.tall);
     const wallH = w => Math.min(w.h, 3.6);
     const walls = [];                        // { w, slabs: [mesh], k }: k is how far it has sunk (a gate opening)
     const frame = c => { const e1 = tangent(c, [0, 0, 1]); return [e1, cross(c, e1)]; };
@@ -95,6 +97,19 @@ export function createTrial(kit, level, hooks) {
         const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.BufferAttribute(new Float32Array(pos), 3));
         scene.add(new T.Mesh(geo, M.water));
     }
+    // Islands in the water: sand ones, rafts that slide, grey ones that sink.
+    const pads = (level.pads || []).map(pd => { const m = new T.Mesh(G.pad, pd.to ? M.raft : pd.crumble ? M.crumbly : M.sand); m.scale.set(pd.r, 1, pd.r); scene.add(m); return { pd, m }; });
+    // Sweepers: a post, and an arm that comes round.
+    const sweepers = (level.sweepers || []).map(w => {
+        const g = new T.Group(), tall = w.h > 1.2, hh = tall ? 2.3 : 0.42;
+        const post = new T.Mesh(G.post, M.post); post.scale.set(1.6, (tall ? 2.6 : 1.1) / 1.1, 1.6); post.position.y = (tall ? 2.6 : 1.1) / 2; g.add(post);
+        const arm = new T.Mesh(G.arm, tall ? M.tallArm : M.lowArm); arm.scale.set(1, hh, w.len); arm.position.set(0, tall ? 0.25 + hh / 2 : 0.5, w.len / 2); g.add(arm);
+        // the ground it sweeps, so its reach is plain before you step in
+        const reach = new T.Mesh(G.ring, basic(tall ? 0x7c3aed : 0xff5a4d, { transparent: true, opacity: 0.35, depthWrite: false, side: T.DoubleSide })); reach.scale.setScalar(w.len); scene.add(reach);
+        scene.add(g); return { w, g, reach };
+    });
+    const springs = (level.springs || []).map(sp => { const g = new T.Group(); g.add(new T.Mesh(G.coil, M.post)); const top = new T.Mesh(G.pad, M.spring); top.scale.set(sp.r, 0.5, sp.r); top.position.y = 0.2; g.add(top); scene.add(g); return { sp, g, top, t: 0 }; });
+    const checks = (level.checks || []).map((p, i) => { const g = new T.Group(); const pole = new T.Mesh(G.pole, M.pole); pole.scale.y = 0.7; pole.position.y = 0.77; g.add(pole); const cloth = new T.Mesh(G.flag, M.flagOff); cloth.scale.setScalar(0.8); cloth.position.set(0.34, 1.3, 0); g.add(cloth); scene.add(g); return { p, i, g, cloth }; });
     const plates = (level.plates || []).map(pl => { const m = new T.Mesh(G.disc, M.plate); m.scale.setScalar(pl.r); scene.add(m); return { pl, m }; });
     const targets = (level.targets || []).map(tg => {
         const g = new T.Group(); g.add(new T.Mesh(G.post, M.post)); g.children[0].position.y = 0.55;
@@ -111,7 +126,8 @@ export function createTrial(kit, level, hooks) {
     const shadow = new T.Mesh(new T.CircleGeometry(0.5, 16), M.shade); shadow.geometry.rotateX(-Math.PI / 2); scene.add(shadow);
     const held = new T.Mesh(G.nut, M.nut); held.visible = false; scene.add(held);
     const aimRing = new T.Mesh(G.ring, M.aim); aimRing.visible = false; scene.add(aimRing);
-    const dots = Array.from({ length: 12 }, () => { const d = new T.Mesh(G.dot, M.dot); d.visible = false; scene.add(d); return d; });
+    const dots = Array.from({ length: 30 }, () => { const d = new T.Mesh(G.dot, M.dot); d.visible = false; scene.add(d); return d; });
+    const bankMark = new T.Mesh(new T.OctahedronGeometry(0.3, 0), basic(0xffe45a)); bankMark.visible = false; scene.add(bankMark);
     const nuts = new Map();
     // Sparks.
     const N = 220, pg = new T.BufferGeometry();
@@ -124,7 +140,7 @@ export function createTrial(kit, level, hooks) {
         col.needsUpdate = true;
     };
 
-    let s = K.create(level), t = 0, charge = -1, cheer = 0, camP = null, shake = 0, doneAt = 0, told = false, disposed = false, intro = 0;
+    let s = K.create(level), t = 0, charge = -1, cheer = 0, camP = null, shake = 0, doneAt = 0, told = false, disposed = false, intro = 0, snap = false;
 
     function events(evs) {
         for (const e of evs) {
@@ -136,7 +152,11 @@ export function createTrial(kit, level, hooks) {
             else if (e.type === 'target') { const v = targets.find(x => x.tg === e.target); if (v) v.hit = 1; burst(at(e.target.p, 1.1), 0x4ade80, 26, 5); hooks.sfx('coin_gain'); hooks.buzz([10, 20, 30]); hooks.say('🎯 BULLSEYE! THE GATE IS OPEN', '#86efac'); }
             else if (e.type === 'press') { hooks.sfx('shield'); hooks.buzz(10); hooks.pop(at(e.plate.p, 0.8), 'GATE OPEN'); }
             else if (e.type === 'release') { hooks.sfx('tick'); hooks.pop(at(e.plate.p, 0.8), 'GATE SHUT'); }
-            else if (e.type === 'splash') { hooks.sfx('land_bad'); hooks.buzz([30, 30, 30]); hooks.hint('SPLASH! BACK TO THE START', 2); shake = 0.4; camP = null; }
+            else if (e.type === 'splash' || e.type === 'bonk') { hooks.sfx('land_bad'); hooks.buzz([30, 30, 30]); hooks.hint(`${e.type === 'bonk' ? 'BONK!' : 'SPLASH!'} BACK TO THE ${e.at >= 0 ? 'FLAG' : 'START'}`, 2); shake = 0.4; snap = true; }
+            else if (e.type === 'check') { burst(at(e.p, 1), 0x4ade80, 22, 4); hooks.sfx('land_good'); hooks.buzz(10); hooks.pop(at(e.p, 1.6), '🚩 CHECKPOINT'); }
+            else if (e.type === 'spring') { const v = springs.find(x => x.sp === e.spring); if (v) v.t = 0.3; burst(at(e.spring.p, 0.4), 0xff7a9a, 16, 5); hooks.sfx('boost'); hooks.buzz(12); hooks.pop(at(e.spring.p, 1.4), 'BOING!'); }
+            else if (e.type === 'crack') hooks.sfx('tick');
+            else if (e.type === 'sink') { burst(at(K.padAt(s, e.pad), 0.2), 0x9bd8ff, 12, 3); hooks.sfx('boost'); }
             else if (e.type === 'shell') { burst(at(level.shell, 0.5), 0xffd84a, 30, 5); hooks.sfx('coin_gain'); hooks.buzz(14); hooks.pop(at(level.shell, 1), '⭐ GOLDEN SHELL!'); }
             else if (e.type === 'won') { burst(at(level.flag, 1.5), 0xffd84a, 50, 7); burst(at(level.flag, 1.5), 0xff7ab8, 40, 6); hooks.sfx('win'); hooks.buzz([30, 30, 30, 30, 120]); cheer = 1.2; doneAt = t + 1.5; }
         }
@@ -149,6 +169,13 @@ export function createTrial(kit, level, hooks) {
             const h = wallH(v.w) * (1 - v.k * 0.96);
             v.slabs.forEach(m => { put(m, m.userData.p, m.userData.f, h / 2); m.scale.set(m.userData.len * (1 + h * 0.11), Math.max(0.02, h), 1); });
         });
+        // Bumpers glow, so the wall to aim at is the one that stands out.
+        M.bumper.emissive.setHex(0x7a3300).multiplyScalar(0.7 + 0.6 * Math.abs(Math.sin(t * 3)));
+        pads.forEach((v, i) => { const st = s.pads[i].t, gone = K.padGone(s, i), sunk = gone ? Math.min(1, (st - K.PAD_SINK_S) * 4) : 0;
+            v.m.visible = sunk < 1; put(v.m, K.padAt(s, i), [1, 0, 0], 0.1 - sunk * 0.7 + (st != null && !gone ? Math.sin(t * 60) * 0.025 : 0)); });
+        sweepers.forEach(v => { put(v.g, v.w.c, K.armDir(s, v.w)); put(v.reach, v.w.c, null, 0.07); });
+        springs.forEach(v => { v.t = Math.max(0, v.t - dt); put(v.g, v.sp.p, null, 0.1); v.top.position.y = 0.2 + (v.t > 0 ? 0.35 : Math.abs(Math.sin(t * 4)) * 0.05); });
+        checks.forEach(v => { put(v.g, v.p, [1, 0, 0]); v.cloth.material = s.cp >= v.i ? M.flagOn : M.flagOff; v.cloth.rotation.y = Math.sin(t * 4 + v.i) * 0.25; });
         plates.forEach(v => { const on = !!s.held[v.pl.gate]; v.m.material = on ? M.plateOn : M.plate; put(v.m, v.pl.p, null, on ? 0.03 : 0.1); });
         targets.forEach(v => { v.hit = Math.max(0, v.hit - dt * 1.5); put(v.g, v.tg.p, toward(v.tg.p, c.p)); v.face.rotation.z = v.hit * 8; v.face.scale.setScalar(1 + v.hit * 0.4); if (s.open[v.tg.gate]) v.face.children.forEach(d => d.material.color.setHex(0x4ade80)); });
         put(flag, level.flag, [1, 0, 0]); flag.userData.cloth.rotation.y = Math.sin(t * 4) * 0.25; flag.userData.ring.material.opacity = 0.5 + 0.4 * Math.abs(Math.sin(t * 3));
@@ -179,7 +206,8 @@ export function createTrial(kit, level, hooks) {
             const a = K.aim(s, k);
             put(aimRing, a.p, null, 0.09); aimRing.scale.setScalar(0.85 * (1 + Math.sin(t * 10) * 0.08));
             dots.forEach((d, i) => { const q = a.path[i]; d.visible = !!q; if (q) d.position.copy(at(q[0], q[1])); });
-        } else dots.forEach(d => { d.visible = false; });
+            bankMark.visible = !!a.bank; if (a.bank) { bankMark.position.copy(at(a.bank[0], a.bank[1])); bankMark.scale.setScalar(1 + Math.sin(t * 12) * 0.25); }
+        } else { dots.forEach(d => { d.visible = false; }); bankMark.visible = false; }
 
         // Sparks.
         const pos = pg.attributes.position;
@@ -196,6 +224,7 @@ export function createTrial(kit, level, hooks) {
         // The camera: behind and above, a little higher while the crab is in the air.
         const up = V(c.p), f = V(c.f), want = up.clone().multiplyScalar(R + 9.6 + c.h * 0.5).addScaledVector(f, -8.6);
         // (each go opens from far out, so the whole planet is seen before the crab is)
+        if (snap && camP) { camP.copy(want); snap = false; }
         if (!camP) { camP = up.clone().multiplyScalar(R * 4.2).addScaledVector(f, R * 1.4); intro = 1.8; }
         intro = Math.max(0, intro - dt);
         camP.lerp(want, dt ? Math.min(1, dt * (intro > 0 ? 2.4 : 7)) : 0);

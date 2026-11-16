@@ -75,7 +75,13 @@ export const TOWER_R = 3.2, TOWER_CHARGES = 3;
 export const STAR_R = 1.25, BIG_R = 2.1, CATCH_CD = 0.5, STAR_PAY = 2, GOLD = 5;
 export const SPAWN_S = 1.7, ROCK_S = 8;
 export const JUMP_S = 0.6, JUMP_CD = 0.12, THROW_R = 7.5;
-export const COURSE_W = 0.62, COURSE_STEP = 1.25;
+export const COURSE_W = 0.62, COURSE_STEP = 1.6;
+/** Boardwalk obstacles. A sweeper's bar is over its plank for `low`/`tall` of every `period`. */
+export const SWEEP = { period: 2.3, low: 0.32, tall: 0.38 };
+export const CRUMBLE_S = 0.55, CRUMBLE_BACK = 2.2, SPRING_AIR = 1.4, JUMP_BUFFER = 0.15;
+/** How hard a boardwalk is, and what it pays on top of its shells. */
+export const TIERS = [null, { name: 'EASY', icon: '🌶️', dust: 0 }, { name: 'TRICKY', icon: '🌶️🌶️', dust: 3 }, { name: 'FIENDISH', icon: '🌶️🌶️🌶️', dust: 8 }];
+export const TOWER_SPACE = 0.95;                 // a tower fits right beside a building
 
 /** The workshop: what stardust buys, kept between runs. */
 export const UPGRADES = [
@@ -114,10 +120,10 @@ function _rndPlace(s) {
 export function create({ rnd = Math.random, up = {} } = {}) {
     const s = {
         rnd, up, t: 0, day: 1, phase: 'day', pt: 0, R: R0, town: 0, over: false, id: 1,
-        crab: { p: [0, 1, 0], f: [0, 0, -1], face: [0, 0, -1], moving: false, cd: 0, air: 0, jcd: 0, carry: null },
+        crab: { p: [0, 1, 0], f: [0, 0, -1], face: [0, 0, -1], moving: false, cd: 0, air: 0, jcd: 0, jbuf: 0, carry: null },
         shells: 4 + 3 * ((up && up.start) || 0), nuts: 0,
         items: [], builds: [], stars: [], due: [], spawnT: 0.4, rockT: 3, course: null, trickArmed: true,
-        stats: { caught: 0, perfect: 0, smashed: 0, built: 0, shells: 0, nuts: 0, peak: 1, lost: 0, walked: 0, palms: 0, huts: 0, courses: 0 },
+        stats: { caught: 0, perfect: 0, smashed: 0, built: 0, shells: 0, nuts: 0, peak: 1, lost: 0, walked: 0, palms: 0, huts: 0, courses: 0, dust: 0 },
     };
     // The first home, a few steps in front of the crab, and some shells to find.
     _add(s, 'hut', walk(s.crab.p, s.crab.f, 2.2 / s.R));
@@ -134,6 +140,7 @@ export function load(o, rnd = Math.random) {
     const s = { ...JSON.parse(JSON.stringify(o)), rnd };
     // (a city saved before the Trick Hut existed gets one, somewhere clear)
     if (!s.builds.some(b => b.kind === 'trick')) for (let k = 0; k < 40; k++) { const p = _rndPlace(s); if (_clear(s, p, SPACE) && dist(s, p, s.crab.p) > 3) { _add(s, 'trick', p); break; } }
+    if (s.course && !s.course.segs) _newCourse(s);          // (and a boardwalk from before they had obstacles is re-laid)
     return s;
 }
 
@@ -182,7 +189,7 @@ function _townCheck(s, ev) {
         s.town++;
         s.R = Math.min(R_MAX, s.R * GROW);
         if (s.town === 4) s.builds.forEach(b => { if (b.kind === 'tower') b.charges = chargesOf(s); });
-        if (s.course && s.course.k < 0) _newCourse(s);      // re-laid for the bigger planet
+        if (s.course && s.course.k < 0) _newCourse(s, s.course.tier);      // re-laid for the bigger planet
         ev.push({ type: 'town', town: s.town, ...TOWNS[s.town], R: s.R });
     }
 }
@@ -199,7 +206,9 @@ export function canBuild(s, kind) {
     if (!unlocked(s, kind)) return { ok: false, why: 'locked' };
     const c = costOf(s, kind);
     if (s.shells < c.shells || s.nuts < c.nuts) return { ok: false, why: 'cost' };
-    if (!_clear(s, s.crab.p, SPACE) || s.crab.air > 0) return { ok: false, why: 'space' };
+    // (a tower fits snugly beside a building; everything else wants room)
+    const room = b => (kind === 'tower' || b.kind === 'tower' ? TOWER_SPACE : SPACE);
+    if (s.builds.some(b => dist(s, b.p, s.crab.p) < room(b)) || (s.course && s.course.pts.some(q => dist(s, q, s.crab.p) < 1.3)) || s.crab.air > 0) return { ok: false, why: 'space' };
     return { ok: true, why: '' };
 }
 /** Build it. `ev` (optional) collects what follows, such as the town growing. */
@@ -224,8 +233,10 @@ export function repair(s) {
 // ── Jump, and the action button ─────────────────────────────────────────────
 export function jump(s) {
     const c = s.crab;
-    if (s.over || c.air > 0 || c.jcd > 0) return false;
-    c.air = JUMP_S;
+    if (s.over) return false;
+    // (pressed a moment early: remembered, and it jumps as soon as it lands)
+    if (c.air > 0 || c.jcd > 0) { c.jbuf = JUMP_BUFFER; return false; }
+    c.air = JUMP_S; c.jbuf = 0;
     return true;
 }
 /** The star a thrown rock would hit: the one landing soonest within range. */
@@ -282,41 +293,98 @@ export function act(s, ev = []) {
 }
 
 // ── The boardwalk course ────────────────────────────────────────────────────
-// A bendy line of planks, a coin on each, gaps to jump and a chest at the end.
-// One at a time, a new one each dawn once the last is done.
-function _newCourse(s) {
-    const n = 5 + Math.min(3, s.town), gaps = 1 + (s.town >= 2 ? 1 : 0) + (s.town >= 4 ? 1 : 0);
-    for (let k = 0; k < 30; k++) {
+// A bendy line of planks to a chest, one at a time, a new one each dawn once
+// the last is done. Between each plank and the next is a stretch (`segs`):
+//
+//   plank    just a bridge
+//   gap      nothing: JUMP it
+//   low      a low bar sweeps across: JUMP it, or wait for it to pass
+//   tall     a tall log swings across: it can't be jumped, so time your run
+//   crumble  the bridge drops away a moment after you step on it: don't stop
+//   spring   a bridge with a spring at its far end, and `void`s beyond it that
+//            only the spring's long hop clears
+//
+// Built the way good courses are: each kind is met on its own first, with a
+// plain plank to stand on before it, then they come closer together; a
+// checkpoint flag follows every few obstacles. Falling to an obstacle puts
+// you back at the last flag; stepping off the side just puts you on the
+// ground, so a course can always be left.
+const _COURSES = {
+    1: [['plank', 'gap', 'plank', 'low', 'plank'], []],
+    2: [['plank', 'gap', 'plank', 'low', 'plank', 'tall', 'plank', 'crumble', 'gap', 'plank'], [5]],
+    3: [['plank', 'gap', 'plank', 'tall', 'plank', 'crumble', 'low', 'plank', 'spring', 'void', 'void', 'void', 'plank', 'tall', 'crumble', 'gap', 'plank'], [5, 13]],
+};
+/** Lay a course of this tier (default: by how big the city is). */
+export function _newCourse(s, tier = null) {
+    if (!tier) { const r = s.rnd(); tier = s.day <= 1 || s.town < 1 ? 1 : s.town < 2 ? (r < 0.5 ? 1 : 2) : r < 0.3 ? 1 : r < 0.7 ? 2 : 3; }
+    const [kinds, checks] = _COURSES[tier], segs = kinds.slice(), n = segs.length + 1;
+    // (the two opening obstacles come in either order)
+    if (s.rnd() < 0.5) { const a = segs.indexOf('gap'), b = segs.indexOf(tier === 3 ? 'tall' : 'low'); [segs[a], segs[b]] = [segs[b], segs[a]]; }
+    for (let k = 0; k < 60; k++) {
         let p = _rndPlace(s), d = tangent(p, _rndPlace(s));
         if (dist(s, p, s.crab.p) < 2.5) continue;
-        const pts = [p];
+        const pts = [p], bend = n > 12 ? 0.5 : 0.9;
         for (let i = 1; i < n; i++) {
-            const a = (s.rnd() - 0.5) * 1.1;
+            const a = segs[i - 1] === 'void' || segs[i - 1] === 'spring' ? 0 : (s.rnd() - 0.5) * bend;   // the spring's hop is dead straight
             d = norm(mix(d, cross(p, d), Math.cos(a), Math.sin(a)));
             const q = walk(p, d, COURSE_STEP / s.R);
             d = tangent(q, d); p = q; pts.push(q);
         }
         if (pts.some(q => s.builds.some(b => dist(s, b.p, q) < SPACE))) continue;
-        const segs = []; for (let i = 1; i < n - 2; i++) segs.push(i);
-        const g = [];
-        while (g.length < gaps && segs.length) { const i = segs.splice(Math.floor(s.rnd() * segs.length), 1)[0]; if (!g.includes(i - 1) && !g.includes(i + 1)) g.push(i); }
-        s.course = { id: s.id++, pts, gaps: g.sort((a, b) => a - b), k: -1, got: 0, done: false, prize: 6 + 3 * s.town + 2 * g.length };
+        if (pts.some((q, i) => pts.some((r, j) => j > i + 1 && dist(s, q, r) < COURSE_STEP * 0.95))) continue;   // it mustn't cross itself
+        s.course = { id: s.id++, tier, pts, segs, checks, off: segs.map((_, i) => (i * 0.37) % 1), k: -1, got: 0, cp: 0, t: 0, cr: {}, done: false,
+            prize: 4 + 5 * tier + 2 * s.town, dust: TIERS[tier].dust };
         return s.course;
     }
     s.course = null;
     return null;
 }
-function _courseStep(s, ev) {
+/** Is the sweeper on stretch i over its plank right now? (0..1: how far through its pass, else -1) */
+export function sweeping(co, i) {
+    const kind = co.segs[i]; if (kind !== 'low' && kind !== 'tall') return -1;
+    const ph = (co.t / SWEEP.period + co.off[i]) % 1, f = SWEEP[kind];
+    return ph < f ? ph / f : -1;
+}
+/** Has stretch i crumbled away? */
+export const crumbled = (co, i) => co.cr[i] != null && co.cr[i] > CRUMBLE_S;
+function _courseStep(s, ev, dt = 0) {
     const co = s.course, c = s.crab;
     if (!co || co.done) return;
-    if (co.k < 0) { if (dist(s, c.p, co.pts[0]) < 0.6) { co.k = 0; ev.push({ type: 'on', course: co }); } return; }
-    const a = co.pts[co.k], b = co.pts[co.k + 1], ab = mix(b, a, 1, -1), ac = mix(c.p, a, 1, -1);
+    co.t += dt;
+    for (const i of Object.keys(co.cr)) { co.cr[i] += dt; if (co.cr[i] > CRUMBLE_S + CRUMBLE_BACK) delete co.cr[i]; }
+    if (co.k < 0) {
+        // Step on at the start, or at the last flag reached.
+        const at = [co.cp, 0].find(i => dist(s, c.p, co.pts[i]) < 0.6);
+        if (at != null) { co.k = at; ev.push({ type: 'on', course: co, at }); }
+        return;
+    }
+    const k = co.k, kind = co.segs[k], a = co.pts[k], b = co.pts[k + 1], ab = mix(b, a, 1, -1), ac = mix(c.p, a, 1, -1);
     const t = Math.max(0, Math.min(1, dot(ac, ab) / dot(ab, ab))), q = mix(a, ab, 1, t), off = Math.hypot(c.p[0] - q[0], c.p[1] - q[1], c.p[2] - q[2]) * s.R;
-    if (off > COURSE_W || (co.gaps.includes(co.k) && t > 0.27 && t < 0.73 && c.air <= 0)) { co.k = -1; ev.push({ type: 'fell', course: co, gap: off <= COURSE_W }); return; }
+    // Off the side: down on the ground, free to walk away.
+    if (off > COURSE_W) { co.k = -1; ev.push({ type: 'fell', course: co, why: 'side' }); return; }
+    const mid = t > 0.27 && t < 0.73, air = c.air > 0;
+    if (kind === 'crumble' && t > 0.08 && co.cr[k] == null) { co.cr[k] = 0; ev.push({ type: 'crack', course: co, i: k }); }
+    const sw = sweeping(co, k);
+    const why = (kind === 'gap' || kind === 'void') && mid && !air ? 'gap'
+        : kind === 'crumble' && crumbled(co, k) && mid && !air ? 'crumble'
+        : sw >= 0 && t > 0.2 && t < 0.8 && (kind === 'tall' || !air) ? 'sweep' : null;
+    if (why) {
+        // Back to the last flag (or the start), up on the planks again.
+        c.p = co.pts[co.cp].slice(); c.f = tangent(c.p, c.f); c.face = tangent(c.p, toward(c.p, co.pts[co.cp + 1])); c.air = 0; c.jbuf = 0;
+        co.k = co.cp; co.cr = {};
+        ev.push({ type: 'fell', course: co, why, at: co.cp });
+        return;
+    }
     if (dist(s, c.p, b) < 0.5 || t >= 0.97) {
         co.k++;
         if (co.k > co.got) { co.got = co.k; s.shells++; s.stats.shells++; ev.push({ type: 'coin', p: b, course: co }); }
-        if (co.k === co.pts.length - 1) { co.done = true; co.k = -1; s.shells += co.prize; s.stats.shells += co.prize; s.stats.courses++; ev.push({ type: 'chest', p: b, prize: co.prize, course: co }); }
+        if (kind === 'spring') { c.air = SPRING_AIR; c.jbuf = 0; ev.push({ type: 'spring', p: b }); }
+        if (co.checks.includes(co.k) && co.k > co.cp) { co.cp = co.k; ev.push({ type: 'check', p: b, course: co }); }
+        if (co.k === co.pts.length - 1) {
+            co.done = true; co.k = -1;
+            s.shells += co.prize; s.stats.shells += co.prize; s.stats.courses++; s.stats.dust = (s.stats.dust || 0) + co.dust;
+            ev.push({ type: 'chest', p: b, prize: co.prize, dust: co.dust, course: co });
+        }
     }
 }
 /** True while the crab is up on the planks. */
@@ -389,7 +457,8 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     s.t += dt; s.pt += dt;
     const c = s.crab;
     c.cd = Math.max(0, c.cd - dt); c.jcd = Math.max(0, c.jcd - dt);
-    if (c.air > 0) { c.air = Math.max(0, c.air - dt); if (c.air === 0) { c.jcd = JUMP_CD; ev.push({ type: 'landed' }); } }
+    c.jbuf = Math.max(0, (c.jbuf || 0) - dt);
+    if (c.air > 0) { c.air = Math.max(0, c.air - dt); if (c.air === 0) { ev.push({ type: 'landed' }); if (c.jbuf > 0) { c.air = JUMP_S; c.jbuf = 0; ev.push({ type: 'rejump' }); } else c.jcd = JUMP_CD; } }
 
     // The crab. The camera's forward (f) is carried along with it, so the
     // stick always means "that way on the screen".
@@ -403,7 +472,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
         c.face = tangent(c.p, d);
         s.stats.walked += a * s.R;
     }
-    _courseStep(s, ev);
+    _courseStep(s, ev, dt);
     // Walking into the Trick Hut (once per visit: step well away to go in again).
     const th = s.builds.find(b => b.kind === 'trick');
     if (th) { const d = dist(s, th.p, c.p); if (!s.trickArmed) { if (d > 2.4) s.trickArmed = true; } else if (d < 1.05 && c.air <= 0) { s.trickArmed = false; ev.push({ type: 'trick', b: th }); } }
@@ -474,7 +543,7 @@ export function goal(s) {
 }
 
 /** What a finished run pays: the city at its biggest, the nights survived, the stars caught. */
-export const stardust = s => s.stats.peak * 2 + s.town * 6 + (s.day - 1) * 2 + Math.floor(s.stats.caught / 2) + s.stats.perfect + s.stats.courses * 2;
+export const stardust = s => s.stats.peak * 2 + s.town * 6 + (s.day - 1) * 2 + Math.floor(s.stats.caught / 2) + s.stats.perfect + s.stats.courses * 2 + (s.stats.dust || 0);
 
 // ── A sensible player (the probes, and the clip on the game's card) ─────────
 /** { x, y, build, act, jump }: where to push the stick, and what to press. */

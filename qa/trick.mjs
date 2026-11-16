@@ -77,7 +77,8 @@ const apex = (s, secs = 2.5) => { let m = 0; for (let t = 0; t < secs; t += 1 / 
   ok(e && e.h > 0.5 && !r.ev.some(x => x.type === 'bounce') && K.dist(r.s.crab.p, TOP) < 4, `a tap, then a jump into the coconut: bounced in mid-air from ${e ? e.h.toFixed(2) : '?'} up, and over the 3.1 wall`); }
 
 // 8. every trial: its own answer finishes it with all three stars; without a coconut it can't be done
-{ for (const L of K.LEVELS) {
+{ const PUZZLES = K.LEVELS.filter(l => l.answer);
+  for (const L of PUZZLES) {
     const r = K.run(L, L.answer), st = K.stars(r.s);
     ok(r.s.won && st.every(Boolean) && r.s.throws <= L.par && !r.s.falls, `${L.name}: solved in ${r.s.throws} throw(s) and ${r.s.t.toFixed(1)} s, ⭐⭐⭐`);
     // walking and jumping at the flag from every side, no coconuts
@@ -86,7 +87,52 @@ const apex = (s, secs = 2.5) => { let m = 0; for (let t = 0; t < secs; t += 1 / 
       const s = K.create(L), script = d0 == null ? [['go', TOP]] : [['go', at(d0, lon)], ['jumpTo', TOP, runUp], ['jumpTo', TOP, runUp], ['go', TOP]];
       if (K.run(L, script, { s, limit: 40 }).s.won) cheats++; }
     ok(cheats === 0, `   and it can't be finished by walking and jumping alone`); }
-  ok(K.LEVELS.length === 6 && new Set(K.LEVELS.map(l => l.id)).size === 6 && K.LEVELS.every(l => l.hint && l.name && l.shell), 'six trials, each with a name, a hint and a golden shell'); }
+  ok(PUZZLES.length === 6 && K.LEVELS.length === 10 && new Set(K.LEVELS.map(l => l.id)).size === 10 && K.LEVELS.every(l => l.hint && l.name && l.shell), 'six coconut puzzles and four skill courses, each with a name, a hint and a golden shell'); }
+
+// 8b. the skill courses' furniture, one piece at a time
+{ const base = { id: 't', par: 0, clean: true, start: at(10, 0), flag: TOP, shell: at(9, 170) };
+  // a sweeper: bonked when the arm comes round, unless the crab is above it
+  { const L = { ...base, sweepers: [{ c: at(9, 0), len: 1.6, h: 0.9, period: 2 }], checks: [] }, s = K.create(L);
+    s.crab.p = at(9, 90).slice(); let hit = null; for (let i = 0; i < 150 && !hit; i++) hit = K.step(s, 1 / 60).find(e => e.type === 'bonk');
+    ok(!hit, 'a sweeper\'s arm reaches only as far as it is long');
+    const s2 = K.create(L); s2.crab.p = K.at(9, 0); s2.crab.p = P.walk(at(9, 0), P.tangent(at(9, 0), [1, 0, 0]), 1 / K.R); let bonk = null, tm = 0; for (let i = 0; i < 150 && !bonk; i++) { bonk = K.step(s2, 1 / 60).find(e => e.type === 'bonk'); tm += 1 / 60; }
+    ok(bonk && s2.falls === 1 && K.dist(s2.crab.p, L.start) < 0.01, `standing in its circle, the arm comes round and bonks the crab back to the start (after ${tm.toFixed(1)} s)`);
+    const s3 = K.create(L); s3.crab.p = P.walk(at(9, 0), P.tangent(at(9, 0), [1, 0, 0]), 1 / K.R); s3.t = tm - 0.3; let b3 = null; K.jump(s3); for (let i = 0; i < 40 && !b3; i++) b3 = K.step(s3, 1 / 60).find(e => e.type === 'bonk');
+    ok(!b3, 'jumped as it arrives, a low arm passes underneath');
+    const L4 = { ...base, sweepers: [{ c: at(9, 0), len: 1.6, h: 9, period: 2 }] }, s4 = K.create(L4); s4.crab.p = P.walk(at(9, 0), P.tangent(at(9, 0), [1, 0, 0]), 1 / K.R); s4.t = tm - 0.3; let b4 = null; K.jump(s4); for (let i = 0; i < 40 && !b4; i++) b4 = K.step(s4, 1 / 60).find(e => e.type === 'bonk');
+    ok(!!b4, 'a tall one can\'t be jumped'); }
+  // a raft carries the crab; a crumbling pad sinks; coyote time
+  { const L = { ...base, start: at(11, 0), moats: [{ r0: 4, r1: 9 }], pads: [{ p: at(8.25, 0), to: at(4.75, 0), r: 0.95, period: 6 }, { p: at(6.5, 90), r: 0.8, crumble: true }] }, s = K.create(L);
+    s.crab.p = at(8.25, 0).slice(); run(s, 3);
+    ok(!s.falls && K.padUnder(s, s.crab.p) === 0 && K.dist(s.crab.p, TOP) < 5, `a raft carries a standing crab across (to ${K.dist(s.crab.p, TOP).toFixed(1)} from the flag in 3 s)`);
+    const s2 = K.create(L); s2.crab.p = at(6.5, 90).slice(); const ev = run(s2, K.PAD_SINK_S + 0.3);
+    ok(ev.some(e => e.type === 'crack') && ev.some(e => e.type === 'sink') && ev.some(e => e.type === 'splash') && s2.falls === 1, `a crumbling stone sinks ${K.PAD_SINK_S} s after it is stood on`);
+    run(s2, K.PAD_BACK_S); ok(!K.padGone(s2, 1), 'and comes back');
+    const s3 = K.create(L); s3.crab.p = at(9.02, 180).slice(); s3.crab.f = P.toward(s3.crab.p, TOP); run(s3, 0.04, { x: 0, y: 1 });
+    ok(K.wet(s3, s3.crab.p) && !s3.falls && K.jump(s3), 'a step past the edge there is still a blink in which a jump works (coyote time)');
+    const s4 = K.create(L); s4.crab.p = at(11, 180).slice(); K.jump(s4); run(s4, 0.68); const early = K.jump(s4); const ev4 = run(s4, 0.2);
+    ok(!early && s4.crab.air && ev4.some(e => e.type === 'land'), 'and a jump pressed just before landing is remembered'); }
+  // a gate on a beat; a spring; a flag
+  { const L = { ...base, rings: [{ r: 8, h: 9, beat: { period: 2, open: 0.5 } }], springs: [{ p: at(6, 0), r: 0.5 }], checks: [at(7, 0)], moats: [{ r0: 2, r1: 5 }] }, s = K.create(L);
+    ok(!K.up(s, L.rings[0]), 'a gate on a beat starts open'); s.t = 1.2; ok(K.up(s, L.rings[0]), 'and shuts on the beat');
+    s.t = 0; s.crab.p = at(8.4, 0).slice(); const ev = run(s, 0.6, { x: 0, y: 1 });
+    ok(ev.some(e => e.type === 'check') && s.cp === 0 && ev.some(e => e.type === 'spring'), 'through it while it is open, past the flag, onto the spring');
+    let top = 0; for (let i = 0; i < 100; i++) { K.step(s, 1 / 60, { x: 0, y: 1 }); top = Math.max(top, s.crab.h); }
+    ok(Math.abs(top - 4) < 0.15 && !s.falls && K.dist(s.crab.p, TOP) < 2, `the spring throws the crab ${top.toFixed(1)} high and clean over ${3} of water`);
+    const s2 = K.create(L); s2.cp = 0; s2.crab.p = at(4, 90).slice(); const ev2 = run(s2, 0.3);
+    ok(ev2.some(e => e.type === 'splash' && e.at === 0) && K.dist(s2.crab.p, at(7, 0)) < 0.01, 'a fall after a flag goes back to the flag'); } }
+
+// 8c. every skill course: the look-ahead player finishes it without a fall, and with the shell; walking straight through does not
+{ for (const L of K.LEVELS.filter(l => l.route)) {
+    const a = K.autoplay(L, { limit: 90 }), b = K.autoplay(L, { via: L.shellRoute, limit: 120 });
+    ok(a.s.won && a.s.falls === 0 && K.stars(a.s)[1] && b.s.won && K.stars(b.s).every(Boolean), `${'🌶️'.repeat(L.tier)} ${L.name}: finished clean in ${a.s.t.toFixed(0)} s, and with the shell in ${b.s.t.toFixed(0)} s ⭐⭐⭐`);
+    // someone who just walks the route, never waiting and never jumping
+    let blunder = 0, tries = 0;
+    for (let off = 0; off < 3; off += 0.37) { const s = K.create(L); s.t = off; tries++; const route = [...L.route, L.flag]; let i = 0;
+      for (let n = 0; n < 60 * 40 && !s.won && !s.falls; n++) { const w = route[i], p = w.pad != null ? K.padAt(s, w.pad) : w; if (K.dist(s.crab.p, p) < 0.45 && i < route.length - 1) i++; const d = P.toward(s.crab.p, p), r = P.cross(s.crab.f, s.crab.p); K.step(s, 1 / 60, { x: P.dot(d, r), y: P.dot(d, s.crab.f) }); }
+      if (!s.won) blunder++; }
+    ok(blunder >= tries - 1, `   walked straight through with no timing, it goes wrong ${blunder} times in ${tries}`); }
+  ok(K.LEVELS.filter(l => l.route).map(l => l.tier).join() === '1,2,2,3', 'the courses climb: one chilli, two, two, three'); }
 
 // 9. stars, and the same moves give the same result
 { const L = lv('hop'), a = K.run(L, L.answer), b = K.run(L, L.answer);

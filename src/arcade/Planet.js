@@ -250,7 +250,7 @@ export function pause() {
 export function resume() { if (!_paused) return; _paused = false; $('tp-over').hidden = true; _last = performance.now(); }
 function _leave() { _autosave(); document.querySelector('#scr-sologame [data-back]')?.click(); }
 
-function _hud_show(on) { $('tp-trial').hidden = true; $('tp-top').classList.remove('trial'); $('tp-goal').classList.remove('wide'); $('btn-tp-act').style.removeProperty('--k'); ['tp-top', 'tp-bar', 'tp-acts', 'tp-goal'].forEach(id => { $(id).hidden = !on; }); if (!on) { $('tp-hint').textContent = ''; $('tp-tip').hidden = true; } }
+function _hud_show(on) { $('tp-trial').hidden = true; $('tp-top').classList.remove('trial'); $('tp-goal').classList.remove('wide'); $('btn-tp-act').style.removeProperty('--k'); $('btn-tp-act').hidden = false; ['tp-top', 'tp-bar', 'tp-acts', 'tp-goal'].forEach(id => { $(id).hidden = !on; }); if (!on) { $('tp-hint').textContent = ''; $('tp-tip').hidden = true; } }
 
 function _menu() {
     // The autopilot's island, behind the card.
@@ -329,7 +329,8 @@ function _do(what, arg) {
 // ── The Coconut Trials (through the Trick Hut) ──────────────────────────────
 const _starsOf = id => sv().trick[id] || [false, false, false];
 const _starText = st => st.map(x => (x ? '⭐' : '☆')).join('');
-const _trialOpen = i => i === 0 || _starsOf(K.LEVELS[i - 1].id)[0];
+// (each set opens in order; the first skill course is open from the start)
+const _trialOpen = i => i === 0 || _starsOf(K.LEVELS[i - 1].id)[0] || (!!K.LEVELS[i].route && !K.LEVELS[i - 1].route);
 /** Walk into the Trick Hut: the city waits, saved, while the trials are on. */
 export function enterTrials() {
     if (_mode !== 'play' || !_s || _s.over) return;
@@ -345,8 +346,8 @@ function _trialsCard() {
     const total = K.LEVELS.reduce((n, l) => n + _starsOf(l.id).filter(Boolean).length, 0);
     _card(`<div class="tp-title bfont">🥥 COCONUT TRIALS</div>
         <div class="tp-sub">Puzzle planets. <b>Throw</b> coconuts the way you face (hold to throw further) and <b>jump on them</b> to bounce.</div>
-        <div class="tp-stat">${total}/${K.LEVELS.length * 3} ⭐ · each new star pays 3 ✨, each trial 10 🐚 for your city</div>
-        <div class="tp-lvls">${K.LEVELS.map((l, i) => `<button class="tp-lvl" data-do="trial" data-arg="${i}" ${_trialOpen(i) ? '' : 'disabled'}><b class="bfont">${i + 1}</b><span>${_trialOpen(i) ? l.name : '🔒'}</span><i>${_starText(_starsOf(l.id))}</i></button>`).join('')}</div>
+        <div class="tp-stat">${total}/${K.LEVELS.length * 3} ⭐ · a new star pays 3 ✨ a chilli, a first clear 10 🐚 a chilli</div>
+        <div class="tp-lvls">${K.LEVELS.map((l, i) => `${i === 0 ? '<div class="tp-h">🥥 Coconut puzzles</div>' : l.route && !K.LEVELS[i - 1].route ? '<div class="tp-h">⏱️ Skill courses · timing and jumping</div>' : ''}<button class="tp-lvl" data-do="trial" data-arg="${i}" ${_trialOpen(i) ? '' : 'disabled'}><b class="bfont">${i + 1}</b><span>${_trialOpen(i) ? `${l.name} ${'🌶️'.repeat(l.tier || 1)}` : '🔒'}</span><i>${_starText(_starsOf(l.id))}</i></button>`).join('')}</div>
         <button class="go-btn bfont tp-alt" data-do="city" id="btn-tp-city">‹ BACK TO THE CITY</button>`, true);
 }
 /** Start trial i (0-based). */
@@ -368,29 +369,29 @@ export function holdThrow(on) { if (_mode === 'trick' && _trial && !_paused) ret
 function _trialHud() {
     const s = _trial.state(), lv = _trial.level, i = K.LEVELS.indexOf(lv), k = _trial.charging();
     const hint = _hintT > 0 ? _hintMsg : '';
-    const sig = [lv.id, s.throws, s.shell, hint, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
+    const sig = [lv.id, s.throws, s.falls, s.shell, hint, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
     if (sig === _lastHud) return;
     _lastHud = sig;
     $('tp-trial-n').textContent = `🥥 ${i + 1}/${K.LEVELS.length} ${lv.name}`;
-    $('tp-trial-s').textContent = `THROWS ${s.throws} · PAR ${lv.par} · ${s.shell ? '🐚 GOT IT' : '🐚 FIND THE GOLDEN SHELL'}`;
+    $('tp-trial-s').textContent = `${lv.clean ? (s.falls ? `FALLS ${s.falls}` : 'NO FALLS YET') : `THROWS ${s.throws} · PAR ${lv.par}`} · ${s.shell ? '🐚 GOT IT' : '🐚 FIND THE GOLDEN SHELL'}`;
     const goal = $('tp-goal'); goal.textContent = `💡 ${lv.hint}`; goal.classList.remove('tut'); goal.classList.add('wide');
-    const ab = $('btn-tp-act'); ab.classList.remove('off', 'idle'); ab.querySelector('span').textContent = '🥥'; ab.querySelector('small').textContent = k >= 0 ? 'LET GO!' : 'HOLD: THROW';
+    const ab = $('btn-tp-act'); ab.classList.remove('off', 'idle'); ab.hidden = !!lv.route; ab.querySelector('span').textContent = '🥥'; ab.querySelector('small').textContent = k >= 0 ? 'LET GO!' : 'HOLD: THROW';
     ab.style.setProperty('--k', k >= 0 ? k : 0);
     $('btn-tp-jump').classList.toggle('off', s.crab.air);
     $('tp-hint').textContent = hint;
 }
 function _trialWon(lv, st, s) {
     const save = sv(), had = _starsOf(lv.id), now = had.map((x, i) => x || st[i]);
-    const fresh = now.filter(Boolean).length - had.filter(Boolean).length, first = !had[0];
-    save.trick[lv.id] = now; save.dust += fresh * 3; persist();
-    if (first) _trialOwed += 10;
+    const fresh = now.filter(Boolean).length - had.filter(Boolean).length, first = !had[0], tier = lv.tier || 1, dust = fresh * 3 * tier, shells = first ? 10 * tier : 0;
+    save.trick[lv.id] = now; save.dust += dust; persist();
+    _trialOwed += shells;
     Solo.bump('planetTrials', fresh);
     const i = K.LEVELS.indexOf(lv), next = K.LEVELS[i + 1];
     _paused = true;
     _card(`<div class="tp-title bfont">🚩 TRIAL DONE!</div>
         <div class="tp-big bfont">${_starText(st)}</div>
-        <div class="tp-sub">${st[1] ? `In ${s.throws} throw${s.throws === 1 ? '' : 's'}: on par!` : `${s.throws} throws (par ${lv.par})`} · ${st[2] ? 'golden shell found' : 'the golden shell is still out there'}</div>
-        ${fresh || first ? `<div class="tp-dust bfont">${fresh ? `+${fresh * 3} ✨` : ''}${first ? ` +10 🐚` : ''}</div>` : ''}
+        <div class="tp-sub">${lv.clean ? (st[1] ? 'Without a single fall!' : `${s.falls} fall${s.falls === 1 ? '' : 's'}: do it clean for the second star`) : st[1] ? `In ${s.throws} throw${s.throws === 1 ? '' : 's'}: on par!` : `${s.throws} throws (par ${lv.par})`} · ${st[2] ? 'golden shell found' : 'the golden shell is still out there'}</div>
+        ${dust || shells ? `<div class="tp-dust bfont">${dust ? `+${dust} ✨` : ''}${shells ? ` +${shells} 🐚` : ''}</div>` : ''}
         ${next ? `<button class="go-btn bfont" data-do="trial" data-arg="${i + 1}" id="btn-tp-next">NEXT TRIAL</button>` : '<div class="tp-stat">That was the last one. More worlds to come!</div>'}
         <button class="go-btn bfont tp-alt" data-do="trial" data-arg="${i}">↻ AGAIN</button>
         <button class="go-btn bfont tp-alt" data-do="trials">ALL TRIALS</button>
@@ -494,7 +495,7 @@ function _frame(dt) {
 function _watch() {
     const s = _s, c = s.crab;
     if (s.items.some(i => i.kind === 'rock' && L.dist(s, i.p, c.p) < 3.5)) _tip('rock', '🪨 A ROCK. ✋ picks it up; ✋ again throws it at a falling star, even a big red one.');
-    if (s.course && !s.course.done && L.dist(s, s.course.pts[0], c.p) < 4.5) _tip('course', '🪵 A BOARDWALK. Walk up the ramp and along the planks, ⬆️ JUMP the gaps: there\'s a chest at the end. Fall off and you can just try again.');
+    if (s.course && !s.course.done && L.dist(s, s.course.pts[0], c.p) < 4.5) _tip('course', '🪵 A BOARDWALK. Up the ramp and along the planks: ⬆️ JUMP the gaps and the low red bars, wait for the tall purple ones to swing past. The chillies on the sign say how hard it is; harder ones pay ✨ too.');
     if (s.stars.some(x => x.big)) _tip('big', '☄️ A RED RING can\'t be caught. Get clear, let a 🔮 tower take it, or throw a 🪨 at it.');
     const hutT = s.builds.find(b => b.kind === 'trick');
     if (hutT && L.dist(s, hutT.p, c.p) < 4) _tip('trick', '🥥 THE TRICK HUT. Walk in for the Coconut Trials: puzzle planets where you throw coconuts and bounce on them. They pay shells and stardust.');
@@ -535,10 +536,14 @@ function _events(evs) {
             const v = _vis.stars.get(e.star.id), at = v ? v.rock.position.clone() : _at(e.p, 6);
             _burstAt(at, e.big ? 0xff6a4a : 0xfff08a, e.big ? 50 : 30, 6); _shake = Math.max(_shake, 0.3); _thrown = { from: _at(_s.crab.p, 1), to: at, t: 0 };
             if (play) { _pop(e.p, `🪨 SMASHED! +${e.pay} 🐚`, 2.4); _sfx('land_good'); _buzz([20, 20, 40]); }
-        } else if (e.type === 'on') { if (play) { _sfx('swap'); _hintNow('ON THE BOARDWALK: ⬆️ JUMP THE GAPS', 2); } }
+        } else if (e.type === 'on') { if (play && !e.at) { const co = e.course, tr = L.TIERS[co.tier]; _sfx('swap'); _hintNow(`${tr.icon} ${tr.name} BOARDWALK · CHEST ${co.prize} 🐚${co.dust ? ` + ${co.dust} ✨` : ''}`, 2.6); } }
+        else if (e.type === 'crack') { if (play) _sfx('tick'); }
+        else if (e.type === 'spring') { _burst(e.p, 0xff7a9a, 14, 4); if (play) { _sfx('boost'); _buzz(12); _pop(e.p, 'BOING!', 1.6); } }
+        else if (e.type === 'check') { _burst(e.p, 0x4ade80, 18, 4); if (play) { _sfx('land_good'); _buzz(10); _pop(e.p, '🚩 CHECKPOINT', 1.8); } }
         else if (e.type === 'coin') { _burst(e.p, 0xffd84a, 8, 3); if (play) { _pop(e.p, '+1 🐚', 1.4); _sfx('coin_gain'); _buzz(6); } }
-        else if (e.type === 'fell') { if (play) { _sfx('land_bad'); _hintNow(e.gap ? 'INTO THE GAP! ⬆️ JUMP IT NEXT TIME' : 'OFF THE PLANKS! START AGAIN AT THE RAMP', 2.2); } }
-        else if (e.type === 'chest') { _burst(e.p, 0xffd84a, 46, 6); _cheer = 0.7; if (play) { _say(`🎁 COURSE DONE! +${e.prize} 🐚`, '#fde047'); _sfx('win'); _buzz([30, 30, 80]); } }
+        else if (e.type === 'fell') { if (play) { const back = e.at ? 'BACK AT THE FLAG' : 'BACK AT THE START'; _sfx('land_bad'); _buzz([20, 20, 20]); if (e.why !== 'side') _shake = Math.max(_shake, 0.3);
+            _hintNow(e.why === 'gap' ? `INTO THE GAP! ⬆️ JUMP IT · ${back}` : e.why === 'sweep' ? `BONK! WATCH THE ARM COME ROUND · ${back}` : e.why === 'crumble' ? `IT CRUMBLED! KEEP MOVING · ${back}` : 'OFF THE PLANKS: STEP BACK ON AT THE RAMP OR THE LAST FLAG', 2.4); } }
+        else if (e.type === 'chest') { _burst(e.p, 0xffd84a, 46, 6); _cheer = 0.7; if (play) { _say(`🎁 COURSE DONE! +${e.prize} 🐚${e.dust ? ` +${e.dust} ✨` : ''}`, '#fde047'); _sfx('win'); _buzz([30, 30, 80]); } }
         else if (e.type === 'trick') { if (play && !_auto) enterTrials(); }
         else if (e.type === 'over') { _shake = 1; if (play) { _say('THE LAST HOME IS GONE…', '#fca5a5'); _buzz([60, 40, 120]); } }
     }
@@ -663,6 +668,7 @@ function _buildScene(canvas) {
         stall: new T.BoxGeometry(1.1, 0.5, 0.7), awn: new T.BoxGeometry(0.26, 0.08, 0.95), leg: new T.BoxGeometry(0.07, 0.6, 0.07), coin: new T.CylinderGeometry(0.19, 0.19, 0.06, 14),
         shell: new T.ConeGeometry(0.2, 0.34, 9), shellTip: new T.SphereGeometry(0.1, 7, 5), rock: new T.DodecahedronGeometry(0.3, 0),
         ring: new T.RingGeometry(0.9, 1, 36), disc: new T.CircleGeometry(1, 28), star: new T.IcosahedronGeometry(0.34, 0), tail: new T.ConeGeometry(0.2, 2.6, 8), fix: new T.SphereGeometry(0.14, 6, 5),
+        bar: new T.BoxGeometry(1.7, 0.16, 0.16), paddle: new T.BoxGeometry(1.7, 1.7, 0.14),
         plank: new T.BoxGeometry(0.95, 0.1, 0.95), bridge: new T.BoxGeometry(0.7, 0.08, 1), stilt: new T.CylinderGeometry(0.06, 0.06, 1, 5), chest: new T.BoxGeometry(0.6, 0.4, 0.42), lid: new T.BoxGeometry(0.64, 0.14, 0.46),
     };
     G.ring.rotateX(-Math.PI / 2); G.disc.rotateX(-Math.PI / 2); G.tail.rotateX(-Math.PI / 2); G.tail.translate(0, 0, -1.4); G.coin.rotateX(Math.PI / 2);
@@ -671,11 +677,12 @@ function _buildScene(canvas) {
         win: new T.MeshBasicMaterial({ color: 0xfff3a0 }), flag: _lam(0xff4d6d), post: _lam(0xdfe8f5), stone: _lam(0x9aa3b5), gem: new T.MeshBasicMaterial({ color: 0x8fe8ff }), gemOff: _lam(0x6b7a90),
         stall: _lam(0xd9a066), awnA: _lam(0xff5a5a), awnB: _lam(0xfff8ee), coin: new T.MeshLambertMaterial({ color: 0xffd84a, emissive: 0x8a6200, flatShading: true }),
         shell: _lam(0xff9ec4), shellTip: _lam(0xfff1f6), gold: new T.MeshLambertMaterial({ color: 0xffd84a, emissive: 0x8a6200, flatShading: true }), rock: _lam(0x7d8597), fix: new T.MeshBasicMaterial({ color: 0xff5a5a }),
-        star: new T.MeshBasicMaterial({ color: 0xfff3a0 }), big: new T.MeshBasicMaterial({ color: 0xff7a4a }), trick: _lam(0x9b5de5), wood: _lam(0xb9824d), wood2: _lam(0x8f6238), chest: _lam(0x8a5a2b), band: _lam(0xffd84a),
+        star: new T.MeshBasicMaterial({ color: 0xfff3a0 }), big: new T.MeshBasicMaterial({ color: 0xff7a4a }), trick: _lam(0x9b5de5), chilli: _lam(0xe11d48), spring: _lam(0xff4d6d), crumble: _lam(0xe7c9a0), lowBar: _lam(0xff5a4d), tallBar: _lam(0x7c3aed), flagOff: _lam(0xf5f5f5), flagOn: _lam(0x4ade80), wood: _lam(0xb9824d), wood2: _lam(0x8f6238), chest: _lam(0x8a5a2b), band: _lam(0xffd84a),
     };
     const held = _mesh(G.rock, M.rock); held.visible = false; scene.add(held);
+    const reach = new T.Mesh(G.ring, new T.MeshBasicMaterial({ color: 0x8fe8ff, transparent: true, opacity: 0.4, depthWrite: false, side: T.DoubleSide })); reach.scale.setScalar(L.TOWER_R); reach.visible = false; scene.add(reach);
     const flying = _mesh(G.rock, M.rock); flying.visible = false; scene.add(flying);
-    return { renderer, scene, camera, hemi, sun, planet, rim, stars, far, crab, shadow, deco, sparks, pool: Array.from({ length: N }, () => ({ life: 0, v: [0, 0, 0] })), next: 0, G, M, tm, held, flying, camP: null };
+    return { renderer, scene, camera, hemi, sun, planet, rim, stars, far, crab, shadow, deco, sparks, pool: Array.from({ length: N }, () => ({ life: 0, v: [0, 0, 0] })), next: 0, G, M, tm, held, flying, reach, camP: null };
 }
 
 // A crab from balls and sticks: body, eyes on stalks, two claws, six legs.
@@ -785,19 +792,42 @@ function _buildVis(b) {
     return v;
 }
 
-// The boardwalk: a ramp, planks on stilts, bridges between them (none over a
-// gap), a coin over each plank still to come and a chest at the end.
+// The boardwalk: a ramp, planks on stilts, a bridge over each stretch that has
+// one, and each stretch's obstacle: a sweeper's arm on a post beside it, a
+// spring pad, a checkpoint flag; a coin over each plank still to come and a
+// chest at the end.
 function _buildCourse(co) {
-    const { G, M } = _gl, parts = [], add = (m, p, f, lift) => { _gl.scene.add(m); const q = { m, p, f, lift }; parts.push(q); return q; };
-    const n = co.pts.length, mid = (a, b) => L.norm(L.mix(a, b, 0.5, 0.5));
+    const { G, M } = _gl, parts = [], add = (m, p, f, lift, more = {}) => { _gl.scene.add(m); const q = { m, p, f, lift, ...more }; parts.push(q); return q; };
+    const n = co.pts.length, mid = (a, b) => L.norm(L.mix(a, b, 0.5, 0.5)), hole = k => k === 'gap' || k === 'void';
     co.pts.forEach((p, i) => {
-        const f = i < n - 1 ? L.toward(p, co.pts[i + 1]) : L.toward(co.pts[i - 1], p);
-        if (i === 0) { const r = new T.Mesh(G.bridge, M.wood2); r.scale.set(1.2, 1, 1.25); r.rotation.order = 'YXZ'; const q = add(r, L.walk(p, f, -0.55 / _s.R), f, PLANK_H * 0.48); q.tilt = -Math.atan2(PLANK_H, 1.15); }
-        add(new T.Mesh(G.plank, i % 2 ? M.wood : M.wood2), p, f, PLANK_H);
+        const f = i < n - 1 ? L.toward(p, co.pts[i + 1]) : L.toward(co.pts[i - 1], p), before = co.segs[i - 1], after = co.segs[i];
+        if (i === 0) {
+            const r = new T.Mesh(G.bridge, M.wood2); r.scale.set(1.2, 1, 1.25); add(r, L.walk(p, f, -0.55 / _s.R), f, PLANK_H * 0.48, { tilt: -Math.atan2(PLANK_H, 1.15) });
+            // how hard it is, on a sign by the ramp
+            const sign = new T.Group(); sign.add(_mesh(G.pole, M.post, 0, 0.35, 0));
+            for (let k = 0; k < co.tier; k++) { const ch = _mesh(G.hat, M.chilli, (k - (co.tier - 1) / 2) * 0.3, 0.86, 0); ch.rotation.z = Math.PI; ch.scale.setScalar(0.62); sign.add(ch); }
+            add(sign, L.walk(p, L.cross(p, f), 0.8 / _s.R), f, 0);
+        }
+        if (before === 'void' && after === 'void') return;                    // nothing to stand on mid-hop
+        const plank = new T.Mesh(G.plank, i % 2 ? M.wood : M.wood2); if (before === 'void') plank.scale.set(1.35, 1, 1.35);
+        add(plank, p, f, PLANK_H);
         const st = new T.Mesh(G.stilt, M.wood2); st.scale.y = PLANK_H; add(st, p, f, PLANK_H / 2);
-        if (i < n - 1 && !co.gaps.includes(i)) { const b = new T.Mesh(G.bridge, M.wood); b.scale.z = 0.42; add(b, mid(p, co.pts[i + 1]), f, PLANK_H - 0.02); }
-        if (i > 0 && i < n - 1) { const c = add(new T.Mesh(G.coin, M.coin), p, f, PLANK_H + 0.75); c.coin = i; }
-        if (i === n - 1) { const ch = new T.Group(); ch.add(_mesh(G.chest, M.chest, 0, 0.2, 0)); ch.add(_mesh(G.lid, M.band, 0, 0.46, 0)); const c = add(ch, p, f, PLANK_H + 0.05); c.chest = true; }
+        if (before === 'spring') add(new T.Mesh(G.coin, M.spring), p, f, PLANK_H + 0.1, { spring: true });
+        if (co.checks.includes(i)) { const fl = new T.Group(); fl.add(_mesh(G.pole, M.post, 0, 0.5, 0)); const cloth = _mesh(G.flag, M.flagOff, 0.17, 0.82, 0); fl.add(cloth); add(fl, L.walk(p, L.cross(p, f), 0.42 / _s.R), f, PLANK_H, { check: i, cloth }); }
+        if (i > 0 && i < n - 1) add(new T.Mesh(G.coin, M.coin), p, f, PLANK_H + 0.75, { coin: i });
+        if (i === n - 1) { const ch = new T.Group(); ch.add(_mesh(G.chest, M.chest, 0, 0.2, 0)); ch.add(_mesh(G.lid, M.band, 0, 0.46, 0)); add(ch, p, f, PLANK_H + 0.05); }
+    });
+    co.segs.forEach((kind, i) => {
+        const a = co.pts[i], b = co.pts[i + 1], c = mid(a, b), f = L.toward(c, b), len = (L.COURSE_STEP - 0.9) + 0.06;
+        if (!hole(kind)) { const br = new T.Mesh(G.bridge, kind === 'crumble' ? M.crumble : M.wood); br.scale.z = len; add(br, c, f, PLANK_H - 0.02, { crumble: kind === 'crumble' ? i : null }); }
+        if (kind === 'low' || kind === 'tall') {
+            // The post stands to the right of the stretch; its arm comes round over the planks once a turn.
+            const post = new T.Group(), arm = new T.Group(), tall = kind === 'tall';
+            post.add(_mesh(G.stilt, M.post, 0, (tall ? 2.5 : 1.1) / 2, 0)); post.children[0].scale.y = tall ? 2.5 : 1.1;
+            const bar = tall ? _mesh(G.paddle, M.tallBar, 0.85, PLANK_H + 0.95, 0) : _mesh(G.bar, M.lowBar, 0.85, PLANK_H + 0.3, 0);
+            arm.add(bar); post.add(arm);
+            add(post, L.walk(c, L.cross(f, c), 0.85 / _s.R), f, 0, { sweep: i, arm });
+        }
     });
     return { id: co.id, parts };
 }
@@ -813,10 +843,23 @@ function _draw(dt) {
     if (_courseVis && (!co || _courseVis.id !== co.id)) _dropCourse();
     if (co && !_courseVis) _courseVis = _buildCourse(co);
     if (_courseVis) for (const q of _courseVis.parts) {
-        _put(q.m, q.p, q.f, q.lift + (q.coin ? Math.sin(_t * 3 + q.coin) * 0.08 : 0));
+        let lift = q.lift + (q.coin ? Math.sin(_t * 3 + q.coin) * 0.08 : 0) + (q.spring ? Math.abs(Math.sin(_t * 5)) * 0.06 : 0);
+        if (q.crumble != null) {
+            // cracking: it shakes; gone: it has dropped away (and comes back)
+            const tm = co.cr[q.crumble];
+            q.m.visible = !(tm > L.CRUMBLE_S + 0.25);
+            if (tm != null) lift += tm > L.CRUMBLE_S ? -(tm - L.CRUMBLE_S) * 6 : Math.sin(_t * 60) * 0.03;
+        }
+        _put(q.m, q.p, q.f, lift);
         if (q.tilt) q.m.rotateX(q.tilt);
         if (q.coin) { q.m.visible = q.coin > co.got; q.m.rotateY(_t * 3); }
+        if (q.sweep != null) { const kind = co.segs[q.sweep], ph = (co.t / L.SWEEP.period + co.off[q.sweep]) % 1; q.arm.rotation.y = -Math.PI * 2 * (ph - L.SWEEP[kind] / 2); }
+        if (q.check != null) q.cloth.material = co.cp >= q.check ? _gl.M.flagOn : _gl.M.flagOff;
     }
+    // A tower's reach, on the ground round the crab, while one can be afforded.
+    const tc = L.unlocked(s, 'tower') && _mode === 'play' ? L.costOf(s, 'tower') : null, reach = !!tc && s.shells >= tc.shells && s.nuts >= tc.nuts;
+    g.reach.visible = reach;
+    if (reach) { _put(g.reach, c.p, c.face, 0.08); g.reach.material.opacity = 0.22 + 0.1 * Math.sin(_t * 4); }
 
     // The crab: up on the planks, up in the air, a rock held high.
     const jumpH = c.air > 0 ? Math.sin(Math.PI * (1 - c.air / L.JUMP_S)) * 1.35 : 0;
@@ -954,7 +997,7 @@ export function _debug() {
     const s = _s;
     return { mode: _mode, gl: !!_gl, paused: _paused, day: s?.day, phase: s?.phase, over: !!s?.over, shells: s?.shells, nuts: s?.nuts, pop: s ? L.pop(s) : 0, town: s?.town, R: s?.R, visR: +_visR.toFixed(2),
         builds: s ? s.builds.map(b => b.kind) : [], items: s?.items.length, stars: s?.stars.length, caught: s?.stats.caught, crab: s ? s.crab.p.map(v => +v.toFixed(3)) : null,
-        air: s?.crab.air || 0, carry: s?.crab.carry || null, course: s?.course ? { k: s.course.k, got: s.course.got, done: s.course.done, n: s.course.pts.length } : null,
+        air: s?.crab.air || 0, carry: s?.crab.carry || null, course: s?.course ? { k: s.course.k, got: s.course.got, done: s.course.done, n: s.course.pts.length, tier: s.course.tier, cp: s.course.cp } : null, reach: !!_gl?.reach.visible,
         drawn: { builds: _vis.builds.size, items: _vis.items.size, stars: _vis.stars.size, course: _courseVis ? _courseVis.parts.length : 0 }, dust: sv().dust, up: { ...sv().up }, skin: sv().skin, theme: theme().id,
         saved: sv().run ? { day: sv().run.day, shells: sv().run.shells } : null, seen: Object.keys(sv().seen), tip: _el && !$('tp-tip').hidden ? $('tp-tip').textContent : '',
         trial: _trial ? { id: _trial.level.id, won: _trial.state().won, throws: _trial.state().throws, nuts: _trial.state().nuts.length, h: +_trial.state().crab.h.toFixed(2), charging: _trial.charging() } : null, trick: { ...sv().trick },

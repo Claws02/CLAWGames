@@ -125,33 +125,84 @@ const pilot = (s, secs) => { const all = []; for (let i = 0; i < 60 * secs && !s
   const lab = P.context(s).label, e = P.act(s);
   ok(lab === 'THROW!' && e.type === 'smash' && e.big && s.stars.length === 1 && s.stars[0].id === 2 && s.shells === sh + 3 && !s.crab.carry && hut.hp === P.HP.hut, 'carrying a rock at night: THROW smashes the star landing soonest, even a big one (+3 shells)'); }
 
-// 8. the boardwalk course: planks, coins, a gap to jump, a chest; falling off costs nothing
-{ const s = P.create({ rnd: seeded(11) }), co = s.course;
-  ok(co && co.pts.length === 5 && co.gaps.length === 1 && co.gaps[0] > 0 && co.gaps[0] < co.pts.length - 2 && co.pts.every(unit) && co.pts.every(q => s.builds.every(b => P.dist(s, b.p, q) >= P.SPACE)),
-    `a new island has a course: ${co.pts.length} planks ${P.COURSE_STEP} apart, a gap in the middle, clear of the home`);
-  s.items = []; s.spawnT = 1e9; s.rockT = 1e9;
-  s.crab.p = co.pts[0].slice();
-  s.shells = 50; ok(P.canBuild(s, 'palm').why === 'space', 'nothing can be built on the planks');
-  // walk the planks; jump: whether to hop the gap
-  const walkIt = jumpGaps => { const ev = []; s.crab.p = co.pts[0].slice(); s.crab.air = 0; s.crab.jcd = 0; ev.push(...P.step(s, 1 / 60));
-    for (let i = 0; i < 60 * 12 && co.k >= 0 && !co.done; i++) {
-      const b = co.pts[co.k + 1], d = P.toward(s.crab.p, b), r = P.cross(s.crab.f, s.crab.p);
-      if (jumpGaps && co.gaps.includes(co.k) && P.dist(s, s.crab.p, co.pts[co.k]) > P.COURSE_STEP * 0.12) P.jump(s);
-      ev.push(...P.step(s, 1 / 60, { x: P.dot(d, r), y: P.dot(d, s.crab.f) })); }
-    return ev; };
-  const sh = s.shells; let ev = walkIt(false);
-  ok(ev.some(e => e.type === 'on') && ev.some(e => e.type === 'fell' && e.gap) && co.k === -1 && !co.done && s.shells === sh + co.gaps[0] && !s.over, `walking it without jumping: ${co.gaps[0]} coin(s), then down through the gap. Nothing lost`);
-  const sh2 = s.shells; ev = walkIt(true);
-  const coins = ev.filter(e => e.type === 'coin').length;
-  ok(co.done && ev.some(e => e.type === 'chest' && e.prize === co.prize) && coins === co.pts.length - 1 - co.gaps[0] && s.shells === sh2 + coins + co.prize && s.stats.courses === 1, `again, jumping the gap: the rest of the coins (${coins}) and the chest (+${co.prize})`);
+// 8. the boardwalk course: obstacles to time and jump, checkpoints, three tiers
+// A player who looks a second ahead: of walking on, jumping, or waiting, it takes the first that doesn't fall.
+const ahead = (s, act) => { const t = P.load(P.save(s), () => 0.5), co = t.course, c = t.crab; let k = co.k, fell = false;
+  const go = () => { const b = co.pts[Math.min(co.k + 1, co.pts.length - 1)], d = P.toward(c.p, b), r = P.cross(c.f, c.p); return { x: P.dot(d, r), y: P.dot(d, c.f) }; };
+  if (act === 'jump') P.jump(t);
+  for (let i = 0; i < 54 && !co.done; i++) { const ev = P.step(t, 1 / 60, act === 'wait' && i < 12 ? { x: 0, y: 0 } : go()); if (ev.some(e => e.type === 'fell')) { fell = true; break; } }
+  return { fell, gain: co.done ? 99 : co.k - k }; };
+const walkCourse = (s, secs = 90) => { const co = s.course, c = s.crab, ev = []; c.p = co.pts[0].slice(); c.air = 0; c.jcd = 0; ev.push(...P.step(s, 1 / 60));
+  for (let i = 0; i < 60 * secs && !co.done && co.k >= 0; i++) {
+    let act = 'go';
+    if (i % 3 === 0) { const g = ahead(s, 'go'); if (g.fell) { const j = ahead(s, 'jump'); act = !j.fell ? 'jump' : 'wait'; } }
+    if (act === 'jump') P.jump(s);
+    const b = co.pts[co.k + 1], d = P.toward(c.p, b), r = P.cross(c.f, c.p);
+    ev.push(...P.step(s, 1 / 60, act === 'wait' ? { x: 0, y: 0 } : { x: P.dot(d, r), y: P.dot(d, c.f) })); }
+  return ev; };
+const quiet = s => { s.items = []; s.spawnT = 1e9; s.rockT = 1e9; s.builds.forEach(b => { b.t = 1e9; }); return s; };
+{ const s = quiet(P.create({ rnd: seeded(11) })), co = s.course;
+  ok(co && co.tier === 1 && co.pts.length === 6 && co.segs.filter(k => k === 'gap').length === 1 && co.segs.filter(k => k === 'low').length === 1 && co.segs[0] === 'plank' && co.segs[4] === 'plank' && co.pts.every(unit) && co.pts.every(q => s.builds.every(b => P.dist(s, b.p, q) >= P.SPACE)),
+    `a new city's first boardwalk is an EASY one: ${co.segs.join(' · ')}, clear of the buildings`);
+  s.crab.p = co.pts[0].slice(); s.shells = 50; ok(P.canBuild(s, 'palm').why === 'space', 'nothing can be built on the planks');
+  // straight along it, never jumping: down at the first obstacle that needs a jump, and back at the start
+  const sh = s.shells, gapAt = co.segs.indexOf('gap'), ev = []; s.crab.p = co.pts[0].slice(); ev.push(...P.step(s, 1 / 60));
+  co.t = (1 - co.off[co.segs.indexOf('low')] + P.SWEEP.low + 0.02) * P.SWEEP.period;      // (the low bar has just passed)
+  for (let i = 0; i < 60 * 3 && !ev.some(e => e.type === 'fell'); i++) { const b = co.pts[co.k + 1], d = P.toward(s.crab.p, b), r = P.cross(s.crab.f, s.crab.p); ev.push(...P.step(s, 1 / 60, { x: P.dot(d, r), y: P.dot(d, s.crab.f) })); }
+  const f = ev.find(e => e.type === 'fell');
+  ok(f && f.why === 'gap' && f.at === 0 && co.k === 0 && P.dist(s, s.crab.p, co.pts[0]) < 0.01 && !s.over && s.shells === sh + gapAt, `walked without jumping: into the gap, and straight back to the start of the planks (${gapAt} coin(s) kept, nothing lost)`);
+  const d = P.toward(co.pts[0], co.pts[1]), sideways = P.cross(co.pts[0], d), r = P.cross(s.crab.f, s.crab.p), ev2 = run(s, 0.5, { x: P.dot(sideways, r), y: P.dot(sideways, s.crab.f) });
+  ok(ev2.some(e => e.type === 'fell' && e.why === 'side') && co.k === -1 && P.dist(s, s.crab.p, co.pts[0]) > 0.6, 'stepping off the side just puts the crab on the ground: a course can always be left');
+  const sh2 = s.shells, ev3 = walkCourse(s);
+  ok(co.done && ev3.some(e => e.type === 'chest' && e.prize === co.prize && e.dust === 0) && s.shells === sh2 + ev3.filter(e => e.type === 'coin').length + co.prize && s.stats.courses === 1, `jumping the gap and the bar: the rest of the coins and the chest (+${co.prize} shells)`);
   s.phase = 'night'; s.pt = P.NIGHT_S; s.due = []; s.stars = []; P.step(s, 0.01);
-  ok(s.course && s.course.id !== co.id && !s.course.done, 'at dawn a new course is laid somewhere else');
-}
-{ const s = P.create({ rnd: seeded(12) }), co = s.course; s.items = [];
-  s.crab.p = co.pts[0].slice(); P.step(s, 1 / 60);
-  const d = P.toward(co.pts[0], co.pts[1]), sideways = P.cross(co.pts[0], d), r = P.cross(s.crab.f, s.crab.p);
-  const ev = run(s, 0.5, { x: P.dot(sideways, r), y: P.dot(sideways, s.crab.f) });
-  ok(ev.some(e => e.type === 'fell' && !e.gap) && co.k === -1, 'stepping off the side of a plank: back on the ground, free to try again'); }
+  ok(s.course && s.course.id !== co.id && !s.course.done, 'at dawn a new course is laid somewhere else'); }
+// each obstacle on its own
+{ const mk = (kinds, checks = []) => { const s = quiet(P.create({ rnd: seeded(31) })); P._newCourse(s, 1); const co = s.course; co.segs = kinds; co.checks = checks; co.off = kinds.map(() => 0);
+    let p = co.pts[0], d = P.toward(co.pts[0], co.pts[1]); co.pts = [p]; for (let i = 0; i < kinds.length; i++) { p = P.walk(p, d, P.COURSE_STEP / s.R); d = P.tangent(p, d); co.pts.push(p); }
+    s.builds = s.builds.filter(b => co.pts.every(q => P.dist(s, b.p, q) > 2)); if (!P.pop(s)) s.builds.push({ id: 999, kind: 'hut', p: P.norm(co.pts[0].map(v => -v)), hp: 3, lvl: 1, age: 99, t: 1e9, shake: 0, charges: 0 });
+    s.crab.p = co.pts[0].slice(); s.crab.f = d; P.step(s, 1 / 60); return s; };
+  const fwd = (s, secs, jumpAt = -1) => { const ev = []; for (let t = 0; t < secs; t += 1 / 60) { if (jumpAt >= 0 && Math.abs(t - jumpAt) < 1 / 120) P.jump(s); const co = s.course, b = co.pts[Math.min(Math.max(co.k, 0) + 1, co.pts.length - 1)], d = P.toward(s.crab.p, b), r = P.cross(s.crab.f, s.crab.p); ev.push(...P.step(s, 1 / 60, { x: P.dot(d, r), y: P.dot(d, s.crab.f) })); } return ev; };
+  const T = P.SWEEP.period, leg = P.COURSE_STEP / P.SPEED;      // leg: seconds to walk one stretch
+  // start the clock so the bar on stretch 1 begins its pass `lead` seconds after the crab steps onto that stretch
+  const bar = (s, kind, lead) => { s.course.t = T - leg - lead + (lead > leg + T * P.SWEEP[kind] ? T : 0); return s; };
+  { const ev = fwd(bar(mk(['plank', 'low', 'plank']), 'low', 0.05), leg * 3);
+    ok(ev.some(e => e.type === 'fell' && e.why === 'sweep'), 'a low bar sweeping across knocks a walking crab off');
+    const s2 = bar(mk(['plank', 'low', 'plank']), 'low', 0.05), ev2 = fwd(s2, leg * 3, leg);
+    ok(!ev2.some(e => e.type === 'fell') && (s2.course.done || s2.course.k >= 2), 'jumped, it passes underneath');
+    const s3 = mk(['plank', 'low', 'plank']); s3.course.t = T * (P.SWEEP.low + 0.03) - leg; const ev3 = fwd(s3, leg * 3);
+    ok(!ev3.some(e => e.type === 'fell') && (s3.course.done || s3.course.k >= 2), 'or walk through once it has gone by'); }
+  { const ev = fwd(bar(mk(['plank', 'tall', 'plank']), 'tall', 0.05), leg * 3, leg);
+    ok(ev.some(e => e.type === 'fell' && e.why === 'sweep'), 'a tall log can\'t be jumped');
+    const s2 = mk(['plank', 'tall', 'plank']); s2.course.t = T * (P.SWEEP.tall + 0.03) - leg; const ev2 = fwd(s2, leg * 3);
+    ok(!ev2.some(e => e.type === 'fell') && (s2.course.done || s2.course.k >= 2), 'so it has to be timed: through just after it passes'); }
+  { const s = mk(['plank', 'crumble', 'plank']); const ev = fwd(s, leg * 2.6);
+    ok(ev.some(e => e.type === 'crack') && !ev.some(e => e.type === 'fell') && (s.course.done || s.course.k >= 2) && P.crumbled(s.course, 1), 'a crumbling bridge holds if you keep moving (and has gone when you look back)');
+    const s2 = mk(['plank', 'crumble', 'plank']); fwd(s2, leg * 1.5); const ev2 = run(s2, P.CRUMBLE_S + 0.3);
+    ok(ev2.some(e => e.type === 'fell' && e.why === 'crumble'), `stop on it for ${P.CRUMBLE_S} s and it drops away under you`);
+    run(s2, P.CRUMBLE_BACK + 0.2); ok(!P.crumbled(s2.course, 1), 'it grows back for another try'); }
+  { const s = mk(['plank', 'spring', 'void', 'void', 'void', 'plank']); const ev = fwd(s, leg * 6.5);
+    ok(ev.some(e => e.type === 'spring') && !ev.some(e => e.type === 'fell') && (s.course.done || s.course.k >= 5), `a spring throws the crab ${P.SPRING_AIR} s through the air, over three planks' worth of nothing`);
+    const s2 = mk(['plank', 'plank', 'void', 'void', 'void', 'plank']); const ev2 = fwd(s2, leg * 6.5, leg * 2.1);
+    ok(ev2.some(e => e.type === 'fell' && e.why === 'gap'), 'which a jump alone can\'t clear'); }
+  { const s = mk(['plank', 'plank', 'gap', 'plank'], [2]); const ev = fwd(s, leg * 3.2); const f = ev.find(e => e.type === 'fell');
+    ok(ev.some(e => e.type === 'check') && s.course.cp === 2 && f && f.at === 2 && P.dist(s, s.crab.p, s.course.pts[2]) < 0.9, 'past a checkpoint flag, a fall puts the crab back at the flag, not the start'); }
+  { const s = mk(['plank', 'plank']); P.jump(s); run(s, P.JUMP_S - 0.1); const early = P.jump(s); const ev = run(s, 0.2);
+    ok(!early && ev.some(e => e.type === 'rejump') && s.crab.air > 0, 'jump pressed a moment before landing is remembered: the crab jumps again as it lands'); } }
+// every tier, on many planets, can be finished by a player who looks ahead; harder ones pay stardust
+{ for (const tier of [1, 2, 3]) { let done = 0, n = 0, secs = 0, falls = 0, shape = '';
+    for (let seed = 1; seed <= 14; seed++) { const s = quiet(P.create({ rnd: seeded(seed * 131) })); s.town = tier; s.R = P.R0 * P.GROW ** tier; if (!P._newCourse(s, tier)) continue;
+      n++; shape = s.course.segs.join(' '); const t0 = s.t, ev = walkCourse(s); falls += ev.filter(e => e.type === 'fell').length; if (s.course.done) { done++; secs += s.t - t0; if (s.stats.dust !== P.TIERS[tier].dust) done = -99; } }
+    ok(n >= 12 && done === n, `${P.TIERS[tier].icon} ${P.TIERS[tier].name}: ${done}/${n} planets' courses finished (about ${(secs / n).toFixed(0)} s each, ${falls} falls in all), paying ${4 + 5 * tier + 2 * tier} shells${P.TIERS[tier].dust ? ` and ${P.TIERS[tier].dust} stardust` : ''}`);
+    if (tier === 3) ok(/spring void void void/.test(shape) && /crumble (gap|low)/.test(shape) && /tall/.test(shape), `   the fiendish one: ${shape}`); }
+  const tiers = d => { const c = [0, 0, 0, 0]; for (let seed = 1; seed <= 60; seed++) { const s = P.create({ rnd: seeded(seed * 17) }); s.day = 5; s.town = d; P._newCourse(s); if (s.course) c[s.course.tier]++; } return c.slice(1).join('/'); };
+  ok(/^\d+\/0\/0$/.test(tiers(0)) && /^\d+\/[1-9]\d*\/0$/.test(tiers(1)) && /^\d+\/\d+\/[1-9]\d*$/.test(tiers(3)), `a camp gets easy ones, a village tricky ones too, a town all three (easy/tricky/fiendish: ${tiers(0)}, ${tiers(1)}, ${tiers(3)})`); }
+// towers fit beside buildings
+{ const s = bare(41); s.town = 1; s.shells = 99; s.nuts = 99; const hut = s.builds[0];
+  s.crab.p = side(s, hut.p, 1.1);
+  ok(P.canBuild(s, 'palm').why === 'space' && P.canBuild(s, 'tower').ok && !!P.build(s, 'tower'), `a tower fits ${1.1} from a home, where nothing else would`);
+  s.crab.p = side(s, hut.p, 1.7); ok(P.canBuild(s, 'tower').why === 'space', 'but not on top of another tower');
+  s.crab.p = side(s, hut.p, 2.3); ok(!!P.build(s, 'hut'), 'and a home can go right beside a tower'); }
 
 // 9. the tracker: the first steps one at a time, then the next size of city
 { const s = bare(13), lines = [P.goal(s).text];
