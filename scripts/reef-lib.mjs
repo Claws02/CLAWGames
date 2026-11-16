@@ -11,6 +11,9 @@
 import * as D from '../src/arcade/ReefDropLogic.js';
 
 export const MIN_LEFT = 5, MAX_DROP_S = 15;
+// A drop cap for the play loops: a crab catch keeps the pearl, so a reef whose
+// last piece can't be reached would otherwise be played for ever.
+const MAX_DROPS = 60;
 export const BANDS = { easy: [0.25, 0.8], medium: [0.08, 0.4], hard: [0.02, 0.18] };
 export const seeded = s => () => (s = (s * 16807) % 2147483647) / 2147483647;
 export const hashStr = str => { let h = 2166136261; for (const c of str) h = Math.imul(h ^ c.codePointAt(0), 16777619) >>> 0; return (h % 2147483646) + 1; };
@@ -18,7 +21,7 @@ export const hashStr = str => { let h = 2166136261; for (const c of str) h = Mat
 /** The greedy player: { won, left, drops }. */
 export function greedy(lv) {
     const s = D.begin(lv);
-    while (!D.cleared(s) && s.left > 0) {
+    while (!D.cleared(s) && s.left > 0 && s.used < MAX_DROPS) {
         let best = null;
         for (let a = 0; a < 60; a++) for (const pw of [0.3, 0.6, 1]) {
             const c = D.copy(s), ang = 0.05 + (a / 60) * (Math.PI - 0.1);
@@ -35,7 +38,7 @@ export function randomRate(lv, n = 60, seed = 1) {
     const r = seeded(seed); let wins = 0;
     for (let g = 0; g < n; g++) {
         const s = D.begin(lv);
-        while (!D.cleared(s) && s.left > 0) { D.idle(lv, s, r() * 2); D.shot(lv, s, 0.05 + r() * (Math.PI - 0.1), r()); D.settle(lv, s); }
+        while (!D.cleared(s) && s.left > 0 && s.used < MAX_DROPS) { D.idle(lv, s, r() * 2); D.shot(lv, s, 0.05 + r() * (Math.PI - 0.1), r()); D.settle(lv, s); }
         wins += D.cleared(s);
     }
     return wins / n;

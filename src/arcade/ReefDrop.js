@@ -15,7 +15,7 @@ import { aimGame } from './AimScreen.js';
 
 const rnd = (i, k) => { const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
 const BUBBLES = Array.from({ length: 26 }, (_, i) => ({ x: rnd(i, 1), sp: 0.05 + rnd(i, 2) * 0.08, r: 1.5 + rnd(i, 3) * 3, ph: rnd(i, 4) * 10 }));
-let _blasts = [], _spiked = [], _sealHit = new Map(), _starHit = new Map(), _bursts = [], _warps = [], _zaps = [], _pops = [], _banner = null, _crab = { mood: '', t: 0, x: 0.5, dir: 1 }, _squish = new Map(), _launch = 0;
+let _bumpHit = new Map(), _blasts = [], _spiked = [], _sealHit = new Map(), _starHit = new Map(), _bursts = [], _warps = [], _zaps = [], _pops = [], _banner = null, _crab = { mood: '', t: 0, x: 0.5, dir: 1 }, _squish = new Map(), _launch = 0;
 
 const now = () => performance.now() / 1000;
 const say = (text, color = '#fff', big = false) => { _banner = { text, color, big, t: now() }; };
@@ -272,6 +272,86 @@ function flip(g, P, f, t) {
     g.rotate(-t * 2); g.fillStyle = '#fff'; g.font = `900 ${Math.round(R)}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('⇧', 0, 1);
     g.restore();
 }
+const GATE_HUE = ['#f43f5e', '#22c55e', '#3b82f6'];   // a switch and its gates share a colour
+function coin(g, x, y, r, t) {
+    // a sand dollar: a pale disc with a five-petal star, turning slowly
+    g.save(); g.translate(x, y); g.scale(Math.abs(Math.cos(t * 1.5 + x * 5)) * 0.5 + 0.5, 1);
+    g.fillStyle = '#fef3c7'; g.strokeStyle = '#a16207'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, r, 0, 7); g.fill(); g.stroke();
+    g.strokeStyle = '#ca8a04'; g.lineWidth = 1.6;
+    for (let k = 0; k < 5; k++) { const a = (k / 5) * Math.PI * 2 - Math.PI / 2; g.beginPath(); g.ellipse(Math.cos(a) * r * 0.42, Math.sin(a) * r * 0.42, r * 0.32, r * 0.12, a, 0, 7); g.stroke(); }
+    g.restore();
+}
+function bumper(g, x, y, r, hit) {
+    // a pinball bumper: a red cap on a white ring that flashes when hit
+    g.save(); g.translate(x, y); const k = 1 + hit * 0.25; g.scale(k, k);
+    g.fillStyle = hit > 0 ? '#fff' : '#fde68a'; g.strokeStyle = '#7f1d1d'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, r * 1.05, 0, 7); g.fill(); g.stroke();
+    const f = g.createRadialGradient(-r * 0.25, -r * 0.3, 1, 0, 0, r * 0.8); f.addColorStop(0, '#fca5a5'); f.addColorStop(1, '#dc2626');
+    g.fillStyle = f; g.beginPath(); g.arc(0, 0, r * 0.72, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = '#fff'; g.font = `900 ${Math.round(r * 0.7)}px Nunito, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('25', 0, 1);
+    g.restore();
+}
+function switchBtn(g, x, y, r, color, on) {
+    // a switch: a stone with a big coloured button, pressed in once flipped
+    g.save(); g.translate(x, y);
+    g.fillStyle = '#57534e'; g.strokeStyle = '#1c1917'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, r * 1.05, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = GATE_HUE[color % 3]; g.beginPath(); g.arc(0, on ? r * 0.08 : -r * 0.1, r * 0.62, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.arc(-r * 0.18, (on ? r * 0.08 : -r * 0.1) - r * 0.2, r * 0.18, 0, 7); g.fill();
+    g.restore();
+}
+function bubbleShield(g, x, y, r, t) {
+    // a bubble around a piece: shimmering, with a highlight
+    g.save(); g.translate(x, y);
+    const w = 1 + Math.sin(t * 3 + x * 9) * 0.04;
+    g.fillStyle = 'rgba(186,230,253,.28)'; g.strokeStyle = 'rgba(224,242,254,.9)'; g.lineWidth = 2;
+    g.beginPath(); g.ellipse(0, 0, r * 1.5 * w, r * 1.5 / w, 0, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = 'rgba(255,255,255,.75)'; g.beginPath(); g.ellipse(-r * 0.55, -r * 0.7, r * 0.35, r * 0.18, -0.6, 0, 7); g.fill();
+    g.restore();
+}
+function seesaw(g, P, w, tilt, t) {
+    // a seesaw: a wooden plank on a little rock pivot; the raised end glows
+    const [x0, y0, x1, y1] = L.seesawEnds(w, tilt), X = P(w[0]), Y = P(w[1]);
+    g.fillStyle = '#78716c'; g.strokeStyle = '#292524'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(X, Y); g.lineTo(X - 9, Y + 15); g.lineTo(X + 9, Y + 15); g.closePath(); g.fill(); g.stroke();
+    g.lineCap = 'round'; g.strokeStyle = '#3f2a14'; g.lineWidth = 9; g.beginPath(); g.moveTo(P(x0), P(y0)); g.lineTo(P(x1), P(y1)); g.stroke();
+    g.strokeStyle = '#b07a43'; g.lineWidth = 6; g.beginPath(); g.moveTo(P(x0), P(y0)); g.lineTo(P(x1), P(y1)); g.stroke();
+    const [hx, hy] = tilt > 0 ? [x0, y0] : [x1, y1];
+    g.fillStyle = `rgba(253,224,71,${0.55 + 0.3 * Math.sin(t * 6)})`; g.beginPath(); g.arc(P(hx), P(hy), 5, 0, 7); g.fill();
+    g.lineCap = 'butt';
+}
+function shark(g, P, sh, st, t) {
+    // a shark: grey, swimming the way it's going, tail swishing, a toothy grin
+    const [x, y, dir] = L.sharkAt(sh, st), X = P(x), Y = P(y), R = P(L.SHARK_R);
+    g.save(); g.translate(X, Y); g.scale(dir, 1);
+    g.fillStyle = '#94a3b8'; g.strokeStyle = '#1e293b'; g.lineWidth = 2;
+    g.save(); g.translate(-R * 1.3, 0); g.rotate(Math.sin(t * 8) * 0.3);
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(-R * 0.8, -R * 0.65); g.lineTo(-R * 0.6, 0); g.lineTo(-R * 0.8, R * 0.65); g.closePath(); g.fill(); g.stroke(); g.restore();
+    g.beginPath(); g.moveTo(-R * 0.1, -R * 0.55); g.lineTo(R * 0.2, -R * 1.25); g.lineTo(R * 0.5, -R * 0.5); g.closePath(); g.fill(); g.stroke();   // fin
+    g.beginPath(); g.ellipse(0, 0, R * 1.4, R * 0.62, 0, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = '#e2e8f0'; g.beginPath(); g.ellipse(R * 0.1, R * 0.22, R * 1.1, R * 0.32, 0, 0, Math.PI); g.fill();
+    g.fillStyle = '#111'; g.beginPath(); g.arc(R * 0.85, -R * 0.15, R * 0.11, 0, 7); g.fill();
+    g.fillStyle = '#fff'; g.strokeStyle = '#1e293b'; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(R * 0.55, R * 0.18); for (let k = 0; k < 4; k++) { g.lineTo(R * (0.62 + k * 0.17), R * 0.36); g.lineTo(R * (0.7 + k * 0.17), R * 0.18); } g.stroke(); g.fill();
+    g.restore();
+}
+function rail(g, P, r, t) {
+    // a conveyor rail: a dark belt with chevrons running the way it carries
+    const [x0, y, x1, sp] = r, X0 = P(x0), X1 = P(x1), Y = P(y), dir = Math.sign(sp), Ht = 8;
+    g.fillStyle = '#334155'; g.strokeStyle = '#0f172a'; g.lineWidth = 2;
+    g.beginPath(); g.roundRect ? g.roundRect(X0, Y - Ht / 2, X1 - X0, Ht, Ht / 2) : g.rect(X0, Y - Ht / 2, X1 - X0, Ht); g.fill(); g.stroke();
+    g.save(); g.beginPath(); g.rect(X0 + 4, Y - Ht / 2, X1 - X0 - 8, Ht); g.clip();
+    g.strokeStyle = '#facc15'; g.lineWidth = 2;
+    for (let k = -1; k < (X1 - X0) / 14 + 1; k++) { const cx = X0 + ((k * 14 + t * 40 * dir) % 14 + 14) % 14 + k * 14 - 7; g.beginPath(); g.moveTo(cx - dir * 3, Y - 3); g.lineTo(cx + dir * 2, Y); g.lineTo(cx - dir * 3, Y + 3); g.stroke(); }
+    g.restore();
+    for (const ex of [X0, X1]) { g.fillStyle = '#64748b'; g.beginPath(); g.arc(ex, Y, Ht / 2 + 1, 0, 7); g.fill(); g.stroke(); }
+}
+function gate(g, P, gt, shut) {
+    // a colour gate: a solid bar while shut, a dashed outline once open
+    const [x0, y0, x1, y1, c] = gt;
+    g.lineCap = 'round';
+    if (shut) { g.strokeStyle = '#1c1917'; g.lineWidth = 10; g.beginPath(); g.moveTo(P(x0), P(y0)); g.lineTo(P(x1), P(y1)); g.stroke(); g.strokeStyle = GATE_HUE[c % 3]; g.lineWidth = 7; g.stroke(); }
+    else { g.strokeStyle = GATE_HUE[c % 3]; g.globalAlpha = 0.5; g.lineWidth = 3; g.setLineDash([6, 6]); g.beginPath(); g.moveTo(P(x0), P(y0)); g.lineTo(P(x1), P(y1)); g.stroke(); g.setLineDash([]); g.globalAlpha = 1; }
+    g.lineCap = 'butt';
+}
 function rock(g, x, y, r, i) {
     g.save(); g.translate(x, y);
     const f = g.createLinearGradient(0, -r, 0, r); f.addColorStop(0, '#a8a29e'); f.addColorStop(1, '#57534e');
@@ -393,7 +473,7 @@ const game = aimGame({
     ...L,
     meta: { id: 'reefdrop', icon: '🪸', title: 'Reef Drop', blurb: `Drop pearls into a moving reef. Free every sleepy oyster, and land pearls in Shelly the hermit crab\'s shell to get them back. ${L.LEVELS.length} reefs.` },
     intro: 'Pull back to aim, let go to drop a pearl. Hit every <b>oyster twice</b> to free it. ⚡ Eels zap what\'s near them. 🦀 Land a pearl in <b>Shelly\'s shell</b> and you get it back! 🦔 Steer clear of sea urchins.',
-    hud: (lv, s) => `🦪 ${s.pegs.filter(p => (p.kind === 'o' || p.kind === 'g') && p.alive).length} · 🫧 ${s.left} · ${s.score}`,
+    hud: (lv, s) => `🦪 ${s.pegs.filter(p => (p.kind === 'o' || p.kind === 'g') && p.alive).length} · 🫧 ${s.left}${lv.pegs.some(p => p.kind === 'n') ? ` · 🪙 ${(s.coins || 0) % L.COIN_PEARL}/${L.COIN_PEARL}` : ''} · ${s.score}`,
     doneText: (lv, s) => `${s.score} points · ${s.left} pearl${s.left === 1 ? '' : 's'} left${s.caught ? ` · Shelly caught ${s.caught}` : ''}`,
     threeStars: () => '★★★ with 5 pearls left',
     react(ev, fx, s) {
@@ -412,6 +492,13 @@ const game = aimGame({
         ev.split.forEach(p => { const [x, y] = L.pegAt(p, s.t); fx.burst(x, y, '#f9a8d4', 18, 0.5); fx.sfx('coin_gain'); say('🌸 SPLIT! TWO PEARLS', '#f9a8d4', true); });
         ev.sealed.forEach(p => { _sealHit.set(p, t); fx.sfx('gate_close'); });
         if (ev.flipped) { fx.sfx('boost'); fx.buzz(15); }
+        ev.bubbled.forEach(p => { const [x, y] = L.pegAt(p, s.t); fx.burst(x, y, '#e0f2fe', 16, 0.45); fx.sfx('land_good'); });
+        ev.coins.forEach(p => { const [x, y] = L.pegAt(p, s.t); fx.burst(x, y, '#fde68a', 14, 0.4); });
+        if (ev.coinPearl) { say('🪙 THREE SAND DOLLARS! +1 🫧', '#fde68a', true); fx.sfx('win'); fx.buzz([30, 20, 60]); }
+        ev.bumped.forEach(p => { _bumpHit.set(p, t); fx.sfx('boost'); fx.buzz(10); });
+        ev.switched.forEach(p => { const [x, y] = L.pegAt(p, s.t); fx.burst(x, y, ['#f43f5e', '#22c55e', '#3b82f6'][(p.color || 0) % 3], 20, 0.5); fx.sfx('gate_open'); fx.buzz(20); say((s.open || [])[p.color || 0] ? '🔑 GATES OPEN!' : '🔒 GATES SHUT', '#fff'); });
+        if (ev.seesaw) { fx.sfx('boost'); fx.buzz([20, 20]); }
+        if (ev.eaten) { fx.burst(s.x, s.y, '#94a3b8', 20, 0.5); fx.sfx('land_bad'); fx.buzz([60]); fx.shake(6); say('🦈 CHOMP! PEARL LOST', '#cbd5e1'); }
         if (ev.spiked) { const [x, y] = L.pegAt(ev.spiked, s.t); _spiked.push({ x, y, t }); fx.burst(x, y, '#a78bfa', 16, 0.4); fx.sfx('land_bad'); fx.buzz([50]); fx.shake(5); say('🦔 OUCH! PEARL LOST', '#c4b5fd'); }
         if (ev.landed === 'crab') { _crab = { ..._crab, mood: 'yum', t }; fx.sfx('win'); fx.buzz([30, 30, 60]); fx.burst(s.x, L.FLOOR_Y - 0.03, '#fde047', 24, 0.6); say(`🦀 CAUGHT! ×${L.CATCH_X}`, '#fde047', true); }
         else if (ev.landed === 'sand') { fx.sfx('dice_land'); if (Math.abs(s.x - _crab.x) < 0.22) _crab = { ..._crab, mood: 'aww', t }; }
@@ -426,7 +513,7 @@ const game = aimGame({
         if (ev.warped) { _warps.push({ x: s.x, y: s.y, t }); fx.sfx('gate_open'); }
     },
     draw(g, P, lv, s, t) {
-        if (lv.name !== _name) { _name = lv.name; _pops = []; _zaps = []; _bursts = []; _warps = []; _blasts = []; _spiked = []; _sealHit = new Map(); _banner = null; _crab = { mood: '', t: 0, x: L.crabX(lv, s.t), dir: 1 }; _squish = new Map(); }
+        if (lv.name !== _name) { _name = lv.name; _pops = []; _zaps = []; _bursts = []; _warps = []; _blasts = []; _spiked = []; _sealHit = new Map(); _bumpHit = new Map(); _banner = null; _crab = { mood: '', t: 0, x: L.crabX(lv, s.t), dir: 1 }; _squish = new Map(); }
         if (s.flying && !_wasFlying) _launch = t;
         _wasFlying = s.flying;
         const w = P(L.W);
@@ -452,6 +539,10 @@ const game = aimGame({
         for (const c of lv.currents || []) current(g, P, ...c, t);
         for (const k of lv.kelp || []) kelp(g, P, ...k, t);
         for (const f of lv.flips || []) flip(g, P, f, t);
+        for (const r of lv.rails || []) rail(g, P, r, t);
+        for (const gt of lv.gates || []) gate(g, P, gt, L.gateShut(s, gt));
+        (lv.seesaws || []).forEach((w, k) => seesaw(g, P, w, (s.tilt || [])[k] ?? (w[3] || 1), t));
+        for (const sh of lv.sharks || []) shark(g, P, sh, s.t, t);
         for (const m of lv.magnets || []) { const on = L.pearls(s).some(b => L.tug(m, b.x, b.y) !== 0) ? 1 : 0; magnet(g, P, m, t, on); }
         // barnacles and what they lock: a faint line in the barnacle's colour
         for (const b of s.pegs) if (b.kind === 'b' && b.alive) for (const o of s.pegs) if (o.alive && o.lock === b.key) {
@@ -487,7 +578,11 @@ const game = aimGame({
             else if (p.kind === 'm') mine(g, x, y, r, t);
             else if (p.kind === 'a') anemone(g, x, y, r, t);
             else if (p.kind === 'b') barnacle(g, x, y, r, i);
+            else if (p.kind === 'n') coin(g, x, y + wob * 0.4, r, t);
+            else if (p.kind === 'q') bumper(g, x, y, r, Math.max(0, 1 - (t - (_bumpHit.get(p) || -9)) * 5));
+            else if (p.kind === 'w') switchBtn(g, x, y, r, p.color || 0, !!(s.open || [])[p.color || 0]);
             else rock(g, x, y, r, i);
+            if (p.bubble) bubbleShield(g, x, y, r, t);
             if (p.lock != null && L.locked(s, p)) { const sh = Math.max(0, 1 - (t - (_sealHit.get(p) || -9)) * 5); lockMark(g, x + sh * Math.sin(t * 60) * 3, y, r, p.lock); }
             g.globalAlpha = 1;
         });
