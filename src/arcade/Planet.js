@@ -18,8 +18,8 @@ import * as L from './PlanetLogic.js';
 import * as Solo from './SoloStats.js';
 import * as Store from './Store.js';
 import * as Audio from '../claw-core/engine/AudioManager.js';
-import * as K from './archive/TrickLogic.js';
-import { createTrial } from './archive/TrickScreen.js';
+import * as LL from './LairLogic.js';
+import { createLair } from './LairScreen.js';
 
 export const meta = { id: 'planet', icon: '🪐', title: 'Tiny Planet', blurb: 'A crab, a very small planet, and shooting stars. Gather shells, plant palms and build homes to grow a city of crabs, and catch the stars before they flatten it. How big can your city get?' };
 
@@ -41,7 +41,7 @@ export const THEMES = [
 ];
 const KEY = 'planet';
 let _sv = null;
-const sv = () => (_sv ||= { dust: 0, up: {}, skins: ['coral'], skin: 'coral', theme: 'sand', runs: 0, run: null, seen: {}, trick: {}, ...Store.load(KEY, {}) });
+const sv = () => (_sv ||= { dust: 0, up: {}, skins: ['coral'], skin: 'coral', theme: 'sand', runs: 0, run: null, seen: {}, trick: {}, lair: {}, ...Store.load(KEY, {}) });
 const persist = () => Store.save(KEY, sv());
 const bestCity = () => Solo.best('planetCity') || 0;
 const themeOpen = t => bestCity() >= t.pop;
@@ -94,7 +94,7 @@ export function mount(el) {
             <div class="tp-city"><b class="bfont" id="tp-pop">🦀 1</b><span id="tp-town">CAMP</span>
                 <div class="tp-clock"><i id="tp-clock"></i></div><small id="tp-day">☀️ DAY 1</small></div>
             <div class="tp-right"><div class="tp-res"><span>🐚 <b id="tp-shells">0</b></span><span>🥥 <b id="tp-nuts">0</b></span></div>
-                <button class="tp-pause" id="btn-tp-pause" aria-label="Pause">⏸</button></div>
+                <button class="tp-pause tp-hintbtn" id="btn-tp-hint" aria-label="Hint" hidden>💡</button><button class="tp-pause" id="btn-tp-pause" aria-label="Pause">⏸</button></div>
         </div>
         <div class="tp-trial" id="tp-trial" hidden><b class="bfont" id="tp-trial-n"></b><span id="tp-trial-s"></span></div>
         <div class="tp-goal" id="tp-goal"></div>
@@ -158,6 +158,7 @@ export function mount(el) {
     const actUp = e => { if (_actPtr !== null && e.pointerId === _actPtr) { _actPtr = null; holdThrow(false); } };
     on(window, 'pointerup', actUp); on(window, 'pointercancel', actUp);
     on($('btn-tp-pause'), 'click', () => pause());
+    on($('btn-tp-hint'), 'click', () => lairHint());
     on($('tp-over'), 'click', e => { const b = e.target.closest('[data-do]'); if (b) _do(b.dataset.do, b.dataset.arg); });
     on(window, 'resize', _size);
     on(document, 'visibilitychange', () => { _hidden = document.hidden; _last = performance.now(); if (_hidden) _autosave(); });
@@ -230,10 +231,10 @@ export function pause() {
     if (_mode === 'trick') {
         if (!_trial || _paused) return;
         _paused = true; _ptr = null; _stick = { x: 0, y: 0 }; const st = $('tp-stick'); if (st) st.hidden = true;
-        return _card(`<div class="tp-title bfont">⏸ PAUSED</div><div class="tp-stat">🥥 ${_trial.level.name}</div>
+        return _card(`<div class="tp-title bfont">⏸ PAUSED</div><div class="tp-stat">🐙 ${_trial.level.name}</div>
             <button class="go-btn bfont" data-do="resume" id="btn-tp-resume">RESUME</button>
             <button class="go-btn bfont tp-alt" data-do="trial-again">↻ START AGAIN</button>
-            <button class="go-btn bfont tp-alt" data-do="trials">ALL TRIALS</button>
+            <button class="go-btn bfont tp-alt" data-do="trials">THE LAIR</button>
             <button class="go-btn bfont tp-alt tp-quiet" data-do="city">‹ BACK TO THE CITY</button>`);
     }
     if (_mode !== 'play' || _paused || !_s || _s.over) return;
@@ -318,7 +319,7 @@ function _do(what, arg) {
     if (what === 'menu') return _menu();
     if (what === 'trial') return playTrial(+arg);
     if (what === 'trial-again') { _paused = false; $('tp-over').hidden = true; _trial?.restart(); _lastHud = ''; return; }
-    if (what === 'trials') return _trialsCard();
+    if (what === 'trials') return _lairCard();
     if (what === 'city') return _backToCity();
     if (what === 'shop') { if (_mode !== 'menu') _menu(); return _shop(); }
     const ok = what === 'up' ? buyUpgrade(arg) : what === 'skin' ? pickSkin(arg) : what === 'theme' ? pickTheme(arg) : false;
@@ -326,85 +327,93 @@ function _do(what, arg) {
     _shop();
 }
 
-// ── The Coconut Trials (through the Trick Hut) ──────────────────────────────
-const _starsOf = id => sv().trick[id] || [false, false, false];
+// ── Old Ink's Lair (through the Trick Hut) ───────────────────────────────────
+const _starsOf = id => sv().lair[id] || [false, false, false];
 const _starText = st => st.map(x => (x ? '⭐' : '☆')).join('');
-// (each set opens in order; the first skill course is open from the start)
-const _trialOpen = i => i === 0 || _starsOf(K.LEVELS[i - 1].id)[0] || (!!K.LEVELS[i].route && !K.LEVELS[i - 1].route);
-/** Walk into the Trick Hut: the city waits, saved, while the trials are on. */
+const FAST_S = 120, FIRST_CLEAR = 40, PER_STAR = 8;
+let _hintN = 0;
+/** Walk into the Trick Hut: the city waits, saved, while the lair is on. */
 export function enterTrials() {
     if (_mode !== 'play' || !_s || _s.over) return;
     _autosave();
     _mode = 'trick'; _paused = false; _ptr = null; _stick = { x: 0, y: 0 }; $('tp-stick').hidden = true;
     _hud_show(false);
     _sfx('go');
-    _trialsCard();
+    _lairCard();
 }
-function _trialsCard() {
+export const enterLair = enterTrials;
+function _lairCard() {
     if (_trial) { _trial.dispose(); _trial = null; }
     _paused = false; _hud_show(false);
-    const total = K.LEVELS.reduce((n, l) => n + _starsOf(l.id).filter(Boolean).length, 0);
-    _card(`<div class="tp-title bfont">🥥 COCONUT TRIALS</div>
-        <div class="tp-sub">Puzzle planets. <b>Throw</b> coconuts the way you face (hold to throw further) and <b>jump on them</b> to bounce.</div>
-        <div class="tp-stat">${total}/${K.LEVELS.length * 3} ⭐ · a new star pays 3 ✨ a chilli, a first clear 10 🐚 a chilli</div>
-        <div class="tp-lvls">${K.LEVELS.map((l, i) => `${i === 0 ? '<div class="tp-h">🥥 Coconut puzzles</div>' : l.route && !K.LEVELS[i - 1].route ? '<div class="tp-h">⏱️ Skill courses · timing and jumping</div>' : ''}<button class="tp-lvl" data-do="trial" data-arg="${i}" ${_trialOpen(i) ? '' : 'disabled'}><b class="bfont">${i + 1}</b><span>${_trialOpen(i) ? `${l.name} ${'🌶️'.repeat(l.tier || 1)}` : '🔒'}</span><i>${_starText(_starsOf(l.id))}</i></button>`).join('')}</div>
+    const total = LL.CHAMBERS.reduce((n, c) => n + _starsOf(c.id).filter(Boolean).length, 0);
+    _card(`<div class="tp-title bfont">🐙 OLD INK'S LAIR</div>
+        <div class="tp-sub">Old Ink the octopus has stolen the <b>Tide Pearl</b> that kept the planet's tides gentle. His lair lies under this hut, and his gulls keep watch.</div>
+        <div class="tp-sub">You carry up to <b>3 coconuts</b>. <b>Hold 🥥 and let go to throw</b> one, <b>walk into it</b> to pick it up, <b>jump on it</b> to bounce. They float, they plug, they weigh things down.</div>
+        <div class="tp-stat">${total}/${LL.CHAMBERS.length * 3} ⭐ · a first clear pays ${FIRST_CLEAR} 🐚, each new star ${PER_STAR} ✨</div>
+        <div class="tp-lvls">${LL.CHAMBERS.map((c, i) => `<button class="tp-lvl" data-do="trial" data-arg="${i}"><b class="bfont">${i + 1}</b><span>${c.name}</span><i>${_starText(_starsOf(c.id))}</i></button>`).join('')}
+            <div class="tp-sub" style="opacity:.7">More chambers soon…</div></div>
         <button class="go-btn bfont tp-alt" data-do="city" id="btn-tp-city">‹ BACK TO THE CITY</button>`, true);
 }
-/** Start trial i (0-based). */
+/** Start chamber i (0-based). */
 export function playTrial(i) {
-    const lv = K.LEVELS[i];
+    const lv = LL.CHAMBERS[i];
     if (!lv || !_gl || _mode !== 'trick') return null;
     if (_trial) _trial.dispose();
-    _paused = false; $('tp-over').hidden = true;
-    _trial = createTrial({ T, renderer: _gl.renderer, crab: color => _crab(color, 0.62), pose: _crabPose, skin: skin().color }, lv, {
-        say: _say, hint: _hintNow, sfx: _sfx, buzz: _buzz, pop: (v, text) => _popAt(v, text, _trial?.camera), won: (st, s) => _trialWon(lv, st, s),
+    _paused = false; _hintN = 0; $('tp-over').hidden = true;
+    _trial = createLair({ T, renderer: _gl.renderer, crab: color => _crab(color, 0.62), pose: _crabPose, skin: skin().color }, lv, {
+        say: _say, hint: _hintNow, sfx: _sfx, buzz: _buzz, pop: (v, text) => _popAt(v, text, _trial?.camera), won: s => _lairWon(lv, s),
     });
-    $('tp-trial').hidden = false; $('tp-acts').hidden = false; $('tp-goal').hidden = false; $('tp-top').hidden = false; $('tp-top').classList.add('trial');
+    $('tp-trial').hidden = false; $('tp-acts').hidden = false; $('tp-goal').hidden = false; $('tp-top').hidden = false; $('tp-top').classList.add('trial'); $('btn-tp-hint').hidden = false;
     _lastHud = '';
-    _say(`🥥 ${lv.name}`, '#fde047');
+    _say(`🐙 ${lv.name}`, '#fde047');
+    _hintNow(lv.story, 5);
     return _trial;
 }
-/** The throw button in a trial: down winds up, up throws. */
+export const playLair = playTrial;
+/** The throw button in the lair: down winds up, up throws. */
 export function holdThrow(on) { if (_mode === 'trick' && _trial && !_paused) return _trial.hold(on); return null; }
-function _trialHud() {
-    const s = _trial.state(), lv = _trial.level, i = K.LEVELS.indexOf(lv), k = _trial.charging();
+/** The 💡 button: the next hint for this chamber. */
+export function lairHint() { if (_mode !== 'trick' || !_trial) return; _hintN = Math.min(_trial.level.hints.length, _hintN + 1); _lastHud = ''; _sfx('tick'); }
+function _lairHud() {
+    const s = _trial.state(), lv = _trial.level, i = LL.CHAMBERS.indexOf(lv), k = _trial.charging(), n = LL.count(s);
     const hint = _hintT > 0 ? _hintMsg : '';
-    const sig = [lv.id, s.throws, s.falls, s.shell, hint, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
+    const sig = [lv.id, n.held, n.loose, n.working, n.gull, s.falls, hint, _hintN, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
     if (sig === _lastHud) return;
     _lastHud = sig;
-    $('tp-trial-n').textContent = `🥥 ${i + 1}/${K.LEVELS.length} ${lv.name}`;
-    $('tp-trial-s').textContent = `${lv.clean ? (s.falls ? `FALLS ${s.falls}` : 'NO FALLS YET') : `THROWS ${s.throws} · PAR ${lv.par}`} · ${s.shell ? '🐚 GOT IT' : '🐚 FIND THE GOLDEN SHELL'}`;
-    const goal = $('tp-goal'); goal.textContent = `💡 ${lv.hint}`; goal.classList.remove('tut'); goal.classList.add('wide');
-    const ab = $('btn-tp-act'); ab.classList.remove('off', 'idle'); ab.hidden = !!lv.route; ab.querySelector('span').textContent = '🥥'; ab.querySelector('small').textContent = k >= 0 ? 'LET GO!' : 'HOLD: THROW';
+    $('tp-trial-n').textContent = `🐙 ${i + 1}/${LL.CHAMBERS.length} ${lv.name}`;
+    $('tp-trial-s').textContent = `${'🥥'.repeat(n.held)}${'▫️'.repeat(LL.CARRY - n.held)} ${n.held}/${LL.CARRY}${n.gull ? ' · 🐦 HAS ONE' : ''}${n.working ? ` · ${n.working} AT WORK` : ''}${s.falls ? ` · FALLS ${s.falls}` : ''}`;
+    const goal = $('tp-goal'); goal.textContent = _hintN ? `💡 ${_hintN}/${lv.hints.length}: ${lv.hints[_hintN - 1]}` : '🎯 REACH THE TIDE PEARL · 💡 FOR A HINT'; goal.classList.remove('tut'); goal.classList.add('wide');
+    const ab = $('btn-tp-act'); ab.classList.remove('off', 'idle'); ab.hidden = false; ab.querySelector('span').textContent = '🥥'; ab.querySelector('small').textContent = n.held < 1 ? 'NONE' : k >= 0 ? 'LET GO!' : 'HOLD: THROW';
+    ab.classList.toggle('off', n.held < 1 && k < 0);
     ab.style.setProperty('--k', k >= 0 ? k : 0);
     $('btn-tp-jump').classList.toggle('off', s.crab.air);
     $('tp-hint').textContent = hint;
 }
-function _trialWon(lv, st, s) {
-    const save = sv(), had = _starsOf(lv.id), now = had.map((x, i) => x || st[i]);
-    const fresh = now.filter(Boolean).length - had.filter(Boolean).length, first = !had[0], tier = lv.tier || 1, dust = fresh * 3 * tier, shells = first ? 10 * tier : 0;
-    save.trick[lv.id] = now; save.dust += dust; persist();
+function _lairWon(lv, s) {
+    const save = sv(), had = _starsOf(lv.id), st = [true, s.falls === 0, s.t <= FAST_S], now = had.map((x, i) => x || st[i]);
+    const fresh = now.filter(Boolean).length - had.filter(Boolean).length, first = !had[0], dust = fresh * PER_STAR, shells = first ? FIRST_CLEAR : 0;
+    save.lair[lv.id] = now; save.dust += dust; persist();
     _trialOwed += shells;
     Solo.bump('planetTrials', fresh);
-    const i = K.LEVELS.indexOf(lv), next = K.LEVELS[i + 1];
+    const next = LL.CHAMBERS[LL.CHAMBERS.indexOf(lv) + 1];
     _paused = true;
-    _card(`<div class="tp-title bfont">🚩 TRIAL DONE!</div>
+    _card(`<div class="tp-title bfont">🔮 THE TIDE PEARL!</div>
+        <div class="tp-sub">Old Ink sinks back into the dark, and the tides settle. For now…</div>
         <div class="tp-big bfont">${_starText(st)}</div>
-        <div class="tp-sub">${lv.clean ? (st[1] ? 'Without a single fall!' : `${s.falls} fall${s.falls === 1 ? '' : 's'}: do it clean for the second star`) : st[1] ? `In ${s.throws} throw${s.throws === 1 ? '' : 's'}: on par!` : `${s.throws} throws (par ${lv.par})`} · ${st[2] ? 'golden shell found' : 'the golden shell is still out there'}</div>
+        <div class="tp-sub">${st[1] ? 'No falls' : `${s.falls} fall${s.falls === 1 ? '' : 's'} (none for a star)`} · ${st[2] ? 'quick' : `${Math.round(s.t)} s (under ${FAST_S} for a star)`}</div>
         ${dust || shells ? `<div class="tp-dust bfont">${dust ? `+${dust} ✨` : ''}${shells ? ` +${shells} 🐚` : ''}</div>` : ''}
-        ${next ? `<button class="go-btn bfont" data-do="trial" data-arg="${i + 1}" id="btn-tp-next">NEXT TRIAL</button>` : '<div class="tp-stat">That was the last one. More worlds to come!</div>'}
-        <button class="go-btn bfont tp-alt" data-do="trial" data-arg="${i}">↻ AGAIN</button>
-        <button class="go-btn bfont tp-alt" data-do="trials">ALL TRIALS</button>
-        <button class="go-btn bfont tp-alt tp-quiet" data-do="city">‹ BACK TO THE CITY</button>`);
+        ${next ? `<button class="go-btn bfont" data-do="trial" data-arg="${LL.CHAMBERS.indexOf(lv) + 1}" id="btn-tp-next">NEXT CHAMBER</button>` : '<div class="tp-stat">That was the first chamber. Deeper ones are coming!</div>'}
+        <button class="go-btn bfont tp-alt" data-do="trial" data-arg="${LL.CHAMBERS.indexOf(lv)}">↻ AGAIN</button>
+        <button class="go-btn bfont tp-alt tp-quiet" data-do="city" id="btn-tp-city">‹ BACK TO THE CITY</button>`);
 }
 function _backToCity() {
     if (_trial) { _trial.dispose(); _trial = null; }
     _mode = 'play'; _paused = false; _lastHud = ''; _last = performance.now();
-    $('tp-over').hidden = true; $('tp-top').classList.remove('trial'); $('tp-goal').classList.remove('wide');
-    $('btn-tp-act').style.removeProperty('--k');
+    $('tp-over').hidden = true; $('tp-top').classList.remove('trial'); $('tp-goal').classList.remove('wide'); $('btn-tp-hint').hidden = true;
+    $('btn-tp-act').style.removeProperty('--k'); $('btn-tp-act').hidden = false;
     _hud_show(true);
     if (_gl) { _gl.camP = null; _size(); }
-    if (_trialOwed) { _s.shells += _trialOwed; _say(`🥥 THE TRIALS PAID ${_trialOwed} 🐚`, '#fde047'); _trialOwed = 0; }
+    if (_trialOwed) { _s.shells += _trialOwed; _say(`🐙 THE LAIR PAID ${_trialOwed} 🐚`, '#fde047'); _trialOwed = 0; }
     _autosave();
 }
 
@@ -461,7 +470,7 @@ function _frame(dt) {
             let stick = _stick;
             if (_keys.l || _keys.r || _keys.u || _keys.d) stick = { x: (_keys.r ? 1 : 0) - (_keys.l ? 1 : 0), y: (_keys.u ? 1 : 0) - (_keys.d ? 1 : 0) };
             _trial.frame(_paused ? 0 : dt, stick);
-            _trialHud();
+            _lairHud();
         } else if (_gl) _draw(0);
         return;
     }
@@ -498,7 +507,7 @@ function _watch() {
     if (s.course && !s.course.done && L.dist(s, s.course.pts[0], c.p) < 4.5) _tip('course', '🪵 A BOARDWALK. Up the ramp and along the planks: ⬆️ JUMP the gaps and the low red bars, wait for the tall purple ones to swing past. The chillies on the sign say how hard it is; harder ones pay ✨ too.');
     if (s.stars.some(x => x.big)) _tip('big', '☄️ A RED RING can\'t be caught. Get clear, let a 🔮 tower take it, or throw a 🪨 at it.');
     const hutT = s.builds.find(b => b.kind === 'trick');
-    if (hutT && L.dist(s, hutT.p, c.p) < 4) _tip('trick', '🥥 THE TRICK HUT. Walk in for the Coconut Trials: puzzle planets where you throw coconuts and bounce on them. They pay shells and stardust.');
+    if (hutT && L.dist(s, hutT.p, c.p) < 4) _tip('trick', '🐙 THE TRICK HUT is the way into Old Ink\'s lair: a puzzle planet where you throw coconuts and bounce on them. It pays shells and stardust.');
     const x = L.context(s);
     if (x && x.kind === 'bigger' && x.ok) _tip('bigger', '🏠 ✋ here makes this home bigger: one more crab, for less than a new home.');
     if (x && x.kind === 'shake') _tip('shake', '🌴 ✋ here shakes the palm: a coconut drops at once.');
@@ -1000,7 +1009,7 @@ export function _debug() {
         air: s?.crab.air || 0, carry: s?.crab.carry || null, course: s?.course ? { k: s.course.k, got: s.course.got, done: s.course.done, n: s.course.pts.length, tier: s.course.tier, cp: s.course.cp } : null, reach: !!_gl?.reach.visible,
         drawn: { builds: _vis.builds.size, items: _vis.items.size, stars: _vis.stars.size, course: _courseVis ? _courseVis.parts.length : 0 }, dust: sv().dust, up: { ...sv().up }, skin: sv().skin, theme: theme().id,
         saved: sv().run ? { day: sv().run.day, shells: sv().run.shells } : null, seen: Object.keys(sv().seen), tip: _el && !$('tp-tip').hidden ? $('tp-tip').textContent : '',
-        trial: _trial ? { id: _trial.level.id, won: _trial.state().won, throws: _trial.state().throws, nuts: _trial.state().nuts.length, h: +_trial.state().crab.h.toFixed(2), charging: _trial.charging() } : null, trick: { ...sv().trick },
+        trial: _trial ? { id: _trial.level.id, won: _trial.state().won, throws: _trial.state().throws, held: _trial.state().crab.nuts, count: LL.count(_trial.state()), falls: _trial.state().falls, cp: _trial.state().cp, plug: { ..._trial.state().plug }, open: { ..._trial.state().open }, gull: _trial.state().gull ? _trial.state().gull.state : null, h: +_trial.state().crab.h.toFixed(2), charging: _trial.charging() } : null, lair: { ...sv().lair },
         calls: _gl ? _gl.renderer.info.render.calls : 0 };
 }
 export const _game = () => _s;

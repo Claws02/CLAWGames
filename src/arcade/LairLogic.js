@@ -80,7 +80,7 @@ export const covers = (o, p) => { const a = lonOf(p, o.c || TOP); return o.only 
 // the bullseye.
 const A = at(10.05, 70), B = at(9.95, 30), SHELF = at(7.9, 26), BANK = 15.4;
 export const STAIR = {
-    id: 'stair', name: 'THE DROWNED STAIR', start: at(18.4, 0), goal: TOP, palm: at(17.5, -14), bank: BANK,
+    id: 'stair', name: 'THE DROWNED STAIR', start: at(18.4, 0), goal: TOP, palm: at(17.7, -42), bank: BANK,
     story: 'Old Ink has the Tide Pearl. His lair starts here: a rip current, a cliff, and a gull on watch. Three coconuts are all you have.',
     hints: ['Vent A is bubbling in its cove. Only one vent blows at a time.', 'A coconut floats. The current goes past the cove.', 'Drop one in the water above the cove, on the far side of the current.', 'Up on the shelf there are three jobs and only two coconuts. What else bounces?'],
     checks: [at(18.4, 0), SHELF], zones: { 1: [5.7, 9.1] },          // (anywhere on the shelf counts as reaching its flag)

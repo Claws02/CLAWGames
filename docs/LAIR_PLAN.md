@@ -66,13 +66,17 @@ The answer:
   single jump can't reach vent B's rock; floating coconuts drift past rocks; only the cove's vent
   takes a floating coconut (a drift over B's rock can't spoil B); the eddy moves coconuts only,
   never a crab; the current is 6.5 and a wading crab makes 1.5.
-- Not started: `LairScreen.js` (the 3D), wiring into `Planet.js`, the browser probe, docs.
-- The app still plays the archived trials (Planet.js imports them from `archive/`).
+- Done: `src/arcade/LairScreen.js` (the 3D chamber), wired into `Planet.js` (the Trick Hut opens
+  the lair; a 💡 button reveals hints one at a time; the throw button is always there and says
+  when the claws are empty), `qa/planet.js` plays the answer on screen. First clear pays 40
+  shells; each new star 8 stardust.
+- Waiting on Caleb: play it and say where it felt unfair, too easy or confusing.
 
-## Next steps, in order
+## Next steps
 
-1. `src/arcade/LairScreen.js`: the scene for a chamber on Tiny Planet's renderer (start from
-   `archive/TrickScreen.js`).
-2. Wire into `Planet.js` in place of the trials.
-3. Browser probe, README, STATUS, smoke, PR.
-4. Caleb plays it. Tune. Then write down the template for chamber 2.
+1. Caleb plays chamber 1. Tune it from what he says (the lane the coconut can be dropped in is
+   wide, so the first insight is cheap; the timing of the gull; how far the throw reaches).
+2. Write down the template for chamber 2 from what was learned.
+3. Then chamber 2: the next new rule (ideas: ink pools that can be crossed by a coconut raft;
+   hot rock to hop across between cooling platforms; a tentacle that sweeps a bridge; bubble
+   vents that lift a coconut as well as a crab).

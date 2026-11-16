@@ -40,8 +40,9 @@ node qa/icefloe.mjs  # Ice Floe (par is the shortest route) and Rock Pool Paths 
 node qa/coral.mjs    # Coral Merge physics: falling, merging, chains, the treasure burst, the bubble, game over, determinism, no pulsing pile; no browser
 node qa/kite.mjs     # Kite Wind: every ring within reach of the last, gulls clear of rings, a pilot flies 12 × 100 s; no browser
 node qa/planet.mjs   # Tiny Planet rules: the walk round the sphere, building, the city's steps, jump and perfect catches, the action button, rocks, the boardwalk, towers, markets, saving, how the autopilot gets on; no browser
-node qa/archive/trick.mjs    # Coconut Trials rules: throws, the bounce, walls, rafts, plates, bullseyes, bank shots, the trick shot; sweepers, sinking stones, gates on a beat, springs, flags, coyote time; every puzzle's answer earns three stars; every skill course is finished clean by a look-ahead player and goes wrong if just walked through; no browser
-node qa/planet.js    # Tiny Planet in the browser: full screen, a finger drag walks, the buttons, the boardwalk, pause / save & leave / continue, the Trick Hut and all six Coconut Trials, the end, the workshop kept after a reload
+node qa/lair.mjs     # Old Ink's Lair, chamber 1: carrying and throwing coconuts, the current, the vents, the gull, and the answer played through; then searches (14,508 throws, 1,890 wading tries, ...) showing the other ways are shut; no browser
+node qa/archive/trick.mjs   # the retired Coconut Trials (src/arcade/archive/): still passes, nothing imports them; no browser
+node qa/planet.js    # Tiny Planet in the browser: full screen, a finger drag walks, the buttons, the boardwalk, pause / save & leave / continue, the Trick Hut and Old Ink's Lair (coconuts picked up and thrown with the real button, hints, the answer played on screen), the end, the workshop kept after a reload
 node qa/dailygames.js # Ice Floe, Rock Pool Paths, Coral Merge, Kite Wind, Prize Shelf by tapping; TODAY, a tide pass, SHARE
 node qa/trophies.js   # trophy rules, persistence, old saves, the screen, a real game
 node qa/yatzy.js      # Yatzy scoring rules, a game vs a bot, a two-player tabletop game
