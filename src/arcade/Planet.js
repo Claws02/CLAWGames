@@ -18,6 +18,8 @@ import * as L from './PlanetLogic.js';
 import * as Solo from './SoloStats.js';
 import * as Store from './Store.js';
 import * as Audio from '../claw-core/engine/AudioManager.js';
+import * as K from './TrickLogic.js';
+import { createTrial } from './TrickScreen.js';
 
 export const meta = { id: 'planet', icon: '🪐', title: 'Tiny Planet', blurb: 'A crab, a very small planet, and shooting stars. Gather shells, plant palms and build homes to grow a city of crabs, and catch the stars before they flatten it. How big can your city get?' };
 
@@ -39,7 +41,7 @@ export const THEMES = [
 ];
 const KEY = 'planet';
 let _sv = null;
-const sv = () => (_sv ||= { dust: 0, up: {}, skins: ['coral'], skin: 'coral', theme: 'sand', runs: 0, run: null, seen: {}, ...Store.load(KEY, {}) });
+const sv = () => (_sv ||= { dust: 0, up: {}, skins: ['coral'], skin: 'coral', theme: 'sand', runs: 0, run: null, seen: {}, trick: {}, ...Store.load(KEY, {}) });
 const persist = () => Store.save(KEY, sv());
 const bestCity = () => Solo.best('planetCity') || 0;
 const themeOpen = t => bestCity() >= t.pop;
@@ -66,7 +68,8 @@ export function pickTheme(id) { const t = THEMES.find(x => x.id === id); if (!t 
 
 // ── Module state ────────────────────────────────────────────────────────────
 let _el = null, _offs = [], _raf = 0, _last = 0, _hidden = false, _paused = false;
-let _s = null, _mode = 'menu';             // 'menu' (the autopilot's island behind the card) | 'play' | 'over'
+let _s = null, _mode = 'menu';             // 'menu' (the autopilot's island behind the card) | 'play' | 'over' | 'trick' (the Coconut Trials)
+let _trial = null, _trialOwed = 0;          // the trial on screen (null: its cards), and shells won there for the city
 let _stick = { x: 0, y: 0 }, _keys = {}, _ptr = null, _auto = false, _speed = 1;
 let T = null;                               // window.THREE, taken at mount
 let _gl = null;                             // { renderer, scene, camera, ... } or null without WebGL
@@ -93,6 +96,7 @@ export function mount(el) {
             <div class="tp-right"><div class="tp-res"><span>🐚 <b id="tp-shells">0</b></span><span>🥥 <b id="tp-nuts">0</b></span></div>
                 <button class="tp-pause" id="btn-tp-pause" aria-label="Pause">⏸</button></div>
         </div>
+        <div class="tp-trial" id="tp-trial" hidden><b class="bfont" id="tp-trial-n"></b><span id="tp-trial-s"></span></div>
         <div class="tp-goal" id="tp-goal"></div>
         <div class="tp-banner bfont" id="tp-banner"></div>
         <div class="tp-pops" id="tp-pops"></div>
@@ -115,7 +119,7 @@ export function mount(el) {
     const wrap = $('tp-wrap'), cv = $('tp-cv');
     // The thumb stick floats: it starts wherever the finger lands.
     on(cv, 'pointerdown', e => {
-        if (_mode !== 'play' || _paused || _ptr) return;
+        if ((_mode !== 'play' && !(_mode === 'trick' && _trial)) || _paused || _ptr) return;
         e.preventDefault();
         const r = wrap.getBoundingClientRect();
         _ptr = { id: e.pointerId, x: e.clientX, y: e.clientY };
@@ -132,7 +136,14 @@ export function mount(el) {
     on(window, 'pointerup', up); on(window, 'pointercancel', up);
     const key = (e, d) => {
         const k = { ArrowLeft: 'l', a: 'l', ArrowRight: 'r', d: 'r', ArrowUp: 'u', w: 'u', ArrowDown: 'd', s: 'd' }[e.key];
-        if (k) { _keys[k] = d; if (_mode === 'play') e.preventDefault(); return; }
+        if (k) { _keys[k] = d; if (_mode === 'play' || _mode === 'trick') e.preventDefault(); return; }
+        if (_mode === 'trick') {
+            if (!_trial || e.repeat) return;
+            if (e.key === ' ' && d) { e.preventDefault(); pressJump(); }
+            else if (e.key === 'e' || e.key === 'Enter') holdThrow(d);
+            else if (d && (e.key === 'Escape' || e.key === 'p')) (_paused ? resume() : pause());
+            return;
+        }
         if (!d || _mode !== 'play') return;
         if (e.key === ' ') { e.preventDefault(); pressJump(); }
         else if (e.key === 'e' || e.key === 'Enter') pressAct();
@@ -143,7 +154,9 @@ export function mount(el) {
     on($('tp-bar'), 'click', e => { const b = e.target.closest('button'); if (b) press(b.dataset.build); });
     // (pointerdown, so a jump is never a beat late)
     on($('btn-tp-jump'), 'pointerdown', e => { e.preventDefault(); pressJump(); });
-    on($('btn-tp-act'), 'pointerdown', e => { e.preventDefault(); pressAct(); });
+    on($('btn-tp-act'), 'pointerdown', e => { e.preventDefault(); if (_mode === 'trick') { _actPtr = e.pointerId; holdThrow(true); } else pressAct(); });
+    const actUp = e => { if (_actPtr !== null && e.pointerId === _actPtr) { _actPtr = null; holdThrow(false); } };
+    on(window, 'pointerup', actUp); on(window, 'pointercancel', actUp);
     on($('btn-tp-pause'), 'click', () => pause());
     on($('tp-over'), 'click', e => { const b = e.target.closest('[data-do]'); if (b) _do(b.dataset.do, b.dataset.arg); });
     on(window, 'resize', _size);
@@ -172,6 +185,7 @@ export function unmount() {
         _gl.renderer.dispose(); try { _gl.renderer.forceContextLoss(); } catch (e) {}
         _gl = null;
     }
+    if (_trial) { _trial.dispose(); _trial = null; }
     Object.values(_vis).forEach(m => m.clear()); _courseVis = null;
     _el = null; _s = null; _ptr = null; _keys = {}; _stick = { x: 0, y: 0 }; _auto = false; _speed = 1; _paused = false; _tips = [];
 }
@@ -189,7 +203,8 @@ function _begin(s) {
     _clearVis();
     _s = s; _mode = 'play'; _auto = false; _paused = false; _visR = s.R; _overAt = 0; _lastHud = ''; _tips = []; _tipT = 0;
     $('tp-over').hidden = true;
-    ['tp-top', 'tp-bar', 'tp-acts', 'tp-goal'].forEach(id => { $(id).hidden = false; });
+    _hud_show(true);
+    if (_trial) { _trial.dispose(); _trial = null; }
     _applyLook();
 }
 /** A new city of your own. rnd: probes pass a seeded one. */
@@ -212,6 +227,15 @@ function _autosave() {
     sv().run = L.save(_s); persist();
 }
 export function pause() {
+    if (_mode === 'trick') {
+        if (!_trial || _paused) return;
+        _paused = true; _ptr = null; _stick = { x: 0, y: 0 }; const st = $('tp-stick'); if (st) st.hidden = true;
+        return _card(`<div class="tp-title bfont">⏸ PAUSED</div><div class="tp-stat">🥥 ${_trial.level.name}</div>
+            <button class="go-btn bfont" data-do="resume" id="btn-tp-resume">RESUME</button>
+            <button class="go-btn bfont tp-alt" data-do="trial-again">↻ START AGAIN</button>
+            <button class="go-btn bfont tp-alt" data-do="trials">ALL TRIALS</button>
+            <button class="go-btn bfont tp-alt tp-quiet" data-do="city">‹ BACK TO THE CITY</button>`);
+    }
     if (_mode !== 'play' || _paused || !_s || _s.over) return;
     _paused = true; _ptr = null; _stick = { x: 0, y: 0 }; const k = $('tp-stick'); if (k) k.hidden = true;
     _autosave();
@@ -226,7 +250,7 @@ export function pause() {
 export function resume() { if (!_paused) return; _paused = false; $('tp-over').hidden = true; _last = performance.now(); }
 function _leave() { _autosave(); document.querySelector('#scr-sologame [data-back]')?.click(); }
 
-function _hud_show(on) { ['tp-top', 'tp-bar', 'tp-acts', 'tp-goal'].forEach(id => { $(id).hidden = !on; }); if (!on) { $('tp-hint').textContent = ''; $('tp-tip').hidden = true; } }
+function _hud_show(on) { $('tp-trial').hidden = true; $('tp-top').classList.remove('trial'); $('tp-goal').classList.remove('wide'); $('btn-tp-act').style.removeProperty('--k'); ['tp-top', 'tp-bar', 'tp-acts', 'tp-goal'].forEach(id => { $(id).hidden = !on; }); if (!on) { $('tp-hint').textContent = ''; $('tp-tip').hidden = true; } }
 
 function _menu() {
     // The autopilot's island, behind the card.
@@ -292,10 +316,95 @@ function _do(what, arg) {
     if (what === 'leave' || what === 'exit') return _leave();
     if (what === 'giveup') { _paused = false; _s.over = true; _overAt = 0; return _end(); }
     if (what === 'menu') return _menu();
+    if (what === 'trial') return playTrial(+arg);
+    if (what === 'trial-again') { _paused = false; $('tp-over').hidden = true; _trial?.restart(); _lastHud = ''; return; }
+    if (what === 'trials') return _trialsCard();
+    if (what === 'city') return _backToCity();
     if (what === 'shop') { if (_mode !== 'menu') _menu(); return _shop(); }
     const ok = what === 'up' ? buyUpgrade(arg) : what === 'skin' ? pickSkin(arg) : what === 'theme' ? pickTheme(arg) : false;
     if (ok) { _sfx('coin_gain'); _buzz(12); _applyLook(); }
     _shop();
+}
+
+// ── The Coconut Trials (through the Trick Hut) ──────────────────────────────
+const _starsOf = id => sv().trick[id] || [false, false, false];
+const _starText = st => st.map(x => (x ? '⭐' : '☆')).join('');
+const _trialOpen = i => i === 0 || _starsOf(K.LEVELS[i - 1].id)[0];
+/** Walk into the Trick Hut: the city waits, saved, while the trials are on. */
+export function enterTrials() {
+    if (_mode !== 'play' || !_s || _s.over) return;
+    _autosave();
+    _mode = 'trick'; _paused = false; _ptr = null; _stick = { x: 0, y: 0 }; $('tp-stick').hidden = true;
+    _hud_show(false);
+    _sfx('go');
+    _trialsCard();
+}
+function _trialsCard() {
+    if (_trial) { _trial.dispose(); _trial = null; }
+    _paused = false; _hud_show(false);
+    const total = K.LEVELS.reduce((n, l) => n + _starsOf(l.id).filter(Boolean).length, 0);
+    _card(`<div class="tp-title bfont">🥥 COCONUT TRIALS</div>
+        <div class="tp-sub">Puzzle planets. <b>Throw</b> coconuts the way you face (hold to throw further) and <b>jump on them</b> to bounce.</div>
+        <div class="tp-stat">${total}/${K.LEVELS.length * 3} ⭐ · each new star pays 3 ✨, each trial 10 🐚 for your city</div>
+        <div class="tp-lvls">${K.LEVELS.map((l, i) => `<button class="tp-lvl" data-do="trial" data-arg="${i}" ${_trialOpen(i) ? '' : 'disabled'}><b class="bfont">${i + 1}</b><span>${_trialOpen(i) ? l.name : '🔒'}</span><i>${_starText(_starsOf(l.id))}</i></button>`).join('')}</div>
+        <button class="go-btn bfont tp-alt" data-do="city" id="btn-tp-city">‹ BACK TO THE CITY</button>`, true);
+}
+/** Start trial i (0-based). */
+export function playTrial(i) {
+    const lv = K.LEVELS[i];
+    if (!lv || !_gl || _mode !== 'trick') return null;
+    if (_trial) _trial.dispose();
+    _paused = false; $('tp-over').hidden = true;
+    _trial = createTrial({ T, renderer: _gl.renderer, crab: color => _crab(color, 0.62), pose: _crabPose, skin: skin().color }, lv, {
+        say: _say, hint: _hintNow, sfx: _sfx, buzz: _buzz, pop: (v, text) => _popAt(v, text, _trial?.camera), won: (st, s) => _trialWon(lv, st, s),
+    });
+    $('tp-trial').hidden = false; $('tp-acts').hidden = false; $('tp-goal').hidden = false; $('tp-top').hidden = false; $('tp-top').classList.add('trial');
+    _lastHud = '';
+    _say(`🥥 ${lv.name}`, '#fde047');
+    return _trial;
+}
+/** The throw button in a trial: down winds up, up throws. */
+export function holdThrow(on) { if (_mode === 'trick' && _trial && !_paused) return _trial.hold(on); return null; }
+function _trialHud() {
+    const s = _trial.state(), lv = _trial.level, i = K.LEVELS.indexOf(lv), k = _trial.charging();
+    const hint = _hintT > 0 ? _hintMsg : '';
+    const sig = [lv.id, s.throws, s.shell, hint, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
+    if (sig === _lastHud) return;
+    _lastHud = sig;
+    $('tp-trial-n').textContent = `🥥 ${i + 1}/${K.LEVELS.length} ${lv.name}`;
+    $('tp-trial-s').textContent = `THROWS ${s.throws} · PAR ${lv.par} · ${s.shell ? '🐚 GOT IT' : '🐚 FIND THE GOLDEN SHELL'}`;
+    const goal = $('tp-goal'); goal.textContent = `💡 ${lv.hint}`; goal.classList.remove('tut'); goal.classList.add('wide');
+    const ab = $('btn-tp-act'); ab.classList.remove('off', 'idle'); ab.querySelector('span').textContent = '🥥'; ab.querySelector('small').textContent = k >= 0 ? 'LET GO!' : 'HOLD: THROW';
+    ab.style.setProperty('--k', k >= 0 ? k : 0);
+    $('btn-tp-jump').classList.toggle('off', s.crab.air);
+    $('tp-hint').textContent = hint;
+}
+function _trialWon(lv, st, s) {
+    const save = sv(), had = _starsOf(lv.id), now = had.map((x, i) => x || st[i]);
+    const fresh = now.filter(Boolean).length - had.filter(Boolean).length, first = !had[0];
+    save.trick[lv.id] = now; save.dust += fresh * 3; persist();
+    if (first) _trialOwed += 10;
+    Solo.bump('planetTrials', fresh);
+    const i = K.LEVELS.indexOf(lv), next = K.LEVELS[i + 1];
+    _paused = true;
+    _card(`<div class="tp-title bfont">🚩 TRIAL DONE!</div>
+        <div class="tp-big bfont">${_starText(st)}</div>
+        <div class="tp-sub">${st[1] ? `In ${s.throws} throw${s.throws === 1 ? '' : 's'}: on par!` : `${s.throws} throws (par ${lv.par})`} · ${st[2] ? 'golden shell found' : 'the golden shell is still out there'}</div>
+        ${fresh || first ? `<div class="tp-dust bfont">${fresh ? `+${fresh * 3} ✨` : ''}${first ? ` +10 🐚` : ''}</div>` : ''}
+        ${next ? `<button class="go-btn bfont" data-do="trial" data-arg="${i + 1}" id="btn-tp-next">NEXT TRIAL</button>` : '<div class="tp-stat">That was the last one. More worlds to come!</div>'}
+        <button class="go-btn bfont tp-alt" data-do="trial" data-arg="${i}">↻ AGAIN</button>
+        <button class="go-btn bfont tp-alt" data-do="trials">ALL TRIALS</button>
+        <button class="go-btn bfont tp-alt tp-quiet" data-do="city">‹ BACK TO THE CITY</button>`);
+}
+function _backToCity() {
+    if (_trial) { _trial.dispose(); _trial = null; }
+    _mode = 'play'; _paused = false; _lastHud = ''; _last = performance.now();
+    $('tp-over').hidden = true; $('tp-top').classList.remove('trial'); $('tp-goal').classList.remove('wide');
+    $('btn-tp-act').style.removeProperty('--k');
+    _hud_show(true);
+    if (_gl) { _gl.camP = null; _size(); }
+    if (_trialOwed) { _s.shells += _trialOwed; _say(`🥥 THE TRIALS PAID ${_trialOwed} 🐚`, '#fde047'); _trialOwed = 0; }
+    _autosave();
 }
 
 // ── The buttons ─────────────────────────────────────────────────────────────
@@ -317,6 +426,7 @@ export function press(kind) {
     return b;
 }
 export function pressJump() {
+    if (_mode === 'trick') return !!(_trial && !_paused && _trial.jump());
     if (!_live() || !L.jump(_s)) return false;
     _sfx('swap'); _buzz(8);
     return true;
@@ -342,6 +452,18 @@ function _tip(key, text) {
 // ── The frame ───────────────────────────────────────────────────────────────
 function _frame(dt) {
     _t += dt;
+    if (_mode === 'trick') {
+        _shake = 0;
+        if (_banner && _t > _banner) { _banner = 0; $('tp-banner').classList.remove('on'); }
+        _hintT = Math.max(0, _hintT - dt);
+        if (_trial) {
+            let stick = _stick;
+            if (_keys.l || _keys.r || _keys.u || _keys.d) stick = { x: (_keys.r ? 1 : 0) - (_keys.l ? 1 : 0), y: (_keys.u ? 1 : 0) - (_keys.d ? 1 : 0) };
+            _trial.frame(_paused ? 0 : dt, stick);
+            _trialHud();
+        } else if (_gl) _draw(0);
+        return;
+    }
     const s = _s;
     if (s && !s.over && !_paused) {
         for (let n = 0; n < _speed; n++) {
@@ -374,6 +496,8 @@ function _watch() {
     if (s.items.some(i => i.kind === 'rock' && L.dist(s, i.p, c.p) < 3.5)) _tip('rock', '🪨 A ROCK. ✋ picks it up; ✋ again throws it at a falling star, even a big red one.');
     if (s.course && !s.course.done && L.dist(s, s.course.pts[0], c.p) < 4.5) _tip('course', '🪵 A BOARDWALK. Walk up the ramp and along the planks, ⬆️ JUMP the gaps: there\'s a chest at the end. Fall off and you can just try again.');
     if (s.stars.some(x => x.big)) _tip('big', '☄️ A RED RING can\'t be caught. Get clear, let a 🔮 tower take it, or throw a 🪨 at it.');
+    const hutT = s.builds.find(b => b.kind === 'trick');
+    if (hutT && L.dist(s, hutT.p, c.p) < 4) _tip('trick', '🥥 THE TRICK HUT. Walk in for the Coconut Trials: puzzle planets where you throw coconuts and bounce on them. They pay shells and stardust.');
     const x = L.context(s);
     if (x && x.kind === 'bigger' && x.ok) _tip('bigger', '🏠 ✋ here makes this home bigger: one more crab, for less than a new home.');
     if (x && x.kind === 'shake') _tip('shake', '🌴 ✋ here shakes the palm: a coconut drops at once.');
@@ -415,10 +539,11 @@ function _events(evs) {
         else if (e.type === 'coin') { _burst(e.p, 0xffd84a, 8, 3); if (play) { _pop(e.p, '+1 🐚', 1.4); _sfx('coin_gain'); _buzz(6); } }
         else if (e.type === 'fell') { if (play) { _sfx('land_bad'); _hintNow(e.gap ? 'INTO THE GAP! ⬆️ JUMP IT NEXT TIME' : 'OFF THE PLANKS! START AGAIN AT THE RAMP', 2.2); } }
         else if (e.type === 'chest') { _burst(e.p, 0xffd84a, 46, 6); _cheer = 0.7; if (play) { _say(`🎁 COURSE DONE! +${e.prize} 🐚`, '#fde047'); _sfx('win'); _buzz([30, 30, 80]); } }
+        else if (e.type === 'trick') { if (play && !_auto) enterTrials(); }
         else if (e.type === 'over') { _shake = 1; if (play) { _say('THE LAST HOME IS GONE…', '#fca5a5'); _buzz([60, 40, 120]); } }
     }
 }
-let _thrown = null;
+let _thrown = null, _actPtr = null;
 
 function _say(text, color) { const b = $('tp-banner'); if (!b) return; b.textContent = text; b.style.color = color; b.classList.remove('on'); void b.offsetWidth; b.classList.add('on'); _banner = _t + 2.6; }
 
@@ -452,9 +577,10 @@ function _hud(dt) {
 }
 
 // ── Floating words (DOM, over the canvas) ───────────────────────────────────
-function _pop(p, text, lift = 0.9) {
-    const host = $('tp-pops'); if (!host || !_gl) return;
-    const v = _at(p, lift).project(_gl.camera);
+const _pop = (p, text, lift = 0.9) => { if (_gl) _popAt(_at(p, lift), text, _gl.camera); };
+function _popAt(world, text, cam) {
+    const host = $('tp-pops'); if (!host || !cam) return;
+    const v = world.clone().project(cam);
     if (v.z > 1) return;
     const d = document.createElement('div'); d.className = 'tp-pop'; d.textContent = text;
     d.style.left = `${Math.max(12, Math.min(88, (v.x * 0.5 + 0.5) * 100))}%`; d.style.top = `${Math.max(14, Math.min(80, (-v.y * 0.5 + 0.5) * 100))}%`;
@@ -545,7 +671,7 @@ function _buildScene(canvas) {
         win: new T.MeshBasicMaterial({ color: 0xfff3a0 }), flag: _lam(0xff4d6d), post: _lam(0xdfe8f5), stone: _lam(0x9aa3b5), gem: new T.MeshBasicMaterial({ color: 0x8fe8ff }), gemOff: _lam(0x6b7a90),
         stall: _lam(0xd9a066), awnA: _lam(0xff5a5a), awnB: _lam(0xfff8ee), coin: new T.MeshLambertMaterial({ color: 0xffd84a, emissive: 0x8a6200, flatShading: true }),
         shell: _lam(0xff9ec4), shellTip: _lam(0xfff1f6), gold: new T.MeshLambertMaterial({ color: 0xffd84a, emissive: 0x8a6200, flatShading: true }), rock: _lam(0x7d8597), fix: new T.MeshBasicMaterial({ color: 0xff5a5a }),
-        star: new T.MeshBasicMaterial({ color: 0xfff3a0 }), big: new T.MeshBasicMaterial({ color: 0xff7a4a }), wood: _lam(0xb9824d), wood2: _lam(0x8f6238), chest: _lam(0x8a5a2b), band: _lam(0xffd84a),
+        star: new T.MeshBasicMaterial({ color: 0xfff3a0 }), big: new T.MeshBasicMaterial({ color: 0xff7a4a }), trick: _lam(0x9b5de5), wood: _lam(0xb9824d), wood2: _lam(0x8f6238), chest: _lam(0x8a5a2b), band: _lam(0xffd84a),
     };
     const held = _mesh(G.rock, M.rock); held.visible = false; scene.add(held);
     const flying = _mesh(G.rock, M.rock); flying.visible = false; scene.add(flying);
@@ -637,6 +763,13 @@ function _buildVis(b) {
         const three = new T.Group(); const u = _mesh(G.wall, M.wall2, 0, 0.86, 0); u.scale.set(0.78, 0.8, 0.78); three.add(u); const ur = _mesh(G.roof, M.roof3, 0, 1.42, 0); ur.scale.set(0.84, 0.9, 0.84); three.add(ur);
         three.add(_mesh(G.win, M.win, 0, 0.9, 0.42)); three.add(_mesh(G.pole, M.post, 0, 2.05, 0)); three.add(_mesh(G.flag, M.flag, 0.16, 2.28, 0)); g.add(three);
         Object.assign(v, { two, three, vils: [] });
+    } else if (b.kind === 'trick') {
+        // The Trick Hut: a fat purple-roofed hut with a doorway and a coconut turning over it.
+        const w = _mesh(G.wall, M.wall2, 0, 0.42, 0); w.scale.set(1.35, 1.4, 1.35); g.add(w);
+        const r = _mesh(G.roof, M.trick, 0, 1.3, 0); r.scale.set(1.4, 1.25, 1.4); g.add(r);
+        const d = _mesh(G.door, M.door, 0, 0.36, 0.74); d.scale.set(1.9, 1.9, 1); g.add(d);
+        v.sign = new T.Group(); v.sign.add(new T.Mesh(G.nut, M.nut)); v.sign.add(_mesh(G.nutCap, M.nutCap, 0, 0.11, 0)); v.sign.scale.setScalar(1.7); v.sign.position.y = 2.5; g.add(v.sign);
+        v.ring = new T.Mesh(G.ring, new T.MeshBasicMaterial({ color: 0xc084fc, transparent: true, opacity: 0.8, depthWrite: false, side: T.DoubleSide })); v.ring.scale.setScalar(1.1); v.ring.position.y = 0.06; g.add(v.ring);
     } else if (b.kind === 'tower') {
         g.add(_mesh(G.base, M.stone, 0, 0.11, 0)); g.add(_mesh(G.post, M.post, 0, 0.8, 0));
         v.orb = _mesh(G.gem, M.gem, 0, 1.75, 0); g.add(v.orb);
@@ -647,7 +780,7 @@ function _buildVis(b) {
         for (let i = 0; i < 5; i++) { const a = _mesh(G.awn, i % 2 ? M.awnB : M.awnA, -0.52 + i * 0.26, 1.06, 0.06); a.rotation.x = 0.22; g.add(a); }
         v.sign = _mesh(G.coin, M.coin, 0, 1.5, 0); v.sign.scale.setScalar(1.5); g.add(v.sign);
     }
-    if (b.kind !== 'palm') { v.fix = _mesh(G.fix, M.fix, 0, 2.5, 0); v.fix.visible = false; g.add(v.fix); }
+    if (b.kind !== 'palm' && b.kind !== 'trick') { v.fix = _mesh(G.fix, M.fix, 0, 2.5, 0); v.fix.visible = false; g.add(v.fix); }
     _gl.scene.add(g);
     return v;
 }
@@ -715,6 +848,10 @@ function _draw(dt) {
             const wob = v.shook > 0 ? Math.sin(_t * 40) * 0.25 * (v.shook / 0.5) : 0;
             v.top.rotation.z = Math.sin(_t * 1.3 + b.id) * 0.06 + wob; v.top.rotation.x = Math.cos(_t * 1.1 + b.id) * 0.05;
             v.nuts.forEach(n => { n.visible = k >= 1 && b.shake <= 0; });
+        } else if (b.kind === 'trick') {
+            v.g.scale.setScalar(v.born * spring);
+            v.sign.rotation.y = _t * 1.6; v.sign.position.y = 2.5 + Math.sin(_t * 2) * 0.12;
+            v.ring.material.opacity = s.trickArmed ? 0.45 + 0.4 * Math.abs(Math.sin(_t * 2.5)) : 0.15;
         } else {
             v.g.scale.setScalar(v.born * spring);
             const hurt = b.hp < L.maxHp(s, b.kind);
@@ -820,9 +957,11 @@ export function _debug() {
         air: s?.crab.air || 0, carry: s?.crab.carry || null, course: s?.course ? { k: s.course.k, got: s.course.got, done: s.course.done, n: s.course.pts.length } : null,
         drawn: { builds: _vis.builds.size, items: _vis.items.size, stars: _vis.stars.size, course: _courseVis ? _courseVis.parts.length : 0 }, dust: sv().dust, up: { ...sv().up }, skin: sv().skin, theme: theme().id,
         saved: sv().run ? { day: sv().run.day, shells: sv().run.shells } : null, seen: Object.keys(sv().seen), tip: _el && !$('tp-tip').hidden ? $('tp-tip').textContent : '',
+        trial: _trial ? { id: _trial.level.id, won: _trial.state().won, throws: _trial.state().throws, nuts: _trial.state().nuts.length, h: +_trial.state().crab.h.toFixed(2), charging: _trial.charging() } : null, trick: { ...sv().trick },
         calls: _gl ? _gl.renderer.info.render.calls : 0 };
 }
 export const _game = () => _s;
+export const _trialNow = () => _trial;
 /** Probes and the card's clip: let the autopilot play, and run time faster. */
 export function _pilot(on = true, speed = 1) { _auto = !!on; _speed = Math.max(1, speed | 0); }
 export function _reset() { _sv = null; Store.save(KEY, {}); }

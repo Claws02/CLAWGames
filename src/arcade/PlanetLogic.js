@@ -116,11 +116,13 @@ export function create({ rnd = Math.random, up = {} } = {}) {
         rnd, up, t: 0, day: 1, phase: 'day', pt: 0, R: R0, town: 0, over: false, id: 1,
         crab: { p: [0, 1, 0], f: [0, 0, -1], face: [0, 0, -1], moving: false, cd: 0, air: 0, jcd: 0, carry: null },
         shells: 4 + 3 * ((up && up.start) || 0), nuts: 0,
-        items: [], builds: [], stars: [], due: [], spawnT: 0.4, rockT: 3, course: null,
+        items: [], builds: [], stars: [], due: [], spawnT: 0.4, rockT: 3, course: null, trickArmed: true,
         stats: { caught: 0, perfect: 0, smashed: 0, built: 0, shells: 0, nuts: 0, peak: 1, lost: 0, walked: 0, palms: 0, huts: 0, courses: 0 },
     };
     // The first home, a few steps in front of the crab, and some shells to find.
     _add(s, 'hut', walk(s.crab.p, s.crab.f, 2.2 / s.R));
+    // The Trick Hut is there from the start, behind the crab: walk in for the Coconut Trials.
+    _add(s, 'trick', walk(s.crab.p, s.crab.f, -3.4 / s.R));
     for (let i = 0; i < 4; i++) _spawnShell(s);
     _newCourse(s);
     return s;
@@ -128,7 +130,12 @@ export function create({ rnd = Math.random, up = {} } = {}) {
 
 /** A run as plain data (for a save), and back again. */
 export const save = s => { const { rnd, ...o } = s; return JSON.parse(JSON.stringify(o)); };
-export const load = (o, rnd = Math.random) => ({ ...JSON.parse(JSON.stringify(o)), rnd });
+export function load(o, rnd = Math.random) {
+    const s = { ...JSON.parse(JSON.stringify(o)), rnd };
+    // (a city saved before the Trick Hut existed gets one, somewhere clear)
+    if (!s.builds.some(b => b.kind === 'trick')) for (let k = 0; k < 40; k++) { const p = _rndPlace(s); if (_clear(s, p, SPACE) && dist(s, p, s.crab.p) > 3) { _add(s, 'trick', p); break; } }
+    return s;
+}
 
 function _add(s, kind, p) {
     const b = { id: s.id++, kind, p, hp: maxHp(s, kind), lvl: 1, age: kind === 'palm' ? 0 : 99, t: kind === 'hut' ? HUT_S : NUT_S / greenOf(s), shake: 0, charges: chargesOf(s) };
@@ -330,8 +337,9 @@ function _nightfall(s, ev) {
 function _launch(s, d, ev) {
     // Mostly at something you built; sometimes anywhere, so the sky feels wild.
     let p;
-    if (s.builds.length && s.rnd() < 0.68) {
-        const b = s.builds[Math.floor(s.rnd() * s.builds.length)];
+    const mine = s.builds.filter(b => b.kind !== 'trick');
+    if (mine.length && s.rnd() < 0.68) {
+        const b = mine[Math.floor(s.rnd() * mine.length)];
         p = walk(b.p, tangent(b.p, _rndPlace(s)), (s.rnd() * 0.9) / s.R);
     } else p = _rndPlace(s);
     const st = { id: s.id++, p, t: 0, T: fallFor(s.day) + (d.big ? 1.6 : 0), r: d.big ? BIG_R : STAR_R, big: d.big };
@@ -352,7 +360,7 @@ function _land(s, st, ev) {
     }
     const hit = [];
     for (const b of s.builds.slice()) {
-        if (dist(s, b.p, st.p) > st.r) continue;
+        if (b.kind === 'trick' || dist(s, b.p, st.p) > st.r) continue;      // (the Trick Hut is star-proof)
         b.hp -= st.big ? 2 : 1;
         if (b.hp <= 0) { s.builds.splice(s.builds.indexOf(b), 1); s.stats.lost++; hit.push({ b, gone: true }); }
         else hit.push({ b, gone: false });
@@ -396,6 +404,9 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
         s.stats.walked += a * s.R;
     }
     _courseStep(s, ev);
+    // Walking into the Trick Hut (once per visit: step well away to go in again).
+    const th = s.builds.find(b => b.kind === 'trick');
+    if (th) { const d = dist(s, th.p, c.p); if (!s.trickArmed) { if (d > 2.4) s.trickArmed = true; } else if (d < 1.05 && c.air <= 0) { s.trickArmed = false; ev.push({ type: 'trick', b: th }); } }
 
     // Pick up whatever it walks over (rocks wait for the action button).
     for (let i = s.items.length - 1; i >= 0; i--) {
