@@ -17,7 +17,8 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 | CLAWGames #38 | **Trivia**: 167 questions, Massachusetts-flavoured general knowledge |
 | CLAWGames #40 | **HOST PLAYS TOO** switch: a phone host can run the room without playing |
 | CLAWGames #41 | **iPhone Add to Home Screen**: manifest, icons, the Share → Add to Home Screen tip |
-| CLAWGames #58 | **Tiny Planet**: the city of crabs (town steps, jump, the action button, boardwalk courses, full screen, pause and save), and the **Coconut Trials** through the Trick Hut: six coconut puzzles and four skill courses. Boardwalks with timing obstacles, checkpoints and tiers |
+| CLAWGames #59 | **Tiny Planet**: boardwalks with timing obstacles, checkpoints and three tiers; four skill courses in the Coconut Trials; a readable bank shot; towers beside buildings |
+| CLAWGames #58 | **Tiny Planet**: the city of crabs (town steps, jump, the action button, boardwalk courses, full screen, pause and save), and the **Coconut Trials** through the Trick Hut (six coconut puzzles) |
 | CLAWGames #57 | **Tiny Planet**: a 3D solo game with a workshop of upgrades kept between runs. **Reef Drop**: 8 more pieces and 36 more reefs (114 in all) |
 | CLAWGames #55 | **Quick board games** on a shared base (`src/games/board/`): Shut the Box, Pig, Dots and Boxes, Mancala, Liar's Dice |
 | CLAWGames #54 | **Reef Drop**: levels as recipes (`docs/REEF_LEVELS.md`), 8 new pieces and 24 new reefs (78 in all) |
