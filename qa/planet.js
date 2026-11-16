@@ -1,12 +1,17 @@
 // ============================================================
 // TINY PLANET in the browser, on a small phone.
-//   1. the hub card opens the title card, over a planet that is being drawn
-//   2. PLAY: a real finger drag walks the crab; the stick shows and goes
-//   3. the 🌴 button plants a palm where the crab stands (and says why not, on top of it)
-//   4. the autopilot plays on: night falls, stars are drawn and caught, the village grows
-//   5. the island is lost in the end: the card pays stardust and keeps the best day
-//   6. the workshop: an upgrade is bought, a crab colour worn, both kept after a reload
-//   7. leaving the screen stops everything; no page errors
+//   1. the hub card opens it over the whole screen: the title card, a planet being drawn
+//   2. PLAY: a real finger drag walks the crab; the tracker moves on from "drag to walk"
+//   3. the 🌴 button plants a palm; a locked building says what opens it
+//   4. JUMP hops; the action button shakes a palm, picks up a rock and throws it at a star
+//   5. the boardwalk is drawn; walked and jumped to the end it pays out and is cleared away
+//   6. the autopilot plays on: night falls, stars are caught, the camp becomes a village
+//   7. pause stops the clock; SAVE & LEAVE goes back to the hub; CONTINUE picks the city up
+//   7b. the Trick Hut: the Coconut Trials open; a trial is walked, thrown and jumped in with the
+//       real buttons; all six play through on screen; stars, stardust and shells are paid
+//   8. the end: the card counts the crabs, pays stardust and keeps the biggest city
+//   9. the workshop: an upgrade and a crab colour, kept after a reload
+//  10. no page errors
 //
 // usage: node qa/planet.js        (static server on :8140)
 // ============================================================
@@ -25,7 +30,8 @@ const SHOTS = process.env.QA_SHOTS || '';
     const p = await ctx.newPage();
     p.on('pageerror', e => errs.push(`PAGEERROR ${e.message}`));
     p.on('console', m => { if (m.type() === 'error' && !/Failed to load resource/.test(m.text())) errs.push(`CONSOLE ${m.text()}`); });
-    const M = expr => p.evaluate(e => import('/src/arcade/Planet.js').then(M => (new Function('M', 'return ' + e))(M)), expr);
+    // M: the screen, L: the rules
+    const M = expr => p.evaluate(e => Promise.all([import('/src/arcade/Planet.js'), import('/src/arcade/PlanetLogic.js')]).then(([M, L]) => (new Function('M', 'L', 'return ' + e))(M, L)), expr);
     const shot = async name => { if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await p.screenshot({ path: `${SHOTS}/${name}.png` }); } };
     const openGame = async () => {
         await p.goto(BASE); await p.waitForFunction(() => !!window.__claw);
@@ -34,60 +40,166 @@ const SHOTS = process.env.QA_SHOTS || '';
         await p.waitForSelector('#tp-cv');
     };
     const until = async (expr, ms = 20000) => { for (let t = 0; t < ms; t += 200) { if (await M(expr)) return true; await p.waitForTimeout(200); } return false; };
+    const tap = sel => p.dispatchEvent(sel, 'pointerdown', { bubbles: true, pointerId: 7 });
 
-    // 1. the title card, over a live planet
+    // 1. the title card, over the whole screen
     await openGame();
     await p.waitForTimeout(900);
     let d = await M('M._debug()');
-    check(d.mode === 'menu' && d.gl && d.calls > 20 && await p.isVisible('#btn-tp-play') && !(await p.isVisible('#tp-bar')), `1. the title card over a planet being drawn (${d.calls} draw calls), the build bar hidden`);
+    const box = await (await p.$('#tp-wrap')).boundingBox();
+    check(d.mode === 'menu' && d.gl && d.calls > 20 && box.x === 0 && box.y === 0 && box.width === 375 && box.height === 667 && await p.isVisible('#btn-tp-play') && !(await p.isVisible('#tp-bar')) && !(await p.isVisible('#btn-tp-continue')),
+        `1. the game fills the screen (${box.width}×${box.height}): the title card over a planet being drawn (${d.calls} draw calls), no CONTINUE yet`);
     await shot('planet-menu');
 
     // 2. a real drag walks the crab
     await p.click('#btn-tp-play');
     d = await M('M._debug()');
-    const box = await (await p.$('#tp-cv')).boundingBox(), cx = box.x + box.width / 2, cy = box.y + box.height * 0.55;
+    const goal0 = await p.textContent('#tp-goal');
+    const cx = 150, cy = 380;
     await p.mouse.move(cx, cy); await p.mouse.down(); await p.mouse.move(cx + 60, cy - 10, { steps: 4 });
     const stick = await p.isVisible('#tp-stick');
-    await p.waitForTimeout(700);
+    await p.waitForTimeout(1100);
     await p.mouse.up();
-    const d2 = await M('M._debug()');
+    await p.waitForTimeout(150);
+    const d2 = await M('M._debug()'), goal1 = await p.textContent('#tp-goal');
     const moved = Math.hypot(d2.crab[0] - d.crab[0], d2.crab[1] - d.crab[1], d2.crab[2] - d.crab[2]);
-    check(d.mode === 'play' && stick && moved > 0.2 && !(await p.isVisible('#tp-stick')), `2. PLAY, then a finger drag: the stick shows, the crab walks (${moved.toFixed(2)} of the way round), the stick goes`);
+    check(d.mode === 'play' && stick && moved > 0.2 && !(await p.isVisible('#tp-stick')) && /DRAG/.test(goal0) && !/DRAG/.test(goal1), `2. PLAY, then a finger drag: the stick shows, the crab walks, and the tracker moves on ("${goal0.trim()}" → "${goal1.trim()}")`);
 
-    // 3. the palm button
-    await M('(M._game().shells = 9, 1)');
+    // 3. the palm button, and a locked one
+    await M('(M._game().shells = 9, M._game().course = null, 1)');
     await p.waitForTimeout(150);
     const before = await M('M._debug()');
     await p.click('#tp-bar [data-build="palm"]');
     const after = await M('M._debug()');
-    await p.waitForTimeout(200);
-    const crowd = await p.$eval('#tp-bar [data-build="palm"]', e => e.classList.contains('crowd'));
-    await p.click('#tp-bar [data-build="palm"]');
-    const again = await M('M._debug()');
-    check(after.builds.filter(k => k === 'palm').length === before.builds.filter(k => k === 'palm').length + 1 && after.shells === 5 && crowd && again.builds.length === after.builds.length && again.shells === 5,
-        `3. 🌴 plants a palm for 4 shells where the crab stands; on top of it the button says step away, and nothing is spent`);
+    await p.click('#tp-bar [data-build="tower"]');
+    const locked = await p.textContent('#tp-hint'), lockTxt = await p.textContent('#tp-bar [data-build="tower"] small');
+    check(after.builds.filter(k => k === 'palm').length === before.builds.filter(k => k === 'palm').length + 1 && after.shells === 5 && /VILLAGE \(5 CRABS\)/.test(locked) && /🔒/.test(lockTxt) && after.builds.length === (await M('M._debug()')).builds.length,
+        `3. 🌴 plants a palm for 4 shells; the tower is locked and says so: "${locked}"`);
     await shot('planet-palm');
 
-    // 4. the autopilot plays on, fast
-    await M('(M._pilot(true, 10), 1)');
+    // 4. jump, and the action button
+    await tap('#btn-tp-jump');
+    const air = await M('M._debug().air');
+    await p.waitForTimeout(800);
+    // (stand by the palm, grown; then by a rock; then a star to throw at)
+    await M(`(() => { const s = M._game(), palm = s.builds.find(b => b.kind === 'palm'); palm.age = 99; s.crab.p = L.walk(palm.p, L.tangent(palm.p, [1, 0, 0]), 1 / s.R); s.items = []; return 1; })()`);
+    await p.waitForTimeout(200);
+    const actLabel = await p.textContent('#btn-tp-act small');
+    await tap('#btn-tp-act');
+    const nuts = await M(`M._game().items.filter(i => i.kind === 'nut').length + M._game().nuts`);
+    await M(`(() => { const s = M._game(); s.items = [{ id: 9001, kind: 'rock', p: L.walk(s.crab.p, s.crab.f, 0.8 / s.R) }]; return 1; })()`);
+    await M(`(() => { const s = M._game(), palm = s.builds.find(b => b.kind === 'palm'); s.crab.p = L.walk(s.items[0].p, s.crab.f, 0.2 / s.R); if (L.context(s).kind !== 'carry') s.crab.p = s.items[0].p.slice(); return 1; })()`);
+    await p.waitForTimeout(200);
+    const pick = await p.textContent('#btn-tp-act small');
+    await tap('#btn-tp-act');
+    const carry = await M('M._debug().carry');
+    await M(`(() => { const s = M._game(); s.phase = 'night'; s.pt = 0; s.due = []; s.stars = [{ id: 9100, p: s.builds[0].p.slice(), t: 0, T: 9, r: L.BIG_R, big: true }]; return 1; })()`);
+    await p.waitForTimeout(400);
+    const thr = await p.textContent('#btn-tp-act small'), drawnStar = await M('M._debug().drawn.stars');
+    await tap('#btn-tp-act');
+    d = await M('M._debug()');
+    check(air > 0 && /SHAKE/.test(actLabel) && nuts === 1 && /PICK UP/.test(pick) && carry === 'rock' && /THROW/.test(thr) && drawnStar === 1 && d.stars === 0 && !d.carry,
+        `4. JUMP hops; the action button reads ${actLabel} by a palm (a coconut drops), ${pick} by a rock, then ${thr} at a big star, which is gone`);
+    await M(`(() => { const s = M._game(); s.phase = 'day'; s.pt = 0; return 1; })()`);
+
+    // 5. the boardwalk
+    await M(`(() => { const s = M._game(); s.rnd = Math.random; s.course = null; s.phase = 'night'; s.pt = L.NIGHT_S; s.due = []; s.stars = []; return 1; })()`);
+    await until('!!M._debug().course');
+    await p.waitForTimeout(300);
+    const planks = await M('M._debug().drawn.course'), sh0 = await M('M._debug().shells');
+    const prize = await M(`(() => { const s = M._game(), co = s.course; s.items = []; s.crab.p = co.pts[0].slice(); L.step(s, 1 / 60);
+        for (let i = 0; i < 60 * 14 && co.k >= 0 && !co.done; i++) { const b = co.pts[co.k + 1], dd = L.toward(s.crab.p, b), r = L.cross(s.crab.f, s.crab.p);
+            if (co.gaps.includes(co.k) && L.dist(s, s.crab.p, co.pts[co.k]) > L.COURSE_STEP * 0.12) M.pressJump();
+            L.step(s, 1 / 60, { x: L.dot(dd, r), y: L.dot(dd, s.crab.f) }); }
+        return co.done ? co.prize + co.pts.length - 1 : -1; })()`);
+    await p.waitForTimeout(400);
+    d = await M('M._debug()');
+    check(planks > 10 && prize > 0 && d.shells >= sh0 + prize && d.drawn.course === 0, `5. a boardwalk is drawn (${planks} pieces); walked and jumped to the end it pays ${prize} shells and is cleared away`);
+
+    // 6. the autopilot plays on, fast
+    await M('(M._game().shells += 20, M._game().nuts += 8, M._pilot(true, 10), 1)');
     const night = await until('M._debug().phase === "night" && M._debug().drawn.stars > 0');
     await shot('planet-night');
-    const day5 = await until('M._debug().day >= 5 || M._debug().mode !== "play"', 40000);
+    const village = await until('(M._debug().town >= 1 && M._debug().caught > 0) || M._debug().mode !== "play"', 60000);
     d = await M('M._debug()');
-    check(night && day5 && d.day >= 5 && d.caught > 0 && d.pop >= 2 && d.drawn.builds === d.builds.length && d.visR > 5.6,
-        `4. the autopilot plays on: stars fell and were drawn, ${d.caught} caught; day ${d.day}, a village of ${d.pop}, ${d.builds.length} things built and drawn, and the planet has grown (${d.visR})`);
-    await shot('planet-day5');
+    check(night && village && d.town >= 1 && d.pop >= 5 && d.caught > 0 && d.drawn.builds === d.builds.length && d.visR > 5.6 && /CRABS/.test(await p.textContent('#tp-goal')),
+        `6. the autopilot plays on: ${d.caught} stars caught; day ${d.day}, ${d.pop} crabs make a village, the planet has grown (${d.visR}) and the tracker now reads "${(await p.textContent('#tp-goal')).trim()}"`);
+    await shot('planet-village');
 
-    // 5. the end: stop helping and the island is lost
-    await M('(M._pilot(false, 30), 1)');
-    const over = await until('M._debug().mode === "over"', 60000);
+    // 7. pause, save & leave, continue
+    await M('(M._pilot(false, 1), 1)');
+    await p.click('#btn-tp-pause');
+    const t0 = await M('M._game().t'); await p.waitForTimeout(600); const t1 = await M('M._game().t');
+    d = await M('M._debug()');
+    const want = { day: d.day, shells: d.shells, pop: d.pop, n: d.builds.length };
+    check(d.paused && t0 === t1 && d.saved && d.saved.day === d.day && await p.isVisible('#btn-tp-leave'), `7. ⏸ stops the clock and saves the city (day ${d.day})`);
+    await shot('planet-pause');
+    await p.click('#btn-tp-leave');
+    await p.waitForSelector('#scr-solo:not([hidden])');
+    const gone = !(await p.isVisible('#tp-wrap')) && !(await M('M._debug().gl'));
+    await openGame();
+    const cont = await p.textContent('#btn-tp-continue');
+    await p.click('#btn-tp-continue');
+    d = await M('M._debug()');
+    check(gone && new RegExp(`${want.pop} crabs · day ${want.day}`).test(cont) && d.mode === 'play' && d.day === want.day && Math.abs(d.shells - want.shells) <= 2 && d.pop === want.pop && d.builds.length === want.n && d.town >= 1,
+        `   SAVE & LEAVE goes back to the hub; "${cont.trim()}" brings the same city back (${d.pop} crabs, ${d.builds.length} things built)`);
+
+    // 7b. the Coconut Trials, through the Trick Hut
+    const MK = expr => p.evaluate(e => Promise.all([import('/src/arcade/Planet.js'), import('/src/arcade/PlanetLogic.js'), import('/src/arcade/TrickLogic.js')]).then(([M, L, K]) => (new Function('M', 'L', 'K', 'return ' + e))(M, L, K)), expr);
+    const city0 = await M('M._debug()');
+    await M(`(() => { const s = M._game(), th = s.builds.find(b => b.kind === 'trick'); s.trickArmed = true; s.crab.p = L.walk(th.p, L.tangent(th.p, [1, 0, 0]), 0.7 / s.R); return 1; })()`);
+    await p.waitForSelector('.tp-lvl');
+    const lvls = await p.$$eval('.tp-lvl', els => els.map(e => !e.disabled));
+    check((await M('M._debug().mode')) === 'trick' && lvls.length === 6 && lvls[0] && !lvls[1] && !(await p.isVisible('#tp-bar')), `7b. walking into the Trick Hut opens the Coconut Trials: six, the first one open`);
+    await shot('trials-list');
+    await p.click('.tp-lvl[data-arg="0"]');
+    await p.waitForTimeout(400);
+    const c0 = await MK('M._trialNow().state().crab.p.slice()');
+    await p.mouse.move(150, 400); await p.mouse.down(); await p.mouse.move(150, 340, { steps: 3 }); await p.waitForTimeout(350); await p.mouse.up();
+    const c1 = await MK('M._trialNow().state().crab.p.slice()');
+    await p.dispatchEvent('#btn-tp-act', 'pointerdown', { bubbles: true, pointerId: 9 });
+    await p.waitForTimeout(450);
+    const winding = (await M('M._debug().trial')).charging, label = await p.textContent('#btn-tp-act small');
+    await p.evaluate(() => window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 9 })));
+    const thrown = await M('M._debug().trial');
+    await tap('#btn-tp-jump'); await p.waitForTimeout(150);
+    const up = (await M('M._debug().trial')).h;
+    check(Math.hypot(c1[0] - c0[0], c1[1] - c0[1], c1[2] - c0[2]) > 0.05 && winding > 0.3 && winding < 0.8 && /LET GO/.test(label) && thrown.throws === 1 && thrown.nuts === 1 && up > 0.3,
+        `    in a trial: a drag walks, holding 🥥 winds up (${winding.toFixed(2)}) and letting go throws a coconut, JUMP jumps (${up} up)`);
+    await shot('trial-1');
+    await p.click('#btn-tp-pause'); await p.click('[data-do="trial-again"]');
+    const fresh = await M('M._debug().trial');
+    await MK(`(() => { const t = M._trialNow(); K.run(t.level, t.level.answer, { s: t.state() }); return 1; })()`);
+    await p.waitForSelector('#btn-tp-next', { timeout: 6000 });
+    const winCard = await p.textContent('#tp-over');
+    d = await M('M._debug()');
+    check(fresh.throws === 0 && /⭐⭐⭐/.test(winCard) && /\+9 ✨/.test(winCard) && /\+10 🐚/.test(winCard) && d.trick.hop.every(Boolean) && d.dust === city0.dust + 9,
+        `    ⏸ START AGAIN clears the go; solved on par with the shell: ⭐⭐⭐, +9 stardust and +10 shells for the city`);
+    await shot('trial-won');
+    await p.click('[data-do="trials"]');
+    const open2 = await p.$$eval('.tp-lvl', els => els.map(e => !e.disabled));
+    await p.click('#btn-tp-city');
+    d = await M('M._debug()');
+    check(open2[1] && !open2[2] && d.mode === 'play' && !d.trial && d.pop === city0.pop && d.shells >= city0.shells + 10 && d.shells <= city0.shells + 13 && await p.isVisible('#tp-bar'), `    the next trial is open; BACK TO THE CITY: the same city, 10 shells richer`);
+    for (let i = 1; i < 6; i++) {
+        await M('(M.enterTrials(), 1)');
+        await p.evaluate(i => import('/src/arcade/Planet.js').then(M => { M.playTrial(i); }), i);
+        await MK(`(() => { const t = M._trialNow(); K.run(t.level, t.level.answer, { s: t.state() }); return 1; })()`);
+        await p.waitForSelector('.tp-big', { timeout: 6000 });
+        await p.click('[data-do="city"]');
+    }
+    d = await M('M._debug()');
+    check(Object.keys(d.trick).length === 6 && Object.values(d.trick).every(st => st.every(Boolean)) && d.dust === city0.dust + 54 && d.shells >= city0.shells + 60, `    all six trials play through on screen with three stars each (18 ⭐, +54 stardust)`);
+
+    // 8. the end
+    await p.click('#btn-tp-pause'); await p.click('[data-do="giveup"]');
     d = await M('M._debug()');
     const card = await p.textContent('#tp-over');
-    const best = await p.evaluate(() => JSON.parse(localStorage.getItem('claw.solo') || '{}').best?.planet);
-    check(over && d.over && d.dust > 0 && best === d.day && /STARDUST/.test(card) && /new best/i.test(card), `5. left alone, the island is lost on day ${d.day}: +${d.dust} stardust, best day ${best}`);
+    const best = await p.evaluate(() => JSON.parse(localStorage.getItem('claw.solo') || '{}').best?.planetCity);
+    check(d.mode === 'over' && d.dust > 54 && best >= want.pop && /STARDUST/.test(card) && /biggest yet/i.test(card) && !d.saved, `8. the end: the card counts the city (${best} crabs), pays +${d.dust} stardust, and the save is gone`);
     await shot('planet-over');
 
-    // 6. the workshop
+    // 9. the workshop
     await M('(M._reset(), 1)');
     await p.evaluate(() => localStorage.setItem('claw.planet', JSON.stringify({ dust: 30, skins: ['coral'] })));
     await openGame();
@@ -96,19 +208,19 @@ const SHOTS = process.env.QA_SHOTS || '';
     await p.click('[data-do="skin"][data-arg="sky"]');
     d = await M('M._debug()');
     const maxed = await p.$eval('[data-do="up"][data-arg="start"]', e => e.disabled);
-    check(d.up.speed === 1 && d.skin === 'sky' && d.dust === 5 && maxed, `6. the workshop: Quick Claws level 1 (10) and the Sky crab (15) leave 5 stardust, and nothing else can be afforded`);
+    check(d.up.speed === 1 && d.skin === 'sky' && d.dust === 5 && maxed, `9. the workshop: Quick Claws level 1 (10) and the Sky crab (15) leave 5 stardust, and nothing else can be afforded`);
     await shot('planet-shop');
     await openGame();
     d = await M('M._debug()');
     await p.click('#btn-tp-play');
     const faster = await M('M._game().up.speed === 1');
-    check(d.up.speed === 1 && d.skin === 'sky' && d.dust === 5 && faster, '   after a reload they are still there, and the new island has the upgrade');
+    check(d.up.speed === 1 && d.skin === 'sky' && d.dust === 5 && faster, '   after a reload they are still there, and the new city has the upgrade');
 
-    // 7. leaving stops it
-    await p.click('#scr-sologame [data-back]'); await p.waitForSelector('#scr-solo:not([hidden])');
+    // 10. leaving stops it
+    await p.click('#btn-tp-pause'); await p.click('#btn-tp-leave'); await p.waitForSelector('#scr-solo:not([hidden])');
     d = await M('M._debug()');
     const cardText = await p.textContent('#solo-list [data-game="planet"] .cs');
-    check(!d.gl && /best day/.test(cardText), `7. back at the hub the game is stopped, and its card reads "${cardText}"`);
+    check(!d.gl && /biggest city/.test(cardText), `10. back at the hub the game is stopped, and its card reads "${cardText}"`);
     check(!errs.length, errs.length ? `page errors: ${errs.slice(0, 3).join(' | ')}` : 'no page errors');
 
     await browser.close();

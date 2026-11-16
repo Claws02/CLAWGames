@@ -39,8 +39,9 @@ node qa/daily.mjs    # daily systems: three dailies a day by the date, the weekd
 node qa/icefloe.mjs  # Ice Floe (par is the shortest route) and Rock Pool Paths (every pool solvable) rules, no browser
 node qa/coral.mjs    # Coral Merge physics: falling, merging, chains, the treasure burst, the bubble, game over, determinism, no pulsing pile; no browser
 node qa/kite.mjs     # Kite Wind: every ring within reach of the last, gulls clear of rings, a pilot flies 12 × 100 s; no browser
-node qa/planet.mjs   # Tiny Planet rules: the walk round the sphere, building, night stars (catch, hit, tower, the big one), growth, upgrades, how long the autopilot lasts; no browser
-node qa/planet.js    # Tiny Planet in the browser: a finger drag walks, the buttons build, a run to the end, the workshop kept after a reload
+node qa/planet.mjs   # Tiny Planet rules: the walk round the sphere, building, the city's steps, jump and perfect catches, the action button, rocks, the boardwalk, towers, markets, saving, how the autopilot gets on; no browser
+node qa/trick.mjs    # Coconut Trials rules: throws, the bounce, walls, water and rafts, plates, bullseyes, bank shots, the trick shot; every trial's answer earns three stars and none can be done without a coconut; no browser
+node qa/planet.js    # Tiny Planet in the browser: full screen, a finger drag walks, the buttons, the boardwalk, pause / save & leave / continue, the Trick Hut and all six Coconut Trials, the end, the workshop kept after a reload
 node qa/dailygames.js # Ice Floe, Rock Pool Paths, Coral Merge, Kite Wind, Prize Shelf by tapping; TODAY, a tide pass, SHARE
 node qa/trophies.js   # trophy rules, persistence, old saves, the screen, a real game
 node qa/yatzy.js      # Yatzy scoring rules, a game vs a bot, a two-player tabletop game

@@ -93,8 +93,8 @@ const SOLO = {
         const C = await import('/src/arcade/Coral.js'); for (let i = 0; i < 14; i++) { C.dropHere(1.2 + ((i * 2.3) % 4.6)); await wait(330); }
     } },
     planet: { open: 'planet', sel: '#tp-wrap', prep: async () => {
-        const M = await import('/src/arcade/Planet.js'); document.querySelector('#btn-tp-play').click(); M._game().shells = 30; M._game().nuts = 8; M._pilot(true, 8);
-        for (let i = 0; i < 60 && !(M._debug().phase === 'day' && M._debug().day === 2 && M._game().pt > 20); i++) await new Promise(r => setTimeout(r, 200));
+        const M = await import('/src/arcade/Planet.js'); document.querySelector('#btn-tp-play').click(); document.querySelector('#tp-tip').style.opacity = 0; M._game().shells = 40; M._game().nuts = 12; M._pilot(true, 8);
+        for (let i = 0; i < 80 && !(M._debug().phase === 'day' && M._debug().pop >= 4 && M._game().pt > 22); i++) await new Promise(r => setTimeout(r, 200));
         M._pilot(true, 1);
     }, play: async () => { await wait(9000); } },
     kite: { open: 'kite', sel: '#kt-cv', play: async () => {
