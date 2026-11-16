@@ -36,6 +36,8 @@ export const JUMP_V = 6.84, BOUNCE_V = 9.67;            // apex 1.3 and 2.6 abov
 export const NUT_R = 0.6, NUT_TOP = 0.45, NUT_MAX = 5;   // a landed coconut: how near counts as on it, how high it stands
 export const TRICK_R = 0.85, TRICK_GAP = 1.1;            // the trick shot: how near, and how far above the coconut
 export const HIT_R = 0.8, FLAG_R = 0.75, SHELL_R = 0.8;
+export const SPRING_V = 12, COYOTE_S = 0.1, JUMP_BUFFER = 0.15;      // a spring's hop tops out at 4
+export const PAD_SINK_S = 0.7, PAD_BACK_S = 2.5, ARM_W = 0.32, CHECK_R = 0.9;
 export const THROW = { range0: 1.6, range1: 7, t0: 0.55, t1: 1.0, up: 0.75, ahead: 0.45 };
 
 /** A place from degrees: lat 90 is the top of the planet (where the flag usually is). */
@@ -56,6 +58,17 @@ const BANK_A = walk(at(3.5, 0), tangent(at(3.5, 0), [1, 0, 0]), -1.3 / R), BANK_
 // plates:  { p, r, gate }        held down by the crab or a coconut: opens its gate while held
 // targets: { p, gate }           a bullseye: a coconut that hits it opens its gate for good
 // answer:  the moves that finish it within par with the shell (the probe plays them)
+//
+// The skill courses add things to time and jump (no coconut needed):
+// pads:     { p, r, crumble?, to?, period?, ph? }  an island in the water. crumble: it sinks a moment
+//           after you land; to/period: a raft, sliding from p to `to` and back, carrying you
+// sweepers: { c, len, h, period, ph? }  an arm turning round a post: h under 1.2 can be jumped
+// springs:  { p, r }                a pad that throws you high and far
+// checks:   [place, …]              flags: a fall puts you back at the last one touched
+// walls take `beat: { period, open, ph? }`: a gate that stands shut except for `open` of every period
+// route:    the way through, for the look-ahead player (autoplay): places, or { pad: i }
+// tier:     1–3, how hard: stars and first clears pay that many times more. `clean: true` makes the
+//           second star "no falls" instead of par throws
 export const LEVELS = [
     { id: 'hop', name: 'HOP AND THROW', par: 1, start: at(11, 0), flag: TOP, shell: at(8.2, 62),
         hint: 'JUMP the low wall. Then face the 🎯 and THROW a coconut at it to open the gate.',
@@ -88,18 +101,78 @@ export const LEVELS = [
         answer: [['go', at(6.5, 0)], ['face', TOP], ['throw', 0], ['wait', 0.1], ['jumpTo', at(2, 0), 0.3], ['go', at(1.8, 90)], ['go', TOP]] },
 ];
 
+// Water all the way round between r0 and r1, but for a causeway `half` degrees either side of `lon`.
+const moatBut = (r0, r1, lon, half) => (Math.abs(lon) > 179 ? [{ r0, r1, from: -180 + half, to: 180 - half }] : [{ r0, r1, from: -180, to: lon - half }, { r0, r1, from: lon + half, to: 180 }]);
+// The skill courses: nothing to throw, everything to time. Each meets its obstacles one at a
+// time, with ground to stand on and watch from before each, and a flag after every hard part.
+{ const A1 = at(7.1, 0), A2 = at(4.3, 90);
+  LEVELS.push({ id: 'alley', name: 'SWEEPER ALLEY', tier: 1, clean: true, par: 0, start: at(11.5, 0), flag: TOP, shell: at(7.4, 180),
+    hint: 'Arms turn on their posts. JUMP the low red ones as they come round; the tall purple one can only be timed.',
+    moats: [...moatBut(8, 9.8, 0, 16), ...moatBut(5.1, 6.7, 90, 18), ...moatBut(2.4, 3.6, -160, 28)],
+    sweepers: [{ c: at(8.9, 0), len: 1.6, h: 0.9, period: 2.6 }, { c: at(5.9, 90), len: 1.7, h: 9, period: 3.2, ph: 0.3 }, { c: at(3, -160), len: 1.5, h: 0.9, period: 1.7, ph: 0.5 }],
+    checks: [A1, A2],
+    route: [at(10.3, 0), A1, at(7.5, 45), at(7.3, 90), A2, at(4.3, 130), at(4.3, 170), at(4.2, -160), at(1.8, -160)],
+    shellRoute: [at(10.3, 0), A1, at(7.5, 45), at(7.3, 90), at(7.4, 135), at(7.4, 180), at(7.4, 135), at(7.3, 90), A2, at(4.3, 130), at(4.3, 170), at(4.2, -160), at(1.8, -160)] }); }
+{ LEVELS.push({ id: 'ferry', name: 'THE FERRY', tier: 2, clean: true, par: 0, start: at(11.5, 0), flag: TOP, shell: at(6.5, 140),
+    hint: 'Step onto the raft as it docks and ride it over. An arm sweeps the crossing: JUMP it. The stepping stones sink: don\'t stop on them.',
+    moats: [{ r0: 4, r1: 9 }],
+    pads: [{ p: at(8.25, 0), to: at(4.75, 0), r: 0.95, period: 6.4 }, { p: at(8.2, 140), r: 0.78, crumble: true }, { p: at(6.5, 140), r: 0.78, crumble: true }, { p: at(4.8, 140), r: 0.78, crumble: true }],
+    sweepers: [{ c: at(6.5, 16), len: 1.75, h: 0.9, period: 2.4 }],
+    route: [at(9.5, 0), { pad: 0 }, at(3.4, 0)],
+    shellRoute: [at(9.6, 140), { pad: 1 }, { pad: 2 }, { pad: 3 }, at(3.4, 140)] }); }
+{ const B1 = at(7.9, 0);
+  LEVELS.push({ id: 'beat', name: 'GATE BEAT', tier: 2, clean: true, par: 0, start: at(11.5, 0), flag: TOP, shell: at(8, 150),
+    hint: 'The gates open and shut on a beat: go as one opens. The spring throws you over the water, THROUGH the far gate, so time your run-up.',
+    rings: [{ r: 9, h: 9, beat: { period: 3, open: 0.42 } }, { r: 4.8, h: 9, beat: { period: 2.6, open: 0.45, ph: 0.2 } }, { r: 2.1, h: 0.8 }],
+    moats: [{ r0: 3, r1: 6.6 }],
+    springs: [{ p: at(7.1, 0), r: 0.55 }],
+    checks: [B1],
+    route: [at(9.7, 0), B1, at(2.6, 0)],
+    shellRoute: [at(9.7, 0), B1, at(8, 60), at(8, 110), at(8, 150), at(8, 110), at(8, 60), B1, at(2.6, 0)] }); }
+{ const C1 = at(7.5, 0), C2 = at(3.95, 0);
+  LEVELS.push({ id: 'gauntlet', name: 'THE GAUNTLET', tier: 3, clean: true, par: 0, start: at(11.5, 0), flag: TOP, shell: at(5.7, 180),
+    hint: 'Everything at once. Watch each part from its flag before you go: a fast arm, sinking stones with an arm across them, a gate on a beat and a tall log.',
+    moats: [...moatBut(8.4, 10, 0, 16), { r0: 4.6, r1: 6.9 }],
+    pads: [{ p: at(6.25, 0), r: 0.72, crumble: true }, { p: at(5.2, 0), r: 0.72, crumble: true }, { p: at(5.7, 180), r: 0.85 }],
+    sweepers: [{ c: at(9.2, 0), len: 1.6, h: 0.9, period: 1.8 }, { c: at(5.72, 15), len: 1.55, h: 0.9, period: 2.5, ph: 0.4 }, { c: at(1.9, 40), len: 1.5, h: 9, period: 2.8 }],
+    rings: [{ r: 3, h: 9, beat: { period: 2.4, open: 0.42 } }],
+    checks: [C1, C2],
+    route: [at(10.6, 0), C1, at(7.05, 0), { pad: 0 }, { pad: 1 }, C2, at(3.3, 0), at(2.6, 0)],
+    shellRoute: [at(10.6, 0), C1, at(7.4, 60), at(7.4, 120), at(7.2, 180), { pad: 2 }, at(4.2, 180), at(4.2, 90), C2, at(3.3, 0), at(2.6, 0)] }); }
+
 // ── A go at a trial ─────────────────────────────────────────────────────────
 export function create(lv) {
-    return { lv, t: 0, id: 1, won: false, throws: 0, shell: !lv.shell, falls: 0, open: {}, held: {}, nuts: [],
-        crab: { p: lv.start.slice(), f: tangent(lv.start, lv.flag), face: tangent(lv.start, lv.flag), h: 0, vh: 0, moving: false, air: false } };
+    return { lv, t: 0, id: 1, won: false, throws: 0, shell: !lv.shell, falls: 0, open: {}, held: {}, nuts: [], cp: -1, pads: (lv.pads || []).map(() => ({ t: null })),
+        crab: { p: lv.start.slice(), f: tangent(lv.start, lv.flag), face: tangent(lv.start, lv.flag), h: 0, vh: 0, moving: false, air: false, coy: COYOTE_S, jbuf: 0 } };
 }
 const c0 = o => o.c || TOP;
 /** Is this wall standing (not a gate that is open)? */
-export const up = (s, w) => !w.gate || !(s.open[w.gate] || s.held[w.gate]);
+export const up = (s, w) => (w.beat ? !beatOpen(s, w) : !w.gate || !(s.open[w.gate] || s.held[w.gate]));
+/** A gate on a beat: is it open now? */
+export const beatOpen = (s, w) => ((s.t / w.beat.period + (w.beat.ph || 0)) % 1) < w.beat.open;
+/** Where pad i is now (rafts slide, easing at each end). */
+export function padAt(s, i, time = s.t) {
+    const pd = s.lv.pads[i];
+    if (!pd.to) return pd.p;
+    const k = 0.5 - 0.5 * Math.cos(2 * Math.PI * (time / pd.period + (pd.ph || 0)));
+    return norm(mix(pd.p, pd.to, 1 - k, k));
+}
+/** Has pad i sunk (a crumbling one, after it was stood on)? */
+export const padGone = (s, i) => s.pads[i].t != null && s.pads[i].t > PAD_SINK_S;
+/** The pad under place p (not a sunk one), or -1. */
+export const padUnder = (s, p) => (s.lv.pads || []).findIndex((pd, i) => !padGone(s, i) && dist(padAt(s, i), p) < pd.r);
+/** Which way sweeper w's arm points now (a tangent at its post). */
+export function armDir(s, w) { const e1 = tangent(w.c, [0, 0, 1]), e2 = cross(w.c, e1), a = 2 * Math.PI * (s.t / w.period + (w.ph || 0)); return mix(e1, e2, Math.cos(a), Math.sin(a)); }
+/** Is the crab in the way of a sweeper's arm? */
+export function swept(s, w, p = s.crab.p, h = s.crab.h) {
+    const d = dist(p, w.c);
+    if (h >= w.h || d > w.len || d < 0.3) return false;
+    return dot(toward(w.c, p), armDir(s, w)) > Math.cos(Math.asin(Math.min(1, ARM_W / d)) + 0.06);
+}
 const lonOf = (p, c) => { const e1 = tangent(c, [0, 0, 1]), e2 = cross(c, e1), t = tangent(c, p); return (Math.atan2(dot(t, e2), dot(t, e1)) * 180) / Math.PI; };
 const inArc = (o, p) => o.from == null || (() => { const a = lonOf(p, c0(o)); return a >= o.from && a <= o.to; })();
 /** Is place p in the water? */
-export const wet = (s, p) => (s.lv.moats || []).some(m => { const d = dist(p, c0(m)); return d > m.r0 && d < m.r1 && inArc(m, p); });
+export const wet = (s, p) => (s.lv.moats || []).some(m => { const d = dist(p, c0(m)); return d > m.r0 && d < m.r1 && inArc(m, p); }) && (s.pads ? padUnder(s, p) < 0 : true);
 /** The landed or floating coconut under place p, or null. */
 export const nutUnder = (s, p) => s.nuts.find(n => n.state !== 'fly' && dist(n.p, p) < NUT_R) || null;
 
@@ -123,8 +196,10 @@ function _blocked(s, a, b, h) {
 
 export function jump(s) {
     const c = s.crab;
-    if (s.won || c.air) return false;
-    c.vh = JUMP_V; c.air = true;
+    if (s.won) return false;
+    // (pressed a moment early: remembered, and it jumps as it lands)
+    if (c.air) { c.jbuf = JUMP_BUFFER; return false; }
+    c.vh = JUMP_V; c.air = true; c.jbuf = 0; c.coy = 0;
     return true;
 }
 const _throwOf = charge => { const k = Math.max(0, Math.min(1, charge)), T = THROW.t0 + (THROW.t1 - THROW.t0) * k; return { T, v: (THROW.range0 + (THROW.range1 - THROW.range0) * k) / T }; };
@@ -163,18 +238,25 @@ function _nut(s, n, dt, ev) {
     if (n.h <= 0) { n.h = 0; n.state = wet(s, n.p) ? 'float' : 'land'; ev.push({ type: n.state === 'float' ? 'plop' : 'thud', nut: n, p: n.p }); }
 }
 
-function _reset(s, ev) {
-    const c = s.crab, lv = s.lv;
-    Object.assign(c, { p: lv.start.slice(), f: tangent(lv.start, lv.flag), face: tangent(lv.start, lv.flag), h: 0, vh: 0, air: false });
+// Back to the last flag touched (or the start).
+function _reset(s, ev, why = 'splash') {
+    const c = s.crab, lv = s.lv, at = s.cp >= 0 ? lv.checks[s.cp] : lv.start;
+    Object.assign(c, { p: at.slice(), f: tangent(at, lv.flag), face: tangent(at, lv.flag), h: 0, vh: 0, air: false, coy: 0, jbuf: 0 });
+    s.pads.forEach(pd => { pd.t = null; });
     s.falls++;
-    ev.push({ type: 'splash' });
+    ev.push({ type: why, at: s.cp });
 }
 
 /** Advance by dt. The stick: x right, y forward (up the screen), each −1..1. → events. */
 export function step(s, dt, stick = { x: 0, y: 0 }) {
     const ev = [], c = s.crab;
     if (s.won) return ev;
+    // Rafts move, carrying a crab that stands on one; crumbling pads count down.
+    const on0 = !c.air ? padUnder(s, c.p) : -1, was0 = on0 >= 0 ? padAt(s, on0) : null;
     s.t += dt;
+    if (on0 >= 0) { const now = padAt(s, on0); if (s.lv.pads[on0].to) { c.p = norm(mix(c.p, mix(now, was0, 1, -1), 1, 1)); c.f = tangent(c.p, c.f); c.face = tangent(c.p, c.face); } if (s.lv.pads[on0].crumble && s.pads[on0].t == null) { s.pads[on0].t = 0; ev.push({ type: 'crack', pad: on0 }); } }
+    s.pads.forEach((pd, i) => { if (pd.t != null) { const g = padGone(s, i); pd.t += dt; if (!g && padGone(s, i)) ev.push({ type: 'sink', pad: i }); if (pd.t > PAD_SINK_S + PAD_BACK_S) pd.t = null; } });
+    c.jbuf = Math.max(0, c.jbuf - dt);
     // Walk (in the air too), unless a wall taller than the crab is high stands in the way.
     const m = Math.min(1, Math.hypot(stick.x, stick.y));
     c.moving = m > 0.12;
@@ -196,10 +278,21 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
         else if (c.vh < 0) {
             const n = nutUnder(s, c.p);
             if (n && was >= NUT_TOP && c.h <= NUT_TOP) { c.h = NUT_TOP; c.vh = BOUNCE_V; ev.push({ type: 'bounce', nut: n }); }
-            else if (c.h <= 0) { c.h = 0; c.vh = 0; c.air = false; ev.push({ type: 'land' }); }
+            else if (c.h <= 0) { c.h = 0; c.vh = 0; c.air = false; ev.push({ type: 'land' }); if (c.jbuf > 0 && !wet(s, c.p)) jump(s); }
         }
     }
-    if (!c.air && wet(s, c.p)) { _reset(s, ev); return ev; }
+    // Over water with nothing underfoot: a blink of grace to jump (coyote time), then the splash.
+    if (!c.air) {
+        if (!wet(s, c.p)) c.coy = COYOTE_S;
+        else { c.coy -= dt; if (c.coy <= 0) { _reset(s, ev); return ev; } }
+        const sp = (s.lv.springs || []).find(x => dist(c.p, x.p) < x.r);
+        if (sp) { c.vh = SPRING_V; c.air = true; ev.push({ type: 'spring', spring: sp }); }
+    }
+    // A sweeper's arm, unless the crab is above it.
+    const arm = (s.lv.sweepers || []).find(w => swept(s, w));
+    if (arm) { _reset(s, ev, 'bonk'); return ev; }
+    // Flags.
+    (s.lv.checks || []).forEach((p, i) => { if (i > s.cp && !c.air && dist(c.p, p) < CHECK_R) { s.cp = i; ev.push({ type: 'check', i, p }); } });
 
     // Plates: the crab on the ground, or a coconut at rest.
     for (const pl of s.lv.plates || []) {
@@ -212,7 +305,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
 }
 
 /** [reached the flag, within par, with the shell]. */
-export const stars = s => [s.won, s.won && s.throws <= s.lv.par, s.won && s.shell && !!s.lv.shell];
+export const stars = s => [s.won, s.won && (s.lv.clean ? s.falls === 0 : s.throws <= s.lv.par), s.won && s.shell && !!s.lv.shell];
 
 // ── Playing a list of moves (the probes, and each trial's own answer) ───────
 //   ['go', place]            walk there
@@ -238,6 +331,41 @@ export function run(lv, script, { dt = 1 / 60, limit = 60, s = create(lv) } = {}
         else if (op === 'throw') throwNut(s, a);
         else if (op === 'jump') jump(s);
         else if (op === 'wait') for (let i = 0; i < a / dt; i++) tick({ x: 0, y: 0 });
+    }
+    return { s, ev: all };
+}
+
+// ── A player that looks ahead (the probes prove the skill courses with it) ──
+// It follows the trial's `route`; ten times a second it tries walking on, jumping, or
+// waiting, each played a second and a bit into the future on a copy, and takes the
+// first that neither splashes nor is bonked. It knows nothing else about the course.
+const _copy = s => ({ ...s, crab: { ...s.crab }, nuts: s.nuts.map(n => ({ ...n })), open: { ...s.open }, held: { ...s.held }, pads: s.pads.map(p => ({ ...p })) });
+const _target = (s, w) => (w.pad != null ? padAt(s, w.pad) : w);
+const _reached = (s, w) => !s.crab.air && (w.pad != null ? padUnder(s, s.crab.p) === w.pad : dist(s.crab.p, w) < (w === s.lv.flag ? FLAG_R : 0.45));
+function _toward(s, w) { const c = s.crab, p = _target(s, w); if (dist(c.p, p) < 0.12) return { x: 0, y: 0 }; const d = toward(c.p, p), r = cross(c.f, c.p); return { x: dot(d, r), y: dot(d, c.f) }; }
+export function autoplay(lv, { dt = 1 / 60, limit = 120, look = 1.3, s = create(lv), via = lv.route } = {}) {
+    const route = [...(via || []), lv.flag], all = []; let i = 0;
+    const dead = ev => ev.some(e => e.type === 'splash' || e.type === 'bonk');
+    const tryIt = act => {
+        const t = _copy(s); let j = i, hold = act === 'wait' ? 0.2 : 0;
+        if (act === 'jump') jump(t);
+        for (let k = 0; k < look / dt; k++) {
+            const w = route[Math.min(j, route.length - 1)];
+            const ev = step(t, dt, hold > 0 ? { x: 0, y: 0 } : _toward(t, w)); hold -= dt;
+            if (dead(ev)) return -1;        // (DEAD)
+            if (t.won) return 99;
+            if (j < route.length - 1 && _reached(t, w)) j++;
+        }
+        return (j - i) * 100 - dist(t.crab.p, _target(t, route[Math.min(j, route.length - 1)]));
+    };
+    let act = 'go';
+    for (let n = 0; n < limit / dt && !s.won; n++) {
+        if (i < route.length - 1 && _reached(s, route[i])) i++;
+        if (n % 6 === 0) { const g = tryIt('go'), j = s.crab.air ? -1e9 : tryIt('jump'), DEAD = -1; const gd = g === DEAD, jd = j === DEAD || j === -1e9;
+            act = gd && jd ? 'wait' : gd ? 'jump' : jd ? 'go' : j > g + 0.6 ? 'jump' : 'go'; if (act === 'jump') jump(s); }
+        const before = s.falls, ev = step(s, dt, act === 'wait' ? { x: 0, y: 0 } : _toward(s, route[Math.min(i, route.length - 1)]));
+        all.push(...ev);
+        if (s.falls > before) { i = 0; while (i < route.length - 1 && s.cp >= 0 && route[i] !== lv.checks[s.cp]) i++; if (s.cp >= 0) i++; }
     }
     return { s, ev: all };
 }
