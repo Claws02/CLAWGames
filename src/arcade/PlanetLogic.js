@@ -2,13 +2,21 @@
 // TINY PLANET — the rules. No DOM, no three.js: the screen (Planet.js) draws
 // what this says, and the probes play it in Node.
 //
-// A crab on a very small planet. By DAY: walk about picking up shells, plant
-// palms (they drop coconuts), build huts (each houses a villager, who brings
-// a shell every so often) and bubble towers. By NIGHT: shooting stars fall on
-// the island. Stand where one will land and the crab CATCHES it (and keeps
-// the pieces); a tower's bubble soaks up a few; the rest flatten palms and
-// crack huts. Every third dawn the planet grows. The island is lost when the
-// last hut goes. The score is the day you reached.
+// A crab on a very small planet, building a CITY OF CRABS. Every hut is a
+// home (1 crab; upgraded, 2 then 3), and the number of crabs is the score.
+// Reaching 5, 10, 20, 35 and 50 crabs makes the camp a VILLAGE, a TOWN, a
+// CITY, a METROPOLIS and the CRAB CAPITAL: each step grows the planet and
+// opens something new (TOWNS).
+//
+// By DAY: walk about picking up shells, plant palms (coconuts), build huts,
+// bubble towers and markets. The ACTION button does whatever is to hand:
+// shake a palm, mend a crack, make a home bigger, pick up a rock (then throw
+// it at a falling star). A boardwalk COURSE appears each day: walk its planks,
+// JUMP its gaps, and there's a chest at the end; fall off and nothing is lost.
+// By NIGHT: shooting stars fall on the city. Stand where one lands and the
+// crab catches it; be in the air (JUMP) as it lands for a PERFECT catch worth
+// double. A tower's bubble soaks up a few; the rest flatten palms and crack
+// homes. The city is lost when the last home goes.
 //
 // Everything lives on the unit sphere: a place is a unit vector, and a
 // distance along the ground is the angle between two places times the
@@ -17,10 +25,13 @@
 //
 //   create({ rnd, up })           a new island (up: upgrade levels, see UPGRADES)
 //   step(s, dt, { x, y })         advance; the stick is screen-relative. → events
-//   canBuild(s, kind) / build     'palm' | 'hut' | 'tower', where the crab stands
-//   repairable(s) / repair(s)     a cracked hut or tower next to the crab
+//   jump(s)                       hop
+//   canBuild(s, kind) / build     'palm' | 'hut' | 'tower' | 'market', where the crab stands
+//   context(s) / act(s)           what the action button would do here, and doing it
+//   goal(s)                       the line the tracker shows
 //   stardust(s)                   what a finished run pays into the workshop
-//   autopilot(s)                  a sensible player: { x, y, build, repair }
+//   save(s) / load(o, rnd)        a run as plain data, and back
+//   autopilot(s)                  a sensible player: { x, y, build, act, jump }
 // ============================================================
 
 // ── Vectors (plain arrays) ──────────────────────────────────────────────────
@@ -38,18 +49,33 @@ export const toward = (a, b) => tangent(a, b);
 export const walk = (p, d, a) => norm(mix(p, d, Math.cos(a), Math.sin(a)));
 
 // ── Tuning (seconds and world units) ────────────────────────────────────────
-export const R0 = 5.5, R_MAX = 12, GROW = 1.13, GROW_EVERY = 3;
+export const R0 = 5.5, R_MAX = 12, GROW = 1.16;
 export const DAY_S = 30, NIGHT_S = 16;
 export const SPEED = 4.2, COLLECT = 0.8, SPACE = 1.75, NEAR = 1.3;
+/** The city's steps: the crabs it takes, and what each opens. */
+export const TOWNS = [
+    { pop: 1, name: 'CAMP', icon: '⛺', opens: '' },
+    { pop: 5, name: 'VILLAGE', icon: '🏘️', opens: '🔮 BUBBLE TOWERS' },
+    { pop: 10, name: 'TOWN', icon: '🏠', opens: '🏠 BIG HOMES (3 CRABS)' },
+    { pop: 20, name: 'CITY', icon: '🏙️', opens: '🏪 MARKETS' },
+    { pop: 35, name: 'METROPOLIS', icon: '🌆', opens: '🔮 STRONGER BUBBLES' },
+    { pop: 50, name: 'CRAB CAPITAL', icon: '👑', opens: '' },
+];
+const NEEDS = { tower: 1, market: 3 };          // the town level a building waits for
 // What the first of each costs; every one you already have adds STEP to the next.
-export const COST = { palm: { shells: 4, nuts: 0 }, hut: { shells: 8, nuts: 3 }, tower: { shells: 10, nuts: 4 } };
-export const STEP = { palm: { shells: 1, nuts: 0 }, hut: { shells: 3, nuts: 1 }, tower: { shells: 4, nuts: 1 } };
+export const COST = { palm: { shells: 4, nuts: 0 }, hut: { shells: 8, nuts: 3 }, tower: { shells: 10, nuts: 4 }, market: { shells: 20, nuts: 8 } };
+export const STEP = { palm: { shells: 1, nuts: 0 }, hut: { shells: 3, nuts: 1 }, tower: { shells: 4, nuts: 1 }, market: { shells: 15, nuts: 5 } };
+/** Making a home bigger: from 1 crab to 2, and (in a TOWN) from 2 to 3. */
+export const BIGGER = [null, { shells: 6, nuts: 2 }, { shells: 12, nuts: 4 }];
+export const BIGGER_STEP = { shells: 2, nuts: 1 };   // added for every home already that big
 export const REPAIR = 3;
-export const HP = { palm: 1, hut: 3, tower: 2 };
-export const PALM_GROW_S = 16, NUT_S = 10, NUTS_OUT = 2, HUT_S = 18;
+export const HP = { palm: 1, hut: 3, tower: 2, market: 2 };
+export const PALM_GROW_S = 16, NUT_S = 10, NUTS_OUT = 2, HUT_S = 18, SHAKE_CD = 7;
 export const TOWER_R = 3.2, TOWER_CHARGES = 3;
 export const STAR_R = 1.25, BIG_R = 2.1, CATCH_CD = 0.5, STAR_PAY = 2, GOLD = 5;
-export const SPAWN_S = 1.7;
+export const SPAWN_S = 1.7, ROCK_S = 8;
+export const JUMP_S = 0.6, JUMP_CD = 0.12, THROW_R = 7.5;
+export const COURSE_W = 0.62, COURSE_STEP = 1.25;
 
 /** The workshop: what stardust buys, kept between runs. */
 export const UPGRADES = [
@@ -57,7 +83,7 @@ export const UPGRADES = [
     { id: 'start',  icon: '🐚', name: 'Head Start',   max: 5, how: 'Begin with 3 more shells.' },
     { id: 'green',  icon: '🌴', name: 'Green Thumb',  max: 5, how: 'Palms grow and fruit 10% faster.' },
     { id: 'reach',  icon: '🌠', name: 'Long Reach',   max: 5, how: 'Catch stars from 8% further off.' },
-    { id: 'sturdy', icon: '🛖', name: 'Sturdy Huts',  max: 3, how: 'Huts take one more hit.' },
+    { id: 'sturdy', icon: '🛖', name: 'Sturdy Homes', max: 3, how: 'Homes take one more hit.' },
     { id: 'lucky',  icon: '✨', name: 'Lucky Tides',  max: 5, how: 'More golden shells wash up.' },
 ];
 export const upgradeCost = level => [10, 20, 35, 55, 80][level] ?? null;
@@ -68,6 +94,7 @@ export const reachOf = s => 1 + 0.08 * lv(s, 'reach');
 export const hutHp = s => HP.hut + lv(s, 'sturdy');
 const greenOf = s => 1 + 0.1 * lv(s, 'green');
 export const maxHp = (s, kind) => (kind === 'hut' ? hutHp(s) : HP[kind]);
+export const chargesOf = s => TOWER_CHARGES + (s.town >= 4 ? 2 : 0);
 /** Ground distance between two places on this planet. */
 export const dist = (s, a, b) => angle(a, b) * s.R;
 
@@ -77,6 +104,7 @@ export const fallFor = day => Math.max(1.7, 3.2 - day * 0.06);
 /** Every fifth night brings the big ones (they can't be caught): one, then two, ... */
 export const bigFor = day => (day % 5 === 0 ? day / 5 : 0);
 export const shellCap = s => Math.round(4 + s.R * 0.9);
+export const rockCap = s => 2 + Math.min(3, s.town);
 
 function _rndPlace(s) {
     const z = s.rnd() * 2 - 1, a = s.rnd() * Math.PI * 2, r = Math.sqrt(1 - z * z);
@@ -85,33 +113,70 @@ function _rndPlace(s) {
 
 export function create({ rnd = Math.random, up = {} } = {}) {
     const s = {
-        rnd, up, t: 0, day: 1, phase: 'day', pt: 0, R: R0, over: false, id: 1,
-        crab: { p: [0, 1, 0], f: [0, 0, -1], face: [0, 0, -1], moving: false, cd: 0 },
+        rnd, up, t: 0, day: 1, phase: 'day', pt: 0, R: R0, town: 0, over: false, id: 1,
+        crab: { p: [0, 1, 0], f: [0, 0, -1], face: [0, 0, -1], moving: false, cd: 0, air: 0, jcd: 0, carry: null },
         shells: 4 + 3 * ((up && up.start) || 0), nuts: 0,
-        items: [], builds: [], stars: [], due: [], spawnT: 0.4,
-        stats: { caught: 0, built: 0, shells: 0, peak: 1, lost: 0 },
+        items: [], builds: [], stars: [], due: [], spawnT: 0.4, rockT: 3, course: null,
+        stats: { caught: 0, perfect: 0, smashed: 0, built: 0, shells: 0, nuts: 0, peak: 1, lost: 0, walked: 0, palms: 0, huts: 0, courses: 0 },
     };
-    // The first hut, a few steps in front of the crab, and some shells to find.
+    // The first home, a few steps in front of the crab, and some shells to find.
     _add(s, 'hut', walk(s.crab.p, s.crab.f, 2.2 / s.R));
     for (let i = 0; i < 4; i++) _spawnShell(s);
+    _newCourse(s);
     return s;
 }
 
+/** A run as plain data (for a save), and back again. */
+export const save = s => { const { rnd, ...o } = s; return JSON.parse(JSON.stringify(o)); };
+export const load = (o, rnd = Math.random) => ({ ...JSON.parse(JSON.stringify(o)), rnd });
+
 function _add(s, kind, p) {
-    const b = { id: s.id++, kind, p, hp: maxHp(s, kind), age: kind === 'palm' ? 0 : 99, t: kind === 'hut' ? HUT_S : NUT_S / greenOf(s), charges: TOWER_CHARGES };
+    const b = { id: s.id++, kind, p, hp: maxHp(s, kind), lvl: 1, age: kind === 'palm' ? 0 : 99, t: kind === 'hut' ? HUT_S : NUT_S / greenOf(s), shake: 0, charges: chargesOf(s) };
     s.builds.push(b);
     return b;
 }
-export const pop = s => s.builds.filter(b => b.kind === 'hut').length;
+/** The crabs in the city: every home counts its level. */
+export const pop = s => s.builds.reduce((n, b) => n + (b.kind === 'hut' ? b.lvl : 0), 0);
 export const grown = (s, b) => b.kind !== 'palm' || b.age >= PALM_GROW_S / greenOf(s);
+export const unlocked = (s, kind) => s.town >= (NEEDS[kind] || 0);
+/** How big a home can be made for now. */
+export const maxLvl = s => (s.town >= 2 ? 3 : 2);
+export const nextTown = s => TOWNS[s.town + 1] || null;
+/** What it costs to make home b one bigger: { shells, nuts }. */
+export function biggerCost(s, b) {
+    const n = s.builds.filter(x => x.kind === 'hut' && x.lvl > b.lvl).length;
+    return { shells: BIGGER[b.lvl].shells + BIGGER_STEP.shells * n, nuts: BIGGER[b.lvl].nuts + BIGGER_STEP.nuts * n };
+}
 
+function _clear(s, p, d) { return !s.builds.some(b => dist(s, b.p, p) < d) && !(s.course && s.course.pts.some(q => dist(s, q, p) < d)); }
 function _spawnShell(s) {
     for (let k = 0; k < 8; k++) {
         const p = _rndPlace(s);
-        if (s.builds.some(b => dist(s, b.p, p) < 1) || dist(s, s.crab.p, p) < 1.5) continue;
+        if (!_clear(s, p, 1) || dist(s, s.crab.p, p) < 1.5) continue;
         const gold = s.rnd() < 0.04 + 0.025 * lv(s, 'lucky');
         s.items.push({ id: s.id++, kind: gold ? 'gold' : 'shell', p });
         return;
+    }
+}
+function _spawnRock(s) {
+    for (let k = 0; k < 8; k++) {
+        const p = _rndPlace(s);
+        if (!_clear(s, p, 1.2) || dist(s, s.crab.p, p) < 2) continue;
+        s.items.push({ id: s.id++, kind: 'rock', p });
+        return;
+    }
+}
+
+// The city grows a step: the planet with it.
+function _townCheck(s, ev) {
+    const n = pop(s);
+    s.stats.peak = Math.max(s.stats.peak, n);
+    while (TOWNS[s.town + 1] && n >= TOWNS[s.town + 1].pop) {
+        s.town++;
+        s.R = Math.min(R_MAX, s.R * GROW);
+        if (s.town === 4) s.builds.forEach(b => { if (b.kind === 'tower') b.charges = chargesOf(s); });
+        if (s.course && s.course.k < 0) _newCourse(s);      // re-laid for the bigger planet
+        ev.push({ type: 'town', town: s.town, ...TOWNS[s.town], R: s.R });
     }
 }
 
@@ -121,23 +186,26 @@ export function costOf(s, kind) {
     const n = s.builds.filter(b => b.kind === kind).length;
     return { shells: COST[kind].shells + STEP[kind].shells * n, nuts: COST[kind].nuts + STEP[kind].nuts * n };
 }
-/** { ok, why }: can `kind` go up where the crab stands? */
+/** { ok, why }: can `kind` go up where the crab stands? why: 'locked' | 'cost' | 'space'. */
 export function canBuild(s, kind) {
     if (!COST[kind] || s.over) return { ok: false, why: '' };
+    if (!unlocked(s, kind)) return { ok: false, why: 'locked' };
     const c = costOf(s, kind);
     if (s.shells < c.shells || s.nuts < c.nuts) return { ok: false, why: 'cost' };
-    if (s.builds.some(b => dist(s, b.p, s.crab.p) < SPACE)) return { ok: false, why: 'space' };
+    if (!_clear(s, s.crab.p, SPACE) || s.crab.air > 0) return { ok: false, why: 'space' };
     return { ok: true, why: '' };
 }
-export function build(s, kind) {
+/** Build it. `ev` (optional) collects what follows, such as the town growing. */
+export function build(s, kind, ev = []) {
     if (!canBuild(s, kind).ok) return null;
     const c = costOf(s, kind);
     s.shells -= c.shells; s.nuts -= c.nuts;
     const b = _add(s, kind, s.crab.p.slice());
-    s.stats.built++; s.stats.peak = Math.max(s.stats.peak, pop(s));
+    s.stats.built++; if (kind === 'palm') s.stats.palms++; if (kind === 'hut') s.stats.huts++;
+    _townCheck(s, ev);
     return b;
 }
-/** A cracked hut or tower within reach, or null. */
+/** A cracked home, tower or market within reach, or null. */
 export const repairable = s => s.builds.find(b => b.kind !== 'palm' && b.hp < maxHp(s, b.kind) && dist(s, b.p, s.crab.p) < NEAR + 0.6) || null;
 export function repair(s) {
     const b = repairable(s);
@@ -145,6 +213,107 @@ export function repair(s) {
     s.shells -= REPAIR; b.hp = maxHp(s, b.kind);
     return b;
 }
+
+// ── Jump, and the action button ─────────────────────────────────────────────
+export function jump(s) {
+    const c = s.crab;
+    if (s.over || c.air > 0 || c.jcd > 0) return false;
+    c.air = JUMP_S;
+    return true;
+}
+/** The star a thrown rock would hit: the one landing soonest within range. */
+export const throwTarget = s => s.stars.filter(st => dist(s, st.p, s.crab.p) < THROW_R).sort((a, b) => (a.T - a.t) - (b.T - b.t))[0] || null;
+
+/**
+ * What the action button does here, or null: { kind, icon, label, ok, cost?, b?, item? }.
+ * kind: 'throw' | 'mend' | 'carry' | 'shake' | 'bigger'.
+ */
+export function context(s) {
+    const c = s.crab;
+    if (s.over) return null;
+    if (c.carry) return { kind: 'throw', icon: '🪨', label: throwTarget(s) ? 'THROW!' : 'DROP', ok: true };
+    const fix = repairable(s);
+    if (fix) return { kind: 'mend', icon: '🔧', label: `MEND ${REPAIR}🐚`, ok: s.shells >= REPAIR, b: fix };
+    const rock = s.items.find(i => i.kind === 'rock' && dist(s, i.p, c.p) < 1.15);
+    if (rock) return { kind: 'carry', icon: '🪨', label: 'PICK UP', ok: true, item: rock };
+    const near = (kind, d) => s.builds.filter(b => b.kind === kind && dist(s, b.p, c.p) < d).sort((a, b) => dist(s, a.p, c.p) - dist(s, b.p, c.p));
+    const palm = near('palm', 1.5).find(b => grown(s, b) && b.shake <= 0);
+    if (palm) return { kind: 'shake', icon: '🌴', label: 'SHAKE', ok: true, b: palm };
+    const hut = near('hut', 1.9).find(b => b.lvl < maxLvl(s));
+    if (hut) { const cost = biggerCost(s, hut); return { kind: 'bigger', icon: '🏠', label: `GROW ${cost.shells}🐚 ${cost.nuts}🥥`, ok: s.shells >= cost.shells && s.nuts >= cost.nuts, cost, b: hut }; }
+    return null;
+}
+/** Press the action button. → the event it made (also pushed to `ev`), or null. */
+export function act(s, ev = []) {
+    const x = context(s), c = s.crab;
+    if (!x || !x.ok) return null;
+    let e = null;
+    if (x.kind === 'throw') {
+        const st = throwTarget(s);
+        c.carry = null;
+        if (st) {
+            s.stars.splice(s.stars.indexOf(st), 1);
+            const pay = st.big ? 3 : 1; s.shells += pay; s.stats.smashed++;
+            e = { type: 'smash', star: st, p: st.p, big: st.big, pay };
+        } else {
+            const it = { id: s.id++, kind: 'rock', p: walk(c.p, c.face, 1.6 / s.R) };
+            s.items.push(it); e = { type: 'drop', item: it };
+        }
+    } else if (x.kind === 'mend') { repair(s); e = { type: 'mend', b: x.b }; }
+    else if (x.kind === 'carry') { s.items.splice(s.items.indexOf(x.item), 1); c.carry = 'rock'; e = { type: 'carry', item: x.item }; }
+    else if (x.kind === 'shake') {
+        x.b.shake = SHAKE_CD;
+        const it = { id: s.id++, kind: 'nut', from: x.b.id, p: walk(x.b.p, toward(x.b.p, c.p), 0.7 / s.R) };
+        s.items.push(it); e = { type: 'shake', b: x.b, item: it };
+    } else if (x.kind === 'bigger') {
+        s.shells -= x.cost.shells; s.nuts -= x.cost.nuts; x.b.lvl++; x.b.hp = maxHp(s, 'hut');
+        e = { type: 'bigger', b: x.b, lvl: x.b.lvl };
+    }
+    if (e) ev.push(e);
+    _townCheck(s, ev);
+    return e;
+}
+
+// ── The boardwalk course ────────────────────────────────────────────────────
+// A bendy line of planks, a coin on each, gaps to jump and a chest at the end.
+// One at a time, a new one each dawn once the last is done.
+function _newCourse(s) {
+    const n = 5 + Math.min(3, s.town), gaps = 1 + (s.town >= 2 ? 1 : 0) + (s.town >= 4 ? 1 : 0);
+    for (let k = 0; k < 30; k++) {
+        let p = _rndPlace(s), d = tangent(p, _rndPlace(s));
+        if (dist(s, p, s.crab.p) < 2.5) continue;
+        const pts = [p];
+        for (let i = 1; i < n; i++) {
+            const a = (s.rnd() - 0.5) * 1.1;
+            d = norm(mix(d, cross(p, d), Math.cos(a), Math.sin(a)));
+            const q = walk(p, d, COURSE_STEP / s.R);
+            d = tangent(q, d); p = q; pts.push(q);
+        }
+        if (pts.some(q => s.builds.some(b => dist(s, b.p, q) < SPACE))) continue;
+        const segs = []; for (let i = 1; i < n - 2; i++) segs.push(i);
+        const g = [];
+        while (g.length < gaps && segs.length) { const i = segs.splice(Math.floor(s.rnd() * segs.length), 1)[0]; if (!g.includes(i - 1) && !g.includes(i + 1)) g.push(i); }
+        s.course = { id: s.id++, pts, gaps: g.sort((a, b) => a - b), k: -1, got: 0, done: false, prize: 6 + 3 * s.town + 2 * g.length };
+        return s.course;
+    }
+    s.course = null;
+    return null;
+}
+function _courseStep(s, ev) {
+    const co = s.course, c = s.crab;
+    if (!co || co.done) return;
+    if (co.k < 0) { if (dist(s, c.p, co.pts[0]) < 0.6) { co.k = 0; ev.push({ type: 'on', course: co }); } return; }
+    const a = co.pts[co.k], b = co.pts[co.k + 1], ab = mix(b, a, 1, -1), ac = mix(c.p, a, 1, -1);
+    const t = Math.max(0, Math.min(1, dot(ac, ab) / dot(ab, ab))), q = mix(a, ab, 1, t), off = Math.hypot(c.p[0] - q[0], c.p[1] - q[1], c.p[2] - q[2]) * s.R;
+    if (off > COURSE_W || (co.gaps.includes(co.k) && t > 0.27 && t < 0.73 && c.air <= 0)) { co.k = -1; ev.push({ type: 'fell', course: co, gap: off <= COURSE_W }); return; }
+    if (dist(s, c.p, b) < 0.5 || t >= 0.97) {
+        co.k++;
+        if (co.k > co.got) { co.got = co.k; s.shells++; s.stats.shells++; ev.push({ type: 'coin', p: b, course: co }); }
+        if (co.k === co.pts.length - 1) { co.done = true; co.k = -1; s.shells += co.prize; s.stats.shells += co.prize; s.stats.courses++; ev.push({ type: 'chest', p: b, prize: co.prize, course: co }); }
+    }
+}
+/** True while the crab is up on the planks. */
+export const onCourse = s => !!(s.course && s.course.k >= 0);
 
 // ── The night sky ───────────────────────────────────────────────────────────
 function _nightfall(s, ev) {
@@ -173,11 +342,12 @@ function _launch(s, d, ev) {
 function _land(s, st, ev) {
     // A tower's bubble takes it, if one covers the spot and has a charge left.
     const tw = s.builds.filter(b => b.kind === 'tower' && b.charges > 0 && dist(s, b.p, st.p) < TOWER_R).sort((a, b) => dist(s, a.p, st.p) - dist(s, b.p, st.p))[0];
-    if (tw) { tw.charges -= st.big ? 2 : 1; if (tw.charges < 0) tw.charges = 0; ev.push({ type: 'shield', p: st.p, tower: tw, big: st.big }); return; }
-    // The crab under an ordinary star catches it.
+    if (tw) { tw.charges = Math.max(0, tw.charges - (st.big ? 2 : 1)); ev.push({ type: 'shield', p: st.p, tower: tw, big: st.big }); return; }
+    // The crab under an ordinary star catches it; in the air, it's a perfect catch.
     if (!st.big && s.crab.cd <= 0 && dist(s, s.crab.p, st.p) < st.r * reachOf(s)) {
-        s.crab.cd = CATCH_CD; s.shells += STAR_PAY; s.stats.caught++;
-        ev.push({ type: 'catch', p: st.p, pay: STAR_PAY });
+        const perfect = s.crab.air > 0, pay = STAR_PAY * (perfect ? 2 : 1);
+        s.crab.cd = CATCH_CD; s.shells += pay; s.stats.caught++; if (perfect) s.stats.perfect++;
+        ev.push({ type: 'catch', p: st.p, pay, perfect });
         return;
     }
     const hit = [];
@@ -187,7 +357,7 @@ function _land(s, st, ev) {
         if (b.hp <= 0) { s.builds.splice(s.builds.indexOf(b), 1); s.stats.lost++; hit.push({ b, gone: true }); }
         else hit.push({ b, gone: false });
     }
-    s.items = s.items.filter(i => dist(s, i.p, st.p) > st.r);
+    s.items = s.items.filter(i => i.kind === 'rock' || dist(s, i.p, st.p) > st.r);
     let ouch = 0;
     if (dist(s, s.crab.p, st.p) < st.r) { ouch = Math.min(3, s.shells); s.shells -= ouch; }
     ev.push({ type: 'impact', p: st.p, r: st.r, big: st.big, hit, ouch });
@@ -196,12 +366,11 @@ function _land(s, st, ev) {
 
 function _dawn(s, ev) {
     s.day++; s.phase = 'day'; s.pt = 0;
-    s.builds.forEach(b => { if (b.kind === 'tower') b.charges = TOWER_CHARGES; });
-    const gift = pop(s);
+    s.builds.forEach(b => { if (b.kind === 'tower') b.charges = chargesOf(s); });
+    const n = pop(s), market = s.builds.filter(b => b.kind === 'market').length * Math.floor(n / 3), gift = n + market;
     s.shells += gift;
-    let grew = false;
-    if ((s.day - 1) % GROW_EVERY === 0 && s.R < R_MAX) { s.R = Math.min(R_MAX, s.R * GROW); grew = true; }
-    ev.push({ type: 'dawn', day: s.day, gift, grew, R: s.R });
+    if (!s.course || s.course.done) _newCourse(s);
+    ev.push({ type: 'dawn', day: s.day, gift, market });
 }
 
 // ── One step ────────────────────────────────────────────────────────────────
@@ -211,7 +380,8 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     if (s.over) return ev;
     s.t += dt; s.pt += dt;
     const c = s.crab;
-    c.cd = Math.max(0, c.cd - dt);
+    c.cd = Math.max(0, c.cd - dt); c.jcd = Math.max(0, c.jcd - dt);
+    if (c.air > 0) { c.air = Math.max(0, c.air - dt); if (c.air === 0) { c.jcd = JUMP_CD; ev.push({ type: 'landed' }); } }
 
     // The crab. The camera's forward (f) is carried along with it, so the
     // stick always means "that way on the screen".
@@ -219,29 +389,33 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     c.moving = m > 0.12;
     if (c.moving) {
         const right = cross(c.f, c.p);
-        const d = norm(mix(right, c.f, stick.x, stick.y));
-        c.p = walk(c.p, d, (speedOf(s) * m * dt) / s.R);
+        const d = norm(mix(right, c.f, stick.x, stick.y)), a = (speedOf(s) * m * dt) / s.R;
+        c.p = walk(c.p, d, a);
         c.f = tangent(c.p, c.f);
         c.face = tangent(c.p, d);
+        s.stats.walked += a * s.R;
     }
+    _courseStep(s, ev);
 
-    // Pick up whatever it walks over.
+    // Pick up whatever it walks over (rocks wait for the action button).
     for (let i = s.items.length - 1; i >= 0; i--) {
         const it = s.items[i];
-        if (dist(s, it.p, c.p) > COLLECT) continue;
+        if (it.kind === 'rock' || dist(s, it.p, c.p) > COLLECT) continue;
         s.items.splice(i, 1);
-        if (it.kind === 'nut') s.nuts++;
+        if (it.kind === 'nut') { s.nuts++; s.stats.nuts++; }
         else { const n = it.kind === 'gold' ? GOLD : 1; s.shells += n; s.stats.shells += n; }
         ev.push({ type: 'pick', item: it });
     }
 
-    // Shells wash up; palms grow and drop coconuts; villagers bring shells.
+    // Shells and rocks turn up; palms grow and drop coconuts; the crabs at home bring shells.
     s.spawnT -= dt;
-    if (s.spawnT <= 0) { s.spawnT = SPAWN_S; if (s.items.filter(i => i.kind !== 'nut').length < shellCap(s)) _spawnShell(s); }
+    if (s.spawnT <= 0) { s.spawnT = SPAWN_S; if (s.items.filter(i => i.kind === 'shell' || i.kind === 'gold').length < shellCap(s)) _spawnShell(s); }
+    s.rockT -= dt;
+    if (s.rockT <= 0) { s.rockT = ROCK_S; if (s.items.filter(i => i.kind === 'rock').length + (c.carry ? 1 : 0) < rockCap(s)) _spawnRock(s); }
     for (const b of s.builds) {
         if (b.kind === 'palm') {
             const was = grown(s, b);
-            b.age += dt;
+            b.age += dt; b.shake = Math.max(0, b.shake - dt);
             if (!was && grown(s, b)) ev.push({ type: 'grown', b });
             if (!grown(s, b)) continue;
             b.t -= dt;
@@ -274,14 +448,29 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     return ev;
 }
 
-/** What a finished run pays: the nights survived, the stars caught, the village at its biggest. */
-export const stardust = s => (s.day - 1) * 3 + Math.floor(s.stats.caught / 2) + s.stats.peak;
+/** The tracker's line: the first steps one at a time, then the next size of city. */
+export function goal(s) {
+    const st = s.stats, n = pop(s), next = nextTown(s);
+    if (st.walked < 3) return { tut: true, text: 'DRAG ANYWHERE TO WALK' };
+    if (!st.palms && s.shells < costOf(s, 'palm').shells) return { tut: true, text: `PICK UP SHELLS 🐚 ${s.shells}/${costOf(s, 'palm').shells}` };
+    if (!st.palms) return { tut: true, text: 'TAP 🌴 TO PLANT A PALM' };
+    if (!st.huts && s.nuts < costOf(s, 'hut').nuts) return { tut: true, text: `COLLECT COCONUTS 🥥 ${s.nuts}/${costOf(s, 'hut').nuts} · ✋ SHAKES A PALM` };
+    if (!st.huts && s.shells < costOf(s, 'hut').shells) return { tut: true, text: `SAVE SHELLS FOR A HOME 🐚 ${s.shells}/${costOf(s, 'hut').shells}` };
+    if (!st.huts) return { tut: true, text: 'TAP 🛖 TO BUILD A HOME: +1 CRAB' };
+    if (!st.caught && s.phase === 'night') return { tut: true, text: 'STAND IN A RING TO CATCH THE STAR · JUMP = DOUBLE' };
+    if (!next) return { tut: false, text: `👑 CRAB CAPITAL · ${n} CRABS` };
+    return { tut: false, text: `${next.icon} ${next.name}: ${n}/${next.pop} CRABS` };
+}
+
+/** What a finished run pays: the city at its biggest, the nights survived, the stars caught. */
+export const stardust = s => s.stats.peak * 2 + s.town * 6 + (s.day - 1) * 2 + Math.floor(s.stats.caught / 2) + s.stats.perfect + s.stats.courses * 2;
 
 // ── A sensible player (the probes, and the clip on the game's card) ─────────
-/** { x, y, build, repair }: where to push the stick, and what to press. */
+/** { x, y, build, act, jump }: where to push the stick, and what to press. */
 export function autopilot(s) {
-    const c = s.crab, out = { x: 0, y: 0, build: null, repair: false };
+    const c = s.crab, out = { x: 0, y: 0, build: null, act: false, jump: false };
     const go = p => { const d = toward(c.p, p), right = cross(c.f, c.p); out.x = dot(d, right); out.y = dot(d, c.f); };
+    const x = context(s);
     if (s.phase === 'night') {
         // The star that will hurt most and can still be reached in time.
         let best = null, bv = -1;
@@ -290,28 +479,47 @@ export function autopilot(s) {
             const left = st.T - st.t, need = Math.max(0, dist(s, c.p, st.p) - st.r * reachOf(s) * 0.7) / speedOf(s);
             if (need > left) continue;
             if (s.builds.some(b => b.kind === 'tower' && b.charges > 0 && dist(s, b.p, st.p) < TOWER_R)) continue;
-            const v = s.builds.reduce((a, b) => a + (dist(s, b.p, st.p) < st.r ? (b.kind === 'hut' ? 5 : b.kind === 'tower' ? 3 : 2) : 0), 0.5) + 1 / (1 + left);
+            const v = s.builds.reduce((a, b) => a + (dist(s, b.p, st.p) < st.r ? (b.kind === 'hut' ? 4 + b.lvl : b.kind === 'palm' ? 2 : 3) : 0), 0.5) + 1 / (1 + left);
             if (v > bv) { bv = v; best = st; }
         }
-        if (best) { if (dist(s, c.p, best.p) > best.r * 0.35) go(best.p); return out; }
+        if (best) {
+            if (dist(s, c.p, best.p) > best.r * 0.35) go(best.p);
+            else if (best.T - best.t < JUMP_S * 0.6) out.jump = true;
+            return out;
+        }
     }
-    if (repairable(s) && s.shells >= REPAIR) { out.repair = true; return out; }
-    // What to build next: palms first, then huts, a tower for every three huts.
-    const n = k => s.builds.filter(b => b.kind === k).length;
-    const want = n('palm') < 2 ? 'palm' : n('tower') * 3 < n('hut') - 1 ? 'tower' : n('palm') < n('hut') + 1 && n('palm') < 6 ? 'palm' : 'hut';
-    const cst = costOf(s, want);
-    if (s.phase === 'day' && s.shells >= cst.shells && s.nuts >= cst.nuts) {
-        if (canBuild(s, want).ok) { out.build = want; return out; }
-        // Not here: step away from whatever is nearest.
-        const nb = s.builds.slice().sort((a, b) => dist(s, a.p, c.p) - dist(s, b.p, c.p))[0];
-        const away = toward(c.p, nb.p), right = cross(c.f, c.p);
-        out.x = -dot(away, right); out.y = -dot(away, c.f);
-        if (Math.hypot(out.x, out.y) < 0.1) out.y = 1;
-        return out;
+    if (x && x.ok && (x.kind === 'mend' || x.kind === 'shake')) { out.act = true; return out; }
+    if (s.phase === 'day') {
+        // Something cracked, anywhere: go and mend it.
+        const hurt = s.shells >= REPAIR && s.builds.filter(b => b.kind !== 'palm' && b.hp < maxHp(s, b.kind)).sort((a, b) => dist(s, a.p, c.p) - dist(s, b.p, c.p))[0];
+        if (hurt) { go(hurt.p); return out; }
+        // What to build next: palms first, then homes, a tower for every few homes.
+        const n = k => s.builds.filter(b => b.kind === k).length;
+        let want = n('palm') < 2 ? 'palm' : unlocked(s, 'tower') && n('tower') * 3 < n('hut') - 1 ? 'tower' : unlocked(s, 'market') && n('market') < 1 ? 'market' : n('palm') < n('hut') + 1 && n('palm') < 7 ? 'palm' : 'hut';
+        // A bigger home is often cheaper than a new one.
+        const small = s.builds.filter(b => b.kind === 'hut' && b.lvl < maxLvl(s)).sort((a, b) => a.lvl - b.lvl || dist(s, a.p, c.p) - dist(s, b.p, c.p))[0];
+        if (want === 'hut' && small && biggerCost(s, small).shells <= costOf(s, 'hut').shells) {
+            const cost = biggerCost(s, small);
+            if (s.shells >= cost.shells && s.nuts >= cost.nuts) {
+                if (x && x.kind === 'bigger' && x.b === small && x.ok) { out.act = true; return out; }
+                go(small.p); return out;
+            }
+            want = null;
+        }
+        const cst = want && costOf(s, want);
+        if (want && s.shells >= cst.shells && s.nuts >= cst.nuts) {
+            if (canBuild(s, want).ok) { out.build = want; return out; }
+            // Not here: step away from whatever is nearest.
+            const nb = s.builds.slice().sort((a, b) => dist(s, a.p, c.p) - dist(s, b.p, c.p))[0];
+            const away = toward(c.p, nb.p), right = cross(c.f, c.p);
+            out.x = -dot(away, right); out.y = -dot(away, c.f);
+            if (Math.hypot(out.x, out.y) < 0.1) out.y = 1;
+            return out;
+        }
     }
     // Otherwise the nearest thing worth picking up (coconuts and gold first).
     let near = null, nd = Infinity;
-    for (const it of s.items) { const d = dist(s, it.p, c.p) - (it.kind === 'shell' ? 0 : 2); if (d < nd) { nd = d; near = it; } }
+    for (const it of s.items) { if (it.kind === 'rock') continue; const d = dist(s, it.p, c.p) - (it.kind === 'shell' ? 0 : 2); if (d < nd) { nd = d; near = it; } }
     if (near) go(near.p);
     return out;
 }
