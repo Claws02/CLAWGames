@@ -70,6 +70,7 @@ export function createLair(kit, level, hooks) {
 
     // ── Shapes ───────────────────────────────────────────────────────────────
     const G = {
+        tower: new T.CylinderGeometry(0.52, 0.64, 1, 16),
         rock: new T.IcosahedronGeometry(0.5, 0), rockSoft: new T.IcosahedronGeometry(0.5, 1), brick: new T.BoxGeometry(1, 1, 1), crystal: new T.ConeGeometry(0.2, 1, 5),
         sph: new T.SphereGeometry(0.5, 16, 12), sphLow: new T.SphereGeometry(0.5, 10, 8), cyl: new T.CylinderGeometry(0.5, 0.5, 1, 14), cylLow: new T.CylinderGeometry(0.5, 0.5, 1, 9), cone: new T.ConeGeometry(0.5, 1, 8), coneLow: new T.ConeGeometry(0.5, 1, 5),
         box: new T.BoxGeometry(1, 1, 1), disc: new T.CircleGeometry(1, 28), ring: new T.RingGeometry(0.82, 1, 32), tube: new T.CylinderGeometry(1, 1, 1, 20, 1, true), dot: new T.SphereGeometry(0.08, 6, 5),
@@ -144,17 +145,63 @@ export function createLair(kit, level, hooks) {
         courses.forEach((items, ri) => items.forEach((it, i) => inst[ri].set(i, stand(walk(it.p, it.f, (ri ? 0.03 : 0) / R), it.f, 0.5 + ri, it.len * 0.97, 1.0, 0.62), ri ? C.stone[2] : C.stone[i % 2])));
         inst.forEach(i => i.done());
     }
-    // Sandcastle walls: courses of sand blocks, battlements along the top; a cracked section darker, crumbling as it is hit.
+    // Sandcastle walls: one hand-patted wall (wider at the foot, bumpy, with course lines), battlements along the top, bucket-shaped
+    // towers at its ends and along the way (some with flags), shells pressed into the sand. A cracked section is grey stone.
+    const hash = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
+    const spansOf = (w, step) => {          // the arcs of ring w that stand, as lists of { p, f, deg }
+        const c = w.c || TOP, circ = 2 * Math.PI * R * Math.sin(w.r / R), n = Math.max(24, Math.round(circ / step)), on = [];
+        for (let i = 0; i < n; i++) { const deg = (i / n) * 360, p = around(c, w.r, deg); on.push(K.covers(w, p) ? { p, f: toward(p, c), deg } : null); }
+        const spans = []; let cur = null;
+        for (let i = 0; i < n; i++) { if (on[i]) { if (!cur) spans.push(cur = []); cur.push(on[i]); } else cur = null; }
+        if (spans.length > 1 && on[0] && on[n - 1]) spans[0] = spans.pop().concat(spans[0]);        // (one span across the seam)
+        return { spans, full: spans.length === 1 && spans[0].length === n };
+    };
+    function sandWall(w, pal, opt = {}) {
+        const h = w.h, prof = [[-0.62, 0], [-0.55, h * 0.18], [-0.5, h * 0.62], [-0.46, h], [0.46, h], [0.5, h * 0.62], [0.55, h * 0.18], [0.62, 0]];
+        const { spans, full } = spansOf(w, 0.28), pos = [], col = [], cc = new T.Color(), ends = [];
+        const vert = (sp, si, k) => {
+            const it = sp[si], [x0, y0] = prof[k], top = k === 3 || k === 4, n = (hash(si + it.deg, k) - 0.5);
+            const x = x0 + (top ? 0 : n * (opt.rough || 0.07)), y = y0 + (top ? n * (opt.jag || 0.04) : 0);
+            const v = V(it.p).multiplyScalar(R + y).addScaledVector(V(it.f), x);
+            // colour: darker at the foot, a darker line between courses, lighter on top, a little speckle
+            const course = (y / Math.max(0.5, h)) * Math.max(1, Math.round(h * 1.5)), line = Math.abs(course - Math.round(course)) < 0.07 && !top && y > 0.1;
+            cc.setHex(top ? pal.top : y < 0.22 ? pal.foot : pal.face[(Math.floor(si / 6) + Math.floor(course)) % pal.face.length]);
+            if (line) cc.multiplyScalar(0.82); cc.multiplyScalar(0.94 + hash(si, k + 7) * 0.1);
+            return [v, cc.r, cc.g, cc.b];
+        };
+        const tri = (a, b, c2) => { for (const q of [a, b, c2]) { pos.push(q[0].x, q[0].y, q[0].z); col.push(q[1], q[2], q[3]); } };
+        for (const sp of spans) {
+            const m = sp.length - (full ? 0 : 1);
+            for (let si = 0; si < m; si++) { const sj = (si + 1) % sp.length; for (let k = 0; k < prof.length - 1; k++) { const a = vert(sp, si, k), b = vert(sp, si, k + 1), c2 = vert(sp, sj, k), d = vert(sp, sj, k + 1); tri(a, c2, b); tri(b, c2, d); } }
+            if (!full) for (const [si, flip] of [[0, true], [sp.length - 1, false]]) {        // end caps
+                const vs = prof.map((_, k) => vert(sp, si, k)), mid = [vs[0][0].clone().add(vs[prof.length - 1][0]).multiplyScalar(0.5).addScaledVector(V(sp[si].p), h * 0.5), vs[1][1], vs[1][2], vs[1][3]];
+                for (let k = 0; k < prof.length - 1; k++) flip ? tri(vs[k], mid, vs[k + 1]) : tri(vs[k + 1], mid, vs[k]);
+                ends.push(sp[si]);
+            }
+        }
+        const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new T.Float32BufferAttribute(col, 3)); geo.computeVertexNormals();
+        const mesh = Y.part(geo, Y.toon(0xffffff, { vertexColors: true }), 0.06);
+        return { mesh, spans, ends };
+    }
+    const towerProp = (hgt, flag) => {
+        const parts = [{ geo: G.tower, color: C.sand[0], s: [1, hgt, 1], p: [0, hgt / 2, 0] }, { geo: G.cylLow, color: C.sandDark, s: [1.36, 0.1, 1.36], p: [0, hgt * 0.32, 0] }, { geo: G.cylLow, color: C.sandDark, s: [1.26, 0.1, 1.26], p: [0, hgt * 0.68, 0] }, { geo: G.cylLow, color: C.sand[2], s: [1.2, 0.12, 1.2], p: [0, hgt, 0] }];
+        for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2; parts.push({ geo: G.brick, color: C.sand[2], s: [0.24, 0.3, 0.2], p: [Math.cos(a) * 0.48, hgt + 0.2, Math.sin(a) * 0.48], r: [0, -a, 0] }); }
+        for (let k = 0; k < 4; k++) parts.push({ geo: G.coneLow, color: k % 2 ? 0xffb6c8 : 0xfff3e0, s: [0.12, 0.18, 0.12], p: [Math.cos(k * 1.7) * 0.6, hgt * (0.25 + k * 0.15), Math.sin(k * 1.7) * 0.6], r: [Math.PI / 2, 0, k], ink: false });
+        if (flag) { parts.push({ geo: G.cylLow, color: 0x8a5a2e, s: [0.05, 1.1, 0.05], p: [0, hgt + 0.7, 0] }); parts.push({ geo: G.coneLow, color: 0xff4d6d, s: [0.35, 0.5, 0.06], p: [0.2, hgt + 1.05, 0], r: [0, 0, -Math.PI / 2] }); }
+        return Y.prop(parts, { thick: 0.07 });
+    };
     const crackWalls = [];
     for (const w of (level.rings || []).filter(r => r.kind === 'castle' || r.kind === 'crack')) {
         const n = Math.max(1, Math.round(w.h)), crack = w.kind === 'crack', grp = new T.Group(); scene.add(grp);
-        const courses = Array.from({ length: n }, (_, ri) => arcPoints(w, 0.7, ri * 0.5)), inst = courses.map(items => Y.instanced(G.brick, items.length, 0.07));
-        inst.forEach(i => { grp.add(i.body); grp.add(i.line); });
-        courses.forEach((items, ri) => items.forEach((it, i) => { const k = crack ? 0.82 + 0.14 * Math.abs(Math.sin(i * 3.1 + ri * 1.7)) : 0.96; inst[ri].set(i, stand(crack ? walk(it.p, it.f, (Math.sin(i * 5.3 + ri) * 0.08) / R) : it.p, it.f, 0.5 + ri, it.len * k, crack ? 0.92 : 1.0, 0.95), crack ? [0x8f7a66, 0x7d6a58, 0x9c8a74][(i + ri) % 3] : C.sand[(i + ri) % 3]); }));
-        inst.forEach(i => i.done());
-        if (w.top && !crack) {          // battlements: a merlon on every other block
-            const items = arcPoints(w, 0.7, 0.25).filter((_, i) => i % 2 === 0), m = Y.instanced(G.brick, items.length, 0.06);
-            grp.add(m.body); grp.add(m.line); items.forEach((it, i) => m.set(i, stand(walk(it.p, it.f, -0.3 / R), it.f, n + 0.22, it.len * 0.7, 0.45, 0.32), C.sand[2])); m.done();
+        const wall = sandWall(w, crack ? { face: [0x9c8a74, 0x8f7a66, 0xa89680], foot: 0x6e5c4a, top: 0xb3a28c } : { face: C.sand, foot: C.sandDark, top: 0xfbe4ad }, crack ? { rough: 0.16, jag: 0.35 } : {});
+        grp.add(wall.mesh);
+        if (!crack) {
+            // battlements along the outer edge of the top
+            if (w.top) { const items = []; wall.spans.forEach(sp => sp.forEach((it, i) => { if (i % 3 === 1) items.push(it); })); const mm = Y.instanced(G.brick, items.length, 0.06); grp.add(mm.body); grp.add(mm.line); items.forEach((it, i) => mm.set(i, stand(walk(it.p, it.f, -0.36 / R), it.f, w.h + 0.2, 0.42, 0.42, 0.26), C.sand[(i % 2) + 1])); mm.done(); }
+            // towers at the ends of each stretch and every few steps along it, alternate ones flying a flag
+            const spots = [...wall.ends]; wall.spans.forEach(sp => { const every = Math.max(10, Math.round(5 / 0.28)); for (let i = Math.round(every / 2); i < sp.length - every / 2; i += every) spots.push(sp[i]); });
+            spots.forEach((it, i) => { const tw = towerProp(w.h + 0.7, i % 2 === 0); put(tw, it.p, it.f, 0); grp.add(tw); });
+
         }
         if (crack) {
             // big glowing zig-zag cracks on both faces, from the first look: the wall says "hit me here"
@@ -268,8 +315,8 @@ export function createLair(kit, level, hooks) {
     })();
     const plates = (level.plates || []).map(pl => {
         const g = new T.Group(), rim = Y.prop([{ geo: G.cylLow, color: 0xb9aed0, s: [2.25, 0.22, 2.25], p: [0, 0.08, 0] }], { thick: 0.06 }); g.add(rim);
-        const off = Y.toon(GATE_COLOR[pl.gate] || 0xffc83a), on = Y.toon(C.green), top = Y.part(G.cylLow, off, 0.04); top.scale.set(1.6, 0.12, 1.6); top.position.y = 0.22; g.add(top);
-        g.scale.setScalar(pl.r / 1.125); const halo = new T.Mesh(G.ring, basic(GATE_COLOR[pl.gate] || 0xffc83a, { transparent: true, opacity: 0.9, depthWrite: false, side: T.DoubleSide })); halo.scale.setScalar(pl.r + 0.15); scene.add(halo); scene.add(g);
+        const gc = GATE_COLOR[[].concat(pl.gate)[0]] || 0xffc83a, off = Y.toon(gc), on = Y.toon(C.green), top = Y.part(G.cylLow, off, 0.04); top.scale.set(1.6, 0.12, 1.6); top.position.y = 0.22; g.add(top);
+        g.scale.setScalar(pl.r / 1.125); const halo = new T.Mesh(G.ring, basic(gc, { transparent: true, opacity: 0.9, depthWrite: false, side: T.DoubleSide })); halo.scale.setScalar(pl.r + 0.15); scene.add(halo); scene.add(g);
         return { pl, g, top, off, on, halo };
     });
     const targets = (level.targets || []).map(tg => {
@@ -278,6 +325,18 @@ export function createLair(kit, level, hooks) {
         [[0.62, 0xff4d4d], [0.44, 0xffffff], [0.26, 0xff4d4d]].forEach(([r, hex], i) => { const m = Y.toon(hex); mats.push(m); const d = Y.part(G.cyl, m, i ? 0 : 0.05); d.scale.set(r * 2, 0.1 + i * 0.03, r * 2); d.rotation.x = Math.PI / 2; face.add(d); });
         g.add(face); scene.add(g); return { tg, g, face, hit: 0, mats };
     });
+    // Signal lines: a dotted line on the ground from each plate and bullseye to every gate it works, in that gate's colour.
+    // Dim while the switch is off; bright, with a pulse running along it, while it holds the gate; a timed one goes dark dot by dot.
+    const signals = [], s0 = { ...K.create(level), blocks: [], logs: [] };
+    for (const [kind, list] of [['plate', level.plates || []], ['target', level.targets || []]]) for (const sw of list) for (const g of [].concat(sw.gate)) {
+        const ring = (level.rings || []).find(r => r.gate === g); if (!ring) continue;
+        const c0 = ring.c || TOP, dest = around(c0, ring.r + (K.dist(sw.p, c0) > ring.r ? 0.35 : -0.35), K.lonOf(sw.p, c0)), len = K.dist(sw.p, dest), st = (sw.r || 0.45) + 0.2, n = Math.max(2, Math.floor((len - st - 0.15) / 0.38));
+        const mat = basic(GATE_COLOR[g] || 0xffffff, { transparent: true, opacity: 0.4, depthWrite: false, side: T.DoubleSide }), dots = [];
+        for (let k = 0; k <= n; k++) { const f = (st + k * ((len - st - 0.15) / n)) / len, p = norm(mix(sw.p, dest, 1 - f, f)), d = new T.Mesh(G.disc, mat.clone()); d.scale.setScalar(0.11); put(d, p, null, 0.09 + K.floorAt(s0, p)); scene.add(d); dots.push(d); }
+        // a coloured ring round a bullseye's post, so it matches its gate
+        if (kind === 'target') { const rg = new T.Mesh(G.ring, basic(GATE_COLOR[g] || 0xffffff, { transparent: true, opacity: 0.9, depthWrite: false, side: T.DoubleSide })); rg.scale.setScalar(0.6); put(rg, sw.p, null, 0.1); scene.add(rg); }
+        signals.push({ kind, sw, g, dots });
+    }
     const pearl = new T.Group();
     { const orb = Y.part(G.sph, Y.toon(C.pearl, { emissive: new T.Color(0xff8ad8).multiplyScalar(0.5) }), 0.05); orb.scale.setScalar(1.0); orb.position.y = 0.95; pearl.add(orb);
       const shine = new T.Mesh(G.sph, basic(0xffffff)); shine.scale.setScalar(0.22); shine.position.set(-0.2, 1.18, 0.2); pearl.add(shine);
@@ -455,7 +514,7 @@ export function createLair(kit, level, hooks) {
         });
         checks.forEach(v => { put(v.g, v.p, [1, 0, 0]); v.cloth.material = s.cp >= v.i ? v.on : v.off; v.cloth.rotation.y = Math.sin(t * 4 + v.i) * 0.25; });
         palm.top.rotation.z = Math.sin(t * 1.3) * 0.05; palm.top.rotation.x = Math.cos(t * 1.1) * 0.04;
-        plates.forEach(v => { const on = !!s.held[v.pl.gate]; v.top.material = on ? v.on : v.off; put(v.g, v.pl.p, null, on ? -0.02 : 0.02); put(v.halo, v.pl.p, null, 0.12); });
+        plates.forEach(v => { const on = !!s.held[[].concat(v.pl.gate)[0]]; v.top.material = on ? v.on : v.off; put(v.g, v.pl.p, null, on ? -0.02 : 0.02); put(v.halo, v.pl.p, null, 0.12); });
         targets.forEach(v => { v.hit = Math.max(0, v.hit - dt * 1.5); put(v.g, v.tg.p, toward(v.tg.p, c.p)); v.face.rotation.z = v.hit * 8; v.face.scale.setScalar(1 + v.hit * 0.4); const op = s.open[[].concat(v.tg.gate)[0]]; const hex = op ? (typeof op === 'number' && op < 2 && Math.sin(t * 20) > 0 ? 0xffe45a : 0x4ade80) : 0xff4d4d; v.mats[0].color.setHex(hex); v.mats[2].color.setHex(hex); });
         // The pearl and Old Ink: he watches the crab, blinks, narrows his eyes when it comes close, and rears up when the pearl is taken.
         inkMad = Math.max(0, inkMad - dt);
@@ -504,6 +563,10 @@ export function createLair(kit, level, hooks) {
         (s.blocks || []).forEach((b, i) => put(blockMeshes[i], b.p, toward(b.p, K.TOP), K.floorAt({ ...s, blocks: [] }, b.p)));
         (s.logs || []).forEach((l, i) => { put(logMeshes[i], l.p, tangent(l.p, cross(K.TOP, l.p)), 0.05 + Math.sin(t * 2 + i) * 0.04); logMeshes[i].rotateY(Math.PI / 2); });
         (level.gold || []).forEach((gd, i) => { const v = goldMeshes[i]; v.g.visible = !s.gold.includes(i); if (v.g.visible) { put(v.g, gd.p, [1, 0, 0], (gd.h || 0) + 0.45 + Math.sin(t * 2.5 + i) * 0.1); v.sh.rotation.y = t * 2.2; v.halo.material.opacity = 0.25 + 0.15 * Math.sin(t * 4 + i); } });
+        signals.forEach(v => {
+            const on = v.kind === 'plate' ? !!s.held[v.g] : !!s.open[v.g], left = typeof s.open[v.g] === 'number' && v.sw.secs ? s.open[v.g] / v.sw.secs : 1, n = v.dots.length;
+            v.dots.forEach((d, k) => { const lit = on && k / n < left; d.material.opacity = lit ? 0.7 + 0.3 * Math.max(0, Math.sin(t * 7 - k * 0.7)) : 0.5; d.scale.setScalar(lit ? 0.24 + 0.05 * Math.max(0, Math.sin(t * 7 - k * 0.7)) : 0.17); });
+        });
         // Coconuts: lying, floating, flying, plugging a vent, stuck in the bullseye.
         const seen = new Set();
         for (const n of s.nuts) {

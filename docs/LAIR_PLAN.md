@@ -133,3 +133,13 @@ court wall to climb onto it, a coconut on the plate drops the red gate and the b
 seconds. Three golden shells (over the palm, on the outer wall top by the vines, over the moat). New pieces: wall tops, ledges,
 vines, sand blocks, cracked walls, timed gates, switch gates, logs, deep water, golden shells (`PUZZLE_RULES.md`).
 Bubble Stream and Gull Yard are next, as a river and as sea stacks, once Caleb has played this one.
+
+## Better walls, signal lines, the arrival card (after the seventh play-test)
+- Sandcastle walls are one hand-patted wall each (wider at the foot, bumpy, darker course lines, lighter top), with battlements,
+  bucket-shaped towers at each end and along the way (alternate ones fly a red flag). Towers frame the cracked section and the slide.
+  The cracked section is the same wall in grey stone, jagged on top, with glowing orange cracks.
+- **Signal lines** (Portal 2's dotted lines): dots on the ground from every plate and bullseye to each gate it works, in the gate's
+  colour; dim when off, bright with a pulse running along when on; a timed one goes dark dot by dot as its time runs out.
+  Bullseyes get a ring in their gate's colour.
+- **Arrival card** (Portal's chamber sign): the chamber number, world, name and an icon for every piece in it, built from the
+  chamber's own data (`lairPieces` in `Planet.js`), on the right for five seconds when you arrive.
