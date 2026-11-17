@@ -205,7 +205,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     check(up > 0.3, `    JUMP jumps (${up} up)`);
     // the 💡 button reveals hints one at a time
     await p.click('#btn-tp-hint'); const h1 = await p.textContent('#tp-goal'); await p.click('#btn-tp-hint'); const h2 = await p.textContent('#tp-goal');
-    check(/1\/4/.test(h1) && /2\/4/.test(h2) && h1 !== h2, `    the 💡 button shows the hints one at a time ("${h2.trim().slice(0, 60)}…")`);
+    check(/1\/6/.test(h1) && /2\/6/.test(h2) && h1 !== h2, `    the 💡 button shows the hints one at a time ("${h2.trim().slice(0, 60)}…")`);
     await shot('lair-start');
     await p.click('#btn-tp-pause'); await p.click('[data-do="trial-again"]');
     const fresh = await M('M._debug().trial');
@@ -217,7 +217,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     check(d.trial.plug.A && d.trial.held === 2 && d.trial.cp === 1 && d.trial.count.working === 1, `    the answer, parts 1 and 2 on screen: vent A plugged by a coconut the current carried, across the rocks, up vent B and over the cliff, onto the shelf with two coconuts and its flag`);
     await shot('lair-shelf');
     await MK(`(() => { const st = M._trialNow().state(); S.solve({ s: st, from: 'shelf' }); return 1; })()`);
-    await p.waitForSelector('#btn-tp-next, .tp-big', { timeout: 8000 });
+        await p.waitForSelector('#btn-tp-next, .tp-big', { timeout: 20000 });
     const win = await p.textContent('#tp-over');
     d = await M('M._debug()');
     check(/TIDE PEARL/.test(win) && /⭐⭐⭐/.test(win) && /\+24 ✨/.test(win) && /\+40 🐚/.test(win) && d.lair.stair.every(Boolean) && d.dust === city0.dust + 24, `    parts 3 and 4: over the step on the gull's back, the plate and the bullseye, the pearl: ⭐⭐⭐ (no falls, quick), +24 stardust and +40 shells for the city`);

@@ -105,13 +105,13 @@ export function mount(el) {
         <div class="tp-zones" id="tp-zones" hidden><span>☝️ LEFT THUMB<br>TO WALK</span><span>👀 RIGHT THUMB<br>TO LOOK AROUND</span></div>
         <div class="tp-tip" id="tp-tip" hidden></div>
         <div class="tp-hint" id="tp-hint"></div>
-        <div class="tp-bar" id="tp-bar">
-            <button class="tp-b" data-build="palm"><span>🌴</span><em>PALM</em><small></small></button>
-            <button class="tp-b" data-build="hut"><span>🛖</span><em>HOME</em><small></small></button>
-            <button class="tp-b" data-build="tower"><span>🔮</span><em>TOWER</em><small></small></button>
-            <button class="tp-b" data-build="market"><span>🏪</span><em>MARKET</em><small></small></button>
-        </div>
         <div class="tp-acts" id="tp-acts">
+            <div class="tp-bar" id="tp-bar">
+                <button class="tp-b" data-build="palm"><span>🌴</span><em>PALM</em><small></small></button>
+                <button class="tp-b" data-build="hut"><span>🛖</span><em>HOME</em><small></small></button>
+                <button class="tp-b" data-build="tower"><span>🔮</span><em>TOWER</em><small></small></button>
+                <button class="tp-b" data-build="market"><span>🏪</span><em>MARKET</em><small></small></button>
+            </div>
             <button class="tp-r tp-act off" id="btn-tp-act"><span>✋</span><small></small></button>
             <button class="tp-r tp-jump" id="btn-tp-jump"><span>⬆️</span><small>JUMP</small></button>
         </div>
@@ -390,12 +390,13 @@ export function lairHint() { if (_mode !== 'trick' || !_trial) return; _hintN = 
 function _lairHud() {
     const s = _trial.state(), lv = _trial.level, i = LL.CHAMBERS.indexOf(lv), k = _trial.charging(), n = LL.count(s);
     const hint = _hintT > 0 ? _hintMsg : '';
-    const sig = [lv.id, n.held, n.loose, n.working, n.gull, s.falls, hint, _hintN, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
+    const bs = s.boss, inkHp = bs && bs.state !== 'sleep' ? bs.hp : -1, inkSt = bs ? bs.state : '';
+    const sig = [lv.id, n.held, n.loose, n.working, n.gull, s.falls, hint, _hintN, inkHp, inkSt === 'dizzy' ? 1 : 0, inkSt === 'down' ? 1 : 0, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
     if (sig === _lastHud) return;
     _lastHud = sig;
     $('tp-trial-n').textContent = `🐙 ${i + 1}/${LL.CHAMBERS.length} ${lv.name}`;
-    $('tp-trial-s').textContent = `${'🥥'.repeat(n.held)}${'▫️'.repeat(LL.CARRY - n.held)} ${n.held}/${LL.CARRY}${n.gull ? ' · 🐦 HAS ONE' : ''}${n.working ? ` · ${n.working} AT WORK` : ''}${s.falls ? ` · FALLS ${s.falls}` : ''}`;
-    const goal = $('tp-goal'); goal.textContent = _hintN ? `💡 ${_hintN}/${lv.hints.length}: ${lv.hints[_hintN - 1]}` : '🎯 REACH THE TIDE PEARL · 💡 FOR A HINT'; goal.classList.remove('tut'); goal.classList.add('wide');
+    $('tp-trial-s').textContent = `${'🥥'.repeat(n.held)}${'▫️'.repeat(LL.CARRY - n.held)} ${n.held}/${LL.CARRY}${n.gull ? ' · 🐦 HAS ONE' : ''}${inkHp >= 0 ? ` · 🐙 ${'❤️'.repeat(inkHp)}${'🖤'.repeat(LL.BOSS.hits - inkHp)}` : ''}${n.working ? ` · ${n.working} AT WORK` : ''}${s.falls ? ` · FALLS ${s.falls}` : ''}`;
+    const goal = $('tp-goal'); goal.textContent = _hintN ? `💡 ${_hintN}/${lv.hints.length}: ${lv.hints[_hintN - 1]}` : inkSt === 'dizzy' ? '😵 OLD INK IS DIZZY: COCONUTS AT HIS HEAD!' : inkSt === 'down' ? '🎯 COCONUT ON THE PLATE, THEN THE PEARL' : inkHp >= 0 ? '🐙 DODGE THE RED RINGS · HIT HIM WHEN HE\'S DIZZY' : '🎯 REACH THE TIDE PEARL · 💡 FOR A HINT'; goal.classList.remove('tut'); goal.classList.add('wide');
     const ab = $('btn-tp-act'); ab.classList.remove('off', 'idle'); ab.hidden = false; ab.querySelector('span').textContent = '🥥'; ab.querySelector('small').textContent = n.held < 1 ? 'NONE' : k >= 0 ? 'LET GO!' : 'HOLD: THROW';
     ab.classList.toggle('off', n.held < 1 && k < 0);
     ab.style.setProperty('--k', k >= 0 ? k : 0);
@@ -554,7 +555,7 @@ function _events(evs) {
             const g = e.item.kind === 'gold';
             _burst(e.item.p, g ? 0xffd84a : e.item.kind === 'nut' ? 0xb07a4a : 0xffc9de, g ? 16 : 7, g ? 4 : 2.4);
             if (play) { _pop(e.item.p, e.item.kind === 'nut' ? '+1 🥥' : g ? `+${L.GOLD} 🐚` : '+1 🐚'); _sfx(g ? 'coin_gain' : 'tick'); _buzz(6); }
-        } else if (e.type === 'gift') { if (play) _pop(e.b.p, '+1 🐚', 1.3); }
+        } else if (e.type === 'gift') { if (play) _pop(e.b.p, `+${e.pay || 1} 🐚`, 1.3); }
         else if (e.type === 'grown') { _burst(e.b.p, 0x7be38a, 12, 3); if (play) { _pop(e.b.p, '🌴 GROWN!', 1.6); _sfx('land_good'); } }
         else if (e.type === 'night') { if (play) { _say(e.big ? `🌙 NIGHT ${_s.day} · ☄️ A BIG ONE IS COMING!` : `🌙 NIGHT ${_s.day} · ${e.stars} STAR${e.stars === 1 ? '' : 'S'}`, '#c7d2fe'); _sfx('boost'); } }
         else if (e.type === 'catch') {

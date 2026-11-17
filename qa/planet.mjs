@@ -233,5 +233,9 @@ const quiet = s => { s.items = []; s.spawnT = 1e9; s.rockT = 1e9; s.builds.forEa
   ok(bp >= 10 && bp < 50, `and its city reaches ${bp} crabs in the middle: a TOWN at least, the CAPITAL still to be earned`);
   ok(mp > bp && Math.max(...maxed.map(x => x.day)) < 99, `with every upgrade the city is bigger (${mp}), and still ends`); }
 
+{ // homes and markets pay: a bigger home pays more, a market pays most
+  const pay = kind => { const s = P.create(); s.phase = 'day'; s.shells = 0; const b = { id: 999, kind, p: s.crab.p.slice(), hp: 9, lvl: kind === 'hut' ? 3 : 1, age: 99, t: 0.01, shake: 0, charges: 0 }; s.builds = [b]; P.step(s, 0.05); return s.shells; };
+  ok(pay('hut') === 3 && pay('market') === P.MARKET_PAY, `a size-3 home pays 3 shells at once, a market ${P.MARKET_PAY}: the town is where shells come from`); }
+
 console.log(fails ? `\nPLANET FAIL (${fails})` : '\nPLANET PASS');
 process.exit(fails ? 1 : 0);

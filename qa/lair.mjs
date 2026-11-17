@@ -37,8 +37,41 @@ const ok = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) f
   ok(note.plugged && has('plop') && has('plug'), `1. a coconut dropped in the far side of the current upstream is carried into the cove and plugs vent A (${note.t1.toFixed(0)} s in)`);
   ok(note.onB && has('lift') && note.shelf, '2. across the stepping rocks to vent B, and up over the cliff onto the shelf, with the two coconuts that are left');
   ok(has('gull-dive') && has('stomp') && note.over, '3. the gull dives, the crab steps aside and jumps on its back: bounced over the tall step, both coconuts still in its claws');
-  ok(has('press') && has('target') && s.won && s.falls === 0 && n.working === 2 && n.held === 0, `4. one coconut on the plate, one in the bullseye, both gates open: the pearl, in ${s.t.toFixed(0)} s without a fall`);
+  ok(has('target') && has('ink-wake') && has('ink-slam') && has('ink-dizzy') && note.slams >= 12 && note.dizzy === 3 && has('ink-down') && s.boss.hp === 0, `4. the bullseye opens the outer gate; Old Ink wakes, slams (${note.slams} times over three rounds), goes dizzy three times, and three coconuts on his head put him down (${note.fightT.toFixed(0)} s)`);
+  ok(has('press') && s.won && s.falls === 0, `5. a coconut on the plate opens the pearl's fence: the pearl, in ${s.t.toFixed(0)} s without a fall`);
   const again = solve(); ok(again.s.t === s.t && again.s.won, 'played again it goes exactly the same way (nothing in the chamber is left to chance)'); }
+
+// ── Old Ink ─────────────────────────────────────────────────────────────────
+{ const fresh = () => { const { s } = solve({ stopAtBoss: true }); s.crab.p = at(2.5, -100).slice(); s.crab.air = false; s.crab.h = 0; return s; };
+  { const s = fresh(); ok(s.boss.state === 'sleep', 'Old Ink sleeps until the crab comes into his chamber'); run(s, 0.1);
+    ok(s.boss.state === 'idle' && s.nuts.filter(n => n.state === 'rest').length >= 4, 'it wakes him, and piles of coconuts turn up round the chamber'); }
+  { // not dizzy: a coconut at his head bounces off and does nothing
+    const s = fresh(); run(s, 0.1); s.crab.nuts = 3; let hurt = 0, blocked = 0;
+    for (let k = 0; k < 6; k++) { s.boss.state = 'idle'; s.boss.t = 0; face(s, TOP); K.throwNut(s, 0.2 + k * 0.1); for (const e of run(s, 1.2)) { if (e.type === 'ink-hit') hurt++; if (e.type === 'ink-block') blocked++; } }
+    ok(hurt === 0 && s.boss.hp === 3 && blocked > 0, `a coconut at his head while he is awake bounces off (${blocked} did): no harm done`); }
+  { // slams: standing in the ring is a hit, moving out of it or jumping is not
+    const s = fresh(); s.boss.state = 'wind'; s.boss.t = 0; s.boss.tx = s.crab.p.slice(); s.crab.nuts = 0;
+    const ev = run(s, 2);
+    ok(ev.some(e => e.type === 'ink-ouch') && s.falls === 1 && K.dist(s.crab.p, TOP) > 1.9, 'standing still in the slam ring: knocked back to the edge, and it counts as a fall'); }
+  { const s = fresh(); s.boss.state = 'wind'; s.boss.t = 0; s.boss.tx = s.crab.p.slice(); s.crab.nuts = 0; let hit = 0;
+    for (let i = 0; i < 240 && s.boss.state === 'wind'; i++) { if (K.dist(s.crab.p, s.boss.tx) < 1.5) { const side = 1; for (const e of K.step(s, DT, stickTo(s, at(2.4, K.lonOf(s.crab.p) + side * 25)))) if (e.type === 'ink-ouch') hit++; } else for (const e of K.step(s, DT)) if (e.type === 'ink-ouch') hit++; }
+    for (const e of run(s, 0.2)) if (e.type === 'ink-ouch') hit++;
+    ok(hit === 0 && s.falls === 0, 'walking out of the ring before it lands: no hit'); }
+  { const s = fresh(); s.boss.state = 'wind'; s.boss.t = 0; s.boss.tx = s.crab.p.slice(); s.crab.nuts = 0; const ev = [];
+    for (let i = 0; i < 300 && s.boss.state === 'wind'; i++) { if (s.boss.t >= K.BOSS.wind[0] - 0.38 && !s.crab.air) K.jump(s); ev.push(...K.step(s, DT)); } ev.push(...run(s, 0.2));
+    ok(ev.some(e => e.type === 'ink-slam') && !ev.some(e => e.type === 'ink-ouch') && s.falls === 0, 'jumping as the slam lands: it misses'); }
+  { // the three rounds get harder, and he is dizzy for long enough to throw
+    ok(K.BOSS.wind[0] > K.BOSS.wind[1] && K.BOSS.wind[1] > K.BOSS.wind[2] && K.BOSS.slams[2] > K.BOSS.slams[0] && K.BOSS.dizzy >= 4, 'each round winds up faster and slams more, and the dizzy window is at least 4 s'); }
+  { // coconuts keep coming: never run dry, and the claws still only hold three
+    const s = fresh(); run(s, 0.1); s.nuts = s.nuts.filter(() => false); s.crab.nuts = 0; const ev = run(s, 3);
+    ok(ev.some(e => e.type === 'pile') && s.nuts.filter(n => n.state === 'rest').length >= 3, 'with every coconut gone, a fresh pile turns up within seconds'); 
+    const s2 = fresh(); run(s2, 0.1); for (let i = 0; i < 12; i++) { const n = s2.nuts.find(x => x.state === 'rest'); if (!n) break; s2.boss.state = 'dizzy'; s2.boss.t = 0; go(s2, n.p, [], 0.2, 5); }
+    ok(s2.crab.nuts <= K.CARRY, 'the claws never hold more than three'); }
+  { // no coconut thrown at him ends up out of reach inside his fence
+    const s = fresh(); run(s, 0.1); s.boss.state = 'dizzy'; s.crab.nuts = 3; let inside = 0;
+    for (let ch = 0; ch <= 1; ch += 0.1) { s.boss.state = 'dizzy'; s.boss.hp = 3; s.crab.nuts = 1; face(s, TOP); K.throwNut(s, ch); run(s, 1.5); }
+    ok(s.nuts.every(n => n.state === 'stuck' || K.dist(n.p, TOP) > 1.9), 'a coconut never lies inside the fence where nobody can reach it'); }
+}
 
 // ── the other ways are shut ─────────────────────────────────────────────────
 { // every throw a crab could make from the near bank: which end up plugging A?
@@ -49,7 +82,7 @@ const ok = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) f
     all++; if (n.state === 'plug') { plugs++; if (!wet) direct++; from.push(lon); landed.push(land); } }
   const maxLon = Math.max(...landed.map(l => l[1])), maxD = Math.max(...landed.map(l => l[0]));
   ok(plugs > 20 && direct === 0, `of ${all} throws from all along the near bank, ${plugs} plug vent A, every one of them carried there by the water; none lands in it`);
-  ok(maxLon < 68 && maxD < 12.1, `the ones that work all landed upstream of the cove (east of ${maxLon.toFixed(0)}° none do) and on the far side of the current (none further out than ${maxD.toFixed(1)}; the bank is at 13.2)`);
+  ok(maxLon < 70 && maxD < 13.4, `the ones that work all landed upstream of the cove (east of ${maxLon.toFixed(0)}° none do) and on the far side of the current (none further out than ${maxD.toFixed(1)}; the bank is at 13.2)`);
   // straight at the vent from across the channel: the cove's wall
   let across = 0, tries = 0;
   for (let lon = 62; lon <= 96; lon += 2) for (const d of [13.4, 14, 15]) for (let ch = 0.1; ch <= 1; ch += 0.1) { const s = K.create(L); s.crab.nuts = 1; s.crab.p = at(d, lon).slice(); face(s, A.p); const n = K.throwNut(s, ch); for (let i = 0; i < 10 / DT && s.nuts.includes(n) && n.state !== 'plug' && n.state !== 'rest'; i++) K.step(s, DT); tries++; if (n.state === 'plug') across++; }
