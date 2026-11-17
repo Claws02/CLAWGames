@@ -13,36 +13,85 @@ const bounceIn = (s, wallR, lon, ev = []) => {
   return ev;
 };
 
-// ── 1. Coconut Beach ────────────────────────────────────────────────────────
-const beach = () => {
+// ── 1. Coconut Beach: the sandcastle fort ───────────────────────────────────
+const logNear = (s, lon, ahead = 0) => s.logs.map((l, i) => ({ i, lon: K.lonOf(l.p) + BEACH.logs[i].speed * ahead })).sort((a, b) => Math.abs(((a.lon - lon + 540) % 360) - 180) - Math.abs(((b.lon - lon + 540) % 360) - 180))[0];
+const dAng = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
+// wait at the moat's edge for a log, and jump onto it as it comes
+const ontoLog = (s, ev) => {
+  for (let i = 0; i < 30 / DT; i++) { const l = logNear(s, K.lonOf(s.crab.p), 0.7); if (dAng(l.lon, K.lonOf(s.crab.p)) < 3) break; ev.push(...K.step(s, DT)); }
+  const l = logNear(s, K.lonOf(s.crab.p), 0.7); K.jump(s);
+  for (let i = 0; i < 200 && s.crab.air; i++) { const q = s.logs[l.i].p; ev.push(...K.step(s, DT, stickTo(s, q, Math.min(1, K.dist(s.crab.p, q) / 0.4)))); }
+  return l.i;
+};
+const beach = (opt = {}) => {
   const s = K.create(BEACH), ev = [], note = {};
   gather(s, ev); note.got = s.crab.nuts;
-  go(s, at(14.6, 5), ev); hop(s, at(13.2, 5), ev); note.over = K.dist(s.crab.p, TOP) < 14;
-  const tg = BEACH.targets[0]; face(s, tg.p); K.throwNut(s, chargeFor(s, tg.p, 1.1)); ev.push(...run(s, 1.2)); note.eye = !!s.open.eye;
-  bounceIn(s, 7, 0, ev); note.inside = K.dist(s.crab.p, TOP) < 7; note.inN = s.crab.nuts;
-  const pl = BEACH.plates[0]; go(s, at(5.8, 30), ev); face(s, pl.p); K.throwNut(s, chargeFor(s, pl.p)); ev.push(...run(s, 1.2)); note.plate = !!s.held.plate;
-  go(s, TOP, ev, 0.3, 8);
+  // 1. break the cracked wall: throw, pick up, throw again
+  for (let k = 0; k < 4 && !(s.dmg.crack >= 2); k++) {
+    go(s, at(16.8, 0), ev); face(s, TOP); K.throwNut(s, chargeFor(s, at(14.5, 0))); ev.push(...run(s, 1.5));
+    if (!(s.dmg.crack >= 2)) gather2(s, ev);
+  }
+  note.broke = s.dmg.crack >= 2; gather2(s, ev); note.n1 = s.crab.nuts;
+  if (opt.stopAtMoat) return { s, ev, note };
+  // 2. across the moat on a log
+  go(s, at(14.25, 0), ev, 0.12, 6); const li = ontoLog(s, ev); note.onLog = !s.falls && Math.abs(s.crab.h - 0.35) < 0.05;
+  for (let i = 0; i < 2 / DT; i++) ev.push(...K.step(s, DT));
+  K.jump(s); const lon = K.lonOf(s.crab.p); for (let i = 0; i < 200 && s.crab.air; i++) ev.push(...K.step(s, DT, stickTo(s, at(9.4, lon + 6))));
+  note.crossed = K.dist(s.crab.p, TOP) < 10 && !s.falls;
+  if (opt.stopAtBank) return { s, ev, note };
+  // 3. the block to the wall, onto it, onto the wall, into the court
+  const b = s.blocks[0]; const bl = K.lonOf(b.p);
+  go(s, at(9.9, K.lonOf(s.crab.p)), ev, 0.15, 3); for (let k = 1; k <= 8; k++) go(s, at(9.9, K.lonOf(s.crab.p) + (((bl + 14 - K.lonOf(s.crab.p) + 540) % 360) - 180) / (9 - k)), ev, 0.2, 3); go(s, at(9.95, bl), ev, 0.12, 4);
+  for (let i = 0; i < 4 / DT; i++) ev.push(...K.step(s, DT, stickTo(s, TOP)));
+  note.blockAt = K.dist(b.p, TOP);
+  go(s, at(K.dist(b.p, TOP) + 1.25, K.lonOf(b.p)), ev, 0.12, 4); hop(s, b.p, ev); note.onBlock = Math.abs(s.crab.h - 1) < 0.05;
+  hop(s, at(8, K.lonOf(b.p)), ev); note.onWall = Math.abs(s.crab.h - 2) < 0.05;
+  go(s, at(7.2, K.lonOf(s.crab.p)), ev, 0.2, 3); for (let i = 0; i < 60 && s.crab.air; i++) ev.push(...K.step(s, DT));
+  note.inCourt = K.dist(s.crab.p, TOP) < 8 && s.crab.h < 0.05; note.inN = s.crab.nuts;
+  // 4. the plate, then the bullseye inside the red gate, then run in through the blue one
+  const pl = BEACH.plates[0], tg = BEACH.targets[0];
+  go(s, at(6.6, 40), ev); face(s, pl.p); K.throwNut(s, chargeFor(s, pl.p)); ev.push(...run(s, 1.2)); note.red = !!s.held.red;
+  go(s, at(4.3, -40), ev); face(s, tg.p); K.throwNut(s, chargeFor(s, tg.p, 1.1)); ev.push(...run(s, 0.8)); note.blue = !!s.open.blue;
+  go(s, TOP, ev, 0.3, 6);
   return { s, ev, note };
 };
+function gather2(s, ev) { for (let k = 0; k < 6 && s.crab.nuts < K.CARRY; k++) { const n = s.nuts.filter(x => x.state === 'rest' && K.dist(x.p, TOP) > 14.6).sort((a, b) => K.dist(a.p, s.crab.p) - K.dist(b.p, s.crab.p))[0]; if (!n) break; go(s, n.p, ev, 0.3, 8); } }
 { const { s, ev, note } = beach();
   ok(note.got === 3, '1. COCONUT BEACH: walk into the coconuts under the palm: three in the claws');
-  ok(note.over, '   a jump clears the low wall (1 high; a jump goes 1.3)');
-  ok(note.eye && has(ev, 'target'), '   a throw into the bullseye opens the crystal gate');
-  ok(note.inside && note.inN === 1 && has(ev, 'bounce'), '   a coconut dropped at the tall step and jumped on bounces the crab over it, in with the last coconut');
-  ok(note.plate && s.won && s.falls === 0, `   a coconut on the plate opens the last gate: the pearl (${s.t.toFixed(0)} s, no falls)`);
-  // what it must teach
-  const a = K.create(BEACH); a.crab.p = at(14.6, 5).slice(); let top = 0; K.jump(a); for (let i = 0; i < 60; i++) { K.step(a, DT, stickTo(a, TOP)); top = Math.max(top, a.crab.h); }
-  const b = K.create(BEACH); b.crab.p = at(14.6, 5).slice(); for (let i = 0; i < 120; i++) K.step(b, DT, stickTo(b, TOP));
-  ok(K.dist(b.crab.p, TOP) > 14 && K.dist(a.crab.p, TOP) < 14, '   the low wall can only be jumped (walking into it stops you)');
-  const c = K.create(BEACH); c.open.eye = true; c.crab.p = at(8.4, 0).slice(); top = 0; K.jump(c); for (let i = 0; i < 90; i++) { K.step(c, DT, stickTo(c, TOP)); top = Math.max(top, c.crab.h); }
-  ok(K.dist(c.crab.p, TOP) > 7, `   a plain jump (${top.toFixed(1)}) doesn't clear the tall step (2)`);
-  const d = K.create(BEACH); d.open.eye = true; d.crab.nuts = 3; d.crab.p = at(9, 0).slice(); let over = 0;
-  for (const ch of [0.2, 0.4, 0.6, 0.8, 1]) { d.crab.nuts = 1; face(d, TOP); K.throwNut(d, ch); run(d, 1.5); }
-  ok(d.nuts.every(n => K.dist(n.p, TOP) > 7), '   no coconut can be thrown over the tall step: they bounce off it (so none can end up inside where you can\'t get them)');
-  const e = beach().s; ok(e.won, ''); const f = K.create(BEACH); f.open.eye = true; f.crab.p = at(5.5, 60).slice(); f.crab.h = 0; for (let i = 0; i < 120; i++) K.step(f, DT, stickTo(f, TOP));
-  ok(!f.won && K.dist(f.crab.p, TOP) > 3, '   standing on the plate holds the gate only while you stand there: you can\'t get through');
-  const g = K.create(BEACH); g.open.eye = true; g.crab.p = at(6.2, 180).slice(); go(g, at(8.5, 180), [], 0.3, 4);
-  ok(K.dist(g.crab.p, TOP) > 7, '   a slide at the back of the step lets you out again (never stuck inside)'); }
+  ok(note.broke && has(ev, 'crack') && has(ev, 'break') && note.n1 === 3, '   two throws break the cracked sandcastle wall, and the coconuts fall back where you can pick them up');
+  ok(note.onLog && note.crossed, '   wait for a log, jump on, ride it, jump off: across the deep moat');
+  ok(note.blockAt < 8.8 && note.onBlock && note.onWall && note.inCourt && note.inN === 3, `   push the sand block to the court wall (it stops there, ${note.blockAt.toFixed(1)}), jump on it, onto the wall, down into the court with all three`);
+  ok(note.red && note.blue && s.won && s.falls === 0, `   a coconut on the plate drops the red gate, one in the bullseye the blue one: the pearl (${s.t.toFixed(0)} s, no falls)`);
+  // the pieces, each doing what it says
+  { const a = K.create(BEACH); a.crab.p = at(16.2, 0).slice(); for (let i = 0; i < 90; i++) K.step(a, DT, stickTo(a, TOP));
+    ok(K.dist(a.crab.p, TOP) > 15, '   the cracked wall stands until it is broken'); }
+  { const a = K.create(BEACH); a.crab.nuts = 1; a.crab.p = at(16.8, 0).slice(); face(a, TOP); K.throwNut(a, chargeFor(a, at(14.5, 0))); const e = run(a, 1.5);
+    ok(has(e, 'crack') && !has(e, 'break') && a.dmg.crack === 1, '   one hit cracks it, the second breaks it'); }
+  { const a = K.create(BEACH); a.crab.nuts = 2; a.crab.p = at(15.9, 90).slice(); const e = run(a, 2, stickTo(a, TOP)); for (let i = 0; i < 120; i++) e.push(...K.step(a, DT, stickTo(a, TOP)));
+    ok(has(e, 'vine-full') && K.dist(a.crab.p, TOP) > 15.3, '   the vines: with coconuts in the claws you can\'t climb (and it says so)');
+    const b = K.create(BEACH); b.crab.p = at(15.9, 90).slice(); const e2 = []; for (let i = 0; i < 3 / DT && b.crab.h < 2.9; i++) e2.push(...K.step(b, DT, stickTo(b, TOP)));
+    for (let i = 0; i < 0.4 / DT; i++) e2.push(...K.step(b, DT, stickTo(b, TOP, 0.3)));
+    ok(has(e2, 'climb') && Math.abs(b.crab.h - 3) < 0.05 && Math.abs(K.dist(b.crab.p, TOP) - 15) < 0.5, '   with empty claws the crab climbs the vines and stands on top of the wall');
+    go(b, at(15, 130), e2, 0.2, 6); ok(e2.some(x => x.type === 'gold') && b.gold.includes(1) && Math.abs(b.crab.h - 3) < 0.05, '   and walks along the top to a golden shell'); }
+  { const a = K.create(BEACH); a.crab.p = at(14.3, 30).slice(); a.dmg.crack = 2; const e = run(a, 1.5, stickTo(a, TOP));
+    ok(has(e, 'sink') && a.falls === 1, '   walking into the moat: deep water, back to the flag'); }
+  { const a = K.create(BEACH); a.dmg.crack = 2; a.crab.nuts = 1; a.crab.p = at(14.6, 20).slice(); face(a, TOP); K.throwNut(a, 0.3); const e = run(a, 4);
+    ok(has(e, 'lost') && has(e, 'washed'), '   a coconut thrown in the moat sinks, and washes up under the palm'); }
+  { const { s: a } = beach({ stopAtBank: true }); let top = 0; go(a, at(8.9, 100)); K.jump(a); for (let i = 0; i < 90; i++) { K.step(a, DT, stickTo(a, TOP)); top = Math.max(top, a.crab.h); }
+    ok(K.dist(a.crab.p, TOP) > 8.3, `   from the ground a jump (${top.toFixed(1)}) doesn't get onto the 2-high court wall: the block (or a coconut bounce) does`); }
+  { const a = K.create(BEACH); a.open.red = true; a.crab.p = at(6.2, 180).slice(); go(a, at(9.4, 180), [], 0.3, 4);
+    ok(K.dist(a.crab.p, TOP) > 8, '   a slide at the back of the court lets you out (never stuck inside)'); }
+  { const a = K.create(BEACH); a.held.red = true; a.crab.nuts = 1; const tg = BEACH.targets[0]; a.crab.p = at(4.3, -40).slice(); face(a, tg.p); K.throwNut(a, chargeFor(a, tg.p, 1.1)); run(a, 0.8);
+    const opened = !!a.open.blue; const e = run(a, 6.5); const n = a.nuts.find(x => x.state === 'rest');
+    ok(opened && !a.open.blue && has(e, 'timeout') && n, '   the blue gate stays down for six seconds, then shuts, and the bullseye drops the coconut'); }
+  { // the bug Caleb hit: standing on the plate, a coconut thrown in through the open red gate, then stepping off
+    const a = K.create(BEACH); a.crab.nuts = 1; a.crab.p = BEACH.plates[0].p.slice(); run(a, 0.1); face(a, TOP); K.throwNut(a, 0.3); run(a, 1.2);
+    go(a, at(6.5, 60), [], 0.2, 3); const e = run(a, 0.5); const n = a.nuts.find(x => x.state === 'rest');
+    ok(n && K.dist(n.p, TOP) > 3.2 && has(e, 'nudge'), `   a coconut left inside a gate that shuts rolls out to its foot (${n ? K.dist(n.p, TOP).toFixed(1) : '?'} from the pearl): never lost`); }
+  { const a = K.create(BEACH); a.crab.nuts = 1; a.crab.p = at(17.7 + 1.3, -42).slice(); face(a, BEACH.palm); K.throwNut(a, 0.0); run(a, 1.2); const n = a.nuts.find(x => x.state === 'rest' && K.dist(x.p, BEACH.palm) < 1.2 && K.dist(x.p, a.crab.p) < 2.5);
+    let got = false; if (n) { go(a, P.walk(n.p, P.toward(BEACH.palm, n.p), 0.9 / K.R), [], 0.1, 3); const e = hop(a, n.p); for (let i = 0; i < 90 && a.crab.air; i++) e.push(...K.step(a, DT, stickTo(a, BEACH.palm, 0.6))); got = a.gold.includes(0); }
+    const b = K.create(BEACH); b.crab.p = at(17.7 + 0.3, -42).slice(); K.jump(b); run(b, 1);
+    ok(got && !b.gold.includes(0), '   the golden shell over the palm: a bounce on a coconut reaches it, a jump doesn\'t'); } }
 
 // ── 2. Bubble Stream ────────────────────────────────────────────────────────
 const stream = () => {

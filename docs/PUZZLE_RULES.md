@@ -68,6 +68,22 @@ the first time it matters (`calm` vent, `🪜` ladder).
 | **Gull** | steals a coconut, or pecks you to the flag; jump on it or hit it: stunned, drops its loot; its back is a bounce | `gull: { ring, from }` |
 | **Old Ink (boss)** | slams where you stand (red ring); for 1.5 s after a slam his head is open to a coconut; three hits; touching him hurts; piles keep coming | `boss: true`, `BOSS` |
 
+### Built for the new Coconut Beach (World 1)
+
+| Piece | Rule | Data |
+|---|---|---|
+| **Wall top** | a wall you can stand on and walk along once you get up there | ring `top: true` |
+| **Ledge** | a raised terrace (a ring sector) you stand on; walking off its edge drops you | `ledges: [{ r0, r1, only, h }]` |
+| **Vines** | climb a wall where its vines are, **with empty claws** (it says so if they're full) | ring `vine: [lon, half]` |
+| **Sand block** | push it by walking into it; it stops at walls, other blocks and water; stand on it (1 high) | `blocks: [{ p }]` |
+| **Cracked wall** | breaks after `hp` coconut hits | ring or bar `hp, id` |
+| **Timed gate** | a bullseye with `secs` opens its gate for that long, then drops the coconut | target `secs` |
+| **Switch gates** | a plate or bullseye can work several gates (`gate: ['a','b']`); an `inv` gate is up only while its switch holds | `gate: [...]`, ring `inv` |
+| **Floating logs** | drift round a ring; ride one (it carries you) | `logs: [{ orbit, lon0, speed }]` |
+| **Deep water** | step in: back to the flag; a coconut in it sinks and washes up under the palm | current `deep: true` |
+| **Golden shells** | hidden collectibles at a height; touch to take; saved per chamber | `gold: [{ p, h }]` |
+| **Never lost** | a coconut lying inside a gate that shuts (with the crab outside) rolls out to the gate's foot | (always) |
+
 ### Planned (each is one new rule)
 
 | Piece | Rule | Puzzle it makes |
@@ -81,6 +97,27 @@ the first time it matters (`calm` vent, `🪜` ladder).
 | **Heavy coconut (stone)** | can't be thrown far, sinks in water, holds a plate even underwater | the "weight" puzzles where a floating coconut would drift away |
 | **Crab helper** | a little crab that walks to wherever a coconut lands and sits on it | holds a plate for you while you are elsewhere |
 | **Wind gust** | pushes coconuts in flight one way on a clock | aim upwind; timing |
+
+## 3b. Making each world (and each chamber) its own place
+
+Each world has **one look** (World 1: a sunny tropical island: sand, palms, sandcastles, blue water). What makes the
+four chambers of a world feel different is their **shape** (topology), not their paint:
+
+| Shape | What it is | Feels like | Good for |
+|---|---|---|---|
+| **Rings** (the Drowned Stair) | walls in circles round the pearl | climbing a tower, layer by layer | a clear order of steps |
+| **Fort** (Coconut Beach) | rings plus things to climb: wall tops, vines, a block, a moat with logs | breaking into a castle | several pieces, one route |
+| **River** | a river winding from pole to pole cuts the planet in two halves, with islands | a journey along a stream | crossing, carrying, the current as a tool |
+| **Sea stacks** | tall pillars (ledges) with gaps between them | hopping between rooftops | jumping, the gull's back, wall tops |
+| **Crater** | the pearl sits low in a bowl; you go *down* to it | descending into a cave | ledges in steps, things rolling downhill |
+| **Two halves** | a wall from pole to pole; each half has half the answer | a puzzle with two rooms | switches on one side, gates on the other |
+| **Hole through** | sand holes join the two sides of the planet | a secret passage | the Sinkhole idea |
+| **Moon** | a second little planet you fly to | a trip | multi-planet chambers |
+
+Suggested for World 1: Coconut Beach = **fort**; Bubble Stream = **river** (the stream winds round the planet and you ride
+logs and vents along it); Gull Yard = **sea stacks** (pillars, the gull nests on the top one); Drowned Stair = **rings**.
+Planet size, sky colour and the props near the start (a shipwreck, a waterfall, a lighthouse, a coral cave) make the
+first look of each chamber different too.
 
 ## 4. Rules for designing a chamber
 

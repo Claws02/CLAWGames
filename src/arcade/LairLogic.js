@@ -44,6 +44,7 @@ export const JUMP_V = 6.84, BOUNCE_V = 9.67;             // apex 1.3 and 2.6 abo
 export const CARRY = 3, PICK_R = 0.6, PICK_AGE = 0.8;    // coconuts carried; how near picks one up; how soon after a throw
 export const NUT_R = 0.6, NUT_TOP = 0.45, ROCK_H = 0.45;      // ROCK_H: how high a stepping rock stands, so a crab on one is that high
 export const TRICK_R = 0.85, TRICK_GAP = 1.1, HIT_R = 0.8, GOAL_R = 0.9, CHECK_R = 1;
+export const STEP_UP = 0.6, CLIMB_V = 2.2, TOP_W = 0.45, PUSH_K = 0.6;   // a ledge the crab walks up; how fast it climbs a vine; how wide a wall top is; how fast a block goes
 export const COYOTE_S = 0.1, JUMP_BUFFER = 0.15, WADE = 0.35, RESPAWN_S = 1.4;
 export const THROW = { range0: 1.6, range1: 7, t0: 0.55, t1: 1.0, up: 0.75, ahead: 0.45 };
 // OLD INK. He sits on the pearl behind the inner fence and fights from there, in three rounds (one per coconut that lands on him). He slams the
@@ -115,28 +116,38 @@ export const STAIR = {
 // ── World 1: learning the claws ─────────────────────────────────────────────
 // Three short chambers, each teaching one thing, and then the Drowned Stair puts them all together and ends with Old Ink.
 
-// 1. COCONUT BEACH: walk, pick up, jump, throw, bounce, and the plate.
-//   the beach (start, the palm)                              d > 14
-//   a low wall (h 1): JUMP it                                14
-//   a crystal gate, opened by the bullseye outside it        10.5   (the bullseye stands on the grass at 12, lon 30)
-//   the tall step (h 2): bounce on a coconut to get over;    7      (no coconut can be thrown over it; a slide at the back leads out)
-//   the plate holds the inner gate; the pearl                4.5 · 3
-// THE ANSWER. Pick up the three coconuts; jump the low wall; throw one into the bullseye; drop one at the step's foot and jump on
-// it; inside with the last one, throw it onto the plate; the pearl.
+// 1. COCONUT BEACH: a sandcastle fort on a little island.
+//   the beach: the start, the palm (a golden shell over it)            d > 15
+//   the outer sandcastle wall (3 high, you can stand on top)          15
+//       · a cracked section at lon 0: two coconuts break it
+//       · vines at lon 90: climb with empty claws (a golden shell along the top)
+//   a strip of sand inside it                                         14 – 15
+//   the moat: deep water (in it: back to the flag), three logs drift round      10 – 14   (a golden shell over it)
+//   the inner bank, and a sand block                                  8 – 10
+//   the court wall (2 high, you can stand on top; a slide out at the back)      8
+//   the court: a plate holds the red gate                             3.2 – 8
+//   the keep: a bullseye inside the red gate opens the blue one for 6 s          2.7 · 2.2
+// THE ANSWER. Pick up the coconuts. Two throws break the cracked wall (they fall back to you). Ride a log across the moat. Push the
+// sand block to the court wall, jump on it, jump onto the wall, and down into the court. A coconut on the plate drops the red gate;
+// a coconut into the bullseye inside drops the blue one for six seconds: run in, take the pearl.
 export const BEACH = {
-    id: 'beach', name: 'COCONUT BEACH', world: 1, fast: 60, pay: 15, start: at(18.4, 0), goal: TOP, palm: at(17.7, -42), bank: 14,
-    story: 'Old Ink has the Tide Pearl, deep in his lair. First, the beach: learn what a crab can do with a coconut.',
-    hints: ['Walk into a coconut to pick it up. You carry up to three.', 'JUMP the low wall. Hold 🥥 to aim (the ring shows where it lands), let go to throw: hit the bullseye.', 'The tall step is too high to jump. Drop a coconut by it (a quick tap throws it short) and jump onto the coconut: it bounces you.', 'Inside, a coconut resting on the plate holds the last gate open.'],
-    ground: [[1.8, 'dais'], [3, 'stone'], [7, 'stone'], [10.5, 'grass'], [14, 'grass'], [99, 'sand']],
-    checks: [at(18.4, 0), at(8.4, 0)], zones: { 1: [7.1, 10.4] },
+    id: 'beach', name: 'COCONUT BEACH', world: 1, fast: 75, pay: 15, start: at(18.4, 0), goal: TOP, palm: at(17.7, -42), bank: 14,
+    story: 'Old Ink has the Tide Pearl, deep in his lair. First, his sandcastle fort: break in, cross the moat, climb the walls.',
+    hints: ['Walk into the coconuts to pick them up. Hold 🥥 and let go to throw. The cracked wall breaks after two hits.', 'The moat is deep: ride the logs across (wait for one, then jump).', 'Push the sand block against the court wall, jump on it, and jump again onto the wall.', 'A coconut on the plate drops the red gate. The bullseye inside it drops the blue one, but only for six seconds.', 'Golden shells: one over the palm (bounce on a coconut), one on top of the outer wall (the vines, with empty claws), one over the moat (jump from a log).'],
+    ground: [[1.8, 'dais'], [2.2, 'stone'], [3.2, 'stone'], [8, 'grass'], [10, 'grass'], [14, 'sea'], [99, 'sand']],
+    checks: [at(18.4, 0), at(9.2, 0)], zones: { 1: [8.1, 9.9] },
     rings: [
-        { r: 14, h: 1, kind: 'step' },
-        { r: 10.5, h: 9, gate: 'eye', kind: 'gate' },
-        { r: 7, h: 2, nutH: 9, gap: [180, 9], kind: 'step' }, { r: 7, h: 2, nutH: 9, only: [180, 9], way: 'out', kind: 'slide', show: 2 },
-        { r: 3, h: 9, gate: 'plate', kind: 'gate' },
+        { r: 15, h: 3, top: true, gap: [0, 7], vine: [90, 6], kind: 'castle' },
+        { r: 15, h: 3, only: [0, 7], hp: 2, id: 'crack', kind: 'crack' },
+        { r: 8, h: 2, top: true, gap: [180, 8], kind: 'castle' }, { r: 8, h: 2, only: [180, 8], way: 'out', kind: 'slide', show: 2 },
+        { r: 3.2, h: 9, gate: 'red', kind: 'gate' }, { r: 2.2, h: 9, gate: 'blue', kind: 'gate' },
     ],
-    plates: [{ p: at(4.6, 60), r: 0.9, gate: 'plate' }],
-    targets: [{ p: at(12.2, 30), gate: 'eye' }],
+    currents: [{ r0: 10, r1: 14, only: [0, 180], speed: 1.6, deep: true }],
+    logs: [0, 120, 240].map(lon0 => ({ orbit: 12, lon0, speed: 16, h: 0.35, r: 0.95 })),
+    blocks: [{ p: at(9.2, 40) }],
+    plates: [{ p: at(5.4, 60), r: 0.9, gate: 'red' }],
+    targets: [{ p: at(2.7, -60), gate: 'blue', secs: 6 }],
+    gold: [{ p: at(17.7, -42), h: 2.8 }, { p: at(15, 130), h: 3 }, { p: at(12, 200), h: 1.3 }],
 };
 
 // 2. BUBBLE STREAM: water, urchins, and vents.
@@ -196,7 +207,8 @@ export const ALL_OPEN = true;
 
 // ── A go at a chamber ───────────────────────────────────────────────────────
 export function create(lv) {
-    const s = { lv, t: 0, id: 1, won: false, falls: 0, cp: 0, throws: 0, calm: null, open: {}, held: {}, plug: {}, nuts: [], back: [],
+    const s = { lv, t: 0, id: 1, won: false, falls: 0, cp: 0, throws: 0, calm: null, open: {}, held: {}, plug: {}, nuts: [], back: [], dmg: {}, gold: [], stuckIn: {},
+        blocks: (lv.blocks || []).map(b => ({ h: 1, r: 0.55, ...b, p: b.p.slice() })), logs: _logsAt(lv, 0),
         crab: { p: lv.start.slice(), f: tangent(lv.start, lv.goal), face: tangent(lv.start, lv.goal), h: 0, vh: 0, moving: false, air: false, coy: COYOTE_S, jbuf: 0, nuts: 0, lifted: false },
         boss: lv.boss ? { hp: BOSS.hits, state: 'sleep', t: 0, n: 0, round: 0, tx: null, pile: 0, rest: false, touchCd: 0 } : null,
         gull: lv.gull ? { p: at(lv.gull.ring, lv.gull.from), h: 0, state: 'walk', t: 0, cool: 1, loot: 0, tx: null, from: null } : null };
@@ -208,7 +220,14 @@ function _palmNut(s, i = s.id) { const n = { id: s.id++, p: around(s.lv.palm, 0.
 export const count = s => ({ held: s.crab.nuts, loose: s.nuts.filter(n => n.state === 'rest' || n.state === 'float' || n.state === 'fly').length, working: s.nuts.filter(n => n.state === 'plug' || n.state === 'stuck').length, gull: s.gull ? s.gull.loot : 0, back: s.back.length });
 /** Where Old Ink's arm i lies round him now (degrees): they sway. */
 export const armLon = (s, i) => (i * 360) / BOSS.arms + 14 * Math.sin(s.t * 0.8 + i * 1.7);
-export const up = (s, w) => !w.gate || !(s.open[w.gate] || s.held[w.gate]);
+/** Is wall w standing? (a broken wall isn't; a gate is down while its switch holds it; an `inv` gate is the other way round) */
+export const up = (s, w) => {
+    if (w.hp && (s.dmg[w.id] || 0) >= w.hp) return false;
+    if (!w.gate) return true;
+    const on = !!(s.open[w.gate] || s.held[w.gate]);
+    return w.inv ? on : !on;
+};
+const gatesOf = x => [].concat(x.gate || []);
 /** The vent that is blowing: the first that isn't plugged. */
 export const blowing = s => (s.lv.vents || []).find(v => !s.plug[v.id]) || null;
 export const rockUnder = (s, p) => (s.lv.rocks || []).find(k => dist(k.p, p) < k.r) || null;
@@ -218,11 +237,20 @@ export function currentAt(s, p) {
     const dTop = dist(p, TOP);
     const cu = (s.lv.currents || []).find(c => dTop > c.r0 && dTop < c.r1 && covers(c, p));
     if (!cu) return null;
-    return { d: tangent(p, cross(TOP, p)), speed: cu.speed };            // east: the way lon grows
+    return { d: tangent(p, cross(TOP, p)), speed: cu.speed, deep: !!cu.deep };            // east: the way lon grows
 }
 export const urchinAt = (s, p, pad = 0) => (s.lv.urchins || []).find(u => dist(u.p, p) < u.r + pad) || null;
 /** How high the ground is at place p: the top of a rock, or the sea floor. */
-export const floorAt = (s, p) => (rockUnder(s, p) ? ROCK_H : 0);
+export function floorAt(s, p) {
+    let f = rockUnder(s, p) ? ROCK_H : 0;
+    for (const l of s.lv.ledges || []) { const d = dist(p, l.c || TOP); if (d > l.r0 && d < l.r1 && covers(l, p)) f = Math.max(f, l.h); }
+    for (const w of s.lv.rings || []) if (w.top && up(s, w) && Math.abs(dist(p, w.c || TOP) - w.r) < TOP_W && covers(w, p)) f = Math.max(f, w.h);
+    for (const b of s.blocks || []) if (dist(p, b.p) < b.r) f = Math.max(f, b.h);
+    for (const l of s.logs || []) if (dist(p, l.p) < l.r) f = Math.max(f, l.h);
+    return f;
+}
+/** Where the floating logs are at time t. */
+const _logsAt = (lv, t) => (lv.logs || []).map(l => ({ p: at(l.orbit, l.lon0 + l.speed * t), h: l.h || 0.35, r: l.r || 0.9 }));
 export const nutUnder = (s, p) => s.nuts.find(n => (n.state === 'rest' || n.state === 'float') && dist(n.p, p) < NUT_R) || null;
 
 // Does the step from a to b cross a wall standing taller than h? → { n } (its normal in the ground at b).
@@ -265,7 +293,7 @@ export function throwNut(s, charge = 0) {
 }
 /** Where a throw from here would come down: { p, path, bank, wet } (it flies, banks and lands; then the water has it). */
 export function aim(s, charge = 0) {
-    const t = { ...s, nuts: [], back: [], open: { ...s.open }, held: { ...s.held }, plug: { ...s.plug }, crab: { ...s.crab, nuts: 1 }, gull: null, boss: null, throws: 0, id: 1 };
+    const t = { ...s, nuts: [], back: [], open: { ...s.open }, held: { ...s.held }, plug: { ...s.plug }, dmg: { ...s.dmg }, stuckIn: { ...s.stuckIn }, gold: [...s.gold], crab: { ...s.crab, nuts: 1 }, gull: null, boss: null, throws: 0, id: 1 };
     const n = throwNut(t, charge), path = []; let bank = null;
     for (let i = 0; i < 240 && n.state === 'fly'; i++) { const ev = []; _nut(t, n, 1 / 60, ev); if (!bank && ev.some(e => e.type === 'bank')) bank = [n.p, n.h]; if (i % 3 === 0) path.push([n.p, n.h]); }
     return { p: n.p, path, bank, wet: n.state === 'float' };
@@ -284,12 +312,17 @@ function _nut(s, n, dt, ev) {
             n.blocked = true; n.d = tangent(n.p, toward(TOP, n.p)).map(x => -x); n.v *= 0.3; n.vh = Math.min(n.vh, -1); ev.push({ type: 'ink-block', p: n.p, nut: n, why: bs.state === 'hurt' ? 'hurt' : 'arm' });
         }
         const hit = _blocked(s, n.p, q, n.h, true);
-        if (hit) { const k = dot(n.d, tangent(n.p, hit.n)); n.d = tangent(n.p, mix(n.d, tangent(n.p, hit.n), 1, -2 * k)); n.v *= 0.85; ev.push({ type: 'bank', nut: n, p: n.p }); }
+        if (hit) {
+            const k = dot(n.d, tangent(n.p, hit.n)); n.d = tangent(n.p, mix(n.d, tangent(n.p, hit.n), 1, -2 * k)); n.v *= 0.85; ev.push({ type: 'bank', nut: n, p: n.p });
+            if (hit.w.hp) { s.dmg[hit.w.id] = (s.dmg[hit.w.id] || 0) + 1; n.v *= 0.3; const left = hit.w.hp - s.dmg[hit.w.id]; ev.push({ type: left > 0 ? 'crack' : 'break', w: hit.w, left, p: n.p }); }
+        } else if (floorAt(s, q) > n.h + 0.05) { n.d = n.d.map(x => -x); n.d = tangent(n.p, n.d); n.v *= 0.5; ev.push({ type: 'bank', nut: n, p: n.p }); }     // (the side of a ledge, a block or a wall top)
         else { n.d = tangent(q, n.d); n.p = q; }
         n.vh -= G * dt; n.h += n.vh * dt;
         for (const tg of s.lv.targets || []) {
-            if (s.open[tg.gate] || Math.hypot(dist(n.p, tg.p), n.h - 1.1) > HIT_R) continue;
-            s.open[tg.gate] = true; n.state = 'stuck'; n.p = tg.p.slice(); n.h = 1.1; ev.push({ type: 'target', target: tg, nut: n }); return;
+            const th = tg.h || 1.1, gs = gatesOf(tg);
+            if (gs.every(g => s.open[g]) || Math.hypot(dist(n.p, tg.p), n.h - th) > HIT_R) continue;
+            for (const g of gs) { s.open[g] = tg.secs || true; s.stuckIn[g] = n.id; }             // (a timed bullseye opens its gate for tg.secs, then drops the coconut)
+            n.state = 'stuck'; n.p = tg.p.slice(); n.h = th; ev.push({ type: 'target', target: tg, nut: n, secs: tg.secs || 0 }); return;
         }
         const g = s.gull;
         if (g && g.state !== 'stun' && Math.hypot(dist(n.p, g.p), n.h - (g.h + 0.4)) < GULL.hit + 0.1) { _stun(s, ev, 'nut'); n.vh = Math.min(n.vh, -2); n.v *= 0.3; }
@@ -298,6 +331,7 @@ function _nut(s, n, dt, ev) {
             n.h = fl;
             if (s.boss && dist(n.p, TOP) < 1.95) n.p = at(BOSS.pileAt, lonOf(n.p));       // (never left inside the fence, out of reach)
             if (urchinAt(s, n.p)) return _lose(s, n, ev, 'urchin');
+            const cw = fl < 0.05 && currentAt(s, n.p); if (cw && cw.deep) return _lose(s, n, ev, 'sink');      // (deep water: it sinks, and washes up under the palm)
             const dv = (s.lv.vents || []).find(x => x.drop && !s.plug[x.id] && dist(x.p, n.p) < x.r + 0.2);
             if (dv) { n.state = 'plug'; n.p = dv.p.slice(); n.h = 0; s.plug[dv.id] = n.id; ev.push({ type: 'plug', vent: dv, nut: n, now: blowing(s) }); return; }
             n.state = currentAt(s, n.p) && !rockUnder(s, n.p) ? 'float' : 'rest';
@@ -372,24 +406,58 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     c.jbuf = Math.max(0, c.jbuf - dt);
     for (let i = s.back.length - 1; i >= 0; i--) { s.back[i] -= dt; if (s.back[i] <= 0) { s.back.splice(i, 1); ev.push({ type: 'washed', nut: _palmNut(s) }); } }
 
+    // The floating logs drift on; a crab standing on one goes with it.
+    if (lv.logs) {
+        const was = s.logs, now = _logsAt(lv, s.t);
+        const on = !c.air && was.findIndex(l => dist(c.p, l.p) < l.r && Math.abs(c.h - l.h) < 0.06);
+        s.logs = now;
+        if (on !== false && on >= 0) { const dl = lonOf(now[on].p) - lonOf(was[on].p); c.p = at(dist(c.p, TOP), lonOf(c.p) + dl); c.f = tangent(c.p, c.f); c.face = tangent(c.p, c.face); }
+    }
+    // Timed gates run down; when one shuts, its bullseye drops the coconut at its foot.
+    for (const g of Object.keys(s.open)) if (typeof s.open[g] === 'number') {
+        s.open[g] -= dt;
+        if (s.open[g] <= 0) { delete s.open[g]; const n = s.nuts.find(x => x.id === s.stuckIn[g]); if (n) { n.state = 'rest'; n.h = floorAt(s, n.p); n.age = 9; } ev.push({ type: 'timeout', gate: g }); }
+    }
     // Walk (in the air too). In a current the crab wades slowly and is carried along.
-    const cu = !c.air && !rockUnder(s, c.p) ? currentAt(s, c.p) : null;
+    c.climb = false;
+    const cu = !c.air && floorAt(s, c.p) < 0.05 ? currentAt(s, c.p) : null;
     const m = Math.min(1, Math.hypot(stick.x, stick.y));
     c.moving = m > 0.12;
-    const move = q => { if (!_blocked(s, c.p, q, c.h)) { c.p = q; c.f = tangent(q, c.f); c.face = tangent(q, c.face); return true; } return false; };
+    const move = (q, walking) => {
+        const w = _blocked(s, c.p, q, c.h), fq = floorAt(s, q);
+        if (!w && fq - c.h <= STEP_UP) { c.p = q; c.f = tangent(q, c.f); c.face = tangent(q, c.face); return true; }
+        if (!walking) return false;
+        // a vine on the wall: climb it, with empty claws
+        const wall = w ? w.w : fq - c.h > STEP_UP ? (lv.rings || []).find(r => r.top && up(s, r) && Math.abs(dist(q, r.c || TOP) - r.r) < TOP_W && covers(r, q)) : null;
+        if (wall && wall.vine && covers({ c: wall.c, only: wall.vine }, q)) {
+            if (c.nuts > 0) { if (!s.vineSaid) { s.vineSaid = true; ev.push({ type: 'vine-full' }); } return false; }
+            if (!c.climbing) ev.push({ type: 'climb' });
+            c.climb = c.climbing = true; c.air = false; c.vh = 0; c.h = Math.min(wall.h + 0.02, c.h + CLIMB_V * dt); return false;
+        }
+        // a block: push it along, if there's room where it would go
+        const b = !w && !c.air && s.blocks.find(x => dist(q, x.p) < x.r && x.h - c.h > STEP_UP);
+        if (b) {
+            const nb = walk(b.p, tangent(b.p, toward(c.p, q)), angle(c.p, q) * PUSH_K);
+            const bh = b.h; b.h = 0; const flat = floorAt(s, nb) <= floorAt(s, b.p) + 0.01; b.h = bh;
+            const free = flat && !_blocked(s, b.p, nb, 0) && !s.blocks.some(x => x !== b && dist(x.p, nb) < x.r + b.r) && !currentAt(s, nb);
+            if (free) { b.p = nb; if (!s.pushSaid) { s.pushSaid = true; ev.push({ type: 'push', block: b }); } }
+        }
+        return false;
+    };
     if (c.moving) {
         const right = cross(c.f, c.p), d = norm(mix(right, c.f, stick.x, stick.y));
         c.face = tangent(c.p, d);
-        move(walk(c.p, d, (SPEED * (cu ? WADE : 1) * m * dt) / R));
+        move(walk(c.p, d, (SPEED * (cu ? WADE : 1) * m * dt) / R), true);
     }
     if (cu) move(walk(c.p, cu.d, (cu.speed * dt) / R));          // (the eddy by the cove is for coconuts: a crab is only ever swept past it)
     c.wet = !!cu;
     for (const n of s.nuts.slice()) _nut(s, n, dt, ev);
 
     // The ground under the crab: walk up onto a rock, or off its edge and fall.
-    if (!c.air) {
+    if (!c.climb) c.climbing = false;
+    if (!c.air && !c.climb) {
         const f = floorAt(s, c.p);
-        if (c.h < f && f - c.h <= 0.6) c.h = f; else if (c.h > f + 1e-6) { c.air = true; c.vh = 0; }
+        if (c.h < f && f - c.h <= STEP_UP) c.h = f; else if (c.h > f + 1e-6) { c.air = true; c.vh = 0; }
         if (!c.air) c.coy = COYOTE_S;
     } else c.coy = Math.max(0, c.coy - dt);
 
@@ -416,8 +484,17 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     // Standing on a lift vent that is not the one blowing: say so, once.
     const stand = (lv.vents || []).find(x => x.lift && dist(c.p, x.p) < x.r);
     if (stand && stand !== v && !c.air) { if (s.calm !== stand.id) { s.calm = stand.id; ev.push({ type: 'calm', vent: stand, blowing: v }); } } else if (!stand) s.calm = null;
-    // Urchins.
+    // Urchins; deep water.
     if (c.h < 0.7 && urchinAt(s, c.p, 0.15)) { _reset(s, ev, 'ouch'); return ev; }
+    if (!c.air && c.h < 0.05) { const dw = currentAt(s, c.p); if (dw && dw.deep) { _reset(s, ev, 'sink'); return ev; } }
+    // Golden shells: touch one (at its height) to take it.
+    (lv.gold || []).forEach((g, i) => { if (!s.gold.includes(i) && dist(c.p, g.p) < 0.75 && Math.abs(c.h - (g.h || 0)) < 0.9) { s.gold.push(i); ev.push({ type: 'gold', i, p: g.p, h: g.h || 0 }); } });
+    // A coconut lying inside a shut gate the crab is outside of is out of reach: it rolls out to the gate's foot.
+    for (const n of s.nuts) if (n.state === 'rest') for (const w of lv.rings || []) {
+        if (!w.gate || !up(s, w)) continue;
+        const c0 = w.c || TOP;
+        if (dist(n.p, c0) < w.r && dist(c.p, c0) > w.r && covers(w, n.p)) { n.p = around(c0, w.r + 0.7, lonOf(n.p, c0)); n.h = floorAt(s, n.p); ev.push({ type: 'nudge', nut: n }); }
+    }
     // Picking coconuts up: walk into one that is lying or floating.
     if (!c.air && c.nuts < CARRY) {
         const n = s.nuts.find(x => (x.state === 'rest' || x.state === 'float') && x.age > PICK_AGE && dist(x.p, c.p) < PICK_R);
@@ -430,7 +507,8 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     // Plates: held down by the crab on the ground, or a coconut at rest.
     for (const pl of lv.plates || []) {
         const on = (!c.air && dist(c.p, pl.p) < pl.r) || s.nuts.some(n => n.state === 'rest' && dist(n.p, pl.p) < pl.r);
-        if (on !== !!s.held[pl.gate]) { s.held[pl.gate] = on; ev.push({ type: on ? 'press' : 'release', plate: pl }); }
+        const gs = gatesOf(pl);
+        if (on !== !!s.held[gs[0]]) { for (const g of gs) s.held[g] = on; ev.push({ type: on ? 'press' : 'release', plate: pl }); }
     }
     lv.checks.forEach((p, i) => { const z = lv.zones && lv.zones[i], dT = dist(c.p, TOP); if (i > s.cp && !c.air && (dist(c.p, p) < CHECK_R || (z && dT > z[0] && dT < z[1]))) { s.cp = i; ev.push({ type: 'check', i, p }); } });
     if (!c.air && dist(c.p, lv.goal) < GOAL_R && (!s.boss || s.boss.state === 'down')) { s.won = true; ev.push({ type: 'won', t: s.t, falls: s.falls }); }

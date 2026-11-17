@@ -124,3 +124,12 @@ and **Gull Yard** (the gull's back is the way over the step; the same economy as
 possible: a step can be taller for coconuts than for the crab (`nutH`: you bounce over, nothing can be thrown over, so no coconut ends
 up out of reach), and a vent that a thrown coconut can drop into (`drop`). `qa/lair-world1.mjs` plays all three and checks what
 each one must teach. Every chamber is open while testing (`ALL_OPEN`).
+
+## Coconut Beach rebuilt as a sandcastle fort (after the sixth play-test)
+Caleb found it too simple, and found a soft-lock: standing on the plate (gate open) and throwing a coconut inside, then stepping
+off, left it behind the shut gate. Fixed for every chamber: a coconut lying inside a shut gate rolls out to the gate's foot.
+The new Coconut Beach: break a cracked sandcastle wall with two throws, ride a log across a deep moat, push a sand block to the
+court wall to climb onto it, a coconut on the plate drops the red gate and the bullseye inside drops the blue one for six
+seconds. Three golden shells (over the palm, on the outer wall top by the vines, over the moat). New pieces: wall tops, ledges,
+vines, sand blocks, cracked walls, timed gates, switch gates, logs, deep water, golden shells (`PUZZLE_RULES.md`).
+Bubble Stream and Gull Yard are next, as a river and as sea stacks, once Caleb has played this one.
