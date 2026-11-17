@@ -37,28 +37,27 @@ const ok = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) f
   ok(note.plugged && has('plop') && has('plug'), `1. a coconut dropped in the far side of the current upstream is carried into the cove and plugs vent A (${note.t1.toFixed(0)} s in)`);
   ok(note.onB && has('lift') && note.shelf, '2. across the stepping rocks to vent B, and up over the cliff onto the shelf, with the two coconuts that are left');
   ok(has('gull-dive') && has('stomp') && note.over, '3. the gull dives, the crab steps aside and jumps on its back: bounced over the tall step, both coconuts still in its claws');
-  ok(has('target') && has('ink-wake') && has('ink-slam') && has('ink-arm') && has('ink-dizzy') && note.arms >= 6 && note.dizzy === 3 && has('ink-down') && s.boss.hp === 0, `4. the bullseye opens the outer gate; Old Ink wakes and slams; two stunned arms make him dizzy, three times over, and three coconuts on his head put him down (${note.arms} arm hits, ${note.fightT.toFixed(0)} s)`);
-  ok(has('press') && s.won && s.falls === 0, `5. a coconut on the plate opens the pearl's fence: the pearl, in ${s.t.toFixed(0)} s without a fall`);
+  ok(has('target') && has('ink-wake') && note.hits === 3 && has('ink-down') && s.boss.hp === 0, `4. the bullseye opens the outer gate; Old Ink wakes; three coconuts on his head put him down (${note.fightT.toFixed(0)} s of fighting)`);
+  ok(has('press') && s.won && s.falls === 0, `5. the plate's coconut has held the pearl's fence open all along: the pearl, in ${s.t.toFixed(0)} s without a fall`);
   const again = solve(); ok(again.s.t === s.t && again.s.won, 'played again it goes exactly the same way (nothing in the chamber is left to chance)'); }
 
 // ── Old Ink ─────────────────────────────────────────────────────────────────
 { const fresh = () => { const { s } = solve({ stopAtBoss: true }); s.crab.p = at(2.5, -100).slice(); s.crab.air = false; s.crab.h = 0; return s; };
   { const s = fresh(); ok(s.boss.state === 'sleep', 'Old Ink sleeps until the crab comes into his chamber'); run(s, 0.1);
     ok(s.boss.state === 'idle' && s.nuts.filter(n => n.state === 'rest').length >= 4, 'it wakes him, and piles of coconuts turn up round the chamber'); }
-  { // awake, a coconut never hurts his head: it stuns an arm or bounces off
-    const s = fresh(); run(s, 0.1); s.crab.nuts = 3; let hurt = 0, other = 0;
-    for (let k = 0; k < 6; k++) { s.boss.state = 'idle'; s.boss.t = 0; s.boss.arms.fill(0); s.boss.stunned = 0; face(s, TOP); K.throwNut(s, 0.2 + k * 0.1); for (const e of run(s, 1.2)) { if (e.type === 'ink-hit') hurt++; if (e.type === 'ink-block' || e.type === 'ink-arm') other++; } }
-    ok(hurt === 0 && s.boss.hp === 3 && other > 0, `awake, a coconut never hurts his head (${other} stunned an arm or bounced off): only a dizzy Old Ink can be hit there`); }
-  { // two arms, any two, make him dizzy; the same arm twice doesn't count; the stun wears off
-    const s = fresh(); run(s, 0.1); s.crab.nuts = 3; s.boss.state = 'idle'; s.boss.t = -99;
-    const f = findThrow(s, 'ink-arm'); ok(!!f, 'there is a throw that finds an arm'); if (f) {
-      const go1 = () => { const e = []; face(s, TOP); const c = s.crab, side = P.cross(c.p, c.face), r = f.a * Math.PI / 180; c.face = P.tangent(c.p, P.mix(c.face, side, Math.cos(r), Math.sin(r))); K.throwNut(s, f.ch); e.push(...run(s, 1.4)); return e; };
-      const e1 = go1(); ok(e1.some(x => x.type === 'ink-arm' && x.count === 1) && s.boss.state !== 'dizzy', 'one arm stunned: he is not dizzy yet');
-      const idle = () => { s.boss.state = 'idle'; s.boss.t = -99; };
-      idle(); let f2 = findThrow(s, 'ink-arm'); for (let k = 1; !f2 && k < 12; k++) { s.crab.p = at(2.5, -100 + k * 30).slice(); s.crab.air = false; s.crab.h = 0; f2 = findThrow(s, 'ink-arm'); } let again = false;
-      if (f2) { const c = s.crab; face(s, TOP); const side = P.cross(c.p, c.face), r = f2.a * Math.PI / 180; c.face = P.tangent(c.p, P.mix(c.face, side, Math.cos(r), Math.sin(r))); K.throwNut(s, f2.ch); const e2 = run(s, 1.4); again = e2.some(x => x.type === 'ink-dizzy'); }
-      ok(again && s.boss.state === 'dizzy', 'a second arm (a different one) and he is dizzy');
-      s.boss.state = 'idle'; s.boss.t = 0; run(s, K.BOSS.armFor + 0.5); ok(s.boss.arms.every(x => x <= 0), 'a stunned arm wakes up again after a few seconds'); } }
+  { // a coconut on his head hurts him at once, whatever he is doing; and he is shaken for a moment after
+    const s = fresh(); run(s, 0.1); s.crab.nuts = 3; const f = findThrow(s, 'ink-hit'); ok(!!f, 'there is a throw that finds his head');
+    if (f) { const c = s.crab, side = P.cross(c.p, c.face = P.toward(c.p, TOP)), r = f.a * Math.PI / 180; c.face = P.tangent(c.p, P.mix(c.face, side, Math.cos(r), Math.sin(r))); K.throwNut(s, f.ch);
+      const ev = run(s, 0.5); ok(ev.some(e => e.type === 'ink-hit' && e.hp === 2) && s.boss.hp === 2 && s.boss.state === 'hurt', 'one coconut: two hearts left, and he is shaken for a moment');
+      s.crab.nuts = 2; face(s, TOP); K.throwNut(s, f.ch); const ev2 = run(s, 0.5); ok(s.boss.hp === 2 && !ev2.some(e => e.type === 'ink-hit'), 'a second coconut while he is shaken bounces off'); } }
+  { // touching him is a hit, like a slam
+    const s = fresh(); run(s, 0.1); s.crab.p = at(1.2, 40).slice(); s.crab.air = false; s.crab.h = 0; const ev = run(s, 0.3);
+    ok(ev.some(e => e.type === 'ink-ouch' && e.touch) && s.falls === 1 && K.dist(s.crab.p, TOP) > 2, 'touching Old Ink knocks the crab back to the edge of the arena and counts as a fall'); }
+  { // the pearl waits for him: with his fence open, the crab still can't take it while he is up
+    const s = fresh(); run(s, 0.1); s.open.eye = true; s.held.plate = true; s.boss.state = 'idle'; s.boss.t = -99; s.crab.p = at(0.5, 0).slice(); s.crab.h = 0; s.crab.air = false; s.boss.touchCd = 99; run(s, 0.3);
+    ok(!s.won, 'with him up, the pearl is not taken'); s.boss.state = 'down'; run(s, 0.3); ok(s.won, 'with him down, it is'); }
+  { // the plate's coconut holds the fence open at once (it no longer waits for the fight)
+    const s = fresh(); const w = L.rings.find(r => r.gate === 'plate'); s.held.plate = false; ok(K.up(s, w), 'the fence is shut'); s.held.plate = true; ok(!K.up(s, w), 'a coconut on the plate opens it, boss or no boss'); }
   { // slams: standing in the ring is a hit, moving out of it or jumping is not
     const s = fresh(); s.boss.state = 'wind'; s.boss.t = 0; s.boss.tx = s.crab.p.slice(); s.crab.nuts = 0;
     const ev = run(s, 2);
@@ -70,16 +69,16 @@ const ok = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) f
   { const s = fresh(); s.boss.state = 'wind'; s.boss.t = 0; s.boss.tx = s.crab.p.slice(); s.crab.nuts = 0; const ev = [];
     for (let i = 0; i < 300 && s.boss.state === 'wind'; i++) { if (s.boss.t >= K.BOSS.wind[0] - 0.38 && !s.crab.air) K.jump(s); ev.push(...K.step(s, DT)); } ev.push(...run(s, 0.2));
     ok(ev.some(e => e.type === 'ink-slam') && !ev.some(e => e.type === 'ink-ouch') && s.falls === 0, 'jumping as the slam lands: it misses'); }
-  { // the three rounds get harder, and he is dizzy for long enough to throw
-    ok(K.BOSS.wind[0] > K.BOSS.wind[1] && K.BOSS.wind[1] > K.BOSS.wind[2] && K.BOSS.slams[2] > K.BOSS.slams[0] && K.BOSS.dizzy >= 4, 'each round winds up faster and slams more, and the dizzy window is at least 4 s'); }
+  { // the three rounds get harder
+    ok(K.BOSS.wind[0] > K.BOSS.wind[1] && K.BOSS.wind[1] > K.BOSS.wind[2] && K.BOSS.slams[2] > K.BOSS.slams[0], 'each round winds up faster and slams more'); }
   { // coconuts keep coming: never run dry, and the claws still only hold three
     const s = fresh(); run(s, 0.1); s.nuts = s.nuts.filter(() => false); s.crab.nuts = 0; const ev = run(s, 3);
     ok(ev.some(e => e.type === 'pile') && s.nuts.filter(n => n.state === 'rest').length >= 3, 'with every coconut gone, a fresh pile turns up within seconds'); 
-    const s2 = fresh(); run(s2, 0.1); for (let i = 0; i < 12; i++) { const n = s2.nuts.find(x => x.state === 'rest'); if (!n) break; s2.boss.state = 'dizzy'; s2.boss.t = 0; go(s2, n.p, [], 0.2, 5); }
+    const s2 = fresh(); run(s2, 0.1); for (let i = 0; i < 12; i++) { const n = s2.nuts.find(x => x.state === 'rest'); if (!n) break; s2.boss.state = 'idle'; s2.boss.t = -99; go(s2, n.p, [], 0.2, 5); }
     ok(s2.crab.nuts <= K.CARRY, 'the claws never hold more than three'); }
   { // no coconut thrown at him ends up out of reach inside his fence
-    const s = fresh(); run(s, 0.1); s.boss.state = 'dizzy'; s.crab.nuts = 3; let inside = 0;
-    for (let ch = 0; ch <= 1; ch += 0.1) { s.boss.state = 'dizzy'; s.boss.hp = 3; s.crab.nuts = 1; face(s, TOP); K.throwNut(s, ch); run(s, 1.5); }
+    const s = fresh(); run(s, 0.1); s.boss.state = 'idle'; s.crab.nuts = 3; let inside = 0;
+    for (let ch = 0; ch <= 1; ch += 0.1) { s.boss.state = 'idle'; s.boss.t = -99; s.boss.hp = 3; s.crab.nuts = 1; face(s, TOP); K.throwNut(s, ch); run(s, 1.5); }
     ok(s.nuts.every(n => n.state === 'stuck' || K.dist(n.p, TOP) > 1.9), 'a coconut never lies inside the fence where nobody can reach it'); }
 }
 

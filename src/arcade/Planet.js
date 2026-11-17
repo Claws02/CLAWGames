@@ -391,12 +391,12 @@ function _lairHud() {
     const s = _trial.state(), lv = _trial.level, i = LL.CHAMBERS.indexOf(lv), k = _trial.charging(), n = LL.count(s);
     const hint = _hintT > 0 ? _hintMsg : '';
     const bs = s.boss, inkHp = bs && bs.state !== 'sleep' ? bs.hp : -1, inkSt = bs ? bs.state : '';
-    const sig = [lv.id, n.held, n.loose, n.working, n.gull, s.falls, hint, _hintN, inkHp, bs ? bs.stunned : 0, inkSt === 'dizzy' ? 1 : 0, inkSt === 'down' ? 1 : 0, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
+    const sig = [lv.id, n.held, n.loose, n.working, n.gull, s.falls, hint, _hintN, inkHp, inkSt === 'down' ? 1 : 0, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
     if (sig === _lastHud) return;
     _lastHud = sig;
     $('tp-trial-n').textContent = `🐙 ${i + 1}/${LL.CHAMBERS.length} ${lv.name}`;
     $('tp-trial-s').textContent = `${'🥥'.repeat(n.held)}${'▫️'.repeat(LL.CARRY - n.held)} ${n.held}/${LL.CARRY}${n.gull ? ' · 🐦 HAS ONE' : ''}${inkHp >= 0 ? ` · 🐙 ${'❤️'.repeat(inkHp)}${'🖤'.repeat(LL.BOSS.hits - inkHp)}` : ''}${n.working ? ` · ${n.working} AT WORK` : ''}${s.falls ? ` · FALLS ${s.falls}` : ''}`;
-    const goal = $('tp-goal'); goal.textContent = _hintN ? `💡 ${_hintN}/${lv.hints.length}: ${lv.hints[_hintN - 1]}` : inkSt === 'dizzy' ? '😵 OLD INK IS DIZZY: COCONUTS AT HIS HEAD!' : inkSt === 'down' ? '🎯 COCONUT ON THE PLATE, THEN THE PEARL' : inkHp >= 0 ? `🥥 HIT TWO ARMS (${LL.BOSS.arms ? (bs.stunned || 0) : 0}/2) · DODGE THE RED RINGS` : '🎯 REACH THE TIDE PEARL · 💡 FOR A HINT'; goal.classList.remove('tut'); goal.classList.add('wide');
+    const goal = $('tp-goal'); goal.textContent = _hintN ? `💡 ${_hintN}/${lv.hints.length}: ${lv.hints[_hintN - 1]}` : inkSt === 'hurt' ? '🥥 HIT! HE IS SHAKEN: DODGE': inkSt === 'down' ? '🎯 HE IS DOWN: TAKE THE PEARL (A COCONUT ON THE PLATE HOLDS THE FENCE OPEN)' : inkHp >= 0 ? '🥥 COCONUTS AT HIS HEAD · DODGE THE RED RINGS · DON\'T TOUCH HIM' : '🎯 REACH THE TIDE PEARL · 💡 FOR A HINT'; goal.classList.remove('tut'); goal.classList.add('wide');
     const ab = $('btn-tp-act'); ab.classList.remove('off', 'idle'); ab.hidden = false; ab.querySelector('span').textContent = '🥥'; ab.querySelector('small').textContent = n.held < 1 ? 'NONE' : k >= 0 ? 'LET GO!' : 'HOLD: THROW';
     ab.classList.toggle('off', n.held < 1 && k < 0);
     ab.style.setProperty('--k', k >= 0 ? k : 0);
