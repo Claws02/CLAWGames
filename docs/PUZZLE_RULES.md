@@ -1,0 +1,143 @@
+# Old Ink's Lair: the master plan for puzzles
+
+How a chamber works, which pieces there are (built and planned), and the ideas
+for the next chambers. The step-by-step for building one is
+[`LAIR_GUIDE.md`](LAIR_GUIDE.md); the story and the record of chamber 1 are in
+[`LAIR_PLAN.md`](LAIR_PLAN.md).
+
+## 1. What a chamber is
+
+A chamber is **one small puzzle planet** (or, later, a few linked ones). The
+crab starts on a beach, the Tide Pearl is at the top, and Old Ink's things are
+in between. It is a puzzle, not an obstacle course:
+
+- **A real answer.** One or two ways through, found by thinking, not by trying
+  every jump. Everything else is shut by something you can see.
+- **Small.** A planet you can walk round in about 20 seconds. Everything that
+  matters can be seen from somewhere.
+- **The same rules everywhere.** A coconut does in chamber 6 what it did in
+  chamber 1. New pieces add rules; they never change old ones.
+
+## 1b. Worlds
+
+Chambers come in **worlds of four**: three short chambers that each teach one
+thing, then a big chamber that puts them together and ends with a boss.
+
+| World 1 | Teaches | Data |
+|---|---|---|
+| 1. Coconut Beach | walk, pick up, jump, throw (bullseye), bounce on a coconut, the plate | `BEACH` |
+| 2. Bubble Stream | vents (only one blows; plug one by dropping a coconut in; ride a lift), a stream that carries you and floats coconuts onto urchins | `STREAM` |
+| 3. Gull Yard | the gull (it dives and steals; stomp or hit it; its back bounces) | `YARD` |
+| 4. The Drowned Stair 🐙 | everything above, the eddy and cove, then Old Ink | `STAIR` |
+
+A chamber opens when the one before it is cleared (`ALL_OPEN = true` in
+`LairLogic.js` opens them all while testing: turn it off for release).
+
+## 2. The rules of the claws (fixed for every chamber)
+
+| Rule | Value | Why |
+|---|---|---|
+| Carry up to 3 coconuts | `CARRY` | a "don't waste it" decision is always possible |
+| Pick up by walking into one | `PICK_R`, after `PICK_AGE` | no pick-up button |
+| Hold to charge, let go to throw; the arc and landing ring show | `THROW` | aim is skill, the outcome is never a surprise |
+| Jump on a coconut: bounce (2.6 high, twice a jump) | `BOUNCE_V` | coconuts are tools as well as weights |
+| Coconuts float and drift with a current | | water moves things |
+| A coconut is never lost for good: it washes up under the palm | `RESPAWN_S` | no soft-locks |
+| Hurt (spikes, a slam, a peck): back to the last flag, a fall counted | | falls cost a star, not the level |
+| Three stars: the pearl, no falls, under the time | | a reason to replay |
+
+## 3. The pieces
+
+Each piece has **one rule**, shows that rule on screen, and says so in words
+the first time it matters (`calm` vent, `🪜` ladder).
+
+### Built (chamber 1)
+
+| Piece | Rule | Data |
+|---|---|---|
+| **Wall / cliff** | can't be walked or thrown through below its height | `rings: [{ r, h, gap|only }]`, `bars: [{ a, b, h }]` |
+| **Slide + ladder** | one way down; a ladder makes it both ways once a flag is yours | `way: 'out', earn: <flag>` |
+| **Gate** | a wall that sinks while its switch holds | `gate: 'id'` |
+| **Plate** | held while the crab or a resting coconut is on it | `plates: [{ p, r, gate }]` |
+| **Bullseye** | a coconut through it opens its gate for good, and stays stuck | `targets: [{ p, gate }]` |
+| **Current** | carries the crab (wading is slow) and floating coconuts one way | `currents: [{ r0, r1, only, speed }]` |
+| **Eddy** | pulls floating coconuts into a cove (never a crab) | `eddies: [{ p, r, to, speed }]` |
+| **Vent** | only the first unplugged vent blows; a lift vent carries a crab up | `vents: [{ id, p, r, lift?, float? }]` |
+| **Stepping rock** | stand on top (`ROCK_H`); fall off its sides | `rocks: [{ p, r }]` |
+| **Urchin** | touch it: back to the flag; a coconut is lost (washes up) | `urchins: [{ p, r }]` |
+| **Gull** | steals a coconut, or pecks you to the flag; jump on it or hit it: stunned, drops its loot; its back is a bounce | `gull: { ring, from }` |
+| **Old Ink (boss)** | slams where you stand (red ring); for 1.5 s after a slam his head is open to a coconut; three hits; touching him hurts; piles keep coming | `boss: true`, `BOSS` |
+
+### Planned (each is one new rule)
+
+| Piece | Rule | Puzzle it makes |
+|---|---|---|
+| **Sand hole (through the planet)** | jump in, come out of its twin hole on the far side of the planet (the antipode, `-p`) with the same speed; a thrown coconut goes through too | throw a coconut into a hole to reach a plate on the far side; drop through to skip a wall, but you arrive where you can't come back |
+| **Moon / second planet** | a launch pad (a big vent, or a cannon shell) flies the crab to a small moon; coconuts carried go with it; each planet keeps its own state | fetch something from the moon (a key pearl, a heavy coconut) and bring it home; a plate on the moon opens a gate on the planet |
+| **Tide** | the water rises and falls on a clock; low tide shows a path, high tide floats coconuts off the sand | wait for the tide, or use it to carry a coconut somewhere you can't throw |
+| **Clam** | snaps shut on a coconut and holds it; opens when hit by a second | a coconut "safe" that keeps a plate pressed |
+| **Jelly** | a soft pad: a crab bounces higher than off a coconut; a coconut bounces off it | bank shots, and reaching a high ledge without spending coconuts |
+| **Seaweed** | slows the crab to a crawl; coconuts stick in it | a coconut wall that stops one sliding into the water |
+| **Heavy coconut (stone)** | can't be thrown far, sinks in water, holds a plate even underwater | the "weight" puzzles where a floating coconut would drift away |
+| **Crab helper** | a little crab that walks to wherever a coconut lands and sits on it | holds a plate for you while you are elsewhere |
+| **Wind gust** | pushes coconuts in flight one way on a clock | aim upwind; timing |
+
+## 4. Rules for designing a chamber
+
+1. **One new thing to discover.** Every chamber teaches one piece (or one
+   new use of an old piece). It is the "aha".
+2. **A hazard used as a tool.** The current that drowns you carries your
+   coconut; the gull that steals is a stepping stone.
+3. **One skill section.** A jump across the stepping rocks, a dodge of a slam.
+   Short, fair, with a flag before it.
+4. **One "don't waste it" decision.** Three jobs and two coconuts; the answer is
+   a coconut you didn't think of (the gull's back).
+5. **Every shortcut shut by something natural.** A cliff, a dam, a cove wall,
+   a spike reef: never an invisible wall. If a wall is needed, it is drawn and
+   it makes sense (the dam of spring rocks).
+6. **Nothing is a dead end.** From every place the crab can stand there is a
+   way back (the slide, a coconut to bounce on, the ladder once earned).
+7. **No soft-lock.** Coconuts wash back; coconuts never rest where no one can
+   reach (wash them out to a reachable ring); the palm always has three in the
+   chamber in total.
+8. **Everything visible.** The gold arrow over every loose coconut; a column
+   of bubbles on a lift; a red ring before a slam; a fill on a charge.
+9. **Words for silent state.** If a thing does nothing because of something
+   elsewhere (a vent that is calm because the other one blows), it says so the
+   first time.
+10. **The boss is a test, not a lottery.** One clear tell (the ring), one clear
+    opening (the head after a slam), and the rounds get faster.
+
+## 5. Chamber ideas (pick one to build next)
+
+| # | Name | New thing | The answer in one line |
+|---|---|---|---|
+| 2 | **The Sinkhole** | sand holes through the planet | the plate is on the far side behind a wall: throw a coconut into the hole so it comes out and rolls onto the plate |
+| 3 | **Moon Tag** | a moon, and a launch vent | the bullseye is on the moon; fly there with one coconut, hit it, fly back while its gate is open |
+| 4 | **Low Tide** | the tide clock | at low tide carry a coconut across the flats and leave it by the plate; at high tide it floats onto the plate |
+| 5 | **Clam Bank** | clams | a clam holds a coconut on a plate for you, so you can go round with the other two |
+| 6 | **Two Gulls** | two gulls, one nest | lure one gull into the other's dive so both are stunned at once, and bounce up their backs |
+| 7 | **The Far Side** | moon + hole together | drop through the planet to a pad that only launches from below; land on the moon behind Old Ink's wall |
+| 8 | **Ink Rising** (boss 2) | Old Ink in the water, the tide | he rises with the tide; slam windows only at low tide |
+
+## 6. Multi-planet chambers (how they work)
+
+- A chamber can list **several planets**: `planets: [{ id, R, ...pieces }]`,
+  and **links**: `links: [{ from: { planet, p }, to: { planet, p }, kind: 'launch' | 'hole' }]`.
+- Each planet keeps its own state (coconuts lying, plates, gates). The crab
+  and what it carries move between them.
+- A switch on one planet may open a gate on another (`gate` ids are shared
+  across the chamber).
+- The camera flies with the crab between planets (the same as Tiny Planet's
+  launch to a puzzle planet), so you always see where you went.
+- Coconuts thrown at a link go through it too (into a hole, onto a launch pad).
+
+## 7. Sand holes (how they work)
+
+- A hole is a place `p` with a radius. Its twin is **`-p`**, the far side of
+  the same planet (or a named spot on another planet).
+- A crab that walks into a hole (on the ground) drops in and pops out of the
+  twin with a small jump, facing the same way it was going.
+- A coconut that lands in a hole comes out the twin and rolls a little.
+- A hole is drawn as a dark ring of sand with a glow on the far side's twin,
+  so you can see where it leads before you jump.

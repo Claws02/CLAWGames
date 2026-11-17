@@ -362,15 +362,17 @@ function _lairCard() {
     _card(`<div class="tp-title bfont">🐙 OLD INK'S LAIR</div>
         <div class="tp-sub">Old Ink the octopus has stolen the <b>Tide Pearl</b> that kept the planet's tides gentle. His lair lies under this hut, and his gulls keep watch.</div>
         <div class="tp-sub">You carry up to <b>3 coconuts</b>. <b>Hold 🥥 and let go to throw</b> one, <b>walk into it</b> to pick it up, <b>jump on it</b> to bounce. They float, they plug, they weigh things down.</div>
-        <div class="tp-stat">${total}/${LL.CHAMBERS.length * 3} ⭐ · a first clear pays ${FIRST_CLEAR} 🐚, each new star ${PER_STAR} ✨</div>
-        <div class="tp-lvls">${LL.CHAMBERS.map((c, i) => `<button class="tp-lvl" data-do="trial" data-arg="${i}"><b class="bfont">${i + 1}</b><span>${c.name}</span><i>${_starText(_starsOf(c.id))}</i></button>`).join('')}
-            <div class="tp-sub" style="opacity:.7">More chambers soon…</div></div>
+        <div class="tp-stat">${total}/${LL.CHAMBERS.length * 3} ⭐ · a first clear pays 🐚, each new star ${PER_STAR} ✨</div>
+        <div class="tp-sub"><b>WORLD 1</b>${LL.ALL_OPEN ? ' · 🔓 all open while testing' : ''}</div>
+        <div class="tp-lvls">${LL.CHAMBERS.map((c, i) => { const open = LL.ALL_OPEN || i === 0 || _starsOf(LL.CHAMBERS[i - 1].id)[0]; return `<button class="tp-lvl" data-do="trial" data-arg="${i}"${open ? '' : ' disabled'}><b class="bfont">${open ? i + 1 : '🔒'}</b><span>${c.name}${c.boss ? ' 🐙' : ''}</span><i>${_starText(_starsOf(c.id))}</i></button>`; }).join('')}
+            <div class="tp-sub" style="opacity:.7">More worlds soon…</div></div>
         <button class="go-btn bfont tp-alt" data-do="city" id="btn-tp-city">‹ BACK TO THE CITY</button>`, true);
 }
 /** Start chamber i (0-based). */
 export function playTrial(i) {
     const lv = LL.CHAMBERS[i];
     if (!lv || !_gl || _mode !== 'trick') return null;
+    if (!LL.ALL_OPEN && i > 0 && !_starsOf(LL.CHAMBERS[i - 1].id)[0]) return null;      // (locked until the chamber before it is cleared)
     if (_trial) _trial.dispose();
     _paused = false; _hintN = 0; $('tp-over').hidden = true;
     _trial = createLair({ T, renderer: _gl.renderer, toon: Y, crab: color => _crab(color, 0.62, null, true), pose: _crabPose, skin: skin().color }, lv, {
@@ -391,12 +393,12 @@ function _lairHud() {
     const s = _trial.state(), lv = _trial.level, i = LL.CHAMBERS.indexOf(lv), k = _trial.charging(), n = LL.count(s);
     const hint = _hintT > 0 ? _hintMsg : '';
     const bs = s.boss, inkHp = bs && bs.state !== 'sleep' ? bs.hp : -1, inkSt = bs ? bs.state : '';
-    const sig = [lv.id, n.held, n.loose, n.working, n.gull, s.falls, hint, _hintN, inkHp, inkSt === 'down' ? 1 : 0, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
+    const sig = [lv.id, n.held, n.loose, n.working, n.gull, s.falls, hint, _hintN, inkHp, inkSt, inkSt === 'down' ? 1 : 0, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
     if (sig === _lastHud) return;
     _lastHud = sig;
     $('tp-trial-n').textContent = `🐙 ${i + 1}/${LL.CHAMBERS.length} ${lv.name}`;
     $('tp-trial-s').textContent = `${'🥥'.repeat(n.held)}${'▫️'.repeat(LL.CARRY - n.held)} ${n.held}/${LL.CARRY}${n.gull ? ' · 🐦 HAS ONE' : ''}${inkHp >= 0 ? ` · 🐙 ${'❤️'.repeat(inkHp)}${'🖤'.repeat(LL.BOSS.hits - inkHp)}` : ''}${n.working ? ` · ${n.working} AT WORK` : ''}${s.falls ? ` · FALLS ${s.falls}` : ''}`;
-    const goal = $('tp-goal'); goal.textContent = _hintN ? `💡 ${_hintN}/${lv.hints.length}: ${lv.hints[_hintN - 1]}` : inkSt === 'hurt' ? '🥥 HIT! HE IS SHAKEN: DODGE': inkSt === 'down' ? '🎯 HE IS DOWN: TAKE THE PEARL (A COCONUT ON THE PLATE HOLDS THE FENCE OPEN)' : inkHp >= 0 ? '🥥 COCONUTS AT HIS HEAD · DODGE THE RED RINGS · DON\'T TOUCH HIM' : '🎯 REACH THE TIDE PEARL · 💡 FOR A HINT'; goal.classList.remove('tut'); goal.classList.add('wide');
+    const goal = $('tp-goal'); goal.textContent = _hintN ? `💡 ${_hintN}/${lv.hints.length}: ${lv.hints[_hintN - 1]}` : inkSt === 'recover' ? '🎯 NOW! HIS HEAD IS OPEN: THROW!' : inkSt === 'hurt' ? '🥥 HIT! HE IS SHAKEN: DODGE': inkSt === 'down' ? '🎯 HE IS DOWN: TAKE THE PEARL (A COCONUT ON THE PLATE HOLDS THE FENCE OPEN)' : inkHp >= 0 ? '🔴 DODGE THE SLAM · THEN 🥥 AT HIS HEAD WHILE HIS ARM IS STUCK' : '🎯 REACH THE TIDE PEARL · 💡 FOR A HINT'; goal.classList.remove('tut'); goal.classList.add('wide');
     const ab = $('btn-tp-act'); ab.classList.remove('off', 'idle'); ab.hidden = false; ab.querySelector('span').textContent = '🥥'; ab.querySelector('small').textContent = n.held < 1 ? 'NONE' : k >= 0 ? 'LET GO!' : 'HOLD: THROW';
     ab.classList.toggle('off', n.held < 1 && k < 0);
     ab.style.setProperty('--k', k >= 0 ? k : 0);
@@ -404,19 +406,19 @@ function _lairHud() {
     $('tp-hint').textContent = hint;
 }
 function _lairWon(lv, s) {
-    const save = sv(), had = _starsOf(lv.id), st = [true, s.falls === 0, s.t <= FAST_S], now = had.map((x, i) => x || st[i]);
-    const fresh = now.filter(Boolean).length - had.filter(Boolean).length, first = !had[0], dust = fresh * PER_STAR, shells = first ? FIRST_CLEAR : 0;
+    const save = sv(), had = _starsOf(lv.id), fast = lv.fast || FAST_S, st = [true, s.falls === 0, s.t <= fast], now = had.map((x, i) => x || st[i]);
+    const fresh = now.filter(Boolean).length - had.filter(Boolean).length, first = !had[0], dust = fresh * PER_STAR, shells = first ? (lv.pay || FIRST_CLEAR) : 0;
     save.lair[lv.id] = now; save.dust += dust; persist();
     _trialOwed += shells;
     Solo.bump('planetTrials', fresh);
     const next = LL.CHAMBERS[LL.CHAMBERS.indexOf(lv) + 1];
     _paused = true;
-    _card(`<div class="tp-title bfont">🔮 THE TIDE PEARL!</div>
-        <div class="tp-sub">Old Ink sinks back into the dark, and the tides settle. For now…</div>
+    _card(`<div class="tp-title bfont">${lv.boss ? '🔮 THE TIDE PEARL!' : '✨ CHAMBER CLEAR!'}</div>
+        <div class="tp-sub">${lv.boss ? 'Old Ink sinks back into the dark, and the tides settle. For now…' : `${lv.name} is behind you. Deeper into the lair…`}</div>
         <div class="tp-big bfont">${_starText(st)}</div>
-        <div class="tp-sub">${st[1] ? 'No falls' : `${s.falls} fall${s.falls === 1 ? '' : 's'} (none for a star)`} · ${st[2] ? 'quick' : `${Math.round(s.t)} s (under ${FAST_S} for a star)`}</div>
+        <div class="tp-sub">${st[1] ? 'No falls' : `${s.falls} fall${s.falls === 1 ? '' : 's'} (none for a star)`} · ${st[2] ? 'quick' : `${Math.round(s.t)} s (under ${fast} for a star)`}</div>
         ${dust || shells ? `<div class="tp-dust bfont">${dust ? `+${dust} ✨` : ''}${shells ? ` +${shells} 🐚` : ''}</div>` : ''}
-        ${next ? `<button class="go-btn bfont" data-do="trial" data-arg="${LL.CHAMBERS.indexOf(lv) + 1}" id="btn-tp-next">NEXT CHAMBER</button>` : '<div class="tp-stat">That was the first chamber. Deeper ones are coming!</div>'}
+        ${next ? `<button class="go-btn bfont" data-do="trial" data-arg="${LL.CHAMBERS.indexOf(lv) + 1}" id="btn-tp-next">NEXT CHAMBER</button>` : '<div class="tp-stat">That was World 1. More worlds are coming!</div>'}
         <button class="go-btn bfont tp-alt" data-do="trial" data-arg="${LL.CHAMBERS.indexOf(lv)}">↻ AGAIN</button>
         <button class="go-btn bfont tp-alt tp-quiet" data-do="city" id="btn-tp-city">‹ BACK TO THE CITY</button>`);
 }
