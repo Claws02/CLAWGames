@@ -26,7 +26,7 @@ import { cross, mix, norm, tangent, toward, walk } from './PlanetLogic.js';
 import { makeToon } from './Toon.js';
 
 const CHARGE_S = 0.9;                       // how long a full wind-up takes
-const GATE_COLOR = { eye: 0xff5fa8, plate: 0xffc83a, yard: 0x5fd0ff };
+const GATE_COLOR = { eye: 0xff5fa8, plate: 0xffc83a, yard: 0x5fd0ff, red: 0xff5f5f, blue: 0x5f8bff };
 const SHOW = { cliff: 2.4, cove: 1.5, step: 2, gate: 2.1 };      // how tall each kind of wall is drawn
 const rngOf = seed => () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
@@ -79,6 +79,7 @@ export function createLair(kit, level, hooks) {
     const C = {
         cliff: [0xd9893f, 0xc4742f, 0xe69b52], moss: 0x7ad65a, mossDark: 0x55b84c, stone: [0x9a82e0, 0x8670d2, 0xb39cf0], cove: [0x9fa6c4, 0x8890b4, 0xb6bcd6], dam: [0x7f8bb0, 0x6b779e, 0x929dc4],
         wood: 0xc98f52, wood2: 0xa87440, nut: 0x8a5a2e, nutDark: 0x5a3a1c, white: 0xffffff, gull: 0xf7f8ff, gullGrey: 0x9fb2d6, gullTip: 0x3f4a66, beak: 0xff9a1f, ink: 0x7b3fe4, inkLight: 0xa57bff, inkSpot: 0xc8aaff,
+        sand: [0xf2cf86, 0xe8bf6e, 0xf7dc9c], sandDark: 0xc99a52, vine: 0x3fae4a, vineLeaf: 0x6fd65a, log: 0x9a6534, logEnd: 0xd9a066,
         urchin: 0x7a3fc0, spike: 0xe6b9ff, sea: 0x3fa9f5, pearl: 0xfff1ff, pole: 0xf5f5f5, gold: 0xffc83a, green: 0x4ade80, pink: 0xff7ab8,
     };
 
@@ -131,8 +132,8 @@ export function createLair(kit, level, hooks) {
                 const p = around(w.c, w.r, a), pil = Y.prop([{ geo: G.rock, color: C.cove[1], s: [0.8, 1.9, 0.8], p: [0, 0.95, 0] }, { geo: G.rock, color: C.cove[2], s: [0.62, 0.8, 0.62], p: [0.02, 1.7, 0] }, { geo: G.sph, color: C.moss, s: [0.7, 0.28, 0.7], p: [0, 2.1, 0] }], { thick: 0.1 });
                 scene.add(pil); put(pil, p, toward(p, w.c), 0);
             }
-        } else if (kind === 'step') {
-            // (bricks: two courses, the upper offset by half a brick; built just below)
+        } else if (kind === 'step' || kind === 'castle' || kind === 'crack') {
+            // (bricks: courses, each offset by half a brick; built just below)
             continue;
         } else if (w.gate) crystalFence(w, GATE_COLOR[w.gate] || 0xff5fa8);
     }
@@ -143,6 +144,35 @@ export function createLair(kit, level, hooks) {
         courses.forEach((items, ri) => items.forEach((it, i) => inst[ri].set(i, stand(walk(it.p, it.f, (ri ? 0.03 : 0) / R), it.f, 0.5 + ri, it.len * 0.97, 1.0, 0.62), ri ? C.stone[2] : C.stone[i % 2])));
         inst.forEach(i => i.done());
     }
+    // Sandcastle walls: courses of sand blocks, battlements along the top; a cracked section darker, crumbling as it is hit.
+    const crackWalls = [];
+    for (const w of (level.rings || []).filter(r => r.kind === 'castle' || r.kind === 'crack')) {
+        const n = Math.max(1, Math.round(w.h)), crack = w.kind === 'crack', grp = new T.Group(); scene.add(grp);
+        const courses = Array.from({ length: n }, (_, ri) => arcPoints(w, 0.7, ri * 0.5)), inst = courses.map(items => Y.instanced(G.brick, items.length, 0.07));
+        inst.forEach(i => { grp.add(i.body); grp.add(i.line); });
+        courses.forEach((items, ri) => items.forEach((it, i) => inst[ri].set(i, stand(it.p, it.f, 0.5 + ri, it.len * 0.96, 1.0, 0.95), crack ? (i % 2 ? 0xb88a4c : 0xa77a40) : C.sand[(i + ri) % 3])));
+        inst.forEach(i => i.done());
+        if (w.top && !crack) {          // battlements: a merlon on every other block
+            const items = arcPoints(w, 0.7, 0.25).filter((_, i) => i % 2 === 0), m = Y.instanced(G.brick, items.length, 0.06);
+            grp.add(m.body); grp.add(m.line); items.forEach((it, i) => m.set(i, stand(walk(it.p, it.f, -0.3 / R), it.f, n + 0.22, it.len * 0.7, 0.45, 0.32), C.sand[2])); m.done();
+        }
+        if (crack) {                     // dark zig-zag cracks on its face
+            const cg = new T.Group(); grp.add(cg);
+            for (const it of arcPoints(w, 0.9)) for (let k = 0; k < 3; k++) { const c = new T.Mesh(G.box, basic(0x4a2d12)); c.scale.set(0.06, 0.55, 0.04); put(c, walk(it.p, it.f, 0.5 / R), it.f, 0.6 + k * 0.8); c.rotateZ(k % 2 ? 0.5 : -0.5); cg.add(c); }
+            crackWalls.push({ w, grp, cg, shake: 0 });
+        }
+        if (w.vine) {                   // vines down both faces of the wall
+            const vw = { r: w.r, c: w.c, only: w.vine };
+            for (const it of arcPoints(vw, 0.35)) for (const side of [1, -1]) {
+                const h = n * (0.75 + 0.25 * Math.sin(it.deg * 7)), v = new T.Mesh(G.box, Y.toon(C.vine)); v.scale.set(0.09, h, 0.06); put(v, walk(it.p, it.f, side * 0.52 / R), it.f, h / 2 + 0.05); scene.add(v);
+                for (let k = 0; k < 3; k++) { const lf = new T.Mesh(G.sphLow, Y.toon(C.vineLeaf)); lf.scale.set(0.2, 0.12, 0.08); put(lf, walk(it.p, it.f, side * 0.56 / R), it.f, 0.3 + k * h / 3); lf.rotateZ(k % 2 ? 0.7 : -0.7); scene.add(lf); }
+            }
+        }
+    }
+    // Sand blocks to push, floating logs, golden shells.
+    const blockMeshes = (level.blocks || []).map(() => { const g = Y.prop([{ geo: G.box, color: C.sand[1], s: [1.05, 1, 1.05], p: [0, 0.5, 0] }, { geo: G.box, color: C.sand[2], s: [0.85, 0.06, 0.85], p: [0, 1.0, 0], ink: false }, { geo: G.box, color: C.sandDark, s: [0.5, 0.05, 1.07], p: [0, 0.35, 0], ink: false }], { thick: 0.08 }); scene.add(g); return g; });
+    const logMeshes = (level.logs || []).map(() => { const g = Y.prop([{ geo: G.cyl, color: C.log, s: [0.55, 1.9, 0.55], r: [0, 0, Math.PI / 2], p: [0, 0.18, 0] }, { geo: G.cylLow, color: C.logEnd, s: [0.42, 0.04, 0.42], r: [0, 0, Math.PI / 2], p: [0.96, 0.18, 0], ink: false }, { geo: G.cylLow, color: C.logEnd, s: [0.42, 0.04, 0.42], r: [0, 0, Math.PI / 2], p: [-0.96, 0.18, 0], ink: false }], { thick: 0.07 }); scene.add(g); return g; });
+    const goldMeshes = (level.gold || []).map(() => { const g = new T.Group(), sh = Y.prop([{ geo: G.coneLow, color: 0xffd23a, s: [0.32, 0.55, 0.32], r: [0, 0, 1.2] }, { geo: G.sphLow, color: 0xffe98a, s: 0.18, p: [-0.18, -0.08, 0], ink: false }], { thick: 0.05 }); g.add(sh); const halo = new T.Mesh(G.disc, basic(0xfff3a0, { transparent: true, opacity: 0.35, depthWrite: false, side: T.DoubleSide })); halo.scale.setScalar(0.55); halo.rotation.x = Math.PI / 2; g.add(halo); scene.add(g); return { g, sh, halo }; });
     // The slide down from the shelf: a wooden ramp with rails and arrows.
     const slide = (level.rings || []).find(w => w.kind === 'slide'); let slideLadder = null;
     if (slide) {
@@ -354,7 +384,7 @@ export function createLair(kit, level, hooks) {
             else if (e.type === 'lift') { burst(at3(e.vent.p, 0.3), 0xdff6ff, 24, 5); hooks.sfx('boost'); hooks.buzz([15, 20, 40]); hooks.pop(at3(e.vent.p, 1.6), 'WHOOSH! STEER OVER THE CLIFF'); cheer = 0.6; }
             else if (e.type === 'lost') { burst(at3(e.p, 0.3), 0xc084fc, 14, 4); hooks.sfx('land_bad'); hooks.pop(at3(e.p, 1), e.why === 'urchin' ? 'SPIKED! IT WASHES UP AT THE PALM' : 'LOST'); }
             else if (e.type === 'washed') { burst(at3(e.nut.p, 0.3), 0x9bd8ff, 10, 3); hooks.pop(at3(e.nut.p, 1), '🥥 BACK AT THE PALM'); }
-            else if (e.type === 'target') { const v = targets.find(x => x.tg === e.target); if (v) v.hit = 1; burst(at3(e.target.p, 1.1), 0x4ade80, 26, 5); hooks.sfx('coin_gain'); hooks.buzz([10, 20, 30]); hooks.say('🎯 BULLSEYE! THE GATE IS OPEN', '#86efac'); }
+            else if (e.type === 'target') { const v = targets.find(x => x.tg === e.target); if (v) v.hit = 1; burst(at3(e.target.p, 1.1), 0x4ade80, 26, 5); hooks.sfx('coin_gain'); hooks.buzz([10, 20, 30]); hooks.say(e.secs ? `🎯 BULLSEYE! ${e.secs} SECONDS: RUN!` : '🎯 BULLSEYE! THE GATE IS OPEN', '#86efac'); }
             else if (e.type === 'press') { hooks.sfx('shield'); hooks.buzz(10); hooks.pop(at3(e.plate.p, 0.8), 'GATE OPEN'); }
             else if (e.type === 'release') { hooks.sfx('tick'); hooks.pop(at3(e.plate.p, 0.8), 'GATE SHUT AGAIN'); }
             else if (e.type === 'gull-up') hooks.hint('🐦 THE GULL HAS SEEN YOU: WATCH ITS SHADOW', 2.4);
@@ -374,6 +404,15 @@ export function createLair(kit, level, hooks) {
             else if (e.type === 'ink-hit') { burst(at3(e.p, e.h), 0xffe45a, 36, 6); hooks.sfx('coin_gain'); hooks.buzz([20, 20, 40]); hooks.pop(at3(e.p, e.h + 1), e.hp > 0 ? `🥥 HIT! ${e.hp} TO GO` : '🥥 KNOCKED OUT!'); hurtFlash = 1; shake = Math.max(shake, 0.4); cheer = 0.6; }
             else if (e.type === 'ink-down') { burst(at3(K.TOP, 1.5), 0xc4b5fd, 50, 7); hooks.sfx('win'); hooks.buzz([30, 30, 30, 30, 120]); hooks.say('🐙 OLD INK IS DOWN!', '#fde047'); hooks.hint('THE PLATE\'S COCONUT HOLDS THE FENCE OPEN: GO TAKE THE PEARL', 6); }
             else if (e.type === 'pile') burst(at3(e.nut.p, 0.5), 0xffe9b0, 10, 2.5);
+            else if (e.type === 'crack') { burst(at3(e.p, 1.5), 0xe8c27a, 22, 4); hooks.sfx('dice_land'); hooks.buzz(14); shake = Math.max(shake, 0.15); const v = crackWalls.find(x => x.w === e.w); if (v) v.shake = 1; hooks.pop(at3(e.p, 2.6), `CRACK! ${e.left} MORE`); }
+            else if (e.type === 'break') { for (let k = 0; k < 3; k++) burst(at3(e.p, 1 + k), 0xe8c27a, 30, 6); hooks.sfx('land_bad'); hooks.buzz([20, 30, 40]); shake = Math.max(shake, 0.4); hooks.say('💥 THE WALL IS DOWN!', '#fde68a'); }
+            else if (e.type === 'vine-full') hooks.hint('🌿 YOUR CLAWS ARE FULL: THROW YOUR COCONUTS DOWN TO CLIMB', 2.6);
+            else if (e.type === 'climb') { hooks.sfx('tick'); }
+            else if (e.type === 'push') hooks.hint('📦 PUSHING THE SAND BLOCK: GET IT AGAINST THE WALL AND CLIMB ON', 2.6);
+            else if (e.type === 'sink') { burst(at3(s.crab.p, 0.2), 0x7ec8ff, 26, 4); hooks.sfx('land_bad'); hooks.buzz([30, 30]); hooks.hint('SPLASH! THE MOAT IS DEEP · BACK AT THE FLAG', 2.2); snap = true; }
+            else if (e.type === 'gold') { burst(at3(e.p, e.h + 0.5), 0xffd23a, 36, 5); hooks.sfx('win'); hooks.buzz([15, 20, 30]); hooks.pop(at3(e.p, e.h + 1.4), `🐚 GOLDEN SHELL ${s.gold.length}/${(level.gold || []).length}`); cheer = 0.5; }
+            else if (e.type === 'nudge') burst(at3(e.nut.p, 0.4), 0xffffff, 8, 2);
+            else if (e.type === 'timeout') { hooks.sfx('tick'); hooks.pop(at3(s.crab.p, 2), 'THE GATE SHUT AGAIN'); }
             else if (e.type === 'won') { burst(at3(level.goal, 1.5), 0xff8ad8, 50, 7); burst(at3(level.goal, 1.5), 0xffd84a, 40, 6); hooks.sfx('win'); hooks.buzz([30, 30, 30, 30, 120]); cheer = 1.2; inkMad = 2; doneAt = t + 1.8; }
         }
     }
@@ -411,7 +450,7 @@ export function createLair(kit, level, hooks) {
         checks.forEach(v => { put(v.g, v.p, [1, 0, 0]); v.cloth.material = s.cp >= v.i ? v.on : v.off; v.cloth.rotation.y = Math.sin(t * 4 + v.i) * 0.25; });
         palm.top.rotation.z = Math.sin(t * 1.3) * 0.05; palm.top.rotation.x = Math.cos(t * 1.1) * 0.04;
         plates.forEach(v => { const on = !!s.held[v.pl.gate]; v.top.material = on ? v.on : v.off; put(v.g, v.pl.p, null, on ? -0.02 : 0.02); put(v.halo, v.pl.p, null, 0.12); });
-        targets.forEach(v => { v.hit = Math.max(0, v.hit - dt * 1.5); put(v.g, v.tg.p, toward(v.tg.p, c.p)); v.face.rotation.z = v.hit * 8; v.face.scale.setScalar(1 + v.hit * 0.4); if (s.open[v.tg.gate]) { v.mats[0].color.setHex(0x4ade80); v.mats[2].color.setHex(0x4ade80); } });
+        targets.forEach(v => { v.hit = Math.max(0, v.hit - dt * 1.5); put(v.g, v.tg.p, toward(v.tg.p, c.p)); v.face.rotation.z = v.hit * 8; v.face.scale.setScalar(1 + v.hit * 0.4); const op = s.open[[].concat(v.tg.gate)[0]]; const hex = op ? (typeof op === 'number' && op < 2 && Math.sin(t * 20) > 0 ? 0xffe45a : 0x4ade80) : 0xff4d4d; v.mats[0].color.setHex(hex); v.mats[2].color.setHex(hex); });
         // The pearl and Old Ink: he watches the crab, blinks, narrows his eyes when it comes close, and rears up when the pearl is taken.
         inkMad = Math.max(0, inkMad - dt);
         put(pearl, TOP, [1, 0, 0]); pearl.userData.orb.position.y = 0.95 + Math.sin(t * 2) * 0.08 + (s.won ? Math.min(2, (t - (doneAt - 1.8)) * 1.5) : 0); pearl.userData.shine.position.y = pearl.userData.orb.position.y + 0.23; pearl.userData.orb.rotation.y = t; pearl.userData.glow.material.opacity = 0.25 + 0.15 * Math.sin(t * 3);
@@ -448,6 +487,10 @@ export function createLair(kit, level, hooks) {
         });
 
         if (slideLadder) { const want = slide.earn != null && s.cp >= slide.earn ? 1 : 0; slideLadder.k += (want - slideLadder.k) * Math.min(1, dt * 2); slideLadder.lad.scale.z = Math.max(0.02, slideLadder.k); slideLadder.lad.visible = slideLadder.k > 0.03; slideLadder.roll.scale.x = slideLadder.roll.scale.z = 0.35 * (1 - slideLadder.k * 0.7); }
+        crackWalls.forEach(v => { v.grp.visible = K.up(s, v.w); v.shake = Math.max(0, v.shake - dt * 3); v.grp.position.set((Math.random() - 0.5) * v.shake * 0.2, 0, (Math.random() - 0.5) * v.shake * 0.2); v.cg.visible = (s.dmg[v.w.id] || 0) > 0; });
+        (s.blocks || []).forEach((b, i) => put(blockMeshes[i], b.p, toward(b.p, K.TOP), K.floorAt({ ...s, blocks: [] }, b.p)));
+        (s.logs || []).forEach((l, i) => { put(logMeshes[i], l.p, tangent(l.p, cross(K.TOP, l.p)), 0.05 + Math.sin(t * 2 + i) * 0.04); logMeshes[i].rotateY(Math.PI / 2); });
+        (level.gold || []).forEach((gd, i) => { const v = goldMeshes[i]; v.g.visible = !s.gold.includes(i); if (v.g.visible) { put(v.g, gd.p, [1, 0, 0], (gd.h || 0) + 0.45 + Math.sin(t * 2.5 + i) * 0.1); v.sh.rotation.y = t * 2.2; v.halo.material.opacity = 0.25 + 0.15 * Math.sin(t * 4 + i); } });
         // Coconuts: lying, floating, flying, plugging a vent, stuck in the bullseye.
         const seen = new Set();
         for (const n of s.nuts) {

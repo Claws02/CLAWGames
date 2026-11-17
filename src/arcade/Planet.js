@@ -393,11 +393,11 @@ function _lairHud() {
     const s = _trial.state(), lv = _trial.level, i = LL.CHAMBERS.indexOf(lv), k = _trial.charging(), n = LL.count(s);
     const hint = _hintT > 0 ? _hintMsg : '';
     const bs = s.boss, inkHp = bs && bs.state !== 'sleep' ? bs.hp : -1, inkSt = bs ? bs.state : '';
-    const sig = [lv.id, n.held, n.loose, n.working, n.gull, s.falls, hint, _hintN, inkHp, inkSt, inkSt === 'down' ? 1 : 0, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
+    const sig = [lv.id, n.held, n.loose, n.working, n.gull, s.falls, hint, _hintN, inkHp, inkSt, s.gold.length, inkSt === 'down' ? 1 : 0, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
     if (sig === _lastHud) return;
     _lastHud = sig;
     $('tp-trial-n').textContent = `🐙 ${i + 1}/${LL.CHAMBERS.length} ${lv.name}`;
-    $('tp-trial-s').textContent = `${'🥥'.repeat(n.held)}${'▫️'.repeat(LL.CARRY - n.held)} ${n.held}/${LL.CARRY}${n.gull ? ' · 🐦 HAS ONE' : ''}${inkHp >= 0 ? ` · 🐙 ${'❤️'.repeat(inkHp)}${'🖤'.repeat(LL.BOSS.hits - inkHp)}` : ''}${n.working ? ` · ${n.working} AT WORK` : ''}${s.falls ? ` · FALLS ${s.falls}` : ''}`;
+    $('tp-trial-s').textContent = `${'🥥'.repeat(n.held)}${'▫️'.repeat(LL.CARRY - n.held)} ${n.held}/${LL.CARRY}${n.gull ? ' · 🐦 HAS ONE' : ''}${lv.gold ? ` · ✨🐚 ${s.gold.length}/${lv.gold.length}` : ''}${inkHp >= 0 ? ` · 🐙 ${'❤️'.repeat(inkHp)}${'🖤'.repeat(LL.BOSS.hits - inkHp)}` : ''}${n.working ? ` · ${n.working} AT WORK` : ''}${s.falls ? ` · FALLS ${s.falls}` : ''}`;
     const goal = $('tp-goal'); goal.textContent = _hintN ? `💡 ${_hintN}/${lv.hints.length}: ${lv.hints[_hintN - 1]}` : inkSt === 'recover' ? '🎯 NOW! HIS HEAD IS OPEN: THROW!' : inkSt === 'hurt' ? '🥥 HIT! HE IS SHAKEN: DODGE': inkSt === 'down' ? '🎯 HE IS DOWN: TAKE THE PEARL (A COCONUT ON THE PLATE HOLDS THE FENCE OPEN)' : inkHp >= 0 ? '🔴 DODGE THE SLAM · THEN 🥥 AT HIS HEAD WHILE HIS ARM IS STUCK' : '🎯 REACH THE TIDE PEARL · 💡 FOR A HINT'; goal.classList.remove('tut'); goal.classList.add('wide');
     const ab = $('btn-tp-act'); ab.classList.remove('off', 'idle'); ab.hidden = false; ab.querySelector('span').textContent = '🥥'; ab.querySelector('small').textContent = n.held < 1 ? 'NONE' : k >= 0 ? 'LET GO!' : 'HOLD: THROW';
     ab.classList.toggle('off', n.held < 1 && k < 0);
@@ -408,7 +408,8 @@ function _lairHud() {
 function _lairWon(lv, s) {
     const save = sv(), had = _starsOf(lv.id), fast = lv.fast || FAST_S, st = [true, s.falls === 0, s.t <= fast], now = had.map((x, i) => x || st[i]);
     const fresh = now.filter(Boolean).length - had.filter(Boolean).length, first = !had[0], dust = fresh * PER_STAR, shells = first ? (lv.pay || FIRST_CLEAR) : 0;
-    save.lair[lv.id] = now; save.dust += dust; persist();
+    save.lair[lv.id] = now; save.dust += dust;
+    save.gold = save.gold || {}; const gotGold = [...new Set([...(save.gold[lv.id] || []), ...s.gold])]; save.gold[lv.id] = gotGold; persist();
     _trialOwed += shells;
     Solo.bump('planetTrials', fresh);
     const next = LL.CHAMBERS[LL.CHAMBERS.indexOf(lv) + 1];
@@ -417,6 +418,7 @@ function _lairWon(lv, s) {
         <div class="tp-sub">${lv.boss ? 'Old Ink sinks back into the dark, and the tides settle. For now…' : `${lv.name} is behind you. Deeper into the lair…`}</div>
         <div class="tp-big bfont">${_starText(st)}</div>
         <div class="tp-sub">${st[1] ? 'No falls' : `${s.falls} fall${s.falls === 1 ? '' : 's'} (none for a star)`} · ${st[2] ? 'quick' : `${Math.round(s.t)} s (under ${fast} for a star)`}</div>
+        ${lv.gold ? `<div class="tp-sub">✨🐚 Golden shells: ${s.gold.length}/${lv.gold.length} this time · ${gotGold.length}/${lv.gold.length} found</div>` : ''}
         ${dust || shells ? `<div class="tp-dust bfont">${dust ? `+${dust} ✨` : ''}${shells ? ` +${shells} 🐚` : ''}</div>` : ''}
         ${next ? `<button class="go-btn bfont" data-do="trial" data-arg="${LL.CHAMBERS.indexOf(lv) + 1}" id="btn-tp-next">NEXT CHAMBER</button>` : '<div class="tp-stat">That was World 1. More worlds are coming!</div>'}
         <button class="go-btn bfont tp-alt" data-do="trial" data-arg="${LL.CHAMBERS.indexOf(lv)}">↻ AGAIN</button>
