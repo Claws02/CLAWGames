@@ -89,3 +89,11 @@ The answer:
 - Walking off a rock fell only 0.22 s, enough to glide across a small gap; and rocks set one downstream of another let the current deliver a crab from one to the next. Now two rocks in a straight line across the current, gaps of about 1.4 to 1.5.
 - Controls: left half stick, right half camera.
 - Art: the ink-outlined cartoon style (`Toon.js`).
+
+## Old Ink, a boss fight (after the second play-test)
+
+- He now sits on the pearl, behind the inner crystal fence, and fights from there. The chamber inside the outer gate is the arena (a ring 1.2 wide, going round him); the fence round the pearl stays shut until he is down, whatever is on the plate.
+- Three rounds. In each he winds up and **slams where the crab stands** (a red ring fills, then lands; walk out of it or jump), then goes **dizzy** for 5.5 s. Only a coconut at his head in that window hurts him (awake, it bounces off). Round 1: 3 slams, 1.15 s wind-up; round 2: 4 slams, 0.95 s; round 3: 5 slams, 0.8 s. A slam that lands knocks the crab back to the edge of the arena and counts as a fall (no star), but never sends it back to a flag.
+- Coconut piles keep turning up round the chamber (4 at the start, a fresh pile whenever two or fewer are lying about); the claws still hold three.
+- With Old Ink down: a coconut on the plate opens the fence, and the pearl is theirs.
+- Vent B lifts to 9.2 (was 10.4) against the 8.5 cliff.
