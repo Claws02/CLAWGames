@@ -106,3 +106,8 @@ The answer:
 - Nights flattened: night 22 is 28 stars over 23 s (was 61 over 12 s); big ones cap at 3 a night; later nights are longer (`nightLen`).
 - Towers level up to 3 (GROW button beside a tower: 10 🐚 3 🥥, then 20 🐚 6 🥥): +2 charges and a wider bubble each level.
 - A crab under a falling star catches it even inside a tower's bubble (the tower keeps its charge); a jump catches a big star.
+
+### Boss fight, third version (after the third play-test)
+- The arms were too hard to hit, so there is no stunning any more: **three coconuts on Old Ink's head end him**, and the arms are for dodging (slams, red ring) and for show. He is shaken for 1.3 s after each hit (a coconut then bounces off), and the next round is faster.
+- **Touching him** (inside 1.45 of the pearl) knocks the crab back to the edge and counts as a fall, like a slam.
+- The plate's coconut holds the pearl's fence open at once (the fence no longer waits for the fight). The pearl itself can't be taken until Old Ink is down.

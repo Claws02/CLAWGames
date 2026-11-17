@@ -360,16 +360,13 @@ export function createLair(kit, level, hooks) {
             else if (e.type === 'drop') hooks.pop(at3(e.nut.p, 1), 'IT DROPPED THE COCONUT');
             else if (e.type === 'check') { burst(at3(e.p, 1), 0x4ade80, 22, 4); hooks.sfx('land_good'); hooks.buzz(10); hooks.pop(at3(e.p, 1.6), '🚩 CHECKPOINT'); }
             else if (e.type === 'ouch' || e.type === 'peck') { hooks.sfx('land_bad'); hooks.buzz([30, 30, 30]); hooks.hint(`${e.type === 'peck' ? 'PECKED! NO COCONUT TO STEAL' : 'OUCH! SPIKES'} · BACK AT THE ${e.at > 0 ? 'FLAG' : 'START'}`, 2.2); shake = 0.4; snap = true; bristle = 1; }
-            else if (e.type === 'ink-wake') { hooks.sfx('boost'); hooks.buzz([20, 20, 20]); hooks.say('🐙 OLD INK WAKES!', '#c4b5fd'); hooks.hint('🥥 HIT TWO OF HIS ARMS WITH COCONUTS TO MAKE HIM DIZZY · 🔴 STEP OUT OF THE RED RING, OR JUMP', 5); inkMad = 1; }
+            else if (e.type === 'ink-wake') { hooks.sfx('boost'); hooks.buzz([20, 20, 20]); hooks.say('🐙 OLD INK WAKES!', '#c4b5fd'); hooks.hint('🥥 THROW COCONUTS AT HIS HEAD · 🔴 STEP OUT OF THE RED RING, OR JUMP', 5); inkMad = 1; }
             else if (e.type === 'ink-slam') { burst(at3(e.p, 0.3), 0xff8a8a, 22, 5); hooks.sfx('land_bad'); hooks.buzz(e.hit ? [40, 30, 40] : 14); shake = Math.max(shake, e.hit ? 0.5 : 0.25); if (!e.hit) hooks.pop(at3(e.p, 1.2), 'MISSED'); }
-            else if (e.type === 'ink-ouch') { hooks.hint('SLAMMED! KEEP MOVING, OR JUMP AS IT LANDS', 2); snap = true; }
-            else if (e.type === 'ink-arm') { burst(at3(e.p, 0.8), 0xffe45a, 20, 4.5); hooks.sfx('coin_gain'); hooks.buzz(14); hooks.pop(at3(e.p, 1.4), e.count >= 2 ? '🥥 SECOND ARM!' : '🥥 ARM STUNNED: 1 MORE'); shake = Math.max(shake, 0.2); }
-            else if (e.type === 'ink-rest') hooks.pop(at3(K.TOP, 3.2), 'CATCHING HIS BREATH: THROW AT HIS ARMS');
-            else if (e.type === 'ink-dizzy') { hooks.sfx('win'); hooks.buzz([15, 20, 15]); hooks.say('😵 DIZZY! COCONUTS AT HIS HEAD!', '#fde047'); hooks.hint('😵 NOW! THROW COCONUTS AT OLD INK\'S HEAD', 4); }
-            else if (e.type === 'ink-recover') hooks.hint('HE IS BACK UP: DODGE AGAIN', 2);
-            else if (e.type === 'ink-block') { burst(at3(e.p, 1.2), 0xffffff, 8, 3); hooks.pop(at3(e.p, 1.6), 'HIT AN ARM FIRST'); }
+            else if (e.type === 'ink-ouch') { hooks.hint(e.touch ? 'DON\'T TOUCH HIM! THROW COCONUTS AT HIS HEAD' : 'SLAMMED! KEEP MOVING, OR JUMP AS IT LANDS', 2); snap = true; }
+            else if (e.type === 'ink-rest') hooks.pop(at3(K.TOP, 3.2), 'CATCHING HIS BREATH: THROW AT HIS HEAD');
+            else if (e.type === 'ink-block') { burst(at3(e.p, 1.2), 0xffffff, 8, 3); hooks.pop(at3(e.p, 1.6), 'HE IS SHAKEN: WAIT'); }
             else if (e.type === 'ink-hit') { burst(at3(e.p, e.h), 0xffe45a, 36, 6); hooks.sfx('coin_gain'); hooks.buzz([20, 20, 40]); hooks.pop(at3(e.p, e.h + 1), e.hp > 0 ? `🥥 HIT! ${e.hp} TO GO` : '🥥 KNOCKED OUT!'); hurtFlash = 1; shake = Math.max(shake, 0.4); cheer = 0.6; }
-            else if (e.type === 'ink-down') { burst(at3(K.TOP, 1.5), 0xc4b5fd, 50, 7); hooks.sfx('win'); hooks.buzz([30, 30, 30, 30, 120]); hooks.say('🐙 OLD INK IS DOWN!', '#fde047'); hooks.hint('PUT A COCONUT ON THE PLATE: THE PEARL\'S FENCE OPENS', 6); }
+            else if (e.type === 'ink-down') { burst(at3(K.TOP, 1.5), 0xc4b5fd, 50, 7); hooks.sfx('win'); hooks.buzz([30, 30, 30, 30, 120]); hooks.say('🐙 OLD INK IS DOWN!', '#fde047'); hooks.hint('THE PLATE\'S COCONUT HOLDS THE FENCE OPEN: GO TAKE THE PEARL', 6); }
             else if (e.type === 'pile') burst(at3(e.nut.p, 0.5), 0xffe9b0, 10, 2.5);
             else if (e.type === 'won') { burst(at3(level.goal, 1.5), 0xff8ad8, 50, 7); burst(at3(level.goal, 1.5), 0xffd84a, 40, 6); hooks.sfx('win'); hooks.buzz([30, 30, 30, 30, 120]); cheer = 1.2; inkMad = 2; doneAt = t + 1.8; }
         }
@@ -414,7 +411,7 @@ export function createLair(kit, level, hooks) {
         put(pearl, TOP, [1, 0, 0]); pearl.userData.orb.position.y = 0.95 + Math.sin(t * 2) * 0.08 + (s.won ? Math.min(2, (t - (doneAt - 1.8)) * 1.5) : 0); pearl.userData.shine.position.y = pearl.userData.orb.position.y + 0.23; pearl.userData.orb.rotation.y = t; pearl.userData.glow.material.opacity = 0.25 + 0.15 * Math.sin(t * 3);
         const bs = s.boss, bst = bs ? bs.state : 'none', alive = bst !== 'down';
         hurtFlash = Math.max(0, hurtFlash - dt * 2.5); downT = bst === 'down' ? Math.min(1.6, downT + dt) : 0;
-        const dk = Math.min(1, downT / 1.6), dizzy = bst === 'dizzy', hurt = bst === 'hurt';
+        const dk = Math.min(1, downT / 1.6), dizzy = false, hurt = bst === 'hurt';
         pearl.visible = !bs || bst === 'down' || s.won;
         octo.g.visible = dk < 1;
         put(octo.g, inkAt, toward(inkAt, c.p), -dk * 3.2); octo.g.scale.setScalar(OSC * (1 - dk * 0.7) * (1 + Math.sin(t * 1.5) * 0.025 + (inkMad > 0 ? 0.25 * Math.abs(Math.sin(t * 14)) : 0) + (hurt ? 0.12 * Math.sin(bs.t * 34) : 0) + (bst === 'wind' ? 0.05 * Math.min(1, bs.t) : 0)));
@@ -439,8 +436,7 @@ export function createLair(kit, level, hooks) {
         octo.mouth.scale.set(0.5, 0.14 + (inkMad > 0 ? 0.25 : 0), 0.16);
         octo.arms.forEach((a, i) => {
             if (bs) { octo.g.updateMatrixWorld(); octo.g.worldToLocal(tmp.copy(at3(K.at(2, K.armLon(s, i)), 0.1))); a.phi = Math.atan2(tmp.x, tmp.z); }
-            const stun = bs && bs.arms[i] > 0, flat = dizzy || dk > 0 ? 1 : stun ? 0.8 : 0;
-            a.body.material.emissive.setRGB(stun ? 0.7 + 0.25 * Math.sin(t * 16) : 0, stun ? 0.55 : 0, 0);
+            const flat = dk > 0 || hurt ? 1 : 0;
             updateArm(a, t, i, inkMad > 0 || bst === 'wind' || dk > 0, sl, flat);
         });
 
