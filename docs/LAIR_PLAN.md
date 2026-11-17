@@ -116,3 +116,11 @@ The answer:
 - Old Ink can only be hit **for 1.5 s after a slam lands** (his arm is stuck in the ground and his head glows); any other time another arm swats the coconut away.
 - The slide at the back of the shelf has a **rope ladder**: rolled up until the shelf's flag is reached, then it unrolls and the slide works both ways (a fall into the water no longer means redoing the vent). The coconut total stays three, so it can't carry an extra one up.
 - The master plan for the next chambers is `PUZZLE_RULES.md`; the how-to is `LAIR_GUIDE.md`.
+
+## World 1 (after the fifth play-test)
+The Drowned Stair was too much as a first chamber, so it is now the **fourth** chamber and the boss of World 1, and three short
+teaching chambers come first: **Coconut Beach** (pick up, jump, throw, bounce, plate), **Bubble Stream** (vents, a stream, urchins)
+and **Gull Yard** (the gull's back is the way over the step; the same economy as the Stair's shelf). Two new pieces made them
+possible: a step can be taller for coconuts than for the crab (`nutH`: you bounce over, nothing can be thrown over, so no coconut ends
+up out of reach), and a vent that a thrown coconut can drop into (`drop`). `qa/lair-world1.mjs` plays all three and checks what
+each one must teach. Every chamber is open while testing (`ALL_OPEN`).

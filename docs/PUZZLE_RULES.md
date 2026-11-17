@@ -18,6 +18,21 @@ in between. It is a puzzle, not an obstacle course:
 - **The same rules everywhere.** A coconut does in chamber 6 what it did in
   chamber 1. New pieces add rules; they never change old ones.
 
+## 1b. Worlds
+
+Chambers come in **worlds of four**: three short chambers that each teach one
+thing, then a big chamber that puts them together and ends with a boss.
+
+| World 1 | Teaches | Data |
+|---|---|---|
+| 1. Coconut Beach | walk, pick up, jump, throw (bullseye), bounce on a coconut, the plate | `BEACH` |
+| 2. Bubble Stream | vents (only one blows; plug one by dropping a coconut in; ride a lift), a stream that carries you and floats coconuts onto urchins | `STREAM` |
+| 3. Gull Yard | the gull (it dives and steals; stomp or hit it; its back bounces) | `YARD` |
+| 4. The Drowned Stair 🐙 | everything above, the eddy and cove, then Old Ink | `STAIR` |
+
+A chamber opens when the one before it is cleared (`ALL_OPEN = true` in
+`LairLogic.js` opens them all while testing: turn it off for release).
+
 ## 2. The rules of the claws (fixed for every chamber)
 
 | Rule | Value | Why |

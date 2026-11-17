@@ -26,7 +26,7 @@ import { cross, mix, norm, tangent, toward, walk } from './PlanetLogic.js';
 import { makeToon } from './Toon.js';
 
 const CHARGE_S = 0.9;                       // how long a full wind-up takes
-const GATE_COLOR = { eye: 0xff5fa8, plate: 0xffc83a };
+const GATE_COLOR = { eye: 0xff5fa8, plate: 0xffc83a, yard: 0x5fd0ff };
 const SHOW = { cliff: 2.4, cove: 1.5, step: 2, gate: 2.1 };      // how tall each kind of wall is drawn
 const rngOf = seed => () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
@@ -55,12 +55,12 @@ export function createLair(kit, level, hooks) {
     // ── The planet, painted by what each part of it is ───────────────────────
     { const geo = new T.IcosahedronGeometry(R, 14), pos = geo.attributes.position, col = new Float32Array(pos.count * 3), c = new T.Color();
       const pal = { sand: [0xf3d890, 0xe9c87a], sea: [0x5aaed4, 0x4a9ec6], rock: [0xd2b98f, 0xc2a77c], grass: [0x8fd96a, 0x76c456], stone: [0xb9a6ea, 0xa994de], dais: [0xf6bdf3, 0xe9a7ee] };
-      const cur = level.currents && level.currents[0];
+      const cur = level.currents && level.currents[0], bands = level.ground || [[1.8, 'dais'], [5.6, 'stone'], [9.2, 'grass'], [level.bank, 'rock'], [99, 'sand']];
       for (let i = 0; i < pos.count; i += 3) {
           const p = norm([(pos.getX(i) + pos.getX(i + 1) + pos.getX(i + 2)) / 3, (pos.getY(i) + pos.getY(i + 1) + pos.getY(i + 2)) / 3, (pos.getZ(i) + pos.getZ(i + 1) + pos.getZ(i + 2)) / 3]);
           const d = K.dist(p, TOP), n = Math.sin(p[0] * 9.1 + 0.7) * Math.sin(p[1] * 8.3 + 1.9) + Math.sin(p[2] * 7.7 + p[0] * 3.1) * 0.6, tint = 0.96 + (((Math.sin(p[0] * 91.7 + p[1] * 47.3 + p[2] * 13.1) * 43758.5) % 1 + 1) % 1) * 0.08;
           const sea = cur && d > cur.r0 && d < cur.r1 && K.covers(cur, p);
-          const kind = d < 1.8 ? 'dais' : d < 5.6 ? 'stone' : d < 9.2 ? 'grass' : d < level.bank ? (sea ? 'sea' : 'rock') : 'sand';
+          let kind = 'sand'; for (const [d1, k] of bands) if (d < d1) { kind = k === 'sea' || k === 'rock' ? (sea ? 'sea' : 'rock') : k; break; }
           c.setHex(pal[kind][n > 0.3 ? 1 : 0]).multiplyScalar(tint);
           for (let k = 0; k < 3; k++) col.set([c.r, c.g, c.b], (i + k) * 3);
       }
@@ -138,7 +138,7 @@ export function createLair(kit, level, hooks) {
     }
     // The step: two courses of bricks, the upper offset by half a brick, the top one lighter.
     for (const w of (level.rings || []).filter(r => r.kind === 'step')) {
-        const courses = [0, 1].map(ri => arcPoints(w, 0.62, ri * 0.5)), inst = courses.map(items => Y.instanced(G.brick, items.length, 0.07));
+        const courses = Array.from({ length: Math.max(1, Math.round(w.h)) }, (_, ri) => arcPoints(w, 0.62, ri * 0.5)), inst = courses.map(items => Y.instanced(G.brick, items.length, 0.07));
         inst.forEach(i => { scene.add(i.body); scene.add(i.line); });
         courses.forEach((items, ri) => items.forEach((it, i) => inst[ri].set(i, stand(walk(it.p, it.f, (ri ? 0.03 : 0) / R), it.f, 0.5 + ri, it.len * 0.97, 1.0, 0.62), ri ? C.stone[2] : C.stone[i % 2])));
         inst.forEach(i => i.done());
@@ -146,7 +146,7 @@ export function createLair(kit, level, hooks) {
     // The slide down from the shelf: a wooden ramp with rails and arrows.
     const slide = (level.rings || []).find(w => w.kind === 'slide'); let slideLadder = null;
     if (slide) {
-        const lon = slide.only[0], hi = K.at(slide.r - 0.15, lon), lo = K.at(slide.r + 1.9, lon), a = at3(hi, SHOW.cliff), b = at3(lo, 0.1), len = a.distanceTo(b), g = new T.Group();
+        const lon = slide.only[0], hi = K.at(slide.r - 0.15, lon), lo = K.at(slide.r + 1.9, lon), a = at3(hi, slide.show || SHOW.cliff), b = at3(lo, 0.1), len = a.distanceTo(b), g = new T.Group();
         g.add(Y.part(G.box, C.wood, 0.05)); g.children[0].scale.set(1.9, 0.16, len);
         for (const sx of [-1, 1]) { const rail = Y.part(G.box, C.wood2, 0.04); rail.scale.set(0.12, 0.3, len); rail.position.set(sx * 0.95, 0.2, 0); g.add(rail); }
         for (let i = 0; i < 3; i++) { const ar = Y.part(G.coneLow, C.gold, 0.03); ar.scale.set(0.5, 0.5, 0.3); ar.rotation.x = Math.PI / 2; ar.position.set(0, 0.14, (i - 1) * len * 0.26); g.add(ar); }
@@ -159,15 +159,15 @@ export function createLair(kit, level, hooks) {
         g.position.copy(a.clone().add(b).multiplyScalar(0.5)); g.up.copy(V(hi)); g.lookAt(b); scene.add(g);
     }
     // The spring rocks: a dam of grey boulders across the west end of the current, where the water starts.
-    const dam = (level.bars || []).find(b => b.kind === 'dam');
     const foam = [];
-    if (dam) {
+    for (const dam of (level.bars || []).filter(b => b.kind === 'dam')) {
         const len = K.dist(dam.a, dam.b), n = Math.round(len / 0.7), rnd = rngOf(77), rowsD = [{ y: 0.7, h: 1.5, s: 1.3 }, { y: 1.8, h: 1.3, s: 1.1 }, { y: 2.8, h: 1.0, s: 0.9 }];
         const inst = rowsD.map(() => Y.instanced(G.rockSoft, n, 0.12)); inst.forEach(i => { scene.add(i.body); scene.add(i.line); });
         const nrm = norm(cross(dam.a, dam.b));
         rowsD.forEach((row, ri) => { for (let i = 0; i < n; i++) { const t = (i + 0.5 + (ri % 2) * 0.5) / (n + 0.5), p = norm(mix(dam.a, dam.b, 1 - t, t)), j = [rnd(), rnd(), rnd()]; inst[ri].set(i, stand(p, tangent(p, nrm), row.y * 0.75 + (j[0] - 0.5) * 0.3, row.s * (1.1 + j[1] * 0.5), row.h * (0.85 + j[2] * 0.4), row.s * 1.3, j[2] * 3), C.dam[(i + ri) % 3]); } inst[ri].done(); });
         // water pouring out of the top of the dam on its east side
         const mid = norm(mix(dam.a, dam.b, 0.5, 0.5)), east = tangent(mid, cross(TOP, mid));
+        const cw = level.currents && level.currents[0]; if (!cw || Math.abs(((K.lonOf(mid) - (cw.only[0] - cw.only[1]) + 540) % 360) - 180) > 12) continue;   // (falls only where the stream starts)
         for (let i = 0; i < 5; i++) { const sheet = new T.Mesh(G.box, basic(0x9fd8ff, { transparent: true, opacity: 0.7 })); sheet.scale.set(0.5, 2.2, 0.2); const p = norm(mix(dam.a, dam.b, 0.3 + i * 0.1, 0.7 - i * 0.1)); put(sheet, walk(p, east, 0.55 / R), tangent(p, east), 1.2); scene.add(sheet); foam.push({ m: sheet, p, i }); }
     }
 
@@ -419,7 +419,7 @@ export function createLair(kit, level, hooks) {
         hurtFlash = Math.max(0, hurtFlash - dt * 2.5); downT = bst === 'down' ? Math.min(1.6, downT + dt) : 0;
         const dk = Math.min(1, downT / 1.6), dizzy = false, hurt = bst === 'hurt';
         pearl.visible = !bs || bst === 'down' || s.won;
-        octo.g.visible = dk < 1;
+        octo.g.visible = dk < 1 && !!level.boss;
         put(octo.g, inkAt, toward(inkAt, c.p), -dk * 3.2); octo.g.scale.setScalar(OSC * (1 - dk * 0.7) * (1 + Math.sin(t * 1.5) * 0.025 + (inkMad > 0 ? 0.25 * Math.abs(Math.sin(t * 14)) : 0) + (hurt ? 0.12 * Math.sin(bs.t * 34) : 0) + (bst === 'wind' ? 0.05 * Math.min(1, bs.t) : 0)));
         const open = bst === 'recover'; swat = Math.max(0, swat - dt);
         octo.head.material.emissive.setRGB(0.55 * hurtFlash + (open ? 0.35 + 0.2 * Math.sin(t * 14) : 0), 0.45 * hurtFlash + (open ? 0.3 : 0), 0.4 * hurtFlash);
