@@ -391,12 +391,12 @@ function _lairHud() {
     const s = _trial.state(), lv = _trial.level, i = LL.CHAMBERS.indexOf(lv), k = _trial.charging(), n = LL.count(s);
     const hint = _hintT > 0 ? _hintMsg : '';
     const bs = s.boss, inkHp = bs && bs.state !== 'sleep' ? bs.hp : -1, inkSt = bs ? bs.state : '';
-    const sig = [lv.id, n.held, n.loose, n.working, n.gull, s.falls, hint, _hintN, inkHp, inkSt === 'dizzy' ? 1 : 0, inkSt === 'down' ? 1 : 0, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
+    const sig = [lv.id, n.held, n.loose, n.working, n.gull, s.falls, hint, _hintN, inkHp, bs ? bs.stunned : 0, inkSt === 'dizzy' ? 1 : 0, inkSt === 'down' ? 1 : 0, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
     if (sig === _lastHud) return;
     _lastHud = sig;
     $('tp-trial-n').textContent = `🐙 ${i + 1}/${LL.CHAMBERS.length} ${lv.name}`;
     $('tp-trial-s').textContent = `${'🥥'.repeat(n.held)}${'▫️'.repeat(LL.CARRY - n.held)} ${n.held}/${LL.CARRY}${n.gull ? ' · 🐦 HAS ONE' : ''}${inkHp >= 0 ? ` · 🐙 ${'❤️'.repeat(inkHp)}${'🖤'.repeat(LL.BOSS.hits - inkHp)}` : ''}${n.working ? ` · ${n.working} AT WORK` : ''}${s.falls ? ` · FALLS ${s.falls}` : ''}`;
-    const goal = $('tp-goal'); goal.textContent = _hintN ? `💡 ${_hintN}/${lv.hints.length}: ${lv.hints[_hintN - 1]}` : inkSt === 'dizzy' ? '😵 OLD INK IS DIZZY: COCONUTS AT HIS HEAD!' : inkSt === 'down' ? '🎯 COCONUT ON THE PLATE, THEN THE PEARL' : inkHp >= 0 ? '🐙 DODGE THE RED RINGS · HIT HIM WHEN HE\'S DIZZY' : '🎯 REACH THE TIDE PEARL · 💡 FOR A HINT'; goal.classList.remove('tut'); goal.classList.add('wide');
+    const goal = $('tp-goal'); goal.textContent = _hintN ? `💡 ${_hintN}/${lv.hints.length}: ${lv.hints[_hintN - 1]}` : inkSt === 'dizzy' ? '😵 OLD INK IS DIZZY: COCONUTS AT HIS HEAD!' : inkSt === 'down' ? '🎯 COCONUT ON THE PLATE, THEN THE PEARL' : inkHp >= 0 ? `🥥 HIT TWO ARMS (${LL.BOSS.arms ? (bs.stunned || 0) : 0}/2) · DODGE THE RED RINGS` : '🎯 REACH THE TIDE PEARL · 💡 FOR A HINT'; goal.classList.remove('tut'); goal.classList.add('wide');
     const ab = $('btn-tp-act'); ab.classList.remove('off', 'idle'); ab.hidden = false; ab.querySelector('span').textContent = '🥥'; ab.querySelector('small').textContent = n.held < 1 ? 'NONE' : k >= 0 ? 'LET GO!' : 'HOLD: THROW';
     ab.classList.toggle('off', n.held < 1 && k < 0);
     ab.style.setProperty('--k', k >= 0 ? k : 0);
@@ -571,7 +571,8 @@ function _events(evs) {
         } else if (e.type === 'town') {
             _shake = Math.max(_shake, 0.4); _burst(_s.crab.p, 0xffffff, 40, 7); _burst(_s.crab.p, 0xffd84a, 30, 5); _cheer = 0.8;
             if (play) { _say(`${e.icon} YOU'RE A ${e.name}! THE PLANET GREW`, '#fde047'); _sfx('win'); _buzz([30, 30, 30, 30, 120]); if (e.opens) _tips.push(`${e.icon} ${e.name}! New: ${e.opens}.`); }
-        } else if (e.type === 'bigger') { _burst(e.b.p, 0xfff2a8, 20, 4); const v = _vis.builds.get(e.b.id); if (v) v.born = 0.5; if (play) { _pop(e.b.p, '+1 🦀', 1.8); _sfx('land_good'); _buzz(14); } }
+        } else if (e.type === 'towerup') { _burst(e.b.p, 0x8fe8ff, 28, 5); const v = _vis.builds.get(e.b.id); if (v) v.flash = 1; if (play) { _pop(e.b.p, `🔮 LEVEL ${e.lvl}: +${L.TOWER_GROW_C} 🔮, WIDER`, 1.8); _sfx('land_good'); _buzz(14); } }
+        else if (e.type === 'bigger') { _burst(e.b.p, 0xfff2a8, 20, 4); const v = _vis.builds.get(e.b.id); if (v) v.born = 0.5; if (play) { _pop(e.b.p, '+1 🦀', 1.8); _sfx('land_good'); _buzz(14); } }
         else if (e.type === 'mend') { _burst(e.b.p, 0x9be7ff, 12, 3); if (play) { _pop(e.b.p, '🔧 MENDED', 1.4); _sfx('shield'); _buzz(12); } }
         else if (e.type === 'shake') { const v = _vis.builds.get(e.b.id); if (v) v.shook = 0.5; _burst(e.b.p, 0x7be38a, 8, 3); if (play) { _sfx('dice_land'); _buzz(10); } }
         else if (e.type === 'carry') { if (play) { _sfx('tick'); _buzz(8); _hintNow('🪨 GOT IT. ✋ THROWS IT AT A FALLING STAR', 2.2); } }
@@ -600,7 +601,7 @@ function _hud(dt) {
     // Tips, one at a time.
     if (_tipT > 0) { _tipT -= dt; if (_tipT <= 0) $('tp-tip').hidden = true; }
     else if (_tips.length && !_paused) { const t = $('tp-tip'); t.textContent = _tips.shift(); t.hidden = false; _tipT = 5.5; }
-    const clock = s.phase === 'day' ? s.pt / L.DAY_S : Math.min(1, s.pt / L.NIGHT_S);
+    const clock = s.phase === 'day' ? s.pt / L.DAY_S : Math.min(1, s.pt / L.nightLen(s.day));
     const btn = ['palm', 'hut', 'tower', 'market'].map(k => { const c = L.costOf(s, k), ok = L.canBuild(s, k); return `${c.shells}🐚${c.nuts ? ` ${c.nuts}🥥` : ''}|${ok.ok ? 1 : ok.why === 'locked' ? 3 : ok.why === 'space' ? 2 : 0}`; });
     const hint = _hintT > 0 ? _hintMsg : '';
     const sig = [s.day, s.phase, Math.round(clock * 100), s.shells, s.nuts, n, s.town, btn.join(), hint, g.text, x ? x.kind + x.label + x.ok : '', s.crab.air > 0 ? 1 : 0].join('~');
@@ -960,7 +961,8 @@ function _draw(dt) {
                 });
             } else if (b.kind === 'tower') {
                 v.orb.material = b.charges > 0 ? M.gem : M.gemOff; v.orb.rotation.y = _t * 2; v.orb.position.y = 1.75 + Math.sin(_t * 2.4 + b.id) * 0.08;
-                v.orb.scale.setScalar(0.7 + 0.3 * Math.min(1, b.charges / L.TOWER_CHARGES));
+                v.orb.scale.setScalar((0.7 + 0.3 * Math.min(1, b.charges / L.towerCharges(_s, b))) * (1 + 0.18 * ((b.lvl || 1) - 1)));
+                v.dome.scale.setScalar(L.towerR(b) / L.TOWER_R);
                 v.dome.material.opacity = (b.charges > 0 ? 0.05 + 0.05 * _nightK + Math.min(3, b.charges) * 0.02 : 0) + v.flash * 0.35;
             } else v.sign.rotation.y = _t * 2;
         }

@@ -263,7 +263,7 @@ export function createLair(kit, level, hooks) {
         const arms = Array.from({ length: 8 }, (_, i) => {
             const nS = 16, nR = 8, mk = () => { const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.BufferAttribute(new Float32Array((nS + 1) * nR * 3), 3)); geo.setAttribute('normal', new T.BufferAttribute(new Float32Array((nS + 1) * nR * 3), 3)); const idx = []; for (let s = 0; s < nS; s++) for (let r = 0; r < nR; r++) { const a = s * nR + r, b = s * nR + (r + 1) % nR, c2 = (s + 1) * nR + r, d = (s + 1) * nR + (r + 1) % nR; idx.push(a, b, c2, b, d, c2); } geo.setIndex(idx); return geo; };
             const geo = mk(), lineGeo = mk(), body = new T.Mesh(geo, Y.toon(i % 2 ? C.ink : 0x8a52f0)), line = new T.Mesh(lineGeo, Y.ink); body.frustumCulled = line.frustumCulled = false; line.renderOrder = -1; g.add(body); g.add(line);
-            return { geo, lineGeo, nS, nR, phi: (i / 8) * Math.PI * 2 + 0.2 };
+            return { geo, lineGeo, nS, nR, body, phi: (i / 8) * Math.PI * 2 + 0.2 };
         });
         scene.add(g); return { g, head, eyes, lids, pupils, brows, mouth, arms, blink: 0, nextBlink: 2 };
     })();
@@ -271,11 +271,11 @@ export function createLair(kit, level, hooks) {
     const inkStars = new T.Group(); for (let i = 0; i < 4; i++) { const sp = new T.Mesh(new T.OctahedronGeometry(0.2, 0), basic(0xfde047)); inkStars.add(sp); } inkStars.visible = false; octo.g.add(inkStars);
     const slamRing = new T.Mesh(G.ring, basic(0xff3b3b, { transparent: true, opacity: 0.9, depthWrite: false, side: T.DoubleSide })), slamFill = new T.Mesh(G.disc, basic(0xff3b3b, { transparent: true, opacity: 0.3, depthWrite: false, side: T.DoubleSide }));
     slamRing.visible = slamFill.visible = false; scene.add(slamRing); scene.add(slamFill);
-    function updateArm(a, t, i, mad, sl) {
+    function updateArm(a, t, i, mad, sl, flat = 0) {
         const { geo, lineGeo, nS, nR } = a, slamming = sl && sl.arm === i, phi = slamming ? sl.phi : a.phi, pos = geo.attributes.position, nor = geo.attributes.normal, lp = lineGeo.attributes.position;
         const out = new T.Vector3(Math.sin(phi), 0, Math.cos(phi)), side = new T.Vector3(Math.cos(phi), 0, -Math.sin(phi)), up = new T.Vector3(0, 1, 0);
-        const pts = []; const sway = Math.sin(t * 1.1 + i * 1.3) * 0.5, lift = mad ? 1.2 : 0;
-        for (let s = 0; s <= nS; s++) { const u = s / nS; let rho = 0.8 + u * 1.35, sw = Math.sin(u * 3 + t * 1.4 + i) * 0.35 + sway * u, h = 0.12 + Math.pow(u, 2) * (0.9 + 0.3 * Math.sin(t * 1.7 + i * 2)) + u * lift;
+        const pts = []; const sway = Math.sin(t * 1.1 + i * 1.3) * 0.5 * (1 - flat), lift = (mad ? 1.2 : 0) * (1 - flat);
+        for (let s = 0; s <= nS; s++) { const u = s / nS; let rho = 0.8 + u * 1.35, sw = Math.sin(u * 3 + t * 1.4 + i) * 0.35 + sway * u, h = 0.12 + Math.pow(u, 2) * (0.9 + 0.3 * Math.sin(t * 1.7 + i * 2)) * (1 - flat * 0.9) + u * u * 1.4 * (1 - flat) + u * lift;
             if (slamming) { rho += (Math.max(0.8, u * sl.d) - rho) * sl.ext; sw *= 1 - sl.ext; h += (0.12 + sl.lift * 3.4 * Math.sin(Math.PI * Math.min(1, u * 1.05)) - h) * sl.ext; }
             pts.push(new T.Vector3().addScaledVector(out, rho).addScaledVector(side, sw).addScaledVector(up, h)); }
         const n = new T.Vector3(), b = new T.Vector3(), tg = new T.Vector3();
@@ -360,12 +360,14 @@ export function createLair(kit, level, hooks) {
             else if (e.type === 'drop') hooks.pop(at3(e.nut.p, 1), 'IT DROPPED THE COCONUT');
             else if (e.type === 'check') { burst(at3(e.p, 1), 0x4ade80, 22, 4); hooks.sfx('land_good'); hooks.buzz(10); hooks.pop(at3(e.p, 1.6), '🚩 CHECKPOINT'); }
             else if (e.type === 'ouch' || e.type === 'peck') { hooks.sfx('land_bad'); hooks.buzz([30, 30, 30]); hooks.hint(`${e.type === 'peck' ? 'PECKED! NO COCONUT TO STEAL' : 'OUCH! SPIKES'} · BACK AT THE ${e.at > 0 ? 'FLAG' : 'START'}`, 2.2); shake = 0.4; snap = true; bristle = 1; }
-            else if (e.type === 'ink-wake') { hooks.sfx('boost'); hooks.buzz([20, 20, 20]); hooks.say('🐙 OLD INK WAKES!', '#c4b5fd'); hooks.hint('🔴 A RED RING SHOWS WHERE HE SLAMS: STEP OUT OF IT OR JUMP. PICK UP COCONUTS', 4); inkMad = 1; }
+            else if (e.type === 'ink-wake') { hooks.sfx('boost'); hooks.buzz([20, 20, 20]); hooks.say('🐙 OLD INK WAKES!', '#c4b5fd'); hooks.hint('🥥 HIT TWO OF HIS ARMS WITH COCONUTS TO MAKE HIM DIZZY · 🔴 STEP OUT OF THE RED RING, OR JUMP', 5); inkMad = 1; }
             else if (e.type === 'ink-slam') { burst(at3(e.p, 0.3), 0xff8a8a, 22, 5); hooks.sfx('land_bad'); hooks.buzz(e.hit ? [40, 30, 40] : 14); shake = Math.max(shake, e.hit ? 0.5 : 0.25); if (!e.hit) hooks.pop(at3(e.p, 1.2), 'MISSED'); }
             else if (e.type === 'ink-ouch') { hooks.hint('SLAMMED! KEEP MOVING, OR JUMP AS IT LANDS', 2); snap = true; }
+            else if (e.type === 'ink-arm') { burst(at3(e.p, 0.8), 0xffe45a, 20, 4.5); hooks.sfx('coin_gain'); hooks.buzz(14); hooks.pop(at3(e.p, 1.4), e.count >= 2 ? '🥥 SECOND ARM!' : '🥥 ARM STUNNED: 1 MORE'); shake = Math.max(shake, 0.2); }
+            else if (e.type === 'ink-rest') hooks.pop(at3(K.TOP, 3.2), 'CATCHING HIS BREATH: THROW AT HIS ARMS');
             else if (e.type === 'ink-dizzy') { hooks.sfx('win'); hooks.buzz([15, 20, 15]); hooks.say('😵 DIZZY! COCONUTS AT HIS HEAD!', '#fde047'); hooks.hint('😵 NOW! THROW COCONUTS AT OLD INK\'S HEAD', 4); }
             else if (e.type === 'ink-recover') hooks.hint('HE IS BACK UP: DODGE AGAIN', 2);
-            else if (e.type === 'ink-block') { burst(at3(e.p, 1.2), 0xffffff, 8, 3); hooks.pop(at3(e.p, 1.6), 'TOO SOON: WAIT FOR DIZZY'); }
+            else if (e.type === 'ink-block') { burst(at3(e.p, 1.2), 0xffffff, 8, 3); hooks.pop(at3(e.p, 1.6), 'HIT AN ARM FIRST'); }
             else if (e.type === 'ink-hit') { burst(at3(e.p, e.h), 0xffe45a, 36, 6); hooks.sfx('coin_gain'); hooks.buzz([20, 20, 40]); hooks.pop(at3(e.p, e.h + 1), e.hp > 0 ? `🥥 HIT! ${e.hp} TO GO` : '🥥 KNOCKED OUT!'); hurtFlash = 1; shake = Math.max(shake, 0.4); cheer = 0.6; }
             else if (e.type === 'ink-down') { burst(at3(K.TOP, 1.5), 0xc4b5fd, 50, 7); hooks.sfx('win'); hooks.buzz([30, 30, 30, 30, 120]); hooks.say('🐙 OLD INK IS DOWN!', '#fde047'); hooks.hint('PUT A COCONUT ON THE PLATE: THE PEARL\'S FENCE OPENS', 6); }
             else if (e.type === 'pile') burst(at3(e.nut.p, 0.5), 0xffe9b0, 10, 2.5);
@@ -422,8 +424,8 @@ export function createLair(kit, level, hooks) {
         let sl = null; slamRing.visible = slamFill.visible = false;
         if (bs && (bst === 'wind' || bst === 'recover') && bs.tx) {
             octo.g.updateMatrixWorld(); octo.g.worldToLocal(tmp.copy(at3(bs.tx, 0.1)));
-            const phi = Math.atan2(tmp.x, tmp.z), dT = Math.hypot(tmp.x, tmp.z); let arm = 0, bd = 9;
-            octo.arms.forEach((a, i) => { const d = Math.abs(((phi - a.phi + 3 * Math.PI) % (2 * Math.PI)) - Math.PI); if (d < bd) { bd = d; arm = i; } });
+            const phi = Math.atan2(tmp.x, tmp.z), dT = Math.hypot(tmp.x, tmp.z); let arm = 0, bd = 999; const lt = K.lonOf(bs.tx);
+            octo.arms.forEach((a, i) => { const d = Math.abs(((lt - K.armLon(s, i) + 540) % 360) - 180); if (d < bd) { bd = d; arm = i; } });
             const dur = K.BOSS.wind[Math.min(2, bs.round)], prog = bst === 'wind' ? Math.min(1, bs.t / dur) : 1;
             sl = bst === 'wind' ? { arm, phi, d: dT, ext: 0.35 + 0.6 * prog, lift: 1 } : { arm, phi, d: dT, ext: Math.max(0, 1 - bs.t / K.BOSS.recover * 0.9), lift: Math.max(0, 0.25 - bs.t * 2) };
             if (bst === 'wind') { slamRing.visible = slamFill.visible = true; put(slamRing, bs.tx, null, 0.12); put(slamFill, bs.tx, null, 0.11); slamRing.scale.setScalar(K.BOSS.hitR * (1 + 0.05 * Math.sin(t * 20))); slamFill.scale.setScalar(K.BOSS.hitR * prog); slamFill.material.opacity = 0.18 + 0.3 * prog; }
@@ -435,7 +437,12 @@ export function createLair(kit, level, hooks) {
         octo.pupils.forEach(p => { p.pu.position.x = dizzy ? Math.cos(t * 9) * 0.12 : (tmp.x / look) * 0.08; p.pu.position.y = dizzy ? Math.sin(t * 9) * 0.12 : 0; p.iris.position.x = dizzy ? 0 : (tmp.x / look) * 0.05; });
         octo.brows.forEach((b, i) => { b.rotation.z = (i ? 1 : -1) * (0.15 + near * 0.45 + (inkMad > 0 ? 0.3 : 0)); b.position.y = 2.0 - near * 0.1; });
         octo.mouth.scale.set(0.5, 0.14 + (inkMad > 0 ? 0.25 : 0), 0.16);
-        octo.arms.forEach((a, i) => updateArm(a, t, i, inkMad > 0 || bst === 'wind' || dk > 0, sl));
+        octo.arms.forEach((a, i) => {
+            if (bs) { octo.g.updateMatrixWorld(); octo.g.worldToLocal(tmp.copy(at3(K.at(2, K.armLon(s, i)), 0.1))); a.phi = Math.atan2(tmp.x, tmp.z); }
+            const stun = bs && bs.arms[i] > 0, flat = dizzy || dk > 0 ? 1 : stun ? 0.8 : 0;
+            a.body.material.emissive.setRGB(stun ? 0.7 + 0.25 * Math.sin(t * 16) : 0, stun ? 0.55 : 0, 0);
+            updateArm(a, t, i, inkMad > 0 || bst === 'wind' || dk > 0, sl, flat);
+        });
 
         // Coconuts: lying, floating, flying, plugging a vent, stuck in the bullseye.
         const seen = new Set();

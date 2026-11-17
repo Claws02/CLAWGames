@@ -98,10 +98,10 @@ const pilot = (s, secs) => { const all = []; for (let i = 0; i < 60 * secs && !s
   s.phase = 'night'; s.pt = 0; s.due = [];
   for (let k = 0; k < 4; k++) { s.stars = [{ id: 9 + k, p: hut.p.slice(), t: 0, T: 0.2, r: P.STAR_R, big: false }]; run(s, 0.3); }
   ok(tw.charges === 0 && hut.hp === P.HP.hut - 1, `a bubble tower soaks up ${P.TOWER_CHARGES} stars a night; the fourth gets through`);
-  s.stars = []; s.pt = P.NIGHT_S; let ev = run(s, 0.1);
+  s.stars = []; s.pt = P.nightLen(s.day); let ev = run(s, 0.1);
   ok(s.day === 2 && s.phase === 'day' && tw.charges === P.TOWER_CHARGES && ev.some(e => e.type === 'dawn' && e.gift === 1), 'dawn: day 2, the tower is charged again, and each crab brings a shell');
   s.builds.push({ id: 800, kind: 'market', p: [0, -1, 0], hp: 2, lvl: 1, age: 99, t: 99, shake: 0, charges: 0 }); hut.lvl = 3; s.builds.push({ id: 801, kind: 'hut', p: [0, 0, 1], hp: 3, lvl: 3, age: 99, t: 99, shake: 0, charges: 0 });
-  s.phase = 'night'; s.pt = P.NIGHT_S; ev = run(s, 0.1);
+  s.phase = 'night'; s.pt = P.nightLen(s.day); ev = run(s, 0.1);
   ok(ev.some(e => e.type === 'dawn' && e.gift === 8 && e.market === 2), 'a market adds a shell for every three crabs at dawn (6 crabs: 6 + 2)'); }
 { const s = bare(8); s.phase = 'night'; s.pt = 0; s.due = []; s.shells = 5;
   s.stars = [{ id: 1, p: s.crab.p.slice(), t: 0, T: 0.5, r: P.BIG_R, big: true }];
@@ -155,7 +155,7 @@ const quiet = s => { s.items = []; s.spawnT = 1e9; s.rockT = 1e9; s.builds.forEa
   ok(ev2.some(e => e.type === 'fell' && e.why === 'side') && co.k === -1 && P.dist(s, s.crab.p, co.pts[0]) > 0.6, 'stepping off the side just puts the crab on the ground: a course can always be left');
   const sh2 = s.shells, ev3 = walkCourse(s);
   ok(co.done && ev3.some(e => e.type === 'chest' && e.prize === co.prize && e.dust === 0) && s.shells === sh2 + ev3.filter(e => e.type === 'coin').length + co.prize && s.stats.courses === 1, `jumping the gap and the bar: the rest of the coins and the chest (+${co.prize} shells)`);
-  s.phase = 'night'; s.pt = P.NIGHT_S; s.due = []; s.stars = []; P.step(s, 0.01);
+  s.phase = 'night'; s.pt = P.nightLen(s.day); s.due = []; s.stars = []; P.step(s, 0.01);
   ok(s.course && s.course.id !== co.id && !s.course.done, 'at dawn a new course is laid somewhere else'); }
 // each obstacle on its own
 { const mk = (kinds, checks = []) => { const s = quiet(P.create({ rnd: seeded(31) })); P._newCourse(s, 1); const co = s.course; co.segs = kinds; co.checks = checks; co.off = kinds.map(() => 0);
@@ -229,13 +229,29 @@ const quiet = s => { s.items = []; s.spawnT = 1e9; s.rockT = 1e9; s.builds.forEa
   const line = r => `days ${r.map(x => x.day).join(' ')} · biggest city ${r.map(x => x.peak).join(' ')}`;
   console.log(`     no upgrades:  ${line(base)}\n     all upgrades: ${line(maxed)}`);
   const bd = med(base.map(x => x.day)), bp = med(base.map(x => x.peak)), mp = med(maxed.map(x => x.peak));
-  ok(Math.min(...base.map(x => x.day)) >= 4 && bd >= 8 && bd <= 30 && Math.max(...base.map(x => x.day)) < 99, `with no upgrades the autopilot lasts ${bd} days in the middle, and always ends`);
-  ok(bp >= 10 && bp < 50, `and its city reaches ${bp} crabs in the middle: a TOWN at least, the CAPITAL still to be earned`);
-  ok(mp > bp && Math.max(...maxed.map(x => x.day)) < 99, `with every upgrade the city is bigger (${mp}), and still ends`); }
+  ok(Math.min(...base.map(x => x.day)) >= 15 && bd >= 25 && bd <= 60, `with no upgrades the autopilot lasts ${bd} days in the middle (the nights are fair: night 22 is ${P.starsFor(22)} stars over ${P.nightLen(22) - 4} s, not 61 over 12), and it does fall in the end`);
+  ok(bp >= 10 && bp < 80, `and its city reaches ${bp} crabs in the middle: a TOWN at least, the CAPITAL still to be earned`);
+  ok(mp > bp && med(maxed.map(x => x.day)) >= bd, `with every upgrade the city is bigger (${mp}) and lasts at least as long`); }
 
 { // homes and markets pay: a bigger home pays more, a market pays most
   const pay = kind => { const s = P.create(); s.phase = 'day'; s.shells = 0; const b = { id: 999, kind, p: s.crab.p.slice(), hp: 9, lvl: kind === 'hut' ? 3 : 1, age: 99, t: 0.01, shake: 0, charges: 0 }; s.builds = [b]; P.step(s, 0.05); return s.shells; };
   ok(pay('hut') === 3 && pay('market') === P.MARKET_PAY, `a size-3 home pays 3 shells at once, a market ${P.MARKET_PAY}: the town is where shells come from`); }
+
+{ // tower growth, and helping a tower
+  const mk = () => { const s = P.create(); s.phase = 'night'; s.town = 4; s.shells = 99; s.nuts = 99; const tw = { id: 900, kind: 'tower', p: s.crab.p.slice(), hp: 2, lvl: 1, age: 99, t: 99, shake: 0, charges: 0 }; tw.charges = P.towerCharges(s, tw); s.builds = [tw, { id: 901, kind: 'hut', p: s.crab.p.slice(), hp: 3, lvl: 1, age: 99, t: 99, shake: 0, charges: 0 }]; return { s, tw }; };
+  { const { s, tw } = mk(); const x = P.context(s), c0 = tw.charges, r0 = P.towerR(tw);
+    ok(x && x.kind === 'towerup' && x.ok, 'standing by a tower, the action button says GROW');
+    P.act(s, []); P.act(s, []);
+    ok(tw.lvl === 3 && tw.charges === c0 + 2 * P.TOWER_GROW_C && P.towerR(tw) === r0 + 2 * P.TOWER_GROW_R && !(P.context(s) || {}).kind?.startsWith('towerup'), `two upgrades: level 3, ${tw.charges} charges (was ${c0}) and a bubble ${P.towerR(tw).toFixed(1)} wide (was ${r0.toFixed(1)})`);
+    s.shells = 0; s.nuts = 0; const t2 = mk(); t2.s.shells = 5; ok(!P.context(t2.s).ok, 'not enough shells: the button is greyed'); }
+  { const { s, tw } = mk(); const hut = s.builds[1]; s.crab.p = P.norm(hut.p.map((v, i) => v + [0.01, 0, 0][i])); s.crab.cd = 0; s.crab.air = 0; const c0 = tw.charges, sh = s.shells;
+    s.stars = [{ id: 9, p: s.crab.p.slice(), t: 0, T: 0.1, r: P.STAR_R, big: false }]; const ev = []; for (let i = 0; i < 20; i++) ev.push(...P.step(s, 0.05));
+    ok(ev.some(e => e.type === 'catch') && tw.charges === c0 && s.shells === sh + P.STAR_PAY, 'a crab under a star inside a tower\'s bubble catches it: the tower keeps its charge, the crab is paid'); }
+  { const { s, tw } = mk(); s.crab.air = 0.3; s.crab.cd = 0; const c0 = tw.charges;
+    s.stars = [{ id: 9, p: s.crab.p.slice(), t: 0, T: 0.1, r: P.BIG_R, big: true }]; const ev = []; for (let i = 0; i < 20; i++) ev.push(...P.step(s, 0.05));
+    ok(ev.some(e => e.type === 'catch' && e.big) && tw.charges === c0, 'a jump under a big star knocks it away: no charge used'); }
+  { ok(P.starsFor(22) <= 30 && P.starsFor(22) / (P.nightLen(22) - 4) < 2 && P.bigFor(20) <= 3 && P.starsFor(30) > P.starsFor(22), `night 22 is ${P.starsFor(22)} stars (was 61) and ${P.bigFor(20)} big ones on night 20 (was 4): and it still gets harder every night`); }
+}
 
 console.log(fails ? `\nPLANET FAIL (${fails})` : '\nPLANET PASS');
 process.exit(fails ? 1 : 0);
