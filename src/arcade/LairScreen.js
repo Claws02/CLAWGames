@@ -150,16 +150,22 @@ export function createLair(kit, level, hooks) {
         const n = Math.max(1, Math.round(w.h)), crack = w.kind === 'crack', grp = new T.Group(); scene.add(grp);
         const courses = Array.from({ length: n }, (_, ri) => arcPoints(w, 0.7, ri * 0.5)), inst = courses.map(items => Y.instanced(G.brick, items.length, 0.07));
         inst.forEach(i => { grp.add(i.body); grp.add(i.line); });
-        courses.forEach((items, ri) => items.forEach((it, i) => inst[ri].set(i, stand(it.p, it.f, 0.5 + ri, it.len * 0.96, 1.0, 0.95), crack ? (i % 2 ? 0xb88a4c : 0xa77a40) : C.sand[(i + ri) % 3])));
+        courses.forEach((items, ri) => items.forEach((it, i) => { const k = crack ? 0.82 + 0.14 * Math.abs(Math.sin(i * 3.1 + ri * 1.7)) : 0.96; inst[ri].set(i, stand(crack ? walk(it.p, it.f, (Math.sin(i * 5.3 + ri) * 0.08) / R) : it.p, it.f, 0.5 + ri, it.len * k, crack ? 0.92 : 1.0, 0.95), crack ? [0x8f7a66, 0x7d6a58, 0x9c8a74][(i + ri) % 3] : C.sand[(i + ri) % 3]); }));
         inst.forEach(i => i.done());
         if (w.top && !crack) {          // battlements: a merlon on every other block
             const items = arcPoints(w, 0.7, 0.25).filter((_, i) => i % 2 === 0), m = Y.instanced(G.brick, items.length, 0.06);
             grp.add(m.body); grp.add(m.line); items.forEach((it, i) => m.set(i, stand(walk(it.p, it.f, -0.3 / R), it.f, n + 0.22, it.len * 0.7, 0.45, 0.32), C.sand[2])); m.done();
         }
-        if (crack) {                     // dark zig-zag cracks on its face
-            const cg = new T.Group(); grp.add(cg);
-            for (const it of arcPoints(w, 0.9)) for (let k = 0; k < 3; k++) { const c = new T.Mesh(G.box, basic(0x4a2d12)); c.scale.set(0.06, 0.55, 0.04); put(c, walk(it.p, it.f, 0.5 / R), it.f, 0.6 + k * 0.8); c.rotateZ(k % 2 ? 0.5 : -0.5); cg.add(c); }
-            crackWalls.push({ w, grp, cg, shake: 0 });
+        if (crack) {
+            // big glowing zig-zag cracks on both faces, from the first look: the wall says "hit me here"
+            const cg = new T.Group(), glow = basic(0xff8a2a), items = arcPoints(w, 0.55); grp.add(cg);
+            for (const side of [1, -1]) items.forEach((it, j) => { for (let k = 0; k < n; k++) { const c = new T.Mesh(G.box, glow); c.scale.set(0.11, 0.62, 0.05); put(c, walk(it.p, it.f, side * 0.5 / R), it.f, 0.45 + k * 0.95 + (j % 2) * 0.2); c.rotateZ((k + j) % 2 ? 0.55 : -0.55); cg.add(c); } });
+            // rubble at its foot on the beach side, and a ring on the ground that pulses when the crab is near
+            const mid = items[Math.floor(items.length / 2)], rub = [];
+            for (let k = 0; k < 9; k++) rub.push({ geo: G.rock, color: [0x8f7a66, 0x7d6a58, 0xb59a7c][k % 3], p: [(k - 4) * 0.32, 0.1, 0.9 + (k % 3) * 0.25], s: 0.28 + (k % 3) * 0.08 });
+            const pile = Y.prop(rub, { thick: 0.05 }); put(pile, mid.p, mid.f.map(x => -x), 0); scene.add(pile);
+            const ring = new T.Mesh(G.ring, basic(0xff8a2a, { transparent: true, opacity: 0.6, depthWrite: false, side: T.DoubleSide })); put(ring, walk(mid.p, mid.f, -1.2 / R), null, 0.08); ring.scale.setScalar(1.3); scene.add(ring);
+            crackWalls.push({ w, grp, cg, pile, ring, glow, mid, shake: 0, said: false });
         }
         if (w.vine) {                   // vines down both faces of the wall
             const vw = { r: w.r, c: w.c, only: w.vine };
@@ -487,7 +493,14 @@ export function createLair(kit, level, hooks) {
         });
 
         if (slideLadder) { const want = slide.earn != null && s.cp >= slide.earn ? 1 : 0; slideLadder.k += (want - slideLadder.k) * Math.min(1, dt * 2); slideLadder.lad.scale.z = Math.max(0.02, slideLadder.k); slideLadder.lad.visible = slideLadder.k > 0.03; slideLadder.roll.scale.x = slideLadder.roll.scale.z = 0.35 * (1 - slideLadder.k * 0.7); }
-        crackWalls.forEach(v => { v.grp.visible = K.up(s, v.w); v.shake = Math.max(0, v.shake - dt * 3); v.grp.position.set((Math.random() - 0.5) * v.shake * 0.2, 0, (Math.random() - 0.5) * v.shake * 0.2); v.cg.visible = (s.dmg[v.w.id] || 0) > 0; });
+        crackWalls.forEach(v => {
+            const standing = K.up(s, v.w), dmg = s.dmg[v.w.id] || 0, near = K.dist(c.p, v.mid.p) < 5;
+            v.grp.visible = standing; v.ring.visible = standing; v.shake = Math.max(0, v.shake - dt * 3);
+            v.grp.position.set((Math.random() - 0.5) * v.shake * 0.2, 0, (Math.random() - 0.5) * v.shake * 0.2);
+            v.glow.color.setHex(dmg ? 0xff3b1f : 0xff8a2a); v.glow.color.multiplyScalar(0.75 + 0.25 * Math.sin(t * (near ? 8 : 3)));
+            v.ring.material.opacity = (near ? 0.5 : 0.25) + 0.25 * Math.sin(t * 5); v.ring.scale.setScalar(1.3 + 0.12 * Math.sin(t * 5));
+            if (standing && near && !v.said) { v.said = true; hooks.hint('🧱 THAT SECTION OF WALL IS CRACKED: THROW COCONUTS AT IT', 3); }
+        });
         (s.blocks || []).forEach((b, i) => put(blockMeshes[i], b.p, toward(b.p, K.TOP), K.floorAt({ ...s, blocks: [] }, b.p)));
         (s.logs || []).forEach((l, i) => { put(logMeshes[i], l.p, tangent(l.p, cross(K.TOP, l.p)), 0.05 + Math.sin(t * 2 + i) * 0.04); logMeshes[i].rotateY(Math.PI / 2); });
         (level.gold || []).forEach((gd, i) => { const v = goldMeshes[i]; v.g.visible = !s.gold.includes(i); if (v.g.visible) { put(v.g, gd.p, [1, 0, 0], (gd.h || 0) + 0.45 + Math.sin(t * 2.5 + i) * 0.1); v.sh.rotation.y = t * 2.2; v.halo.material.opacity = 0.25 + 0.15 * Math.sin(t * 4 + i); } });
