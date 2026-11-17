@@ -97,3 +97,12 @@ The answer:
 - Coconut piles keep turning up round the chamber (4 at the start, a fresh pile whenever two or fewer are lying about); the claws still hold three.
 - With Old Ink down: a coconut on the plate opens the fence, and the pearl is theirs.
 - Vent B lifts to 9.2 (was 10.4) against the 8.5 cliff.
+
+### Boss fight, second version
+- Dizzy no longer comes on a timer: his eight arms sway round him (`armLon`), and a coconut that hits an arm stuns it for 7 s. **Any two stunned arms** make him dizzy (5.5 s), and only then does a coconut at his head hurt him. He slams in between, with a breather every few slams.
+- Aiming is by arm: arms are 10° wide and sway, so a throw has to find one.
+
+## Tiny Planet town after night 22
+- Nights flattened: night 22 is 28 stars over 23 s (was 61 over 12 s); big ones cap at 3 a night; later nights are longer (`nightLen`).
+- Towers level up to 3 (GROW button beside a tower: 10 🐚 3 🥥, then 20 🐚 6 🥥): +2 charges and a wider bubble each level.
+- A crab under a falling star catches it even inside a tower's bubble (the tower keeps its charge); a jump catches a big star.

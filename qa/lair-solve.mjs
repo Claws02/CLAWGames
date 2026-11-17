@@ -61,23 +61,34 @@ export const solve = (opt = {}) => {
   return { s, ev, note };
 };
 
-/** A player who beats Old Ink: keeps moving off the slam ring, gathers the piles, and throws at the head while he is dizzy. */
-export const fight = (s, ev = [], note = {}, secs = 240) => {
-  const b = s.boss; note.slams = 0; note.dizzy = 0; note.fightT0 = s.t;
+/** A throw (an aim, a charge) that the simulation says will do `want` (an event type); null if none does. The state is copied, never touched. */
+export const findThrow = (s, want) => {
+  const c = s.crab;
+  for (let a = -30; a <= 30; a += 6) for (let ch = 0; ch <= 1.001; ch += 0.1) {
+    const q = { ...s, crab: { ...s.crab }, nuts: s.nuts.map(n => ({ ...n })), boss: { ...s.boss, arms: [...s.boss.arms] }, gull: null, back: [], open: { ...s.open }, held: { ...s.held }, plug: { ...s.plug } }; face(q, TOP); const f = q.crab.face, side = P.cross(q.crab.p, f), r = a * Math.PI / 180;
+    q.crab.face = P.tangent(q.crab.p, P.mix(f, side, Math.cos(r), Math.sin(r)));
+    if (!K.throwNut(q, ch)) continue;
+    for (let k = 0; k < 70; k++) if (K.step(q, DT).some(e => e.type === want)) return { a, ch };
+  }
+  return null;
+};
+/** A player who beats Old Ink: keeps off the slam ring, gathers the piles, stuns two arms with coconuts, then throws at his head while he is dizzy. */
+export const fight = (s, ev = [], note = {}, secs = 300) => {
+  const b = s.boss; note.slams = 0; note.dizzy = 0; note.arms = 0; note.fightT0 = s.t; let wait = 0;
   for (let i = 0; i < secs / DT && b.state !== 'down' && !s.won; i++) {
-    const c = s.crab; let stick = { x: 0, y: 0 };
+    const c = s.crab; let stick = { x: 0, y: 0 }; wait -= DT;
     if (b.state === 'wind' && K.dist(c.p, b.tx) < 1.6) {
       const side = ((K.lonOf(c.p) - K.lonOf(b.tx) + 540) % 360) - 180 >= 0 ? 1 : -1;
       stick = stickTo(s, at(2.4, K.lonOf(c.p) + side * 25));
-    } else if (b.state === 'dizzy' && c.nuts > 0 && !c.air) {
-      // a place to throw from, and the charge that gets a coconut to his head
-      const t = (() => { for (let ch = 0; ch <= 1.001; ch += 0.04) { const q = JSON.parse(JSON.stringify(s)); face(q, TOP); K.throwNut(q, ch); const e = []; for (let k = 0; k < 120; k++) e.push(...K.step(q, DT)); if (e.some(x => x.type === 'ink-hit')) return ch; } return -1; })();
-      face(s, TOP); if (t >= 0) { K.throwNut(s, t); note.threw = (note.threw || 0) + 1; } else stick = stickTo(s, at(2.45, K.lonOf(c.p)));
+    } else if (c.nuts > 0 && !c.air && (b.state === 'dizzy' || (b.state !== 'hurt' && wait <= 0))) {
+      const want = b.state === 'dizzy' ? 'ink-hit' : 'ink-arm', f = findThrow(s, want);
+      if (f) { face(s, TOP); const side = P.cross(c.p, c.face), r = f.a * Math.PI / 180; c.face = P.tangent(c.p, P.mix(c.face, side, Math.cos(r), Math.sin(r))); K.throwNut(s, f.ch); note.threw = (note.threw || 0) + 1; }
+      else { wait = 0.15; stick = stickTo(s, at(2.45, K.lonOf(c.p) + 8)); }
     } else if (b.state !== 'dizzy' && c.nuts < K.CARRY && !c.air) {
       const n = s.nuts.filter(x => x.state === 'rest').sort((x, y) => K.dist(x.p, c.p) - K.dist(y.p, c.p))[0];
       if (n && (b.state !== 'wind' || K.dist(n.p, b.tx) > 1.6)) stick = stickTo(s, n.p);
     }
-    for (const e of K.step(s, DT, stick)) { ev.push(e); if (e.type === 'ink-slam') note.slams++; if (e.type === 'ink-dizzy') note.dizzy++; }
+    for (const e of K.step(s, DT, stick)) { ev.push(e); if (e.type === 'ink-slam') note.slams++; if (e.type === 'ink-dizzy') note.dizzy++; if (e.type === 'ink-arm') note.arms++; }
   }
   note.fightT = s.t - note.fightT0; return note;
 };

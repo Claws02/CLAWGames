@@ -2,7 +2,7 @@
 // that the other ways are shut. No browser.
 // usage: node qa/lair.mjs
 
-import { K, P, at, TOP, L, DT, A, B, R1, BANK, beach, lobbed, stickTo, run, go, hop, face, gather, chargeFor, solve } from './lair-solve.mjs';
+import { K, P, at, TOP, L, DT, A, B, R1, BANK, beach, lobbed, stickTo, run, go, hop, face, gather, chargeFor, solve, findThrow } from './lair-solve.mjs';
 
 let fails = 0;
 const ok = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) fails++; };
@@ -37,7 +37,7 @@ const ok = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) f
   ok(note.plugged && has('plop') && has('plug'), `1. a coconut dropped in the far side of the current upstream is carried into the cove and plugs vent A (${note.t1.toFixed(0)} s in)`);
   ok(note.onB && has('lift') && note.shelf, '2. across the stepping rocks to vent B, and up over the cliff onto the shelf, with the two coconuts that are left');
   ok(has('gull-dive') && has('stomp') && note.over, '3. the gull dives, the crab steps aside and jumps on its back: bounced over the tall step, both coconuts still in its claws');
-  ok(has('target') && has('ink-wake') && has('ink-slam') && has('ink-dizzy') && note.slams >= 12 && note.dizzy === 3 && has('ink-down') && s.boss.hp === 0, `4. the bullseye opens the outer gate; Old Ink wakes, slams (${note.slams} times over three rounds), goes dizzy three times, and three coconuts on his head put him down (${note.fightT.toFixed(0)} s)`);
+  ok(has('target') && has('ink-wake') && has('ink-slam') && has('ink-arm') && has('ink-dizzy') && note.arms >= 6 && note.dizzy === 3 && has('ink-down') && s.boss.hp === 0, `4. the bullseye opens the outer gate; Old Ink wakes and slams; two stunned arms make him dizzy, three times over, and three coconuts on his head put him down (${note.arms} arm hits, ${note.fightT.toFixed(0)} s)`);
   ok(has('press') && s.won && s.falls === 0, `5. a coconut on the plate opens the pearl's fence: the pearl, in ${s.t.toFixed(0)} s without a fall`);
   const again = solve(); ok(again.s.t === s.t && again.s.won, 'played again it goes exactly the same way (nothing in the chamber is left to chance)'); }
 
@@ -45,10 +45,20 @@ const ok = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) f
 { const fresh = () => { const { s } = solve({ stopAtBoss: true }); s.crab.p = at(2.5, -100).slice(); s.crab.air = false; s.crab.h = 0; return s; };
   { const s = fresh(); ok(s.boss.state === 'sleep', 'Old Ink sleeps until the crab comes into his chamber'); run(s, 0.1);
     ok(s.boss.state === 'idle' && s.nuts.filter(n => n.state === 'rest').length >= 4, 'it wakes him, and piles of coconuts turn up round the chamber'); }
-  { // not dizzy: a coconut at his head bounces off and does nothing
-    const s = fresh(); run(s, 0.1); s.crab.nuts = 3; let hurt = 0, blocked = 0;
-    for (let k = 0; k < 6; k++) { s.boss.state = 'idle'; s.boss.t = 0; face(s, TOP); K.throwNut(s, 0.2 + k * 0.1); for (const e of run(s, 1.2)) { if (e.type === 'ink-hit') hurt++; if (e.type === 'ink-block') blocked++; } }
-    ok(hurt === 0 && s.boss.hp === 3 && blocked > 0, `a coconut at his head while he is awake bounces off (${blocked} did): no harm done`); }
+  { // awake, a coconut never hurts his head: it stuns an arm or bounces off
+    const s = fresh(); run(s, 0.1); s.crab.nuts = 3; let hurt = 0, other = 0;
+    for (let k = 0; k < 6; k++) { s.boss.state = 'idle'; s.boss.t = 0; s.boss.arms.fill(0); s.boss.stunned = 0; face(s, TOP); K.throwNut(s, 0.2 + k * 0.1); for (const e of run(s, 1.2)) { if (e.type === 'ink-hit') hurt++; if (e.type === 'ink-block' || e.type === 'ink-arm') other++; } }
+    ok(hurt === 0 && s.boss.hp === 3 && other > 0, `awake, a coconut never hurts his head (${other} stunned an arm or bounced off): only a dizzy Old Ink can be hit there`); }
+  { // two arms, any two, make him dizzy; the same arm twice doesn't count; the stun wears off
+    const s = fresh(); run(s, 0.1); s.crab.nuts = 3; s.boss.state = 'idle'; s.boss.t = -99;
+    const f = findThrow(s, 'ink-arm'); ok(!!f, 'there is a throw that finds an arm'); if (f) {
+      const go1 = () => { const e = []; face(s, TOP); const c = s.crab, side = P.cross(c.p, c.face), r = f.a * Math.PI / 180; c.face = P.tangent(c.p, P.mix(c.face, side, Math.cos(r), Math.sin(r))); K.throwNut(s, f.ch); e.push(...run(s, 1.4)); return e; };
+      const e1 = go1(); ok(e1.some(x => x.type === 'ink-arm' && x.count === 1) && s.boss.state !== 'dizzy', 'one arm stunned: he is not dizzy yet');
+      const idle = () => { s.boss.state = 'idle'; s.boss.t = -99; };
+      idle(); let f2 = findThrow(s, 'ink-arm'); for (let k = 1; !f2 && k < 12; k++) { s.crab.p = at(2.5, -100 + k * 30).slice(); s.crab.air = false; s.crab.h = 0; f2 = findThrow(s, 'ink-arm'); } let again = false;
+      if (f2) { const c = s.crab; face(s, TOP); const side = P.cross(c.p, c.face), r = f2.a * Math.PI / 180; c.face = P.tangent(c.p, P.mix(c.face, side, Math.cos(r), Math.sin(r))); K.throwNut(s, f2.ch); const e2 = run(s, 1.4); again = e2.some(x => x.type === 'ink-dizzy'); }
+      ok(again && s.boss.state === 'dizzy', 'a second arm (a different one) and he is dizzy');
+      s.boss.state = 'idle'; s.boss.t = 0; run(s, K.BOSS.armFor + 0.5); ok(s.boss.arms.every(x => x <= 0), 'a stunned arm wakes up again after a few seconds'); } }
   { // slams: standing in the ring is a hit, moving out of it or jumping is not
     const s = fresh(); s.boss.state = 'wind'; s.boss.t = 0; s.boss.tx = s.crab.p.slice(); s.crab.nuts = 0;
     const ev = run(s, 2);

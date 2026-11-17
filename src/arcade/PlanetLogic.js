@@ -101,14 +101,20 @@ export const hutHp = s => HP.hut + lv(s, 'sturdy');
 const greenOf = s => 1 + 0.1 * lv(s, 'green');
 export const maxHp = (s, kind) => (kind === 'hut' ? hutHp(s) : HP[kind]);
 export const chargesOf = s => TOWER_CHARGES + (s.town >= 4 ? 2 : 0);
+// A tower grows to level 3: +2 stars soaked up and a wider bubble each time. (Costs: what it takes to go from level 1 to 2, and 2 to 3.)
+export const TOWER_UP = [null, { shells: 10, nuts: 3 }, { shells: 20, nuts: 6 }], TOWER_MAX = 3, TOWER_GROW_R = 0.6, TOWER_GROW_C = 2;
+export const towerCharges = (s, b) => chargesOf(s) + TOWER_GROW_C * ((b.lvl || 1) - 1);
+export const towerR = b => TOWER_R + TOWER_GROW_R * ((b.lvl || 1) - 1);
 /** Ground distance between two places on this planet. */
 export const dist = (s, a, b) => angle(a, b) * s.R;
 
 /** How many stars fall on a night, and how long each takes to land. */
-export const starsFor = day => 1 + Math.floor(day * 1.2 + day * day * 0.07);
-export const fallFor = day => Math.max(1.7, 3.2 - day * 0.06);
+export const starsFor = day => 1 + Math.floor(day * 0.95 + day * day * 0.014);        // (night 10: 12, night 22: 28, night 30: 42)
+export const fallFor = day => Math.max(2.1, 3.2 - day * 0.05);
+/** Later nights are longer, so the stars come a few at a time rather than all at once. */
+export const nightLen = day => NIGHT_S + Math.min(14, Math.floor(day / 2));
 /** Every fifth night brings the big ones (they can't be caught): one, then two, ... */
-export const bigFor = day => (day % 5 === 0 ? day / 5 : 0);
+export const bigFor = day => (day % 5 === 0 ? Math.min(3, day / 5) : 0);
 export const shellCap = s => Math.round(4 + s.R * 0.9);
 export const rockCap = s => 2 + Math.min(3, s.town);
 
@@ -145,7 +151,7 @@ export function load(o, rnd = Math.random) {
 }
 
 function _add(s, kind, p) {
-    const b = { id: s.id++, kind, p, hp: maxHp(s, kind), lvl: 1, age: kind === 'palm' ? 0 : 99, t: kind === 'hut' ? HUT_S : NUT_S / greenOf(s), shake: 0, charges: chargesOf(s) };
+    const b = { id: s.id++, kind, p, hp: maxHp(s, kind), lvl: 1, age: kind === 'palm' ? 0 : 99, t: kind === 'hut' ? HUT_S : NUT_S / greenOf(s), shake: 0, charges: kind === 'tower' ? towerCharges(s, { lvl: 1 }) : chargesOf(s) };
     s.builds.push(b);
     return b;
 }
@@ -188,7 +194,7 @@ function _townCheck(s, ev) {
     while (TOWNS[s.town + 1] && n >= TOWNS[s.town + 1].pop) {
         s.town++;
         s.R = Math.min(R_MAX, s.R * GROW);
-        if (s.town === 4) s.builds.forEach(b => { if (b.kind === 'tower') b.charges = chargesOf(s); });
+        if (s.town === 4) s.builds.forEach(b => { if (b.kind === 'tower') b.charges = towerCharges(s, b); });
         if (s.course && s.course.k < 0) _newCourse(s, s.course.tier);      // re-laid for the bigger planet
         ev.push({ type: 'town', town: s.town, ...TOWNS[s.town], R: s.R });
     }
@@ -257,6 +263,8 @@ export function context(s) {
     const near = (kind, d) => s.builds.filter(b => b.kind === kind && dist(s, b.p, c.p) < d).sort((a, b) => dist(s, a.p, c.p) - dist(s, b.p, c.p));
     const palm = near('palm', 1.5).find(b => grown(s, b) && b.shake <= 0);
     if (palm) return { kind: 'shake', icon: '🌴', label: 'SHAKE', ok: true, b: palm };
+    const tw = near('tower', 1.9).find(b => (b.lvl || 1) < TOWER_MAX);
+    if (tw) { const cost = TOWER_UP[tw.lvl || 1]; return { kind: 'towerup', icon: '🔮', label: `GROW ${cost.shells}🐚 ${cost.nuts}🥥`, ok: s.shells >= cost.shells && s.nuts >= cost.nuts, cost, b: tw }; }
     const hut = near('hut', 1.9).find(b => b.lvl < maxLvl(s));
     if (hut) { const cost = biggerCost(s, hut); return { kind: 'bigger', icon: '🏠', label: `GROW ${cost.shells}🐚 ${cost.nuts}🥥`, ok: s.shells >= cost.shells && s.nuts >= cost.nuts, cost, b: hut }; }
     return null;
@@ -283,6 +291,9 @@ export function act(s, ev = []) {
         x.b.shake = SHAKE_CD;
         const it = { id: s.id++, kind: 'nut', from: x.b.id, p: walk(x.b.p, toward(x.b.p, c.p), 0.7 / s.R) };
         s.items.push(it); e = { type: 'shake', b: x.b, item: it };
+    } else if (x.kind === 'towerup') {
+        s.shells -= x.cost.shells; s.nuts -= x.cost.nuts; x.b.lvl = (x.b.lvl || 1) + 1; x.b.charges += TOWER_GROW_C;
+        e = { type: 'towerup', b: x.b, lvl: x.b.lvl };
     } else if (x.kind === 'bigger') {
         s.shells -= x.cost.shells; s.nuts -= x.cost.nuts; x.b.lvl++; x.b.hp = maxHp(s, 'hut');
         e = { type: 'bigger', b: x.b, lvl: x.b.lvl };
@@ -393,7 +404,7 @@ export const onCourse = s => !!(s.course && s.course.k >= 0);
 // ── The night sky ───────────────────────────────────────────────────────────
 function _nightfall(s, ev) {
     s.phase = 'night'; s.pt = 0;
-    const n = starsFor(s.day), span = NIGHT_S - 4;
+    const n = starsFor(s.day), span = nightLen(s.day) - 4;
     s.due = [];
     for (let i = 0; i < n; i++) s.due.push({ at: 0.8 + (span * (i + s.rnd() * 0.6)) / n, big: false });
     const big = bigFor(s.day);
@@ -417,15 +428,16 @@ function _launch(s, d, ev) {
 
 function _land(s, st, ev) {
     // A tower's bubble takes it, if one covers the spot and has a charge left.
-    const tw = s.builds.filter(b => b.kind === 'tower' && b.charges > 0 && dist(s, b.p, st.p) < TOWER_R).sort((a, b) => dist(s, a.p, st.p) - dist(s, b.p, st.p))[0];
-    if (tw) { tw.charges = Math.max(0, tw.charges - (st.big ? 2 : 1)); ev.push({ type: 'shield', p: st.p, tower: tw, big: st.big }); return; }
-    // The crab under an ordinary star catches it; in the air, it's a perfect catch.
-    if (!st.big && s.crab.cd <= 0 && dist(s, s.crab.p, st.p) < st.r * reachOf(s)) {
-        const perfect = s.crab.air > 0, pay = STAR_PAY * (perfect ? 2 : 1);
+    // The crab gets there first: under a falling star it catches it, tower or no tower (a perfect jump catches a big one, too), and the tower keeps its charge.
+    const reach = st.r * reachOf(s) * (st.big ? 0.8 : 1);
+    if (s.crab.cd <= 0 && dist(s, s.crab.p, st.p) < reach && (!st.big || s.crab.air > 0)) {
+        const perfect = s.crab.air > 0, pay = (st.big ? GOLD : STAR_PAY) * (perfect ? 2 : 1);
         s.crab.cd = CATCH_CD; s.shells += pay; s.stats.caught++; if (perfect) s.stats.perfect++;
-        ev.push({ type: 'catch', p: st.p, pay, perfect });
+        ev.push({ type: 'catch', p: st.p, pay, perfect, big: st.big });
         return;
     }
+    const tw = s.builds.filter(b => b.kind === 'tower' && b.charges > 0 && dist(s, b.p, st.p) < towerR(b)).sort((a, b) => dist(s, a.p, st.p) - dist(s, b.p, st.p))[0];
+    if (tw) { tw.charges = Math.max(0, tw.charges - (st.big ? 2 : 1)); ev.push({ type: 'shield', p: st.p, tower: tw, big: st.big }); return; }
     const hit = [];
     for (const b of s.builds.slice()) {
         if (b.kind === 'trick' || dist(s, b.p, st.p) > st.r) continue;      // (the Trick Hut is star-proof)
@@ -442,7 +454,7 @@ function _land(s, st, ev) {
 
 function _dawn(s, ev) {
     s.day++; s.phase = 'day'; s.pt = 0;
-    s.builds.forEach(b => { if (b.kind === 'tower') b.charges = chargesOf(s); });
+    s.builds.forEach(b => { if (b.kind === 'tower') b.charges = towerCharges(s, b); });
     const n = pop(s), market = s.builds.filter(b => b.kind === 'market').length * Math.floor(n / 3), gift = n + market;
     s.shells += gift;
     if (!s.course || s.course.done) _newCourse(s);
@@ -526,7 +538,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
             _land(s, st, ev);
             if (s.over) return ev;
         }
-        if (s.pt >= NIGHT_S && !s.due.length && !s.stars.length) _dawn(s, ev);
+        if (s.pt >= nightLen(s.day) && !s.due.length && !s.stars.length) _dawn(s, ev);
     }
     return ev;
 }
@@ -561,7 +573,7 @@ export function autopilot(s) {
             if (st.big) continue;
             const left = st.T - st.t, need = Math.max(0, dist(s, c.p, st.p) - st.r * reachOf(s) * 0.7) / speedOf(s);
             if (need > left) continue;
-            if (s.builds.some(b => b.kind === 'tower' && b.charges > 0 && dist(s, b.p, st.p) < TOWER_R)) continue;
+            if (s.builds.some(b => b.kind === 'tower' && b.charges > 0 && dist(s, b.p, st.p) < towerR(b))) continue;
             const v = s.builds.reduce((a, b) => a + (dist(s, b.p, st.p) < st.r ? (b.kind === 'hut' ? 4 + b.lvl : b.kind === 'palm' ? 2 : 3) : 0), 0.5) + 1 / (1 + left);
             if (v > bv) { bv = v; best = st; }
         }
