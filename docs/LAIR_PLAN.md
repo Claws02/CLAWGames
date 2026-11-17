@@ -111,3 +111,8 @@ The answer:
 - The arms were too hard to hit, so there is no stunning any more: **three coconuts on Old Ink's head end him**, and the arms are for dodging (slams, red ring) and for show. He is shaken for 1.3 s after each hit (a coconut then bounces off), and the next round is faster.
 - **Touching him** (inside 1.45 of the pearl) knocks the crab back to the edge and counts as a fall, like a slam.
 - The plate's coconut holds the pearl's fence open at once (the fence no longer waits for the fight). The pearl itself can't be taken until Old Ink is down.
+
+### After the fourth play-test
+- Old Ink can only be hit **for 1.5 s after a slam lands** (his arm is stuck in the ground and his head glows); any other time another arm swats the coconut away.
+- The slide at the back of the shelf has a **rope ladder**: rolled up until the shelf's flag is reached, then it unrolls and the slide works both ways (a fall into the water no longer means redoing the vent). The coconut total stays three, so it can't carry an extra one up.
+- The master plan for the next chambers is `PUZZLE_RULES.md`; the how-to is `LAIR_GUIDE.md`.

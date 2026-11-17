@@ -46,7 +46,10 @@ const ok = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) f
   { const s = fresh(); ok(s.boss.state === 'sleep', 'Old Ink sleeps until the crab comes into his chamber'); run(s, 0.1);
     ok(s.boss.state === 'idle' && s.nuts.filter(n => n.state === 'rest').length >= 4, 'it wakes him, and piles of coconuts turn up round the chamber'); }
   { // a coconut on his head hurts him at once, whatever he is doing; and he is shaken for a moment after
-    const s = fresh(); run(s, 0.1); s.crab.nuts = 3; const f = findThrow(s, 'ink-hit'); ok(!!f, 'there is a throw that finds his head');
+    { const s = fresh(); run(s, 0.1); s.crab.nuts = 3; let hit = 0, block = 0;
+      for (let k = 0; k < 8; k++) { s.boss.state = 'idle'; s.boss.t = -99; face(s, TOP); K.throwNut(s, k / 8); for (const e of run(s, 1.2)) { if (e.type === 'ink-hit') hit++; if (e.type === 'ink-block' && e.why === 'arm') block++; } }
+      ok(hit === 0 && block > 0 && s.boss.hp === 3, `between slams every coconut at his head is swatted away by an arm (${block} were)`); }
+    const s = fresh(); run(s, 0.1); s.crab.nuts = 3; s.boss.state = 'recover'; s.boss.t = 0; s.boss.tx = at(2.5, 0); const f = findThrow(s, 'ink-hit'); ok(!!f, `just after a slam (his arm stuck for ${K.BOSS.recover} s) there is a throw that finds his head`);
     if (f) { const c = s.crab, side = P.cross(c.p, c.face = P.toward(c.p, TOP)), r = f.a * Math.PI / 180; c.face = P.tangent(c.p, P.mix(c.face, side, Math.cos(r), Math.sin(r))); K.throwNut(s, f.ch);
       const ev = run(s, 0.5); ok(ev.some(e => e.type === 'ink-hit' && e.hp === 2) && s.boss.hp === 2 && s.boss.state === 'hurt', 'one coconut: two hearts left, and he is shaken for a moment');
       s.crab.nuts = 2; face(s, TOP); K.throwNut(s, f.ch); const ev2 = run(s, 0.5); ok(s.boss.hp === 2 && !ev2.some(e => e.type === 'ink-hit'), 'a second coconut while he is shaken bounces off'); } }
@@ -141,7 +144,9 @@ const ok = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) f
   ok(e3.some(e => e.type === 'peck') && s2.falls === 1 && s2.cp === 1 && K.dist(s2.crab.p, TOP) < 9.2, 'with nothing to steal it pecks the crab back to the shelf\'s flag (not down to the beach)'); }
 { // never stuck: the slide
   const s = solve({ stopAtShelf: true }).s; go(s, at(8.4, 100)); go(s, at(8.4, 180)); go(s, at(10.5, 180), [], 0.3, 5);
-  ok(K.dist(s.crab.p, TOP) > 9.2, 'a slide at the back of the shelf goes down to the beach again (and only down), so nothing up there is a dead end'); }
+  ok(K.dist(s.crab.p, TOP) > 9.2, 'a slide at the back of the shelf goes down to the beach again, so nothing up there is a dead end');
+  go(s, at(10.5, 180), [], 0.3, 3); go(s, at(8.4, 180), [], 0.3, 6); ok(K.dist(s.crab.p, TOP) < 9.2, 'and once the shelf\'s flag is yours, its rope ladder takes the crab back up (no redoing the vent after a fall)');
+  const f = K.create(L); f.crab.p = at(10.6, 180).slice(); go(f, at(8.4, 180), [], 0.3, 6); ok(K.dist(f.crab.p, TOP) > 9.2, 'before that, the slide is no way up: the ladder is rolled up'); }
 
 // ── what a person does with a thumb: held stick and jump button, no teleports ───
 { // standing on top of the rocks

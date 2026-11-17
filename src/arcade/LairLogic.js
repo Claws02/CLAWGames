@@ -47,11 +47,12 @@ export const TRICK_R = 0.85, TRICK_GAP = 1.1, HIT_R = 0.8, GOAL_R = 0.9, CHECK_R
 export const COYOTE_S = 0.1, JUMP_BUFFER = 0.15, WADE = 0.35, RESPAWN_S = 1.4;
 export const THROW = { range0: 1.6, range1: 7, t0: 0.55, t1: 1.0, up: 0.75, ahead: 0.45 };
 // OLD INK. He sits on the pearl behind the inner fence and fights from there, in three rounds (one per coconut that lands on him). He slams the
-// ground where the crab stands (a ring shows where, then it lands: move, or jump it), over and over, with a breather now and then. A coconut
-// on his head hurts him (three hits end him); he is shaken for a moment after each, and the next round is faster. Touching him, or being
+// ground where the crab stands (a ring shows where, then it lands: move, or jump it), over and over, with a breather now and then. For
+// BOSS.recover seconds after a slam lands his arm is stuck in the ground and his head is OPEN: a coconut on it then hurts him (three hits
+// end him); any other time another arm swats it away; he is shaken for a moment after each, and the next round is faster. Touching him, or being
 // under a slam, knocks the crab back to the edge and counts as a fall. The pearl can't be taken while he is up. Coconut piles keep
 // turning up round the chamber (the claws still hold only three).
-export const BOSS = { arms: 8, rest: 2.4, hits: 3, arena: 2.9, headR: 2.0, h0: 0.35, h1: 3.4, wind: [1.15, 0.95, 0.8], slams: [3, 4, 5], hitR: 1.0, touch: 1.45, wake: 0.9, recover: 0.5, hurt: 1.3, piles: 4, pileAt: 2.4, pileEvery: 1.4 };
+export const BOSS = { arms: 8, rest: 2.4, hits: 3, arena: 2.9, headR: 2.0, h0: 0.35, h1: 3.4, wind: [1.15, 0.95, 0.8], slams: [3, 4, 5], hitR: 1.0, touch: 1.45, wake: 0.9, recover: 1.5, hurt: 1.3, piles: 4, pileAt: 2.4, pileEvery: 1.4 };
 export const GULL = { speed: 1.5, see: 7, rise: 0.8, circle: 1.4, dive: 0.55, high: 5, ground: 2.8, stun: 3.2, flee: 3, cool: 2.2, hit: 0.8, top: 0.55 };
 
 export const ll = (lat, lon = 0) => { const a = (lat * Math.PI) / 180, b = (lon * Math.PI) / 180; return [Math.cos(a) * Math.sin(b), Math.sin(a), Math.cos(a) * Math.cos(b)]; };
@@ -88,10 +89,10 @@ const A = at(10.05, 70), B = at(9.95, 30), SHELF = at(7.9, 26), BANK = 15.4;
 export const STAIR = {
     id: 'stair', name: 'THE DROWNED STAIR', start: at(18.4, 0), goal: TOP, palm: at(17.7, -42), bank: BANK,
     story: 'Old Ink has the Tide Pearl. His lair starts here: a rip current, a cliff, and a gull on watch. Three coconuts are all you have.',
-    hints: ['Vent A is bubbling in its cove. Only one vent blows at a time.', 'A coconut floats. The current goes past the cove.', 'Drop one in the water above the cove, on the far side of the current.', 'Up on the shelf there are three jobs and only two coconuts. What else bounces?', 'Old Ink slams where you stand: a red ring fills, then it lands. Step out or jump. Touching him hurts too. Three coconuts on his head win. More piles keep turning up.', 'The plate holds the pearl\'s fence open while a coconut is on it. Only Old Ink down lets you take the pearl.'],
+    hints: ['Vent A is bubbling in its cove. Only one vent blows at a time.', 'A coconut floats. The current goes past the cove.', 'Drop one in the water above the cove, on the far side of the current.', 'Up on the shelf there are three jobs and only two coconuts. What else bounces?', 'Old Ink slams where you stand: a red ring fills, then it lands. Step out or jump. For a moment after a slam his arm is stuck and his head is open: that is when a coconut hurts him (any other time an arm swats it away). Three hits win. Touching him hurts. More piles keep turning up.', 'The plate holds the pearl\'s fence open while a coconut is on it. Only Old Ink down lets you take the pearl.'],
     checks: [at(18.4, 0), SHELF], zones: { 1: [5.7, 9.1] },          // (anywhere on the shelf counts as reaching its flag)
     rings: [
-        { r: 9.2, h: 8.5, gap: [180, 9], kind: 'cliff' }, { r: 9.2, h: 8.5, only: [180, 9], way: 'out', kind: 'slide' },   // the cliff, and a slide back down
+        { r: 9.2, h: 8.5, gap: [180, 9], kind: 'cliff' }, { r: 9.2, h: 8.5, only: [180, 9], way: 'out', kind: 'slide', earn: 1 },   // the cliff, and a slide back down (both ways once the shelf's flag is yours)
         { c: A, r: 1.25, h: 9, gap: [lonOf(at(10.25, 58), A), 52], kind: 'cove' },
         { r: 5.6, h: 2, kind: 'step' }, { r: 3, h: 9, gate: 'eye', kind: 'gate' }, { r: 1.8, h: 9, gate: 'plate', kind: 'gate' },
     ],
@@ -149,7 +150,7 @@ function _blocked(s, a, b, h) {
         if (!up(s, w) || h >= w.h) continue;
         const c = w.c || TOP, d0 = dist(a, c) - w.r, d1 = dist(b, c) - w.r;
         if (!(d0 * d1 < 0 || (d0 === 0 && d1 !== 0)) || !covers(w, b)) continue;
-        if (w.way === 'out' && d1 > d0) continue;                         // a slide: out only
+        if (w.way === 'out' && (d1 > d0 || (w.earn != null && s.cp >= w.earn))) continue;   // a slide: out only, until its ladder is earned
         return { n: toward(b, c), w };
     }
     for (const w of s.lv.bars || []) {
@@ -195,11 +196,11 @@ function _nut(s, n, dt, ev) {
     if (n.state === 'fly') {
         const q = walk(n.p, n.d, (n.v * dt) / R), bs = s.boss;
         if (bs && !n.blocked && bs.state !== 'sleep' && bs.state !== 'down' && dist(q, TOP) < BOSS.headR && n.h > BOSS.h0 && n.h < BOSS.h1) {
-            if (bs.state !== 'hurt') {                            // a coconut on the head
+            if (bs.state === 'recover') {                         // a coconut on the head, while his arm is stuck after a slam
                 s.nuts.splice(s.nuts.indexOf(n), 1); bs.hp--; bs.round++; bs.t = 0; bs.n = 0; bs.state = bs.hp > 0 ? 'hurt' : 'down';
                 ev.push({ type: 'ink-hit', hp: bs.hp, p: q, h: n.h }); if (bs.hp <= 0) ev.push({ type: 'ink-down' }); return;
             }
-            n.blocked = true; n.d = tangent(n.p, toward(TOP, n.p)).map(x => -x); n.v *= 0.3; n.vh = Math.min(n.vh, -1); ev.push({ type: 'ink-block', p: n.p, nut: n });
+            n.blocked = true; n.d = tangent(n.p, toward(TOP, n.p)).map(x => -x); n.v *= 0.3; n.vh = Math.min(n.vh, -1); ev.push({ type: 'ink-block', p: n.p, nut: n, why: bs.state === 'hurt' ? 'hurt' : 'arm' });
         }
         const hit = _blocked(s, n.p, q, n.h);
         if (hit) { const k = dot(n.d, tangent(n.p, hit.n)); n.d = tangent(n.p, mix(n.d, tangent(n.p, hit.n), 1, -2 * k)); n.v *= 0.85; ev.push({ type: 'bank', nut: n, p: n.p }); }

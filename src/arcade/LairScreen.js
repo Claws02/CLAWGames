@@ -144,12 +144,18 @@ export function createLair(kit, level, hooks) {
         inst.forEach(i => i.done());
     }
     // The slide down from the shelf: a wooden ramp with rails and arrows.
-    const slide = (level.rings || []).find(w => w.kind === 'slide');
+    const slide = (level.rings || []).find(w => w.kind === 'slide'); let slideLadder = null;
     if (slide) {
         const lon = slide.only[0], hi = K.at(slide.r - 0.15, lon), lo = K.at(slide.r + 1.9, lon), a = at3(hi, SHOW.cliff), b = at3(lo, 0.1), len = a.distanceTo(b), g = new T.Group();
         g.add(Y.part(G.box, C.wood, 0.05)); g.children[0].scale.set(1.9, 0.16, len);
         for (const sx of [-1, 1]) { const rail = Y.part(G.box, C.wood2, 0.04); rail.scale.set(0.12, 0.3, len); rail.position.set(sx * 0.95, 0.2, 0); g.add(rail); }
         for (let i = 0; i < 3; i++) { const ar = Y.part(G.coneLow, C.gold, 0.03); ar.scale.set(0.5, 0.5, 0.3); ar.rotation.x = Math.PI / 2; ar.position.set(0, 0.14, (i - 1) * len * 0.26); g.add(ar); }
+        // a rope ladder: rolled up at the top until the shelf's flag is reached, then it unrolls down the slide and the way works both ways
+        const lad = new T.Group(); lad.position.set(0, 0.2, -len / 2); g.add(lad);
+        for (const sx of [-0.45, 0.45]) { const r = Y.part(G.box, 0xc89b5a, 0.03); r.scale.set(0.08, 0.08, len); r.position.set(sx, 0, len / 2); lad.add(r); }
+        for (let i = 0; i < Math.floor(len / 0.6); i++) { const r = Y.part(G.box, 0x9a6a34, 0.03); r.scale.set(0.98, 0.07, 0.12); r.position.set(0, 0.02, 0.3 + i * 0.6); lad.add(r); }
+        const roll = Y.part(G.cyl, 0xc89b5a, 0.05); roll.scale.set(0.35, 1.0, 0.35); roll.rotation.z = Math.PI / 2; roll.position.set(0, 0.25, -len / 2 + 0.2); g.add(roll);
+        slideLadder = { lad, roll, k: 0 };
         g.position.copy(a.clone().add(b).multiplyScalar(0.5)); g.up.copy(V(hi)); g.lookAt(b); scene.add(g);
     }
     // The spring rocks: a dam of grey boulders across the west end of the current, where the water starts.
@@ -332,7 +338,7 @@ export function createLair(kit, level, hooks) {
         col.needsUpdate = true;
     };
 
-    let pitch = 0, shelfK = 0, s = K.create(level), t = 0, charge = -1, cheer = 0, camP = null, shake = 0, doneAt = 0, told = false, disposed = false, intro = 0, snap = false, inkMad = 0, bristle = 0, downT = 0, hurtFlash = 0;
+    let pitch = 0, shelfK = 0, s = K.create(level), t = 0, charge = -1, cheer = 0, camP = null, shake = 0, doneAt = 0, told = false, disposed = false, intro = 0, snap = false, inkMad = 0, bristle = 0, downT = 0, hurtFlash = 0, swat = 0;
 
     function events(evs) {
         for (const e of evs) {
@@ -358,13 +364,13 @@ export function createLair(kit, level, hooks) {
             else if (e.type === 'stomp') { burst(at3(s.gull.p, 0.6), 0xffffff, 30, 5); hooks.sfx('land_good'); hooks.buzz([15, 20, 40]); hooks.pop(at3(s.gull.p, 1.3), '🐦 BONK!'); cheer = 0.4; }
             else if (e.type === 'stun') { burst(at3(s.gull.p, 0.6), 0xfff08a, 16, 4); if (e.by === 'nut') { hooks.sfx('land_good'); hooks.pop(at3(s.gull.p, 1.3), '🥥 BONK!'); } }
             else if (e.type === 'drop') hooks.pop(at3(e.nut.p, 1), 'IT DROPPED THE COCONUT');
-            else if (e.type === 'check') { burst(at3(e.p, 1), 0x4ade80, 22, 4); hooks.sfx('land_good'); hooks.buzz(10); hooks.pop(at3(e.p, 1.6), '🚩 CHECKPOINT'); }
+            else if (e.type === 'check') { burst(at3(e.p, 1), 0x4ade80, 22, 4); hooks.sfx('land_good'); hooks.buzz(10); hooks.pop(at3(e.p, 1.6), '🚩 CHECKPOINT'); if (slide && slide.earn === e.i) hooks.hint('🪜 THE ROPE LADDER ON THE SLIDE AT THE BACK IS DOWN: A WAY BACK UP IF YOU FALL', 3.5); }
             else if (e.type === 'ouch' || e.type === 'peck') { hooks.sfx('land_bad'); hooks.buzz([30, 30, 30]); hooks.hint(`${e.type === 'peck' ? 'PECKED! NO COCONUT TO STEAL' : 'OUCH! SPIKES'} · BACK AT THE ${e.at > 0 ? 'FLAG' : 'START'}`, 2.2); shake = 0.4; snap = true; bristle = 1; }
-            else if (e.type === 'ink-wake') { hooks.sfx('boost'); hooks.buzz([20, 20, 20]); hooks.say('🐙 OLD INK WAKES!', '#c4b5fd'); hooks.hint('🥥 THROW COCONUTS AT HIS HEAD · 🔴 STEP OUT OF THE RED RING, OR JUMP', 5); inkMad = 1; }
-            else if (e.type === 'ink-slam') { burst(at3(e.p, 0.3), 0xff8a8a, 22, 5); hooks.sfx('land_bad'); hooks.buzz(e.hit ? [40, 30, 40] : 14); shake = Math.max(shake, e.hit ? 0.5 : 0.25); if (!e.hit) hooks.pop(at3(e.p, 1.2), 'MISSED'); }
+            else if (e.type === 'ink-wake') { hooks.sfx('boost'); hooks.buzz([20, 20, 20]); hooks.say('🐙 OLD INK WAKES!', '#c4b5fd'); hooks.hint('🔴 STEP OUT OF THE RED RING, OR JUMP · 🥥 JUST AFTER HE SLAMS, HIS HEAD IS OPEN: THROW!', 5); inkMad = 1; }
+            else if (e.type === 'ink-slam') { burst(at3(e.p, 0.3), 0xff8a8a, 22, 5); hooks.sfx('land_bad'); hooks.buzz(e.hit ? [40, 30, 40] : 14); shake = Math.max(shake, e.hit ? 0.5 : 0.25); hooks.pop(at3(K.TOP, 3.4), '🎯 NOW! HIS HEAD IS OPEN'); }
             else if (e.type === 'ink-ouch') { hooks.hint(e.touch ? 'DON\'T TOUCH HIM! THROW COCONUTS AT HIS HEAD' : 'SLAMMED! KEEP MOVING, OR JUMP AS IT LANDS', 2); snap = true; }
             else if (e.type === 'ink-rest') hooks.pop(at3(K.TOP, 3.2), 'CATCHING HIS BREATH: THROW AT HIS HEAD');
-            else if (e.type === 'ink-block') { burst(at3(e.p, 1.2), 0xffffff, 8, 3); hooks.pop(at3(e.p, 1.6), 'HE IS SHAKEN: WAIT'); }
+            else if (e.type === 'ink-block') { burst(at3(e.p, 1.2), 0xffffff, 10, 3); hooks.sfx('tick'); hooks.pop(at3(e.p, 1.6), e.why === 'hurt' ? 'HE IS SHAKEN: WAIT' : 'SWATTED! THROW JUST AFTER HE SLAMS'); swat = 0.4; }
             else if (e.type === 'ink-hit') { burst(at3(e.p, e.h), 0xffe45a, 36, 6); hooks.sfx('coin_gain'); hooks.buzz([20, 20, 40]); hooks.pop(at3(e.p, e.h + 1), e.hp > 0 ? `🥥 HIT! ${e.hp} TO GO` : '🥥 KNOCKED OUT!'); hurtFlash = 1; shake = Math.max(shake, 0.4); cheer = 0.6; }
             else if (e.type === 'ink-down') { burst(at3(K.TOP, 1.5), 0xc4b5fd, 50, 7); hooks.sfx('win'); hooks.buzz([30, 30, 30, 30, 120]); hooks.say('🐙 OLD INK IS DOWN!', '#fde047'); hooks.hint('THE PLATE\'S COCONUT HOLDS THE FENCE OPEN: GO TAKE THE PEARL', 6); }
             else if (e.type === 'pile') burst(at3(e.nut.p, 0.5), 0xffe9b0, 10, 2.5);
@@ -415,7 +421,8 @@ export function createLair(kit, level, hooks) {
         pearl.visible = !bs || bst === 'down' || s.won;
         octo.g.visible = dk < 1;
         put(octo.g, inkAt, toward(inkAt, c.p), -dk * 3.2); octo.g.scale.setScalar(OSC * (1 - dk * 0.7) * (1 + Math.sin(t * 1.5) * 0.025 + (inkMad > 0 ? 0.25 * Math.abs(Math.sin(t * 14)) : 0) + (hurt ? 0.12 * Math.sin(bs.t * 34) : 0) + (bst === 'wind' ? 0.05 * Math.min(1, bs.t) : 0)));
-        octo.head.material.emissive.setRGB(0.55 * hurtFlash + (dizzy ? 0.28 + 0.2 * Math.sin(t * 8) : 0), 0.45 * hurtFlash + (dizzy ? 0.1 : 0), 0.4 * hurtFlash);
+        const open = bst === 'recover'; swat = Math.max(0, swat - dt);
+        octo.head.material.emissive.setRGB(0.55 * hurtFlash + (open ? 0.35 + 0.2 * Math.sin(t * 14) : 0), 0.45 * hurtFlash + (open ? 0.3 : 0), 0.4 * hurtFlash);
         inkStars.visible = dizzy || hurt; inkStars.position.y = 3.3; inkStars.children.forEach((sp, i) => { const a = t * 4 + i * Math.PI / 2; sp.position.set(Math.cos(a) * 0.9, Math.sin(t * 3 + i) * 0.12, Math.sin(a) * 0.9); sp.rotation.y = t * 5; });
         // the slam: his nearest arm goes up and over the place, then comes down on it; a red ring fills as it is about to land
         let sl = null; slamRing.visible = slamFill.visible = false;
@@ -424,7 +431,7 @@ export function createLair(kit, level, hooks) {
             const phi = Math.atan2(tmp.x, tmp.z), dT = Math.hypot(tmp.x, tmp.z); let arm = 0, bd = 999; const lt = K.lonOf(bs.tx);
             octo.arms.forEach((a, i) => { const d = Math.abs(((lt - K.armLon(s, i) + 540) % 360) - 180); if (d < bd) { bd = d; arm = i; } });
             const dur = K.BOSS.wind[Math.min(2, bs.round)], prog = bst === 'wind' ? Math.min(1, bs.t / dur) : 1;
-            sl = bst === 'wind' ? { arm, phi, d: dT, ext: 0.35 + 0.6 * prog, lift: 1 } : { arm, phi, d: dT, ext: Math.max(0, 1 - bs.t / K.BOSS.recover * 0.9), lift: Math.max(0, 0.25 - bs.t * 2) };
+            sl = bst === 'wind' ? { arm, phi, d: dT, ext: 0.35 + 0.6 * prog, lift: 1 } : { arm, phi, d: dT, ext: bs.t < K.BOSS.recover - 0.3 ? 1 : Math.max(0, (K.BOSS.recover - bs.t) / 0.3), lift: 0 };
             if (bst === 'wind') { slamRing.visible = slamFill.visible = true; put(slamRing, bs.tx, null, 0.12); put(slamFill, bs.tx, null, 0.11); slamRing.scale.setScalar(K.BOSS.hitR * (1 + 0.05 * Math.sin(t * 20))); slamFill.scale.setScalar(K.BOSS.hitR * prog); slamFill.material.opacity = 0.18 + 0.3 * prog; }
         }
         const dInk = K.dist(inkAt, c.p), near = Math.max(0, Math.min(1, 1 - (dInk - 1.5) / 4));
@@ -437,9 +444,10 @@ export function createLair(kit, level, hooks) {
         octo.arms.forEach((a, i) => {
             if (bs) { octo.g.updateMatrixWorld(); octo.g.worldToLocal(tmp.copy(at3(K.at(2, K.armLon(s, i)), 0.1))); a.phi = Math.atan2(tmp.x, tmp.z); }
             const flat = dk > 0 || hurt ? 1 : 0;
-            updateArm(a, t, i, inkMad > 0 || bst === 'wind' || dk > 0, sl, flat);
+            updateArm(a, t, i, inkMad > 0 || bst === 'wind' || dk > 0 || (swat > 0 && i % 2 === 0), sl, flat);
         });
 
+        if (slideLadder) { const want = slide.earn != null && s.cp >= slide.earn ? 1 : 0; slideLadder.k += (want - slideLadder.k) * Math.min(1, dt * 2); slideLadder.lad.scale.z = Math.max(0.02, slideLadder.k); slideLadder.lad.visible = slideLadder.k > 0.03; slideLadder.roll.scale.x = slideLadder.roll.scale.z = 0.35 * (1 - slideLadder.k * 0.7); }
         // Coconuts: lying, floating, flying, plugging a vent, stuck in the bullseye.
         const seen = new Set();
         for (const n of s.nuts) {
