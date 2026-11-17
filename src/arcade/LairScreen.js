@@ -84,14 +84,14 @@ export function createLair(kit, level, hooks) {
 
     // ── Walls ────────────────────────────────────────────────────────────────
     const walls = [];
-    const arcPoints = (w, step = 0.5, phase = 0) => {
+    const arcPoints = (w, step = 0.5, phase = 0, keep = null) => {
         const c = w.c || TOP, circ = 2 * Math.PI * R * Math.sin(w.r / R), n = Math.max(12, Math.round(circ / step)), out = [];
-        for (let i = 0; i < n; i++) { const deg = (i + 0.5 + phase) * (360 / n), p = around(c, w.r, deg); if (K.covers(w, p)) out.push({ p, deg, len: circ / n, f: toward(p, c) }); }
+        for (let i = 0; i < n; i++) { const deg = (i + 0.5 + phase) * (360 / n), p = around(c, w.r, deg); if (K.covers(w, p) && (!keep || keep(p))) out.push({ p, deg, len: circ / n, f: toward(p, c) }); }
         return out;
     };
     // A wall of boulders: rows stacked up, each boulder a squashed rock a little out of line.
-    function boulderWall(w, kind, rows, step = 0.5) {
-        const rnd = rngOf(11 + Math.round(w.r * 10)), items = arcPoints(w, step), inst = rows.map((row, ri) => Y.instanced(G.rockSoft, items.length, row.thick || 0.1));
+    function boulderWall(w, kind, rows, step = 0.5, keep = null) {
+        const rnd = rngOf(11 + Math.round(w.r * 10)), items = arcPoints(w, step, 0, keep), inst = rows.map((row, ri) => Y.instanced(G.rockSoft, items.length, row.thick || 0.1));
         inst.forEach(i => { scene.add(i.body); if (i.line) scene.add(i.line); });
         const jit = rows.map(() => items.map(() => [rnd(), rnd(), rnd(), rnd()]));
         const rebuild = hk => rows.forEach((row, ri) => items.forEach((it, i) => {
@@ -120,13 +120,13 @@ export function createLair(kit, level, hooks) {
         const kind = w.kind || 'gate';
         if (kind === 'slide') continue;
         if (kind === 'cliff') boulderWall(w, kind, [
-            { y0: 0, h: 1.3, thick: 0.13, color: C.cliff, depth: 1.5, wide: 1.3 },
-            { y0: 0.95, h: 1.15, thick: 0.12, color: C.cliff, depth: 1.25, inset: 0.18, wide: 1.25 },
-            { y0: 1.9, h: 0.8, thick: 0.11, color: [C.moss, C.mossDark], depth: 1.3, inset: 0.3, wide: 1.5 }], 0.7);
+            { y0: 0, h: 1.3, thick: 0.13, color: C.cliff, depth: 1.5, inset: 0.4, wide: 1.3 },
+            { y0: 0.95, h: 1.15, thick: 0.12, color: C.cliff, depth: 1.25, inset: 0.58, wide: 1.25 },
+            { y0: 1.9, h: 0.8, thick: 0.11, color: [C.moss, C.mossDark], depth: 1.3, inset: 0.7, wide: 1.5 }], 0.7);
         else if (kind === 'cove') {
             // low boulders round the cove, and two tall standing stones either side of its mouth
             const gap = w.gap, a0 = gap[0] - gap[1], a1 = gap[0] + gap[1];
-            boulderWall(w, kind, [{ y0: 0, h: 0.85, thick: 0.1, color: C.cove, depth: 0.85, wide: 1.3 }, { y0: 0.6, h: 0.6, thick: 0.09, color: [C.cove[2], C.cove[0]], depth: 0.75, inset: 0.05, wide: 1.3 }], 0.5);
+            boulderWall(w, kind, [{ y0: 0, h: 0.85, thick: 0.1, color: C.cove, depth: 0.85, wide: 1.3 }, { y0: 0.6, h: 0.6, thick: 0.09, color: [C.cove[2], C.cove[0]], depth: 0.75, inset: 0.05, wide: 1.3 }], 0.5, p => K.dist(p, K.TOP) > 9.85);
             for (const a of [a0, a1]) {
                 const p = around(w.c, w.r, a), pil = Y.prop([{ geo: G.rock, color: C.cove[1], s: [0.8, 1.9, 0.8], p: [0, 0.95, 0] }, { geo: G.rock, color: C.cove[2], s: [0.62, 0.8, 0.62], p: [0.02, 1.7, 0] }, { geo: G.sph, color: C.moss, s: [0.7, 0.28, 0.7], p: [0, 2.1, 0] }], { thick: 0.1 });
                 scene.add(pil); put(pil, p, toward(p, w.c), 0);
@@ -190,7 +190,7 @@ export function createLair(kit, level, hooks) {
         const g = new T.Group(), body = urchinProp(); g.add(body);
         // two cross yellow eyes on the front, looking at the crab
         const eyes = [-1, 1].map(k => { const e = new T.Group(), w = Y.part(G.sph, C.white, 0.03); w.scale.setScalar(0.26); e.add(w); const pu = new T.Mesh(G.sph, basic(0x1a1024)); pu.scale.setScalar(0.12); pu.position.z = 0.1; e.add(pu); e.position.set(k * 0.22, 0.2, 0.52); const br = Y.part(G.box, 0x3a1a60, 0.02); br.scale.set(0.3, 0.07, 0.07); br.position.set(k * 0.22, 0.42, 0.5); br.rotation.z = -k * 0.45; g.add(br); g.add(e); return e; });
-        g.scale.setScalar(u.r * 1.35); scene.add(g); return { u, g, body, eyes, ph: i * 1.7 };
+        g.scale.setScalar(u.r * 1.05); scene.add(g); return { u, g, body, eyes, ph: i * 1.7 };
     });
     // Stepping rocks: grey stone, a grassy top with a few flowers.
     const rocks = (level.rocks || []).map(k => {
@@ -411,7 +411,14 @@ export function createLair(kit, level, hooks) {
         for (const n of s.nuts) {
             seen.add(n.id);
             let v = nuts.get(n.id);
-            if (!v) { v = coconut(); scene.add(v); nuts.set(n.id, v); }
+            if (!v) {
+                v = coconut(); scene.add(v); nuts.set(n.id, v);
+                // a gold arrow over a coconut that is lying or floating: drawn on top of everything, so it can always be found
+                const ar = new T.Mesh(new T.ConeGeometry(0.34, 0.7, 4), new T.MeshBasicMaterial({ color: 0xfde047, depthTest: false, transparent: true, opacity: 0.95 }));
+                ar.rotation.x = Math.PI; ar.renderOrder = 20; v.add(ar); v.userData.arrow = ar;
+            }
+            const ar = v.userData.arrow, loose = n.state === 'rest' || n.state === 'float';
+            ar.visible = loose; if (loose) { ar.position.y = 1.5 + Math.sin(t * 4 + n.id) * 0.18; ar.rotation.y = t * 2; }
             const lift = n.state === 'fly' ? n.h : n.state === 'float' ? 0.16 + Math.sin(t * 3 + n.id) * 0.05 : n.state === 'plug' ? 0.3 + K.floorAt(s, n.p) : n.state === 'stuck' ? 1.1 : 0.2 + K.floorAt(s, n.p);
             put(v, n.p, n.d, lift); if (n.state === 'fly') v.rotateX(t * 9);
         }

@@ -70,7 +70,7 @@ export const BIGGER = [null, { shells: 6, nuts: 2 }, { shells: 12, nuts: 4 }];
 export const BIGGER_STEP = { shells: 2, nuts: 1 };   // added for every home already that big
 export const REPAIR = 3;
 export const HP = { palm: 1, hut: 3, tower: 2, market: 2 };
-export const PALM_GROW_S = 16, NUT_S = 10, NUTS_OUT = 2, HUT_S = 18, SHAKE_CD = 7;
+export const PALM_GROW_S = 16, NUT_S = 10, NUTS_OUT = 2, HUT_S = 14, SHAKE_CD = 7, MARKET_S = 12, MARKET_PAY = 4;   // homes pay their size in shells every HUT_S; a market pays MARKET_PAY every MARKET_S
 export const TOWER_R = 3.2, TOWER_CHARGES = 3;
 export const STAR_R = 1.25, BIG_R = 2.1, CATCH_CD = 0.5, STAR_PAY = 2, GOLD = 5;
 export const SPAWN_S = 1.7, ROCK_S = 8;
@@ -508,7 +508,10 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
             }
         } else if (b.kind === 'hut') {
             b.t -= dt;
-            if (b.t <= 0) { b.t = HUT_S; s.shells++; ev.push({ type: 'gift', b }); }
+            if (b.t <= 0) { b.t = HUT_S; s.shells += b.lvl; ev.push({ type: 'gift', b, pay: b.lvl }); }       // (a bigger home brings more)
+        } else if (b.kind === 'market') {
+            b.t -= dt;
+            if (b.t <= 0) { b.t = MARKET_S; s.shells += MARKET_PAY; ev.push({ type: 'gift', b, pay: MARKET_PAY }); }
         }
     }
 

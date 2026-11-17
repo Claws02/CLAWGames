@@ -19,6 +19,7 @@
 //   Y.hull(geo, t)                         the outline's geometry
 // ============================================================
 export const INK = 0x2b1240;
+export const LINE = 0.68;      // how heavy every outline is, overall (1 = as drawn in the code): turned down a little from the first look
 
 export function makeToon(T) {
     // Three steps of light, hard-edged: the stepped shade of a cartoon.
@@ -31,6 +32,7 @@ export function makeToon(T) {
     // grows evenly instead of cracking open at its corners.
     const hulls = new WeakMap();
     function hull(geo, t) {
+        t *= LINE;
         let m = hulls.get(geo); if (!m) hulls.set(geo, m = new Map());
         const k = Math.round(t * 1e4); if (m.has(k)) return m.get(k);
         const g = geo.index ? geo.toNonIndexed() : geo.clone(), pos = g.attributes.position, n = pos.count, sum = new Map();

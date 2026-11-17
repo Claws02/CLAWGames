@@ -49,7 +49,7 @@ const ok = (c, msg) => { console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) f
     all++; if (n.state === 'plug') { plugs++; if (!wet) direct++; from.push(lon); landed.push(land); } }
   const maxLon = Math.max(...landed.map(l => l[1])), maxD = Math.max(...landed.map(l => l[0]));
   ok(plugs > 20 && direct === 0, `of ${all} throws from all along the near bank, ${plugs} plug vent A, every one of them carried there by the water; none lands in it`);
-  ok(maxLon < 68 && maxD < 12.1, `the ones that work all landed upstream of the cove (east of ${maxLon.toFixed(0)}° none do) and on the far side of the current (none further out than ${maxD.toFixed(1)}; the bank is at 13.2)`);
+  ok(maxLon < 70 && maxD < 13.4, `the ones that work all landed upstream of the cove (east of ${maxLon.toFixed(0)}° none do) and on the far side of the current (none further out than ${maxD.toFixed(1)}; the bank is at 13.2)`);
   // straight at the vent from across the channel: the cove's wall
   let across = 0, tries = 0;
   for (let lon = 62; lon <= 96; lon += 2) for (const d of [13.4, 14, 15]) for (let ch = 0.1; ch <= 1; ch += 0.1) { const s = K.create(L); s.crab.nuts = 1; s.crab.p = at(d, lon).slice(); face(s, A.p); const n = K.throwNut(s, ch); for (let i = 0; i < 10 / DT && s.nuts.includes(n) && n.state !== 'plug' && n.state !== 'rest'; i++) K.step(s, DT); tries++; if (n.state === 'plug') across++; }

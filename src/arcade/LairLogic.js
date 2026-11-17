@@ -93,12 +93,12 @@ export const STAIR = {
     // ledge to the foot of the cliff and be carried straight onto vent B's rock.)
     bars: [{ a: at(BANK, -115), b: at(9.2, -115), h: 9, kind: 'dam' }],
     currents: [{ r0: 9.2, r1: BANK, only: [0, 115], speed: 6.5 }],
-    eddies: [{ p: at(10.35, 61), r: 1.55, to: A, speed: 4.5 }],
+    eddies: [{ p: at(10.5, 56), r: 2.5, to: A, speed: 5 }],
     urchins: [at(14.6, 108), at(13.4, 108), at(12.2, 108), at(11.0, 108), at(9.8, 108)].map(p => ({ p, r: 0.75 })),
     // Two rocks in a straight line across the current: a crab swept off the first is carried past the second, so only a jump gets
     // across. (Rocks set one downstream of another would let the current deliver a crab from one to the next.)
     rocks: [{ p: at(13.15, 30), r: 0.75 }, { p: B, r: 1.0 }],
-    vents: [{ id: 'A', p: A, r: 0.55, float: true }, { id: 'B', p: B, r: 0.8, lift: 9.5 }],
+    vents: [{ id: 'A', p: A, r: 0.85, float: true }, { id: 'B', p: B, r: 0.8, lift: 9.5 }],
     plates: [{ p: at(4.3, 100), r: 0.9, gate: 'plate' }],
     targets: [{ p: at(4.2, -100), gate: 'eye' }],
     gull: { ring: 7.5, from: 60 },
