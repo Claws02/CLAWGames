@@ -103,7 +103,7 @@ const aimFor = (s, p, want, { a0 = -30, a1 = 30, da = 2, secs = 3 } = {}) => {
 };
 const throwAim = (s, p, f, ev, secs = 2.5) => { turnTo(s, p, f.a); K.throwNut(s, f.ch); ev.push(...run(s, secs)); };
 const SA = () => STREAM.vents[0], SB = () => STREAM.vents[1];
-const BANKP = () => STREAM.posts[0].p, PILLARP = () => STREAM.plates[0].p, COVEP = () => STREAM.targets[0].p, LANE_INP = () => STREAM.drains[0].to;
+const SPOT = () => STREAM.spots[0], BANKP = () => STREAM.spots[0].via, PILLARP = () => STREAM.plates[0].p, COVEP = () => STREAM.targets[0].p, LANE_INP = () => STREAM.spots[0].p;
 // walk round the terrace at distance d from the pearl to longitude lon, in steps (never straight across the mesa)
 const ringTo = (s, d, lon, ev = []) => { go(s, at(d, K.lonOf(s.crab.p)), ev, 0.2, 4); for (let k = 0; k < 40; k++) { const dl = ((lon - K.lonOf(s.crab.p) + 540) % 360) - 180; if (Math.abs(dl) < 2) break; go(s, at(d, K.lonOf(s.crab.p) + Math.sign(dl) * Math.min(12, Math.abs(dl))), ev, 0.25, 4); } return ev; };
 const stream = (opt = {}) => {
@@ -121,12 +121,12 @@ const stream = (opt = {}) => {
   note.terrace = Math.abs(s.crab.h - 3.8) < 0.05 && !s.falls; note.tN = s.crab.nuts;
   if (opt.stopAtTerrace) return { s, ev, note };
   // 3. the bank shot from the open end of the lane
-  go(s, at(8.6, 40), ev, 0.2, 8); go(s, at(5.0, 50), ev, 0.2, 8); go(s, at(4.75, 66), ev, 0.12, 8);
-  let fB = null; for (let k = 0; k < 6 && !fB; k++) { fB = aimFor(s, BANKP(), q => !!q.open.green, { a0: -24, a1: 24, da: 1.5, secs: 2.5 }); if (!fB) go(s, at(4.75 + (k % 3) * 0.25, 64 + k * 1.5), ev, 0.1, 3); }
+  ringTo(s, 8.6, K.lonOf(SPOT().p), ev); go(s, SPOT().p, ev, 0.1, 6);
+  const fB = aimFor(s, BANKP(), q => !!q.open.green, { a0: -12, a1: 12, da: 1, secs: 2.5 });
   if (fB) throwAim(s, BANKP(), fB, ev); note.green = !!s.open.green; note.banked = (() => { const ti = ev.findIndex(e => e.type === 'target'), bi = ev.slice(0, ti).map(e => e.type).lastIndexOf('bank'); return ti >= 0 && bi >= 0; })();
   if (opt.stopAtGreen) return { s, ev, note };
   // 4. up the ramp to the mesa, and the pillar's plate (knock the hanging coconut down onto it)
-  go(s, at(5.4, 60), ev, 0.2, 4); ringTo(s, 5.2, 120, ev); ringTo(s, 7.2, 180, ev); go(s, at(5.4, 180), ev, 0.15, 6); go(s, at(3.6, 180), ev, 0.2, 6);
+  ringTo(s, 8.8, 0, ev); ringTo(s, 8.8, -100, ev); ringTo(s, 8.8, 180, ev); go(s, at(6.6, 180), ev, 0.15, 6); go(s, at(5.4, 180), ev, 0.15, 6); go(s, at(3.6, 180), ev, 0.2, 6);
   note.mesa = Math.abs(s.crab.h - 7.5) < 0.05;
   ringTo(s, 2.6, -100, ev);
   let fP = aimFor(s, PILLARP(), (q, e) => !!q.held.gold && e.some(x => x.type === 'knock'), { a0: -12, a1: 12, da: 2, secs: 3 });
@@ -137,7 +137,7 @@ const stream = (opt = {}) => {
 { const { s, ev, note } = stream();
   ok(note.b0 === 'A' && note.plug && note.viaPad && note.b1 === 'B', '2. BUBBLE STREAM: a coconut off the jelly pad bounces up onto the shelf and plugs vent A; now vent B blows');
   ok(note.terrace && note.tN === 2, '   vent B lifts the crab over the deep river; steering, it lands on the terrace (3.8 up) with two coconuts');
-  ok(note.green && note.banked, '   from the open end of the lane, a coconut banked off the stone post finds the bullseye in the cove: the green gate drops');
+  ok(note.green && note.banked, '   from the painted spot, a coconut thrown at the yellow bumper glances down the chute into the bullseye: the green fence round the mesa drops');
   ok(note.mesa, '   up the ramp onto the mesa (7.5 up)');
   ok(note.gold && note.knock, '   a coconut knocks the hanging one loose; it drops onto the pillar\'s plate and the gold fence drops');
   ok(s.won && s.falls === 0, `   the pearl (${s.t.toFixed(0)} s, no falls)`);
@@ -145,25 +145,27 @@ const stream = (opt = {}) => {
   { let direct = 0, any = 0; for (let d = 16.8; d <= 19; d += 0.55) for (let lon = 50; lon <= 70; lon += 4) for (let ch = 0; ch <= 1; ch += 0.1) { const q = K.create(STREAM); q.crab.p = at(d, lon).slice(); q.crab.nuts = 1; face(q, SA().p); K.throwNut(q, ch); const e = run(q, 3); if (q.plug.A) { any++; if (!e.some(x => x.type === 'pad')) direct++; } }
     ok(any > 0 && direct === 0, `   vent A is too high to throw to: of the throws from the beach that plug it (${any}), every one bounced off the jelly pad`); }
   { const q = K.create(STREAM); q.crab.p = STREAM.pads[1].p.slice(); let top = 0; const e = []; for (let i = 0; i < 90; i++) { e.push(...K.step(q, DT)); top = Math.max(top, q.crab.h); }
-    ok(e.some(x => x.type === 'pad') && top > 2.6 && top < 3.4, `   a crab on the jelly pad bounces (${top.toFixed(1)} up): high enough for the post (3), not for the shelf (4) or the terrace (3.8)`);
-    const r = K.create(STREAM); r.crab.p = at(17.4, 110).slice(); r.crab.f = P.tangent(r.crab.p, TOP); const e2 = []; go(r, STREAM.pads[1].p, e2, 0.15, 3); for (let i = 0; i < 120; i++) e2.push(...K.step(r, DT, r.crab.vh < 0 && r.crab.h > 2.2 ? stickTo(r, STREAM.posts[2].p, 0.8) : { x: 0, y: 0 }));
+    ok(e.some(x => x.type === 'pad') && top > 2.6 && top < 3.4, `   a crab on the jelly pad bounces (${top.toFixed(1)} up): high enough for the post (3), not for the terrace (3.8)`);
+    const r = K.create(STREAM); r.crab.p = at(17.4, 110).slice(); r.crab.f = P.tangent(r.crab.p, TOP); const e2 = []; go(r, STREAM.pads[1].p, e2, 0.15, 3); for (let i = 0; i < 120; i++) e2.push(...K.step(r, DT, r.crab.vh < 0 && r.crab.h > 2.2 ? stickTo(r, STREAM.posts[1].p, 0.8) : { x: 0, y: 0 }));
     ok(r.gold.includes(0) && Math.abs(r.crab.h - 3) < 0.05, '   bounce on it and steer onto the post: a golden shell'); }
   { const q = K.create(STREAM); q.crab.p = SB().p.slice(); const e = run(q, 2); ok(!e.some(x => x.type === 'lift') && e.some(x => x.type === 'calm'), '   vent B is calm while A blows (and says so)'); }
   { const q = K.create(STREAM); q.crab.p = at(12.7, 30).slice(); const e = run(q, 1.5, stickTo(q, TOP)); ok(e.some(x => x.type === 'sink'), '   the river is deep: wading in, back to the flag'); }
   { const { s: q } = stream({ stopAtTerrace: true }); q.crab.nuts = 1; go(q, at(6.8, 0), [], 0.15, 6); face(q, TOP); K.throwNut(q, 0.02); run(q, 1); const n = q.nuts.filter(x => x.state === 'rest').sort((a, b) => K.dist(a.p, q.crab.p) - K.dist(b.p, q.crab.p))[0];
     let top = 0; if (n) { go(q, P.walk(n.p, P.toward(TOP, n.p), 0.9 / K.R), [], 0.1, 3); hop(q, n.p); for (let i = 0; i < 120 && q.crab.air; i++) { K.step(q, DT, stickTo(q, TOP)); top = Math.max(top, q.crab.h); } }
     ok(n && K.floorAt(q, q.crab.p) < 4 && top < 7.5, `   from the terrace a bounce on a coconut (${top.toFixed(1)} up) doesn't get onto the mesa (7.5): the ramp is the way`); }
-  { const { s: q } = stream({ stopAtTerrace: true }); ringTo(q, 7.2, 180); go(q, at(5.4, 180), [], 0.15, 4);
-    ok(K.dist(q.crab.p, TOP) > 6.5, '   the green gate stops the crab at the foot of the ramp');
-    const r = stream({ stopAtTerrace: true }).s; ringTo(r, 6.0, 165); go(r, at(5.6, 180), [], 0.15, 4); ok(K.floorAt(r, r.crab.p) < 4, '   and the rails stop it getting onto the ramp from the side'); }
-  { let hits = 0, banked = 0; for (const [d, lon] of [[4.75, 64], [5.0, 67], [5.3, 70], [4.9, 72]]) for (let a = -24; a <= 24; a += 3) for (let ch = 0; ch <= 0.8; ch += 0.1) {
-      const q = K.create(STREAM); q.cp = 1; q.crab.p = at(d, lon).slice(); q.crab.h = 3.8; q.crab.nuts = 1; turnTo(q, BANKP(), a); K.throwNut(q, ch); const e = run(q, 2.5); const ti = e.findIndex(x => x.type === 'target');
-      if (ti >= 0) { hits++; if (e.slice(0, ti).some(x => x.type === 'bank')) banked++; } }
-    ok(hits === banked, `   every throw from the lane's open end that finds the cove's bullseye banked off something first (${hits} of them)`); }
-  { let hit = 0; for (const [d, lon] of [[8.9, 92], [8.9, 100], [7.6, 104], [6.3, 96]]) for (let ch = 0; ch <= 1; ch += 0.1) for (let a = -30; a <= 30; a += 5) { const q = K.create(STREAM); q.cp = 1; q.crab.p = at(d, lon).slice(); q.crab.h = 3.8; q.crab.nuts = 1; turnTo(q, COVEP(), a); K.throwNut(q, ch); if (run(q, 2.5).some(x => x.type === 'target')) hit++; }
-    ok(hit === 0, '   from outside the cove a coconut can\'t be thrown over its wall onto the bullseye'); }
-  { const q = K.create(STREAM); q.cp = 1; q.crab.p = at(5.0, 40).slice(); q.crab.h = 3.8; for (const [p0, h0] of [[at(8.3, 92), 4.0], [at(7.6, 80), 5]]) q.nuts.push({ id: 900 + q.nuts.length, p: p0.slice(), d: P.tangent(p0, TOP), v: 0.05, h: h0, vh: 0, state: 'fly', age: 9, still: 0 }); run(q, 2); const n = q.nuts.filter(x => x.state === 'rest' && x.id >= 900).every(x => K.dist(x.p, LANE_INP()) < 0.5) && q.nuts.find(x => x.id >= 900);
-    ok(n && K.dist(n.p, LANE_INP()) < 0.5, '   a coconut that ends up in the lane or the cove rolls back out to the lane\'s open end (never out of reach)'); }
+  { const { s: q } = stream({ stopAtTerrace: true }); ringTo(q, 8.8, 180); go(q, at(6.6, 180), [], 0.15, 6); go(q, at(3.6, 180), [], 0.15, 6);
+    ok(K.dist(q.crab.p, TOP) > 4.3 && !q.won, '   the green fence runs round the whole mesa: up the ramp, it stops the crab at the top until the bullseye holds it open'); }
+  { // nothing gets into the bullseye except off the bumper: every throw from anywhere on the terrace
+    let direct = 0, hits = 0; for (let d = 4.8; d <= 9.4; d += 0.6) for (let lon = 40; lon <= 150; lon += 7) { const p0 = at(d, lon); if (STREAM.pools.some(x => K.dist(p0, x.p) < x.r + 0.1)) continue;
+      for (let a = -20; a <= 20; a += 8) for (let ch = 0; ch <= 1; ch += 0.2) { const q = K.create(STREAM); q.cp = 1; q.crab.p = p0.slice(); q.crab.h = 3.8; q.crab.nuts = 1; turnTo(q, COVEP(), a); K.throwNut(q, ch); const e = run(q, 2.5); const ti = e.findIndex(x => x.type === 'target'); if (ti >= 0) { hits++; if (!e.slice(0, ti).some(x => x.type === 'bank')) direct++; } } }
+    ok(direct === 0, `   thrown straight at the bullseye from anywhere on the terrace, nothing gets in (${hits} that did came off the bumper first)`);
+    let fromSpot = 0, tries = 0; for (let a = -10; a <= 10; a += 1) for (let ch = 0.3; ch <= 1; ch += 0.05) { tries++; const q = K.create(STREAM); q.cp = 1; q.crab.p = SPOT().p.slice(); q.crab.h = 3.8; q.crab.nuts = 1; turnTo(q, BANKP(), a); K.throwNut(q, ch); run(q, 2.5); if (q.open.green) fromSpot++; }
+    ok(fromSpot >= 15, `   from the painted spot, aimed at the bumper: ${fromSpot} of ${tries} throws land it (the aim turns green on those)`);
+    const q = K.create(STREAM); q.cp = 1; q.crab.p = SPOT().p.slice(); q.crab.h = 3.8; turnTo(q, BANKP(), 0); let green = 0; for (let ch = 0.3; ch <= 1; ch += 0.05) if (K.aim(q, ch).hit) green++;
+    ok(green > 0, `   the aim preview knows when a throw will end in the bullseye (${green} charges straight at the bumper)`); }
+  { const q = K.create(STREAM); q.cp = 1; q.crab.p = at(8.6, 100).slice(); q.crab.h = 3.8; const e = run(q, 1.5, stickTo(q, STREAM.pools[1].p)); ok(e.some(x => x.type === 'sink'), '   the pool round the bumper and the bullseye is deep: in it, back to the flag'); }
+  { const q = K.create(STREAM); q.cp = 1; q.crab.p = at(5.0, 40).slice(); q.crab.h = 3.8; for (const [p0, h0] of [[STREAM.pools[0].p, 4.5], [P.walk(COVEP(), P.toward(COVEP(), BANKP()).map(x => -x), 0.84 / K.R), 4.0]]) q.nuts.push({ id: 900 + q.nuts.length, p: p0.slice(), d: P.tangent(p0, TOP), v: 0.05, h: h0, vh: 0, state: 'fly', age: 9, still: 0 }); run(q, 2);
+    const back = q.nuts.filter(x => x.id >= 900); ok(back.length === 2 && back.every(x => x.state === 'rest' && K.dist(x.p, LANE_INP()) < 0.5), '   a coconut that falls in the pool or behind the bullseye washes back up at the painted spot (never out of reach)'); }
   { let fromTerr = 0; for (let d = 5.6; d <= 9.4; d += 0.6) for (let lon = -100; lon <= -20; lon += 10) for (let ch = 0; ch <= 1; ch += 0.1) { if (K.dist(at(d, lon), PILLARP()) < 0.8) continue; const q = K.create(STREAM); q.cp = 1; q.crab.p = at(d, lon).slice(); q.crab.h = 3.8; q.crab.nuts = 1; face(q, PILLARP()); K.throwNut(q, ch); run(q, 3); if (q.held.gold) fromTerr++; }
     ok(fromTerr === 0, '   from the terrace nothing reaches the pillar\'s plate: it\'s a job for the mesa'); }
   { const q = K.create(STREAM); q.cp = 1; q.open.green = true; q.crab.p = at(2.2, 0).slice(); q.crab.h = 7.5; q.crab.nuts = 1; face(q, TOP); K.throwNut(q, 0.02); run(q, 1); const n = q.nuts.find(x => x.state === 'rest' && K.dist(x.p, TOP) > 1.8);
@@ -200,6 +202,38 @@ const yard = () => {
   const b = K.create(YARD); b.open.yard = true; b.cp = 1; b.crab.p = at(7.2, 60).slice(); b.crab.nuts = 1; b.gull.cool = 0; const e = run(b, 12);
   ok(has(e, 'steal') || has(e, 'gull-dive'), '   stand in the yard and the gull comes for you'); }
 
-ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair' && CHAMBERS[3].boss && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, Gull Yard, then the Drowned Stair with Old Ink; all open while testing');
+// ── World 2, chamber 5: Sinkhole Reef ───────────────────────────────────────
+const { SINK } = K;
+const sink = () => {
+  const s = K.create(SINK), ev = [], note = {};
+  gather(s, ev); note.got = s.crab.nuts;
+  // 1. from the painted spot, a coconut into the blowhole: it comes up inside the reef wall into the bullseye, and the lid opens
+  go(s, SINK.spots[0].p, ev, 0.1, 12); const fL = aimFor(s, SINK.holes[1].p, q => !!q.open.lid, { a0: -12, a1: 12, da: 2 }); if (fL) throwAim(s, SINK.holes[1].p, fL, ev, 3);
+  note.lid = !!s.open.lid; note.through = ev.some(e => e.type === 'hole' && e.nut);
+  // 2. a coconut into the pit's blowhole: it comes up on the plate, and the gold fence drops
+  const ph = SINK.holes[2].p; go(s, at(K.dist(ph, TOP) + 2.4, K.lonOf(ph)), ev, 0.15, 12); const fP = aimFor(s, ph, q => !!q.held.gold, { a0: -10, a1: 10, da: 2 }); if (fP) throwAim(s, ph, fP, ev, 3);
+  note.gold = !!s.held.gold;
+  // 3. into the big sinkhole: out by the pearl
+  go(s, at(18.0, 0), ev, 0.2, 10); go(s, SINK.holes[0].p, ev, 0.2, 4); for (let i = 0; i < 90 && s.crab.air; i++) ev.push(...K.step(s, DT));
+  note.inside = K.dist(s.crab.p, TOP) < 6.8;
+  go(s, TOP, ev, 0.3, 8);
+  return { s, ev, note };
+};
+{ const { s, ev, note } = sink();
+  ok(note.got === 3, '5. SINKHOLE REEF: three coconuts from the palm');
+  ok(note.lid && note.through, '   from the painted spot, a coconut thrown into the blowhole comes up on the far side of the planet still flying, into the bullseye: the lid opens');
+  ok(note.gold, '   a coconut into the pit\'s blowhole comes up in the walled pit on its plate: the gold fence drops');
+  ok(note.inside && s.won && s.falls === 0, `   into the big sinkhole: out by the pearl (${s.t.toFixed(0)} s, no falls)`);
+  { const q = K.create(SINK); q.crab.p = at(18.0, 0).slice(); for (let i = 0; i < 120; i++) K.step(q, DT, stickTo(q, at(15, 0))); ok(K.dist(q.crab.p, TOP) > 7, '   with the lid shut the crab walks over the big sinkhole'); }
+  { const q = K.create(SINK); q.crab.p = at(SINK.spots[0].p ? 18.0 : 18, 60).slice(); for (let i = 0; i < 120; i++) K.step(q, DT, stickTo(q, SINK.holes[1].p)); ok(K.dist(q.crab.p, TOP) > 7, '   a blowhole is a grate: the crab walks over it, only coconuts go down'); }
+  { let spot = 0, tries = 0; for (let a = -10; a <= 10; a += 2) for (let ch = 0; ch <= 0.6; ch += 0.05) { tries++; const q = K.create(SINK); q.crab.p = SINK.spots[0].p.slice(); q.crab.nuts = 1; turnTo(q, SINK.holes[1].p, a); K.throwNut(q, ch); run(q, 3); if (q.open.lid) spot++; }
+    ok(spot >= tries * 0.15, `   from the spot, ${spot} of ${tries} throws at the blowhole open the lid (the aim turns green on them)`); }
+  { const q = K.create(SINK); q.crab.nuts = 1; q.crab.p = at(8.0, 0).slice(); face(q, TOP); for (const ch of [0.3, 0.6]) { q.crab.nuts = 1; K.throwNut(q, ch); run(q, 3); }
+    ok(q.nuts.filter(n => n.state === 'rest').every(n => K.dist(n.p, TOP) > 6.8), '   a coconut that ends up inside the reef wall while the lid is shut washes back out to the spot (never out of reach)'); }
+  { const q = K.create(SINK); q.open.lid = 99; q.crab.p = at(5.0, 10).slice(); const e = run(q, 1.5, stickTo(q, SINK.holes[3].p)); ok(e.some(x => x.type === 'hole') && K.dist(q.crab.p, TOP) > 7, '   inside, a sinkhole leads back out to the beach (never stuck inside)'); }
+  { const q = K.create(SINK); q.open.lid = 99; q.crab.p = at(15.65, 0).slice(); q.crab.h = 2; q.crab.f = P.tangent(q.crab.p, at(20, 0)); q.crab.face = q.crab.f; K.jump(q); const e = []; for (let i = 0; i < 120; i++) e.push(...K.step(q, DT, q.crab.holeCd > 0 ? { x: 0, y: 0 } : stickTo(q, SINK.holes[0].p, 0.7)));
+    ok(e.some(x => x.type === 'hole') && q.gold.includes(0), '   jump into the sinkhole from the coral shelf and you fly out high on the far side: a golden shell'); } }
+
+ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink' && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, Gull Yard, then the Drowned Stair with Old Ink; World 2 starts with Sinkhole Reef; all open while testing');
 console.log(fails ? `\nWORLD 1 FAIL (${fails})` : '\nWORLD 1 PASS');
 process.exit(fails ? 1 : 0);

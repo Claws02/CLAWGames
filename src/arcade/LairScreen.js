@@ -26,7 +26,7 @@ import { cross, mix, norm, tangent, toward, walk } from './PlanetLogic.js';
 import { makeToon } from './Toon.js';
 
 const CHARGE_S = 0.9;                       // how long a full wind-up takes
-const GATE_COLOR = { eye: 0xff5fa8, plate: 0xffc83a, yard: 0x5fd0ff, red: 0xff5f5f, blue: 0x5f8bff, green: 0x4ade80, gold: 0xffc83a, cage: 0x5fd0ff };
+const GATE_COLOR = { lid: 0x9be7ff,  eye: 0xff5fa8, plate: 0xffc83a, yard: 0x5fd0ff, red: 0xff5f5f, blue: 0x5f8bff, green: 0x4ade80, gold: 0xffc83a, cage: 0x5fd0ff };
 const SHOW = { cliff: 2.4, cove: 1.5, step: 2, gate: 2.1 };      // how tall each kind of wall is drawn
 const rngOf = seed => () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
@@ -48,14 +48,19 @@ export function createLair(kit, level, hooks) {
     };
     const around = K.around, TOP = K.TOP;
     const sfl = { ...K.create(level), blocks: [], logs: [] }, fl = p => K.floorAt(sfl, p);      // (the ground's height: terraces, ramps, posts)
-    const scene = new T.Scene(); scene.background = new T.Color(0x9fe0ff);
+    // Each world has its own look: World 1 a sunny island, World 2 the coral caves (deep teal sky, pale coral sand, sea-grass, pink coral).
+    const THEME = {
+        beach: { sky: 0x9fe0ff, hemi: [0xffffff, 0x8a7aa0], ground: { sand: [0xf3d890, 0xe9c87a], sea: [0x5aaed4, 0x4a9ec6], rock: [0xd2b98f, 0xc2a77c], grass: [0x8fd96a, 0x76c456], stone: [0xb9a6ea, 0xa994de], dais: [0xf6bdf3, 0xe9a7ee] } },
+        reef: { sky: 0x2f7f9c, hemi: [0xd8fff6, 0x5a3f8a], ground: { sand: [0xf2d9cf, 0xe7c7bd], sea: [0x2fb3c4, 0x27a1b3], rock: [0xc7a9e0, 0xb796d4], grass: [0x46c2a6, 0x37ad93], stone: [0x8fd4c9, 0x7cc7bb], dais: [0xffc4e6, 0xffb0dc] }, decor: true },
+    }[level.theme || 'beach'] || null;
+    const scene = new T.Scene(); scene.background = new T.Color(THEME.sky);
     const camera = new T.PerspectiveCamera(58, 1, 0.1, 400);
-    scene.add(new T.HemisphereLight(0xffffff, 0x8a7aa0, 0.5));
+    scene.add(new T.HemisphereLight(THEME.hemi[0], THEME.hemi[1], 0.5));
     const sun = new T.DirectionalLight(0xfff4d6, 0.75); scene.add(sun); scene.add(sun.target);
 
     // ── The planet, painted by what each part of it is ───────────────────────
     { const geo = new T.IcosahedronGeometry(R, 14), pos = geo.attributes.position, col = new Float32Array(pos.count * 3), c = new T.Color();
-      const pal = { sand: [0xf3d890, 0xe9c87a], sea: [0x5aaed4, 0x4a9ec6], rock: [0xd2b98f, 0xc2a77c], grass: [0x8fd96a, 0x76c456], stone: [0xb9a6ea, 0xa994de], dais: [0xf6bdf3, 0xe9a7ee] };
+      const pal = THEME.ground;
       const cur = level.currents && level.currents[0], bands = level.ground || [[1.8, 'dais'], [5.6, 'stone'], [9.2, 'grass'], [level.bank, 'rock'], [99, 'sand']];
       for (let i = 0; i < pos.count; i += 3) {
           const p = norm([(pos.getX(i) + pos.getX(i + 1) + pos.getX(i + 2)) / 3, (pos.getY(i) + pos.getY(i + 1) + pos.getY(i + 2)) / 3, (pos.getZ(i) + pos.getZ(i + 1) + pos.getZ(i + 2)) / 3]);
@@ -126,10 +131,14 @@ export function createLair(kit, level, hooks) {
             { y0: 0, h: 1.3, thick: 0.13, color: C.cliff, depth: 1.5, inset: 0.4, wide: 1.3 },
             { y0: 0.95, h: 1.15, thick: 0.12, color: C.cliff, depth: 1.25, inset: 0.58, wide: 1.25 },
             { y0: 1.9, h: 0.8, thick: 0.11, color: [C.moss, C.mossDark], depth: 1.3, inset: 0.7, wide: 1.5 }], 0.7);
+        else if (kind === 'coral') boulderWall(w, kind, [
+            { y0: 0, h: 1.5, thick: 0.1, color: [0xff7f9e, 0xf06a8c, 0xff9bb3], depth: 1.4, wide: 1.4 },
+            { y0: 1.1, h: 1.3, thick: 0.1, color: [0xb98be6, 0xa877dc, 0xcaa2ef], depth: 1.1, inset: 0.15, wide: 1.3 },
+            { y0: 2.1, h: 0.9, thick: 0.09, color: [0xffb35c, 0xff9f45, 0x6fe0c5], depth: 0.9, inset: 0.3, wide: 1.2 }], w.r < 1.5 ? 0.45 : 0.6);
         else if (kind === 'cove') {
             // low boulders round the cove, and two tall standing stones either side of its mouth
             const gap = w.gap, a0 = gap[0] - gap[1], a1 = gap[0] + gap[1];
-            boulderWall(w, kind, [{ y0: 0, h: 0.85, thick: 0.1, color: C.cove, depth: 0.85, wide: 1.3 }, { y0: 0.6, h: 0.6, thick: 0.09, color: [C.cove[2], C.cove[0]], depth: 0.75, inset: 0.05, wide: 1.3 }], 0.5, p => K.dist(p, K.TOP) > 9.85);
+            boulderWall(w, kind, [{ y0: 0, h: 0.85, thick: 0.1, color: C.cove, depth: 0.85, wide: 1.3 }, { y0: 0.6, h: 0.6, thick: 0.09, color: [C.cove[2], C.cove[0]], depth: 0.75, inset: 0.05, wide: 1.3 }], 0.5, p => !(level.rings || []).some(r => r.kind === 'cliff' && Math.abs(K.dist(p, r.c || TOP) - r.r) < 0.65));
             for (const a of [a0, a1]) {
                 const p = around(w.c, w.r, a), pil = Y.prop([{ geo: G.rock, color: C.cove[1], s: [0.8, 1.9, 0.8], p: [0, 0.95, 0] }, { geo: G.rock, color: C.cove[2], s: [0.62, 0.8, 0.62], p: [0.02, 1.7, 0] }, { geo: G.sph, color: C.moss, s: [0.7, 0.28, 0.7], p: [0, 2.1, 0] }], { thick: 0.1 });
                 scene.add(pil); put(pil, p, toward(p, w.c), 0);
@@ -224,7 +233,7 @@ export function createLair(kit, level, hooks) {
         }
     }
     // Terraces, ramps and shelves: raised ground with a grassy (or stone) top and rocky cliff sides, darker bands of strata.
-    const LEDGE = { terrace: { top: [0x8fd96a, 0x7fcf5c], side: [0xc9935a, 0xb98249, 0xd6a46a] }, mesa: { top: [0xe8b46a, 0xdca65c], side: [0xd9893f, 0xc4742f, 0xe69b52] }, ramp: { top: [0xcfae7a, 0xc19f6c], side: [0xa98758, 0x977648, 0xb89668] }, shelf: { top: [0xaab0c4, 0x9aa1b6], side: [0x8890a8, 0x7a8299, 0x969db3] } };
+    const LEDGE = { coralShelf: { top: [0xff9bb3, 0xff8aa6], side: [0xb98be6, 0xa877dc, 0xcaa2ef] },  terrace: { top: [0x8fd96a, 0x7fcf5c], side: [0xc9935a, 0xb98249, 0xd6a46a] }, mesa: { top: [0xe8b46a, 0xdca65c], side: [0xd9893f, 0xc4742f, 0xe69b52] }, ramp: { top: [0xcfae7a, 0xc19f6c], side: [0xa98758, 0x977648, 0xb89668] }, shelf: { top: [0xaab0c4, 0x9aa1b6], side: [0x8890a8, 0x7a8299, 0x969db3] } };
     for (const l of level.ledges || []) {
         const pal = LEDGE[l.kind] || LEDGE.terrace, c0 = l.c || TOP, partial = !!(l.only || l.gap), lon0 = l.only ? l.only[0] - l.only[1] : 0, lon1 = l.only ? l.only[0] + l.only[1] : 360;
         const nR = Math.max(2, Math.ceil((l.r1 - l.r0) / 0.4)), circ = 2 * Math.PI * R * Math.sin(Math.max(l.r1, 0.5) / R), nL = Math.max(8, Math.ceil(circ * (lon1 - lon0) / 360 / 0.45));
@@ -253,12 +262,59 @@ export function createLair(kit, level, hooks) {
         put(g, k.p, [1, 0, 0], base); scene.add(g);
     }
     // Jelly pads: a pink wobbly dome.
-    const padMeshes = (level.pads || []).map(k => { const g = Y.prop([{ geo: G.sph, color: 0xff8ad8, s: [k.r * 2, 0.5, k.r * 2], p: [0, 0.05, 0] }, { geo: G.sphLow, color: 0xffd1f0, s: [k.r * 0.8, 0.12, k.r * 0.6], p: [-k.r * 0.3, 0.24, -k.r * 0.2], ink: false }], { thick: 0.06 }); put(g, k.p, [1, 0, 0], fl(k.p) - 0.02 - (K.PAD_H || 0.25) + 0.02); scene.add(g); return { k, g, wob: 0 }; });
+    const padMeshes = (level.pads || []).map(k => { const g = Y.prop([{ geo: G.sph, color: 0xff8ad8, s: [k.r * 2, 0.5, k.r * 2], p: [0, 0.05, 0] }, { geo: G.sphLow, color: 0xffd1f0, s: [k.r * 0.8, 0.12, k.r * 0.6], p: [-k.r * 0.3, 0.24, -k.r * 0.2], ink: false }], { thick: 0.06 }); put(g, k.p, k.to ? toward(k.p, k.to) : [1, 0, 0], fl(k.p) - 0.02 - (K.PAD_H || 0.25) + 0.02); scene.add(g);
+        if (k.to) { const ar = Y.prop([{ geo: G.box, color: 0xfff3a0, s: [0.22, 0.06, 0.6], p: [0, 0.3, -0.1] }, { geo: G.coneLow, color: 0xfff3a0, s: [0.5, 0.45, 0.08], p: [0, 0.3, 0.38], r: [Math.PI / 2, 0, 0] }], { thick: 0.04 }); g.add(ar); }
+        return { k, g, wob: 0 }; });
     // Stone walls (the bank-shot lane, the ramp's rails): a low run of blocks along each bar.
-    for (const b of (level.bars || []).filter(x => x.kind === 'lane' || x.kind === 'rail')) {
+    for (const b of (level.bars || []).filter(x => x.kind === 'lane' || x.kind === 'rail' || x.kind === 'chute')) {
         const len = K.dist(b.a, b.b), n = Math.max(2, Math.round(len / 0.5)), m = Y.instanced(G.rockSoft, n, 0.08), nrm = norm(cross(b.a, b.b)); scene.add(m.body); scene.add(m.line);
-        for (let i = 0; i < n; i++) { const tt = (i + 0.5) / n, p = norm(mix(b.a, b.b, 1 - tt, tt)), base = fl(p), hh = b.kind === 'rail' ? 1.0 : Math.max(0.8, b.h - base); m.set(i, stand(p, tangent(p, nrm), base + hh / 2, 0.62, hh, 0.7, hash(i, 2) * 2), [0x9aa1b6, 0x8890a8, 0xaab0c4][i % 3]); }
+        for (let i = 0; i < n; i++) { const tt = (i + 0.5) / n, p = norm(mix(b.a, b.b, 1 - tt, tt)), base = fl(p), hh = b.kind === 'rail' ? 1.0 : b.kind === 'chute' ? 1.3 : Math.max(0.8, b.h - base); m.set(i, stand(p, tangent(p, nrm), base + hh / 2, 0.62, hh, 0.7, hash(i, 2) * 2), [0x9aa1b6, 0x8890a8, 0xaab0c4][i % 3]); }
         m.done();
+    }
+    // Deep pools: dark water with a lighter rim, sitting on the ground they're in.
+    const poolMeshes = (level.pools || []).map((q, i) => { const base = fl(q.p), g = new T.Group(); const w = new T.Mesh(G.disc, basic(0x2f7fc4, { transparent: true, opacity: 0.92 })); w.scale.setScalar(q.r); g.add(w); const rim = new T.Mesh(G.ring, basic(0x9fdcff, { transparent: true, opacity: 0.8, side: T.DoubleSide })); rim.scale.setScalar(q.r); rim.position.y = 0.01; g.add(rim); put(g, q.p, [1, 0, 0], base + 0.06 + i * 0.004); scene.add(g); return { q, g, rim }; });
+    // The bumper: a bright yellow board on a stone footing, with arrows on its face pointing the way a coconut glances off.
+    const bumpers = (level.bars || []).filter(x => x.kind === 'bumper').map(b => {
+        const mid = norm(mix(b.a, b.b, 0.5, 0.5)), len = K.dist(b.a, b.b), base = fl(mid), along = toward(mid, b.b), nrm = tangent(mid, cross(mid, along)), g = new T.Group();
+        const sp = (level.spots || []).find(x => x.via && K.dist(x.via, mid) < 0.5), face = sp ? (K.dist(walk(mid, nrm, 0.3 / R), sp.p) < K.dist(walk(mid, nrm, -0.3 / R), sp.p) ? 1 : -1) : 1;
+        g.add(Y.prop([{ geo: G.box, color: 0x8890a8, s: [len + 0.3, 0.5, 0.7], p: [0, 0.25, 0] }, { geo: G.box, color: 0xffd23a, s: [len, 2.3, 0.3], p: [0, 1.6, 0] }, { geo: G.box, color: 0xff9a1f, s: [len + 0.1, 0.18, 0.34], p: [0, 2.8, 0] }], { thick: 0.08 }));
+        if (sp) for (let k = 0; k < 3; k++) {    // chevrons: from where the coconut comes in, to where it goes out
+            const ch = new T.Group(); for (const sgn of [1, -1]) { const bar = new T.Mesh(G.box, basic(0x2b1240)); bar.scale.set(0.5, 0.11, 0.05); bar.position.set(0, sgn * 0.14, 0); bar.rotation.z = sgn * 0.6; ch.add(bar); }
+            const outDir = K.dist(walk(mid, along, 0.5 / R), sp.to) < K.dist(walk(mid, along, -0.5 / R), sp.to) ? 1 : -1;
+            ch.position.set((k - 1) * 0.7, 1.6, face * 0.17); ch.rotation.y = face > 0 ? 0 : Math.PI; ch.scale.x = outDir * face; g.add(ch);
+        }
+        put(g, mid, along, base); g.rotateY(Math.PI / 2); scene.add(g); return g;
+    });
+    // The throw spot: a painted ring with crab footprints and a coconut, and green dots from it to the bumper and on to the bullseye.
+    const spots = (level.spots || []).map(sp => {
+        const base = fl(sp.p), g = new T.Group(), ring = new T.Mesh(G.ring, basic(0xffd23a, { transparent: true, opacity: 0.95, side: T.DoubleSide, depthWrite: false })); ring.scale.setScalar(0.75); g.add(ring);
+        const fill = new T.Mesh(G.disc, basic(0xffd23a, { transparent: true, opacity: 0.25, depthWrite: false })); fill.scale.setScalar(0.62); g.add(fill);
+        for (const [x, z] of [[-0.18, -0.1], [0.18, -0.1], [-0.25, 0.15], [0.25, 0.15]]) { const f2 = new T.Mesh(G.disc, basic(0xb07a2e)); f2.scale.setScalar(0.07); f2.position.set(x, 0.01, z); g.add(f2); }
+        put(g, sp.p, toward(sp.p, sp.via), base + 0.08); scene.add(g);
+        const dots = [], col = 0xffd23a;
+        for (const [a, b, st, en] of [[sp.p, sp.via, 0.85, 0.5], ...(sp.to ? [[sp.via, sp.to, 0.5, 0.9]] : [])]) { const len = K.dist(a, b), n = Math.max(2, Math.floor((len - st - en) / 0.4)); for (let k = 0; k <= n; k++) { const f = (st + k * (len - st - en) / n) / len, p = norm(mix(a, b, 1 - f, f)), d = new T.Mesh(G.disc, basic(col, { transparent: true, opacity: 0.6, depthWrite: false })); d.scale.setScalar(0.15); put(d, p, null, fl(p) + 0.1); scene.add(d); dots.push(d); } }
+        return { sp, g, ring, dots, said: false };
+    });
+    // Holes through the planet: a dark mouth with a sandy rim; a blowhole has a grate over it (coconuts only); a lid is a crystal
+    // dome that sinks away when its bullseye is hit. Where each one comes out, a faint swirl on the ground.
+    const holeVis = (level.holes || []).map(h => {
+        const base = fl(h.p), g = new T.Group(), mouth = new T.Mesh(G.disc, basic(0x0e1a24)); mouth.scale.setScalar(h.r); mouth.position.y = 0.03; g.add(mouth);
+        const rim = Y.prop([{ geo: G.cylLow, color: h.nutOnly ? 0xff8aa6 : 0xd9c3b0, s: [h.r * 2 + 0.4, 0.14, h.r * 2 + 0.4], p: [0, 0.02, 0] }], { thick: 0.05 }); rim.children.length; g.add(rim); mouth.position.y = 0.1;
+        if (h.nutOnly) for (let k = -2; k <= 2; k++) { const bar = Y.part(G.box, 0x8a7aa0, 0.02); bar.scale.set(h.r * 1.8 * Math.sqrt(1 - (k / 3) ** 2), 0.06, 0.08); bar.position.set(0, 0.16, k * h.r * 0.32); g.add(bar); }
+        let lid = null; if (h.lid) { lid = new T.Mesh(new T.SphereGeometry(h.r + 0.1, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), Y.toon(GATE_COLOR[h.lid] || 0x9be7ff, { transparent: true, opacity: 0.75, emissive: new T.Color(0x3fa9c4) })); g.add(lid); }
+        put(g, h.p, [1, 0, 0], base); scene.add(g);
+        const out = K.holeExit(h), sw = new T.Mesh(G.ring, basic(0x0e1a24, { transparent: true, opacity: 0.35, depthWrite: false, side: T.DoubleSide })); sw.scale.setScalar(0.6); put(sw, out, null, fl(out) + 0.07); scene.add(sw);
+        return { h, g, lid, sw, k: 0 };
+    });
+    if (THEME.decor) {      // kelp and coral bushes on the open sand, away from anything you need to use
+        const avoid = [level.start, level.palm, ...(level.holes || []).map(h => h.p), ...(level.posts || []).map(k => k.p), ...(level.pads || []).map(k => k.p), ...(level.spots || []).map(k => k.p)];
+        const rnd = rngOf(907); let made = 0;
+        for (let i = 0; i < 90 && made < 26; i++) {
+            const p = K.at((level.bank || 7) + 1.2 + rnd() * (19.6 - (level.bank || 7) - 1.2), rnd() * 360); if (avoid.some(a => a && K.dist(a, p) < 1.8)) continue; made++;
+            const kelp = rnd() > 0.5, g = kelp ? Y.prop([0, 1, 2].map(k => ({ geo: G.cyl, color: k % 2 ? 0x2fae8c : 0x45c79f, s: [0.12, 1.3 + k * 0.4, 0.12], p: [(k - 1) * 0.18, (1.3 + k * 0.4) / 2, (k % 2) * 0.12], r: [0, 0, (k - 1) * 0.15] })), { thick: 0.04 })
+                : Y.prop([{ geo: G.sphLow, color: [0xff7f9e, 0xffb35c, 0xb98be6][i % 3], s: [0.7, 0.5, 0.7], p: [0, 0.25, 0] }, { geo: G.coneLow, color: [0xff9bb3, 0xffc77f, 0xcaa2ef][i % 3], s: [0.2, 0.6, 0.2], p: [0.15, 0.6, 0] }, { geo: G.coneLow, color: [0xff9bb3, 0xffc77f, 0xcaa2ef][i % 3], s: [0.16, 0.5, 0.16], p: [-0.2, 0.5, 0.1] }], { thick: 0.05 });
+            put(g, p, [rnd(), 0.2, rnd()], fl(p)); scene.add(g);
+        }
     }
     // A palm on the mesa with a coconut hanging from its frond on a rope.
     const hangVis = (level.hangs || []).map(hg => {
@@ -477,7 +533,7 @@ export function createLair(kit, level, hooks) {
         col.needsUpdate = true;
     };
 
-    let pitch = 0, shelfK = 0, s = K.create(level), t = 0, charge = -1, cheer = 0, camP = null, shake = 0, doneAt = 0, told = false, disposed = false, intro = 0, snap = false, inkMad = 0, bristle = 0, downT = 0, hurtFlash = 0, swat = 0;
+    let pitch = 0, shelfK = 0, s = K.create(level), t = 0, charge = -1, cheer = 0, camP = null, shake = 0, doneAt = 0, told = false, disposed = false, intro = 0, camStart = null, snap = false, inkMad = 0, bristle = 0, downT = 0, hurtFlash = 0, swat = 0;
 
     function events(evs) {
         for (const e of evs) {
@@ -525,6 +581,7 @@ export function createLair(kit, level, hooks) {
             else if (e.type === 'pad') { const v = padMeshes.find(x => K.dist(x.k.p, e.p) < x.k.r + 0.3); if (v) v.wob = 1; burst(at3(e.p, 0.4), 0xff8ad8, 12, 3.5); hooks.sfx('boost'); }
             else if (e.type === 'knock') { burst(at3(e.p, e.h), 0xffe9b0, 22, 4); hooks.sfx('coin_gain'); hooks.pop(at3(e.p, e.h + 1), '🥥 KNOCKED LOOSE!'); }
             else if (e.type === 'unstick') { burst(at3(e.nut.p, e.nut.h), 0xffffff, 12, 3); hooks.sfx('tick'); hooks.hint('🥥 YOU TOOK THE COCONUT BACK: ITS GATE SHUTS AGAIN', 2.2); }
+            else if (e.type === 'hole') { burst(at3(e.p, 0.3), 0x9be7ff, 16, 3.5); burst(at3(e.out, 0.5), 0x9be7ff, 20, 4.5); hooks.sfx('boost'); if (e.crab) { hooks.buzz([15, 20, 30]); snap = true; hooks.hint('🕳️ THROUGH THE PLANET! (A HOLE COMES OUT ON THE FAR SIDE)', 2.4); } }
             else if (e.type === 'won') { burst(at3(level.goal, 1.5), 0xff8ad8, 50, 7); burst(at3(level.goal, 1.5), 0xffd84a, 40, 6); hooks.sfx('win'); hooks.buzz([30, 30, 30, 30, 120]); cheer = 1.2; inkMad = 2; doneAt = t + 1.8; }
         }
     }
@@ -612,6 +669,14 @@ export function createLair(kit, level, hooks) {
         (level.gold || []).forEach((gd, i) => { const v = goldMeshes[i]; v.g.visible = !s.gold.includes(i); if (v.g.visible) { put(v.g, gd.p, [1, 0, 0], (gd.h || 0) + 0.45 + Math.sin(t * 2.5 + i) * 0.1); v.sh.rotation.y = t * 2.2; v.halo.material.opacity = 0.25 + 0.15 * Math.sin(t * 4 + i); } });
         hangVis.forEach(v => { const n = s.nuts.find(x => x.state === 'hang'); v.rope.visible = !!n; if (n) { const top = n.h + 1.6; v.rope.scale.set(0.05, top - n.h, 0.05); put(v.rope, n.p, null, (top + n.h) / 2 + 0.2); } });
         padMeshes.forEach(v => { v.wob = Math.max(0, v.wob - dt * 3); v.g.scale.set(1 + v.wob * 0.15, 1 - v.wob * 0.4, 1 + v.wob * 0.15); });
+        holeVis.forEach(v => { if (v.lid) { const open = !K.up(s, { gate: v.h.lid }); v.k += ((open ? 1 : 0) - v.k) * Math.min(1, dt * 4); v.lid.position.y = -v.k * (v.h.r + 0.3); v.lid.visible = v.k < 0.98; } v.sw.rotation.y = t * 1.5; });
+        spots.forEach(v => {
+            const on = K.dist(c.p, v.sp.p) < 0.8, done = !!s.open[v.sp.gate];
+            v.ring.scale.setScalar(0.75 + 0.06 * Math.sin(t * (on ? 9 : 4))); v.g.visible = !done;
+            v.dots.forEach((d, k) => { d.visible = !done; d.material.opacity = on ? 0.55 + 0.45 * Math.max(0, Math.sin(t * 6 - k * 0.6)) : 0.45; d.scale.setScalar(on ? 0.2 : 0.15); });
+            if (on && !v.said && !done) { v.said = true; hooks.hint(v.sp.say || ((level.holes || []).some(h => K.dist(h.p, v.sp.via) < 0.3) ? '🎯 THE THROW SPOT: THROW INTO THE BLOWHOLE. THE AIM TURNS GREEN WHEN IT WILL HIT' : '🎯 THE THROW SPOT: AIM AT THE YELLOW BUMPER. THE AIM TURNS GREEN WHEN IT WILL HIT'), 4); }
+        });
+        poolMeshes.forEach((v, i) => { v.rim.scale.setScalar(v.q.r * (1 + 0.02 * Math.sin(t * 2 + i))); });
         signals.forEach(v => {
             const on = v.kind === 'plate' ? !!s.held[v.g] : !!s.open[v.g], left = typeof s.open[v.g] === 'number' && v.sw.secs ? s.open[v.g] / v.sw.secs : 1, n = v.dots.length;
             v.dots.forEach((d, k) => { const lit = on && k / n < left; d.material.opacity = lit ? 0.7 + 0.3 * Math.max(0, Math.sin(t * 7 - k * 0.7)) : 0.5; d.scale.setScalar(lit ? 0.24 + 0.05 * Math.max(0, Math.sin(t * 7 - k * 0.7)) : 0.17); });
@@ -667,7 +732,7 @@ export function createLair(kit, level, hooks) {
             put(held, c.p, c.face, c.h + 1.25); held.scale.setScalar(0.7 + k * 0.4);
             const a = K.aim(s, k);
             put(aimRing, a.p, null, 0.09 + K.floorAt(s, a.p)); aimRing.scale.setScalar(0.85 * (1 + Math.sin(t * 10) * 0.08));
-            aimRing.material.color.setHex(a.wet ? 0x7ee7ff : 0xffe45a);
+            aimRing.material.color.setHex(a.hit ? 0x4ade80 : a.wet ? 0x7ee7ff : 0xffe45a); dots.forEach(d => d.material.color.setHex(a.hit ? 0x4ade80 : 0xffffff));
             dots.forEach((d, i) => { const q = a.path[i]; d.visible = !!q; if (q) d.position.copy(at3(q[0], q[1])); });
             bankMark.visible = !!a.bank; if (a.bank) { bankMark.position.copy(at3(a.bank[0], a.bank[1])); bankMark.scale.setScalar(1 + Math.sin(t * 12) * 0.25); }
         } else { dots.forEach(d => { d.visible = false; }); bankMark.visible = false; }
@@ -692,13 +757,18 @@ export function createLair(kit, level, hooks) {
           if (gh > c.h + 0.8) want.copy(up).multiplyScalar(R + gh + 7.5).addScaledVector(f, -2.2);        // (a cliff behind the crab: look down from above it instead)
           else if (want.length() < R + gh + 3.2) want.setLength(R + gh + 3.2); }
         if (snap && camP) { camP.copy(want); snap = false; }
-        if (!camP) { camP = up.clone().multiplyScalar(R * 4.2).addScaledVector(f, R * 1.4); intro = 1.8; }
+        if (!camP) { camP = V(TOP).multiplyScalar(R + fl(TOP) + 4.5).addScaledVector(V(tangent(TOP, c.p)), -11); camStart = camP.clone(); intro = 3.2; }
         intro = Math.max(0, intro - dt);
-        camP.lerp(want, dt ? Math.min(1, dt * (intro > 0 ? 2.4 : 7)) : 0);
+        if (intro > 0 && intro < 1.9 && camStart) {          // the swoop from the pearl to the crab: over the planet, not through it
+            const k = 1 - intro / 1.9, e = k * k * (3 - 2 * k), a0 = camStart.clone().normalize(), a1 = want.clone().normalize(), om = Math.acos(Math.max(-1, Math.min(1, a0.dot(a1)))) || 1e-6;
+            const dir = a0.multiplyScalar(Math.sin((1 - e) * om) / Math.sin(om)).add(a1.multiplyScalar(Math.sin(e * om) / Math.sin(om))).normalize();
+            camP.copy(dir).multiplyScalar(camStart.length() * (1 - e) + want.length() * e + 9 * Math.sin(Math.PI * e));
+        } else if (intro <= 0) camP.lerp(want, dt ? Math.min(1, dt * 7) : 0);
         camera.position.copy(camP);
         shake = Math.max(0, shake - dt * 2.4);
         if (shake > 0 && dt) camera.position.add(new T.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * 0.5));
-        camera.up.copy(V(c.p)); camera.lookAt(V(c.p).multiplyScalar(R + c.h * 0.4).addScaledVector(f, 1.8));
+        const lookCrab = V(c.p).multiplyScalar(R + c.h * 0.4).addScaledVector(f, 1.8), lookPearl = V(TOP).multiplyScalar(R + fl(TOP) + 1), k3 = intro > 1.9 ? 1 : intro > 0 ? intro / 1.9 : 0;
+        camera.up.copy(V(TOP).multiplyScalar(k3).addScaledVector(V(c.p), 1 - k3).addScaledVector(V(tangent(TOP, c.p)), 1.6 * k3 * (1 - k3)).normalize()); camera.lookAt(lookCrab.lerp(lookPearl, k3 * k3));
         sun.position.copy(camera.position).addScaledVector(V(cross(c.f, c.p)), 9).addScaledVector(V(c.p), 6); sun.target.position.set(0, 0, 0);
         const sz = renderer.getSize(new T.Vector2());
         if (Math.abs(camera.aspect - sz.x / sz.y) > 1e-3) { camera.aspect = sz.x / sz.y; camera.updateProjectionMatrix(); }

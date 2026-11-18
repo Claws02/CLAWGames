@@ -159,3 +159,38 @@ Bubble Stream and Gull Yard are next, as a river and as sea stacks, once Caleb h
   post (bounce off a jelly pad), in a cage opened by the bullseye riding a log, over the river (steer through it on vent B).
 - Proven by `qa/lair-world1.mjs`: the answer, and that each shortcut is shut (no direct throw into vent A, no bounce onto the mesa
   or over the gold fence, no throw over the cove wall, nothing from the terrace onto the pillar, every cove hit is a bank shot).
+
+## The bank shot remodelled, and the goal always in view (after the ninth play-test)
+Caleb found the spiked-lane bank shot confusing, skipped it with a coconut (a trick-shot bounce onto the mesa), and couldn't
+see where the pearl was. Now:
+- **The bank shot reads at a glance**: a painted throw spot with crab footprints, a big yellow bumper with arrows (in the way a
+  coconut glances off) standing in a deep pool, and the bullseye at the end of a short chute that faces only the bumper. Yellow
+  dots on the ground run spot → bumper → bullseye. The aim preview turns **green** when a throw will end in a bullseye (any
+  chamber). A coconut that falls in the pool washes back up at the spot. A bullseye can be `tall` (it catches over a bigger height).
+- **No skipping**: the green fence now runs round the whole mesa (the bullseye holds it open), so no bounce or trick shot gets
+  onto the mesa early. `qa/lair-world1.mjs` throws at the bullseye from all over the terrace: nothing gets in except off the bumper.
+- **The goal in view**: every chamber opens on the pearl and swoops over the planet to the crab (the arrival card waits until
+  the swoop is done), and a 🔮 compass at the top left always points to the pearl with its distance.
+- Fixed: the ground height at the very centre of a ledge read as 0, so the pearl sat inside the mesa.
+- New pieces: `pools` (deep, round, coconuts wash to `to`), bumper and chute bars, `spots` (a painted throw spot and its guide).
+
+## Small fixes (after the tenth play-test)
+- The pearl compass is gone (the opening swoop shows the pearl instead).
+- Bubble Stream: vent A's shelf is lower (3), and its jelly pad is now an **aimed pad** (Portal's launch pad): whatever lands on
+  it is thrown onto the vent, whichever way it came in (`pads: [{ p, r, to }]`, an arrow on the pad shows where). About half of all
+  throws from in front of it now plug the vent; still none plugs it without the pad. The aim turns green for a vent too.
+- Coconut Beach: the cracked section of the wall is twice as wide (28°), so the way in is wider once it's broken.
+
+## World 2: the coral caves (started)
+Plan, one chamber at a time: **5 Sinkhole Reef** (holes through the planet), **6 Moon Pool** (a launch pad to a little moon),
+**7 Low Tide** (the water rises and falls), **8 Ink's Deep** (Old Ink returns, with timed hazards: steam jets, crumbling ground).
+Each world has its own look (`THEME` in `LairScreen.js`: World 2 has a deep teal sky, pale coral sand, sea-grass, coral walls,
+kelp and coral bushes about the sand).
+
+**5. Sinkhole Reef** (built): the beach is the far side of the planet from the pearl, so a hole straight down comes up by the pearl.
+A coconut that goes into a hole comes out of the far end still flying the same way (Portal's momentum), and so does a crab: jump
+in from up high and you fly out high. Blowholes are grates (coconuts only). The big sinkhole is under a crystal lid; from a painted
+spot a coconut thrown into a blowhole flies up inside the reef wall into the lid's bullseye; another blowhole comes up in a walled
+pit on its plate (the gold fence round the pearl). A sinkhole inside leads back out, and coconuts that end up inside while the lid
+is shut wash back to the spot. Pieces: `holes: [{ p, r, nutOnly?, lid?, to? }]` (the far end is `-p` unless `to`), drains with
+`unless` (only while a gate is shut). Proven in `qa/lair-world1.mjs`.

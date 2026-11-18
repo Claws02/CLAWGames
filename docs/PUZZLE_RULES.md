@@ -97,6 +97,16 @@ the first time it matters (`calm` vent, `🪜` ladder).
 | **Drain** | a coconut coming to rest in a place no crab can reach rolls out to `to` | `drains: [{ p, r, to }]` |
 | **Coconut-safe urchins** | hurt the crab, not coconuts (for lanes a coconut must travel) | urchin `nutSafe` |
 
+### Built for World 2
+
+| Piece | Rule | Data |
+|---|---|---|
+| **Sinkhole** | step (or fall) in: out of the far side of the planet (`-p`), popped up; the faster you fell in, the higher you come out | `holes: [{ p, r }]` |
+| **Blowhole** | a grate: coconuts go through (still flying the same way), a crab walks over | hole `nutOnly` |
+| **Lid** | a hole is shut until its gate opens | hole `lid: 'gate'` |
+| **Aimed jelly pad** | whatever lands on it is thrown onto `to` | pad `to` |
+| **Conditional drain** | only while a gate is shut | drain `unless` |
+
 ### Planned (each is one new rule)
 
 | Piece | Rule | Puzzle it makes |
