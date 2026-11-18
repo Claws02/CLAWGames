@@ -26,7 +26,7 @@ import { cross, mix, norm, tangent, toward, walk } from './PlanetLogic.js';
 import { makeToon } from './Toon.js';
 
 const CHARGE_S = 0.9;                       // how long a full wind-up takes
-const GATE_COLOR = { eye: 0xff5fa8, plate: 0xffc83a, yard: 0x5fd0ff, red: 0xff5f5f, blue: 0x5f8bff };
+const GATE_COLOR = { eye: 0xff5fa8, plate: 0xffc83a, yard: 0x5fd0ff, red: 0xff5f5f, blue: 0x5f8bff, green: 0x4ade80, gold: 0xffc83a, cage: 0x5fd0ff };
 const SHOW = { cliff: 2.4, cove: 1.5, step: 2, gate: 2.1 };      // how tall each kind of wall is drawn
 const rngOf = seed => () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
@@ -47,6 +47,7 @@ export function createLair(kit, level, hooks) {
         return new T.Matrix4().makeBasis(x, up, f).scale(new T.Vector3(sx, sy, sz)).setPosition(up.clone().multiplyScalar(R + lift));
     };
     const around = K.around, TOP = K.TOP;
+    const sfl = { ...K.create(level), blocks: [], logs: [] }, fl = p => K.floorAt(sfl, p);      // (the ground's height: terraces, ramps, posts)
     const scene = new T.Scene(); scene.background = new T.Color(0x9fe0ff);
     const camera = new T.PerspectiveCamera(58, 1, 0.1, 400);
     scene.add(new T.HemisphereLight(0xffffff, 0x8a7aa0, 0.5));
@@ -70,6 +71,7 @@ export function createLair(kit, level, hooks) {
 
     // ── Shapes ───────────────────────────────────────────────────────────────
     const G = {
+        tower: new T.CylinderGeometry(0.52, 0.64, 1, 16),
         rock: new T.IcosahedronGeometry(0.5, 0), rockSoft: new T.IcosahedronGeometry(0.5, 1), brick: new T.BoxGeometry(1, 1, 1), crystal: new T.ConeGeometry(0.2, 1, 5),
         sph: new T.SphereGeometry(0.5, 16, 12), sphLow: new T.SphereGeometry(0.5, 10, 8), cyl: new T.CylinderGeometry(0.5, 0.5, 1, 14), cylLow: new T.CylinderGeometry(0.5, 0.5, 1, 9), cone: new T.ConeGeometry(0.5, 1, 8), coneLow: new T.ConeGeometry(0.5, 1, 5),
         box: new T.BoxGeometry(1, 1, 1), disc: new T.CircleGeometry(1, 28), ring: new T.RingGeometry(0.82, 1, 32), tube: new T.CylinderGeometry(1, 1, 1, 20, 1, true), dot: new T.SphereGeometry(0.08, 6, 5),
@@ -98,7 +100,7 @@ export function createLair(kit, level, hooks) {
         const rebuild = hk => rows.forEach((row, ri) => items.forEach((it, i) => {
             const j = jit[ri][i], big = row.big ? row.big(it, i) : 1, h = row.h * (0.9 + j[0] * 0.3) * big * hk;
             const cols = row.color, hex = cols[(i + ri) % cols.length];
-            inst[ri].set(i, stand(walk(it.p, it.f, (row.inset || 0) / R), it.f, row.y0 * hk + h / 2, it.len * (row.wide || 1.2) * (1 + j[1] * 0.3), Math.max(0.02, h), (row.depth || 0.9) * (0.85 + j[2] * 0.4), (j[3] - 0.5) * 0.5), hex);
+            inst[ri].set(i, stand(walk(it.p, it.f, (row.inset || 0) / R), it.f, fl(it.p) + row.y0 * hk + h / 2, it.len * (row.wide || 1.2) * (1 + j[1] * 0.3), Math.max(0.02, h), (row.depth || 0.9) * (0.85 + j[2] * 0.4), (j[3] - 0.5) * 0.5), hex);
         }));
         const wall = { w, k: 0, last: -1, rebuild, inst };
         rebuild(1); inst.forEach(i => i.done()); walls.push(wall); return wall;
@@ -111,8 +113,8 @@ export function createLair(kit, level, hooks) {
         const jit = items.map(() => [rnd(), rnd(), rnd()]);
         const rebuild = hk => items.forEach((it, i) => {
             const j = jit[i], h = (1.15 + j[0] * 0.75) * hk;
-            cr.set(i, stand(it.p, it.f, h / 2 + 0.1, 1.9, Math.max(0.02, h), 1.9, (j[1] - 0.5) * 2), j[2] > 0.5 ? hex : new T.Color(hex).lerp(new T.Color(0xffffff), 0.3).getHex());
-            base.set(i, stand(it.p, it.f, 0.14, it.len * 1.0, 0.4, 0.62, (j[1] - 0.5) * 0.6), 0x6f5f8a);
+            cr.set(i, stand(it.p, it.f, fl(it.p) + h / 2 + 0.1, 1.9, Math.max(0.02, h), 1.9, (j[1] - 0.5) * 2), j[2] > 0.5 ? hex : new T.Color(hex).lerp(new T.Color(0xffffff), 0.3).getHex());
+            base.set(i, stand(it.p, it.f, fl(it.p) + 0.14, it.len * 1.0, 0.4, 0.62, (j[1] - 0.5) * 0.6), 0x6f5f8a);
         });
         const wall = { w, k: 0, last: -1, rebuild, inst: [cr, base], gate: true };
         rebuild(1); cr.done(); base.done(); walls.push(wall); return wall;
@@ -144,22 +146,74 @@ export function createLair(kit, level, hooks) {
         courses.forEach((items, ri) => items.forEach((it, i) => inst[ri].set(i, stand(walk(it.p, it.f, (ri ? 0.03 : 0) / R), it.f, 0.5 + ri, it.len * 0.97, 1.0, 0.62), ri ? C.stone[2] : C.stone[i % 2])));
         inst.forEach(i => i.done());
     }
-    // Sandcastle walls: courses of sand blocks, battlements along the top; a cracked section darker, crumbling as it is hit.
+    // Sandcastle walls: one hand-patted wall (wider at the foot, bumpy, with course lines), battlements along the top, bucket-shaped
+    // towers at its ends and along the way (some with flags), shells pressed into the sand. A cracked section is grey stone.
+    const hash = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
+    const spansOf = (w, step) => {          // the arcs of ring w that stand, as lists of { p, f, deg }
+        const c = w.c || TOP, circ = 2 * Math.PI * R * Math.sin(w.r / R), n = Math.max(24, Math.round(circ / step)), on = [];
+        for (let i = 0; i < n; i++) { const deg = (i / n) * 360, p = around(c, w.r, deg); on.push(K.covers(w, p) ? { p, f: toward(p, c), deg } : null); }
+        const spans = []; let cur = null;
+        for (let i = 0; i < n; i++) { if (on[i]) { if (!cur) spans.push(cur = []); cur.push(on[i]); } else cur = null; }
+        if (spans.length > 1 && on[0] && on[n - 1]) spans[0] = spans.pop().concat(spans[0]);        // (one span across the seam)
+        return { spans, full: spans.length === 1 && spans[0].length === n };
+    };
+    function sandWall(w, pal, opt = {}) {
+        const h = w.h, prof = [[-0.62, 0], [-0.55, h * 0.18], [-0.5, h * 0.62], [-0.46, h], [0.46, h], [0.5, h * 0.62], [0.55, h * 0.18], [0.62, 0]];
+        const { spans, full } = spansOf(w, 0.28), pos = [], col = [], cc = new T.Color(), ends = [];
+        const vert = (sp, si, k) => {
+            const it = sp[si], [x0, y0] = prof[k], top = k === 3 || k === 4, n = (hash(si + it.deg, k) - 0.5);
+            const x = x0 + (top ? 0 : n * (opt.rough || 0.07)), y = y0 + (top ? n * (opt.jag || 0.04) : 0);
+            const v = V(it.p).multiplyScalar(R + y).addScaledVector(V(it.f), x);
+            // colour: darker at the foot, a darker line between courses, lighter on top, a little speckle
+            const course = (y / Math.max(0.5, h)) * Math.max(1, Math.round(h * 1.5)), line = Math.abs(course - Math.round(course)) < 0.07 && !top && y > 0.1;
+            cc.setHex(top ? pal.top : y < 0.22 ? pal.foot : pal.face[(Math.floor(si / 6) + Math.floor(course)) % pal.face.length]);
+            if (line) cc.multiplyScalar(0.82); cc.multiplyScalar(0.94 + hash(si, k + 7) * 0.1);
+            return [v, cc.r, cc.g, cc.b];
+        };
+        const tri = (a, b, c2) => { for (const q of [a, b, c2]) { pos.push(q[0].x, q[0].y, q[0].z); col.push(q[1], q[2], q[3]); } };
+        for (const sp of spans) {
+            const m = sp.length - (full ? 0 : 1);
+            for (let si = 0; si < m; si++) { const sj = (si + 1) % sp.length; for (let k = 0; k < prof.length - 1; k++) { const a = vert(sp, si, k), b = vert(sp, si, k + 1), c2 = vert(sp, sj, k), d = vert(sp, sj, k + 1); tri(a, c2, b); tri(b, c2, d); } }
+            if (!full) for (const [si, flip] of [[0, true], [sp.length - 1, false]]) {        // end caps
+                const vs = prof.map((_, k) => vert(sp, si, k)), mid = [vs[0][0].clone().add(vs[prof.length - 1][0]).multiplyScalar(0.5).addScaledVector(V(sp[si].p), h * 0.5), vs[1][1], vs[1][2], vs[1][3]];
+                for (let k = 0; k < prof.length - 1; k++) flip ? tri(vs[k], mid, vs[k + 1]) : tri(vs[k + 1], mid, vs[k]);
+                ends.push(sp[si]);
+            }
+        }
+        const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new T.Float32BufferAttribute(col, 3)); geo.computeVertexNormals();
+        const mesh = Y.part(geo, Y.toon(0xffffff, { vertexColors: true }), 0.06);
+        return { mesh, spans, ends };
+    }
+    const towerProp = (hgt, flag) => {
+        const parts = [{ geo: G.tower, color: C.sand[0], s: [1, hgt, 1], p: [0, hgt / 2, 0] }, { geo: G.cylLow, color: C.sandDark, s: [1.36, 0.1, 1.36], p: [0, hgt * 0.32, 0] }, { geo: G.cylLow, color: C.sandDark, s: [1.26, 0.1, 1.26], p: [0, hgt * 0.68, 0] }, { geo: G.cylLow, color: C.sand[2], s: [1.2, 0.12, 1.2], p: [0, hgt, 0] }];
+        for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2; parts.push({ geo: G.brick, color: C.sand[2], s: [0.24, 0.3, 0.2], p: [Math.cos(a) * 0.48, hgt + 0.2, Math.sin(a) * 0.48], r: [0, -a, 0] }); }
+        for (let k = 0; k < 4; k++) parts.push({ geo: G.coneLow, color: k % 2 ? 0xffb6c8 : 0xfff3e0, s: [0.12, 0.18, 0.12], p: [Math.cos(k * 1.7) * 0.6, hgt * (0.25 + k * 0.15), Math.sin(k * 1.7) * 0.6], r: [Math.PI / 2, 0, k], ink: false });
+        if (flag) { parts.push({ geo: G.cylLow, color: 0x8a5a2e, s: [0.05, 1.1, 0.05], p: [0, hgt + 0.7, 0] }); parts.push({ geo: G.coneLow, color: 0xff4d6d, s: [0.35, 0.5, 0.06], p: [0.2, hgt + 1.05, 0], r: [0, 0, -Math.PI / 2] }); }
+        return Y.prop(parts, { thick: 0.07 });
+    };
     const crackWalls = [];
     for (const w of (level.rings || []).filter(r => r.kind === 'castle' || r.kind === 'crack')) {
         const n = Math.max(1, Math.round(w.h)), crack = w.kind === 'crack', grp = new T.Group(); scene.add(grp);
-        const courses = Array.from({ length: n }, (_, ri) => arcPoints(w, 0.7, ri * 0.5)), inst = courses.map(items => Y.instanced(G.brick, items.length, 0.07));
-        inst.forEach(i => { grp.add(i.body); grp.add(i.line); });
-        courses.forEach((items, ri) => items.forEach((it, i) => inst[ri].set(i, stand(it.p, it.f, 0.5 + ri, it.len * 0.96, 1.0, 0.95), crack ? (i % 2 ? 0xb88a4c : 0xa77a40) : C.sand[(i + ri) % 3])));
-        inst.forEach(i => i.done());
-        if (w.top && !crack) {          // battlements: a merlon on every other block
-            const items = arcPoints(w, 0.7, 0.25).filter((_, i) => i % 2 === 0), m = Y.instanced(G.brick, items.length, 0.06);
-            grp.add(m.body); grp.add(m.line); items.forEach((it, i) => m.set(i, stand(walk(it.p, it.f, -0.3 / R), it.f, n + 0.22, it.len * 0.7, 0.45, 0.32), C.sand[2])); m.done();
+        const wall = sandWall(w, crack ? { face: [0x9c8a74, 0x8f7a66, 0xa89680], foot: 0x6e5c4a, top: 0xb3a28c } : { face: C.sand, foot: C.sandDark, top: 0xfbe4ad }, crack ? { rough: 0.16, jag: 0.35 } : {});
+        grp.add(wall.mesh);
+        if (!crack) {
+            // battlements along the outer edge of the top
+            if (w.top) { const items = []; wall.spans.forEach(sp => sp.forEach((it, i) => { if (i % 3 === 1) items.push(it); })); const mm = Y.instanced(G.brick, items.length, 0.06); grp.add(mm.body); grp.add(mm.line); items.forEach((it, i) => mm.set(i, stand(walk(it.p, it.f, -0.36 / R), it.f, w.h + 0.2, 0.42, 0.42, 0.26), C.sand[(i % 2) + 1])); mm.done(); }
+            // towers at the ends of each stretch and every few steps along it, alternate ones flying a flag
+            const spots = [...wall.ends]; wall.spans.forEach(sp => { const every = Math.max(10, Math.round(5 / 0.28)); for (let i = Math.round(every / 2); i < sp.length - every / 2; i += every) spots.push(sp[i]); });
+            spots.forEach((it, i) => { const tw = towerProp(w.h + 0.7, i % 2 === 0); put(tw, it.p, it.f, 0); grp.add(tw); });
+
         }
-        if (crack) {                     // dark zig-zag cracks on its face
-            const cg = new T.Group(); grp.add(cg);
-            for (const it of arcPoints(w, 0.9)) for (let k = 0; k < 3; k++) { const c = new T.Mesh(G.box, basic(0x4a2d12)); c.scale.set(0.06, 0.55, 0.04); put(c, walk(it.p, it.f, 0.5 / R), it.f, 0.6 + k * 0.8); c.rotateZ(k % 2 ? 0.5 : -0.5); cg.add(c); }
-            crackWalls.push({ w, grp, cg, shake: 0 });
+        if (crack) {
+            // big glowing zig-zag cracks on both faces, from the first look: the wall says "hit me here"
+            const cg = new T.Group(), glow = basic(0xff8a2a), items = arcPoints(w, 0.55); grp.add(cg);
+            for (const side of [1, -1]) items.forEach((it, j) => { for (let k = 0; k < n; k++) { const c = new T.Mesh(G.box, glow); c.scale.set(0.11, 0.62, 0.05); put(c, walk(it.p, it.f, side * 0.5 / R), it.f, 0.45 + k * 0.95 + (j % 2) * 0.2); c.rotateZ((k + j) % 2 ? 0.55 : -0.55); cg.add(c); } });
+            // rubble at its foot on the beach side, and a ring on the ground that pulses when the crab is near
+            const mid = items[Math.floor(items.length / 2)], rub = [];
+            for (let k = 0; k < 9; k++) rub.push({ geo: G.rock, color: [0x8f7a66, 0x7d6a58, 0xb59a7c][k % 3], p: [(k - 4) * 0.32, 0.1, 0.9 + (k % 3) * 0.25], s: 0.28 + (k % 3) * 0.08 });
+            const pile = Y.prop(rub, { thick: 0.05 }); put(pile, mid.p, mid.f.map(x => -x), 0); scene.add(pile);
+            const ring = new T.Mesh(G.ring, basic(0xff8a2a, { transparent: true, opacity: 0.6, depthWrite: false, side: T.DoubleSide })); put(ring, walk(mid.p, mid.f, -1.2 / R), null, 0.08); ring.scale.setScalar(1.3); scene.add(ring);
+            crackWalls.push({ w, grp, cg, pile, ring, glow, mid, shake: 0, said: false });
         }
         if (w.vine) {                   // vines down both faces of the wall
             const vw = { r: w.r, c: w.c, only: w.vine };
@@ -169,6 +223,49 @@ export function createLair(kit, level, hooks) {
             }
         }
     }
+    // Terraces, ramps and shelves: raised ground with a grassy (or stone) top and rocky cliff sides, darker bands of strata.
+    const LEDGE = { terrace: { top: [0x8fd96a, 0x7fcf5c], side: [0xc9935a, 0xb98249, 0xd6a46a] }, mesa: { top: [0xe8b46a, 0xdca65c], side: [0xd9893f, 0xc4742f, 0xe69b52] }, ramp: { top: [0xcfae7a, 0xc19f6c], side: [0xa98758, 0x977648, 0xb89668] }, shelf: { top: [0xaab0c4, 0x9aa1b6], side: [0x8890a8, 0x7a8299, 0x969db3] } };
+    for (const l of level.ledges || []) {
+        const pal = LEDGE[l.kind] || LEDGE.terrace, c0 = l.c || TOP, partial = !!(l.only || l.gap), lon0 = l.only ? l.only[0] - l.only[1] : 0, lon1 = l.only ? l.only[0] + l.only[1] : 360;
+        const nR = Math.max(2, Math.ceil((l.r1 - l.r0) / 0.4)), circ = 2 * Math.PI * R * Math.sin(Math.max(l.r1, 0.5) / R), nL = Math.max(8, Math.ceil(circ * (lon1 - lon0) / 360 / 0.45));
+        const hAt = r => (l.h1 == null ? l.h : l.h + (l.h1 - l.h) * (r - l.r0) / (l.r1 - l.r0)), pos = [], col = [], cc = new T.Color();
+        const P3 = (r, lon, y) => V(around(c0, Math.max(r, 0.001), lon)).multiplyScalar(R + y);
+        const push = (v, hex, k) => { pos.push(v.x, v.y, v.z); cc.setHex(hex).multiplyScalar(k); col.push(cc.r, cc.g, cc.b); };
+        const quad = (a, b, c2, d, hex, k = 1) => { push(a, hex, k); push(b, hex, k); push(c2, hex, k); push(a, hex, k); push(c2, hex, k); push(d, hex, k); };
+        for (let i = 0; i < nR; i++) for (let j = 0; j < nL; j++) {        // the top
+            const r0 = l.r0 + (i / nR) * (l.r1 - l.r0), r1 = l.r0 + ((i + 1) / nR) * (l.r1 - l.r0), a0 = lon0 + (j / nL) * (lon1 - lon0), a1 = lon0 + ((j + 1) / nL) * (lon1 - lon0);
+            const hex = pal.top[hash(i * 3.1, j * 1.7) > 0.7 ? 1 : 0], k = 0.97 + hash(i, j) * 0.05;
+            quad(P3(r0, a0, hAt(r0)), P3(r1, a0, hAt(r1)), P3(r1, a1, hAt(r1)), P3(r0, a1, hAt(r0)), hex, k);
+        }
+        const side = (rA, aA, rB, aB) => {                                     // a cliff face down to the ground, in bands
+            const hA = hAt(rA), hB = hAt(rB), bands = Math.max(1, Math.ceil(Math.max(hA, hB) / 0.7));
+            for (let b = 0; b < bands; b++) { const y0 = b / bands, y1 = (b + 1) / bands; quad(P3(rA, aA, hA * y0 - 0.05), P3(rB, aB, hB * y0 - 0.05), P3(rB, aB, hB * y1), P3(rA, aA, hA * y1), pal.side[b % pal.side.length], 0.9 + hash(rA + aA, b) * 0.15); }
+        };
+        for (let j = 0; j < nL; j++) { const a0 = lon0 + (j / nL) * (lon1 - lon0), a1 = lon0 + ((j + 1) / nL) * (lon1 - lon0); side(l.r1, a1, l.r1, a0); if (l.r0 > 0.01) side(l.r0, a0, l.r0, a1); }
+        if (partial) for (let i = 0; i < nR; i++) { const r0 = l.r0 + (i / nR) * (l.r1 - l.r0), r1 = l.r0 + ((i + 1) / nR) * (l.r1 - l.r0); side(r0, lon0, r1, lon0); side(r1, lon1, r0, lon1); }
+        const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new T.Float32BufferAttribute(col, 3)); geo.computeVertexNormals();
+        const mesh = new T.Mesh(geo, Y.toon(0xffffff, { vertexColors: true, side: T.DoubleSide })); scene.add(mesh);
+    }
+    // Stone posts (a pillar is a tall one): a column with rings and a cap.
+    for (const k of level.posts || []) {
+        const base = K.floorAt({ ...sfl, lv: { ...level, posts: [] } }, k.p), hh = k.h - base;
+        const g = Y.prop([{ geo: G.cyl, color: 0xb7aec8, s: [k.r * 2, hh, k.r * 2], p: [0, hh / 2, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.3, 0.18, k.r * 2.3], p: [0, 0.09, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.25, 0.12, k.r * 2.25], p: [0, hh * 0.55, 0] }, { geo: G.cylLow, color: 0xd0c8de, s: [k.r * 2.4, 0.2, k.r * 2.4], p: [0, hh - 0.1, 0] }], { thick: 0.07 });
+        put(g, k.p, [1, 0, 0], base); scene.add(g);
+    }
+    // Jelly pads: a pink wobbly dome.
+    const padMeshes = (level.pads || []).map(k => { const g = Y.prop([{ geo: G.sph, color: 0xff8ad8, s: [k.r * 2, 0.5, k.r * 2], p: [0, 0.05, 0] }, { geo: G.sphLow, color: 0xffd1f0, s: [k.r * 0.8, 0.12, k.r * 0.6], p: [-k.r * 0.3, 0.24, -k.r * 0.2], ink: false }], { thick: 0.06 }); put(g, k.p, [1, 0, 0], fl(k.p) - 0.02 - (K.PAD_H || 0.25) + 0.02); scene.add(g); return { k, g, wob: 0 }; });
+    // Stone walls (the bank-shot lane, the ramp's rails): a low run of blocks along each bar.
+    for (const b of (level.bars || []).filter(x => x.kind === 'lane' || x.kind === 'rail')) {
+        const len = K.dist(b.a, b.b), n = Math.max(2, Math.round(len / 0.5)), m = Y.instanced(G.rockSoft, n, 0.08), nrm = norm(cross(b.a, b.b)); scene.add(m.body); scene.add(m.line);
+        for (let i = 0; i < n; i++) { const tt = (i + 0.5) / n, p = norm(mix(b.a, b.b, 1 - tt, tt)), base = fl(p), hh = b.kind === 'rail' ? 1.0 : Math.max(0.8, b.h - base); m.set(i, stand(p, tangent(p, nrm), base + hh / 2, 0.62, hh, 0.7, hash(i, 2) * 2), [0x9aa1b6, 0x8890a8, 0xaab0c4][i % 3]); }
+        m.done();
+    }
+    // A palm on the mesa with a coconut hanging from its frond on a rope.
+    const hangVis = (level.hangs || []).map(hg => {
+        const foot = walk(hg.p, toward(hg.p, TOP), 1.2 / R), g = new T.Group(); const trunk = Y.prop([{ geo: G.cyl, color: 0xa87440, s: [0.3, 2.6, 0.3], p: [0, 1.3, 0], r: [0, 0, -0.2] }, { geo: G.sph, color: 0x4cc064, s: [1.6, 0.2, 0.7], p: [0.6, 2.6, 0], r: [0, 0, -0.3] }, { geo: G.sph, color: 0x37a655, s: [0.7, 0.2, 1.4], p: [-0.2, 2.65, 0.3] }], { thick: 0.06 });
+        g.add(trunk); put(g, foot, toward(foot, hg.p), fl(foot)); scene.add(g);
+        const rope = new T.Mesh(G.box, basic(0x7a5a3a)); scene.add(rope); return { hg, rope };
+    });
     // Sand blocks to push, floating logs, golden shells.
     const blockMeshes = (level.blocks || []).map(() => { const g = Y.prop([{ geo: G.box, color: C.sand[1], s: [1.05, 1, 1.05], p: [0, 0.5, 0] }, { geo: G.box, color: C.sand[2], s: [0.85, 0.06, 0.85], p: [0, 1.0, 0], ink: false }, { geo: G.box, color: C.sandDark, s: [0.5, 0.05, 1.07], p: [0, 0.35, 0], ink: false }], { thick: 0.08 }); scene.add(g); return g; });
     const logMeshes = (level.logs || []).map(() => { const g = Y.prop([{ geo: G.cyl, color: C.log, s: [0.55, 1.9, 0.55], r: [0, 0, Math.PI / 2], p: [0, 0.18, 0] }, { geo: G.cylLow, color: C.logEnd, s: [0.42, 0.04, 0.42], r: [0, 0, Math.PI / 2], p: [0.96, 0.18, 0], ink: false }, { geo: G.cylLow, color: C.logEnd, s: [0.42, 0.04, 0.42], r: [0, 0, Math.PI / 2], p: [-0.96, 0.18, 0], ink: false }], { thick: 0.07 }); scene.add(g); return g; });
@@ -238,7 +335,7 @@ export function createLair(kit, level, hooks) {
     const vents = (level.vents || []).map(v => {
         const g = Y.prop([{ geo: G.cylLow, color: 0xa39ab8, p: [0, 0.03, 0], s: [1.25, 0.16, 1.25] }, { geo: G.cylLow, color: 0x6e6585, p: [0, 0.1, 0], s: [0.8, 0.12, 0.8] }, { geo: G.cylLow, color: 0x1d0f2b, p: [0, 0.17, 0], s: [0.56, 0.06, 0.56], ink: false }], { thick: 0.05 });
         g.scale.setScalar(v.r / 0.6);
-        const base = (rocks.find(r => K.dist(r.k.p, v.p) < 0.4) ? K.ROCK_H : 0);
+        const base = (rocks.find(r => K.dist(r.k.p, v.p) < 0.4) ? K.ROCK_H : 0) || fl(v.p);
         scene.add(g); const lift = v.lift || 0, col = new T.Mesh(G.tube, basic(0xbdeaff, { transparent: true, opacity: 0.22, side: T.DoubleSide, depthWrite: false })); col.visible = false; scene.add(col);
         const bands = lift ? [0, 1, 2, 3].map(i => { const b = new T.Mesh(G.ring, basic(0xffffff, { transparent: true, opacity: 0.55, side: T.DoubleSide, depthWrite: false })); b.visible = false; scene.add(b); return { b, t: i / 4 }; }) : [];
         const bubbles = Array.from({ length: 10 }, (_, i) => { const b = new T.Mesh(G.sphLow, basic(0xeaf9ff, { transparent: true, opacity: 0.85 })); b.visible = false; scene.add(b); return { b, t: i / 10 }; });
@@ -262,8 +359,8 @@ export function createLair(kit, level, hooks) {
     })();
     const plates = (level.plates || []).map(pl => {
         const g = new T.Group(), rim = Y.prop([{ geo: G.cylLow, color: 0xb9aed0, s: [2.25, 0.22, 2.25], p: [0, 0.08, 0] }], { thick: 0.06 }); g.add(rim);
-        const off = Y.toon(GATE_COLOR[pl.gate] || 0xffc83a), on = Y.toon(C.green), top = Y.part(G.cylLow, off, 0.04); top.scale.set(1.6, 0.12, 1.6); top.position.y = 0.22; g.add(top);
-        g.scale.setScalar(pl.r / 1.125); const halo = new T.Mesh(G.ring, basic(GATE_COLOR[pl.gate] || 0xffc83a, { transparent: true, opacity: 0.9, depthWrite: false, side: T.DoubleSide })); halo.scale.setScalar(pl.r + 0.15); scene.add(halo); scene.add(g);
+        const gc = GATE_COLOR[[].concat(pl.gate)[0]] || 0xffc83a, off = Y.toon(gc), on = Y.toon(C.green), top = Y.part(G.cylLow, off, 0.04); top.scale.set(1.6, 0.12, 1.6); top.position.y = 0.22; g.add(top);
+        g.scale.setScalar(pl.r / 1.125); const halo = new T.Mesh(G.ring, basic(gc, { transparent: true, opacity: 0.9, depthWrite: false, side: T.DoubleSide })); halo.scale.setScalar(pl.r + 0.15); scene.add(halo); scene.add(g);
         return { pl, g, top, off, on, halo };
     });
     const targets = (level.targets || []).map(tg => {
@@ -272,6 +369,18 @@ export function createLair(kit, level, hooks) {
         [[0.62, 0xff4d4d], [0.44, 0xffffff], [0.26, 0xff4d4d]].forEach(([r, hex], i) => { const m = Y.toon(hex); mats.push(m); const d = Y.part(G.cyl, m, i ? 0 : 0.05); d.scale.set(r * 2, 0.1 + i * 0.03, r * 2); d.rotation.x = Math.PI / 2; face.add(d); });
         g.add(face); scene.add(g); return { tg, g, face, hit: 0, mats };
     });
+    // Signal lines: a dotted line on the ground from each plate and bullseye to every gate it works, in that gate's colour.
+    // Dim while the switch is off; bright, with a pulse running along it, while it holds the gate; a timed one goes dark dot by dot.
+    const signals = [], s0 = { ...K.create(level), blocks: [], logs: [] };
+    for (const [kind, list] of [['plate', level.plates || []], ['target', level.targets || []]]) for (const sw of list) for (const g of [].concat(sw.gate)) {
+        const ring = (level.rings || []).find(r => r.gate === g); if (!ring) continue;
+        const c0 = ring.c || TOP, dest = around(c0, ring.r + (K.dist(sw.p, c0) > ring.r ? 0.35 : -0.35), K.lonOf(sw.p, c0)), len = K.dist(sw.p, dest), st = (sw.r || 0.45) + 0.2, n = Math.max(2, Math.floor((len - st - 0.15) / 0.38));
+        const mat = basic(GATE_COLOR[g] || 0xffffff, { transparent: true, opacity: 0.4, depthWrite: false, side: T.DoubleSide }), dots = [];
+        for (let k = 0; k <= n; k++) { const f = (st + k * ((len - st - 0.15) / n)) / len, p = norm(mix(sw.p, dest, 1 - f, f)), d = new T.Mesh(G.disc, mat.clone()); d.scale.setScalar(0.11); put(d, p, null, 0.09 + K.floorAt(s0, p)); scene.add(d); dots.push(d); }
+        // a coloured ring round a bullseye's post, so it matches its gate
+        if (kind === 'target') { const rg = new T.Mesh(G.ring, basic(GATE_COLOR[g] || 0xffffff, { transparent: true, opacity: 0.9, depthWrite: false, side: T.DoubleSide })); rg.scale.setScalar(0.6); put(rg, sw.p, null, 0.1); scene.add(rg); }
+        signals.push({ kind, sw, g, dots });
+    }
     const pearl = new T.Group();
     { const orb = Y.part(G.sph, Y.toon(C.pearl, { emissive: new T.Color(0xff8ad8).multiplyScalar(0.5) }), 0.05); orb.scale.setScalar(1.0); orb.position.y = 0.95; pearl.add(orb);
       const shine = new T.Mesh(G.sph, basic(0xffffff)); shine.scale.setScalar(0.22); shine.position.set(-0.2, 1.18, 0.2); pearl.add(shine);
@@ -413,6 +522,9 @@ export function createLair(kit, level, hooks) {
             else if (e.type === 'gold') { burst(at3(e.p, e.h + 0.5), 0xffd23a, 36, 5); hooks.sfx('win'); hooks.buzz([15, 20, 30]); hooks.pop(at3(e.p, e.h + 1.4), `🐚 GOLDEN SHELL ${s.gold.length}/${(level.gold || []).length}`); cheer = 0.5; }
             else if (e.type === 'nudge') burst(at3(e.nut.p, 0.4), 0xffffff, 8, 2);
             else if (e.type === 'timeout') { hooks.sfx('tick'); hooks.pop(at3(s.crab.p, 2), 'THE GATE SHUT AGAIN'); }
+            else if (e.type === 'pad') { const v = padMeshes.find(x => K.dist(x.k.p, e.p) < x.k.r + 0.3); if (v) v.wob = 1; burst(at3(e.p, 0.4), 0xff8ad8, 12, 3.5); hooks.sfx('boost'); }
+            else if (e.type === 'knock') { burst(at3(e.p, e.h), 0xffe9b0, 22, 4); hooks.sfx('coin_gain'); hooks.pop(at3(e.p, e.h + 1), '🥥 KNOCKED LOOSE!'); }
+            else if (e.type === 'unstick') { burst(at3(e.nut.p, e.nut.h), 0xffffff, 12, 3); hooks.sfx('tick'); hooks.hint('🥥 YOU TOOK THE COCONUT BACK: ITS GATE SHUTS AGAIN', 2.2); }
             else if (e.type === 'won') { burst(at3(level.goal, 1.5), 0xff8ad8, 50, 7); burst(at3(level.goal, 1.5), 0xffd84a, 40, 6); hooks.sfx('win'); hooks.buzz([30, 30, 30, 30, 120]); cheer = 1.2; inkMad = 2; doneAt = t + 1.8; }
         }
     }
@@ -433,7 +545,7 @@ export function createLair(kit, level, hooks) {
         bristle = Math.max(0, bristle - dt);
         urchins.forEach((v, i) => {
             const d = K.dist(v.u.p, c.p), near = d < 3.6 ? 1 - d / 3.6 : 0, k = 1 + Math.sin(t * 2 + v.ph) * 0.04 + near * 0.12 + bristle * 0.1;
-            put(v.g, v.u.p, toward(v.u.p, c.p), 0.3 + Math.sin(t * 1.6 + v.ph) * 0.04); v.g.scale.setScalar(v.u.r * 1.35 * k);
+            put(v.g, v.u.p, toward(v.u.p, c.p), fl(v.u.p) + 0.3 + Math.sin(t * 1.6 + v.ph) * 0.04); v.g.scale.setScalar(v.u.r * 1.35 * k);
             v.eyes.forEach(e => { e.children[1].position.x = 0; e.scale.y = 1 - near * 0.35; });
         });
         rocks.forEach(v => put(v.g, v.k.p, [1, 0, 0], 0.05));
@@ -447,19 +559,19 @@ export function createLair(kit, level, hooks) {
             vn.bands.forEach(b => { b.t = (b.t + dt * 0.4) % 1; b.b.visible = active; if (active) { put(b.b, vn.v.p, null, vn.base + 0.2 + b.t * vn.lift); b.b.scale.setScalar(vn.v.r * (0.9 + 0.3 * b.t)); b.b.material.opacity = 0.55 * (1 - b.t); } });
             vn.bubbles.forEach(b => { b.t = (b.t + dt * (active ? 0.5 : 0.18)) % 1; const rise = b.t * (active ? (vn.lift ? 3.4 : 1.8) : 0.5); b.b.visible = active || (!plugged && !vn.lift); b.b.position.copy(at3(vn.v.p, vn.base + 0.3 + rise)); tmp.copy(V(cross(vn.v.p, [0, 1, 0]))).normalize(); b.b.position.addScaledVector(tmp, Math.sin(t * 5 + b.t * 9) * 0.14 * vn.v.r); b.b.scale.setScalar((0.1 + b.t * 0.16) * (active ? 1.4 : 1)); });
         });
-        checks.forEach(v => { put(v.g, v.p, [1, 0, 0]); v.cloth.material = s.cp >= v.i ? v.on : v.off; v.cloth.rotation.y = Math.sin(t * 4 + v.i) * 0.25; });
+        checks.forEach(v => { put(v.g, v.p, [1, 0, 0], fl(v.p)); v.cloth.material = s.cp >= v.i ? v.on : v.off; v.cloth.rotation.y = Math.sin(t * 4 + v.i) * 0.25; });
         palm.top.rotation.z = Math.sin(t * 1.3) * 0.05; palm.top.rotation.x = Math.cos(t * 1.1) * 0.04;
-        plates.forEach(v => { const on = !!s.held[v.pl.gate]; v.top.material = on ? v.on : v.off; put(v.g, v.pl.p, null, on ? -0.02 : 0.02); put(v.halo, v.pl.p, null, 0.12); });
-        targets.forEach(v => { v.hit = Math.max(0, v.hit - dt * 1.5); put(v.g, v.tg.p, toward(v.tg.p, c.p)); v.face.rotation.z = v.hit * 8; v.face.scale.setScalar(1 + v.hit * 0.4); const op = s.open[[].concat(v.tg.gate)[0]]; const hex = op ? (typeof op === 'number' && op < 2 && Math.sin(t * 20) > 0 ? 0xffe45a : 0x4ade80) : 0xff4d4d; v.mats[0].color.setHex(hex); v.mats[2].color.setHex(hex); });
+        plates.forEach(v => { const on = !!s.held[[].concat(v.pl.gate)[0]]; v.top.material = on ? v.on : v.off; const ph = fl(v.pl.p); put(v.g, v.pl.p, null, ph + (on ? -0.02 : 0.02)); put(v.halo, v.pl.p, null, ph + 0.12); });
+        targets.forEach(v => { v.hit = Math.max(0, v.hit - dt * 1.5); const ta = K.targetAt(s, v.tg); put(v.g, ta.p, toward(ta.p, c.p), ta.h - 1.1 - (v.tg.h ? v.tg.h - 1.1 : 0)); v.face.rotation.z = v.hit * 8; v.face.scale.setScalar(1 + v.hit * 0.4); const op = s.open[[].concat(v.tg.gate)[0]]; const hex = op ? (typeof op === 'number' && op < 2 && Math.sin(t * 20) > 0 ? 0xffe45a : 0x4ade80) : 0xff4d4d; v.mats[0].color.setHex(hex); v.mats[2].color.setHex(hex); });
         // The pearl and Old Ink: he watches the crab, blinks, narrows his eyes when it comes close, and rears up when the pearl is taken.
         inkMad = Math.max(0, inkMad - dt);
-        put(pearl, TOP, [1, 0, 0]); pearl.userData.orb.position.y = 0.95 + Math.sin(t * 2) * 0.08 + (s.won ? Math.min(2, (t - (doneAt - 1.8)) * 1.5) : 0); pearl.userData.shine.position.y = pearl.userData.orb.position.y + 0.23; pearl.userData.orb.rotation.y = t; pearl.userData.glow.material.opacity = 0.25 + 0.15 * Math.sin(t * 3);
+        put(pearl, TOP, [1, 0, 0], fl(TOP)); pearl.userData.orb.position.y = 0.95 + Math.sin(t * 2) * 0.08 + (s.won ? Math.min(2, (t - (doneAt - 1.8)) * 1.5) : 0); pearl.userData.shine.position.y = pearl.userData.orb.position.y + 0.23; pearl.userData.orb.rotation.y = t; pearl.userData.glow.material.opacity = 0.25 + 0.15 * Math.sin(t * 3);
         const bs = s.boss, bst = bs ? bs.state : 'none', alive = bst !== 'down';
         hurtFlash = Math.max(0, hurtFlash - dt * 2.5); downT = bst === 'down' ? Math.min(1.6, downT + dt) : 0;
         const dk = Math.min(1, downT / 1.6), dizzy = false, hurt = bst === 'hurt';
         pearl.visible = !bs || bst === 'down' || s.won;
         octo.g.visible = dk < 1 && !!level.boss;
-        put(octo.g, inkAt, toward(inkAt, c.p), -dk * 3.2); octo.g.scale.setScalar(OSC * (1 - dk * 0.7) * (1 + Math.sin(t * 1.5) * 0.025 + (inkMad > 0 ? 0.25 * Math.abs(Math.sin(t * 14)) : 0) + (hurt ? 0.12 * Math.sin(bs.t * 34) : 0) + (bst === 'wind' ? 0.05 * Math.min(1, bs.t) : 0)));
+        put(octo.g, inkAt, toward(inkAt, c.p), fl(inkAt) - dk * 3.2); octo.g.scale.setScalar(OSC * (1 - dk * 0.7) * (1 + Math.sin(t * 1.5) * 0.025 + (inkMad > 0 ? 0.25 * Math.abs(Math.sin(t * 14)) : 0) + (hurt ? 0.12 * Math.sin(bs.t * 34) : 0) + (bst === 'wind' ? 0.05 * Math.min(1, bs.t) : 0)));
         const open = bst === 'recover'; swat = Math.max(0, swat - dt);
         octo.head.material.emissive.setRGB(0.55 * hurtFlash + (open ? 0.35 + 0.2 * Math.sin(t * 14) : 0), 0.45 * hurtFlash + (open ? 0.3 : 0), 0.4 * hurtFlash);
         inkStars.visible = dizzy || hurt; inkStars.position.y = 3.3; inkStars.children.forEach((sp, i) => { const a = t * 4 + i * Math.PI / 2; sp.position.set(Math.cos(a) * 0.9, Math.sin(t * 3 + i) * 0.12, Math.sin(a) * 0.9); sp.rotation.y = t * 5; });
@@ -487,10 +599,23 @@ export function createLair(kit, level, hooks) {
         });
 
         if (slideLadder) { const want = slide.earn != null && s.cp >= slide.earn ? 1 : 0; slideLadder.k += (want - slideLadder.k) * Math.min(1, dt * 2); slideLadder.lad.scale.z = Math.max(0.02, slideLadder.k); slideLadder.lad.visible = slideLadder.k > 0.03; slideLadder.roll.scale.x = slideLadder.roll.scale.z = 0.35 * (1 - slideLadder.k * 0.7); }
-        crackWalls.forEach(v => { v.grp.visible = K.up(s, v.w); v.shake = Math.max(0, v.shake - dt * 3); v.grp.position.set((Math.random() - 0.5) * v.shake * 0.2, 0, (Math.random() - 0.5) * v.shake * 0.2); v.cg.visible = (s.dmg[v.w.id] || 0) > 0; });
+        crackWalls.forEach(v => {
+            const standing = K.up(s, v.w), dmg = s.dmg[v.w.id] || 0, near = K.dist(c.p, v.mid.p) < 5;
+            v.grp.visible = standing; v.ring.visible = standing; v.shake = Math.max(0, v.shake - dt * 3);
+            v.grp.position.set((Math.random() - 0.5) * v.shake * 0.2, 0, (Math.random() - 0.5) * v.shake * 0.2);
+            v.glow.color.setHex(dmg ? 0xff3b1f : 0xff8a2a); v.glow.color.multiplyScalar(0.75 + 0.25 * Math.sin(t * (near ? 8 : 3)));
+            v.ring.material.opacity = (near ? 0.5 : 0.25) + 0.25 * Math.sin(t * 5); v.ring.scale.setScalar(1.3 + 0.12 * Math.sin(t * 5));
+            if (standing && near && !v.said) { v.said = true; hooks.hint('🧱 THAT SECTION OF WALL IS CRACKED: THROW COCONUTS AT IT', 3); }
+        });
         (s.blocks || []).forEach((b, i) => put(blockMeshes[i], b.p, toward(b.p, K.TOP), K.floorAt({ ...s, blocks: [] }, b.p)));
         (s.logs || []).forEach((l, i) => { put(logMeshes[i], l.p, tangent(l.p, cross(K.TOP, l.p)), 0.05 + Math.sin(t * 2 + i) * 0.04); logMeshes[i].rotateY(Math.PI / 2); });
         (level.gold || []).forEach((gd, i) => { const v = goldMeshes[i]; v.g.visible = !s.gold.includes(i); if (v.g.visible) { put(v.g, gd.p, [1, 0, 0], (gd.h || 0) + 0.45 + Math.sin(t * 2.5 + i) * 0.1); v.sh.rotation.y = t * 2.2; v.halo.material.opacity = 0.25 + 0.15 * Math.sin(t * 4 + i); } });
+        hangVis.forEach(v => { const n = s.nuts.find(x => x.state === 'hang'); v.rope.visible = !!n; if (n) { const top = n.h + 1.6; v.rope.scale.set(0.05, top - n.h, 0.05); put(v.rope, n.p, null, (top + n.h) / 2 + 0.2); } });
+        padMeshes.forEach(v => { v.wob = Math.max(0, v.wob - dt * 3); v.g.scale.set(1 + v.wob * 0.15, 1 - v.wob * 0.4, 1 + v.wob * 0.15); });
+        signals.forEach(v => {
+            const on = v.kind === 'plate' ? !!s.held[v.g] : !!s.open[v.g], left = typeof s.open[v.g] === 'number' && v.sw.secs ? s.open[v.g] / v.sw.secs : 1, n = v.dots.length;
+            v.dots.forEach((d, k) => { const lit = on && k / n < left; d.material.opacity = lit ? 0.7 + 0.3 * Math.max(0, Math.sin(t * 7 - k * 0.7)) : 0.5; d.scale.setScalar(lit ? 0.24 + 0.05 * Math.max(0, Math.sin(t * 7 - k * 0.7)) : 0.17); });
+        });
         // Coconuts: lying, floating, flying, plugging a vent, stuck in the bullseye.
         const seen = new Set();
         for (const n of s.nuts) {
@@ -504,7 +629,7 @@ export function createLair(kit, level, hooks) {
             }
             const ar = v.userData.arrow, loose = n.state === 'rest' || n.state === 'float';
             ar.visible = loose; if (loose) { ar.position.y = 1.5 + Math.sin(t * 4 + n.id) * 0.18; ar.rotation.y = t * 2; }
-            const lift = n.state === 'fly' ? n.h : n.state === 'float' ? 0.16 + Math.sin(t * 3 + n.id) * 0.05 : n.state === 'plug' ? 0.3 + K.floorAt(s, n.p) : n.state === 'stuck' ? 1.1 : 0.2 + K.floorAt(s, n.p);
+            const lift = n.state === 'fly' ? n.h : n.state === 'float' ? 0.16 + Math.sin(t * 3 + n.id) * 0.05 : n.state === 'plug' ? 0.3 + K.floorAt(s, n.p) : n.state === 'stuck' || n.state === 'hang' ? n.h : 0.2 + K.floorAt(s, n.p);
             put(v, n.p, n.d, lift); if (n.state === 'fly') v.rotateX(t * 9);
         }
         for (const [id, v] of nuts) if (!seen.has(id)) { scene.remove(v); nuts.delete(id); }
@@ -562,6 +687,10 @@ export function createLair(kit, level, hooks) {
         // The camera: behind and above, higher when the crab is, swinging in from far out on a fresh go, steeper on the shelf.
         const dT = K.dist(c.p, TOP); shelfK += ((dT < 9.7 && dT > 5.0 ? 1 : 0) - shelfK) * Math.min(1, dt * 3);
         const up = V(c.p), f = V(c.f), want = up.clone().multiplyScalar(R + (9.6 + 3.2 * shelfK) * (1 + 0.4 * pitch) + c.h * 0.45).addScaledVector(f, -(8.6 - 3.6 * shelfK) * (1 - 0.35 * pitch));
+        { // never inside a terrace: keep the camera above the ground (and the crab's own level) wherever it would be
+          const cp = norm([want.x, want.y, want.z]), gh = Math.max(fl(cp), fl(norm(mix(c.p, cp, 0.5, 0.5))), fl(norm(mix(c.p, cp, 0.8, 0.2))), c.h);
+          if (gh > c.h + 0.8) want.copy(up).multiplyScalar(R + gh + 7.5).addScaledVector(f, -2.2);        // (a cliff behind the crab: look down from above it instead)
+          else if (want.length() < R + gh + 3.2) want.setLength(R + gh + 3.2); }
         if (snap && camP) { camP.copy(want); snap = false; }
         if (!camP) { camP = up.clone().multiplyScalar(R * 4.2).addScaledVector(f, R * 1.4); intro = 1.8; }
         intro = Math.max(0, intro - dt);

@@ -27,6 +27,10 @@ Write these five lines before any code:
 4. **What shuts each shortcut** (it must be something you can see).
 5. **The coconut count** at each step (in hand, working, lying).
 
+Then check the plan against `PORTAL_LESSONS.md`: one idea taught in four beats; the goal visible from the start; each
+piece in its usual colour; a hazard with a tell; plates and bullseyes somewhere that makes them a puzzle; nothing that
+looks usable but isn't.
+
 ## Step 2. The recipe
 
 A chamber is data in `LairLogic.js`. Place things with `at(d, lon)` (`d` ground
@@ -120,3 +124,4 @@ wasn't checked (a real phone; how it feels to a person).
 | Night 22 was impossible | check difficulty curves at the far end (stars grew with day²) |
 | Outlines too heavy | one global `LINE` in `Toon.js` |
 | A test bot that aims perfectly says nothing about feel | say so in the PR; tune after a person plays |
+| The cracked wall was hard to find | each piece has one look, readable before you touch it (grey stone, orange cracks, rubble, a ring on the ground, a hint when near) |

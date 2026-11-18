@@ -44,6 +44,7 @@ export const JUMP_V = 6.84, BOUNCE_V = 9.67;             // apex 1.3 and 2.6 abo
 export const CARRY = 3, PICK_R = 0.6, PICK_AGE = 0.8;    // coconuts carried; how near picks one up; how soon after a throw
 export const NUT_R = 0.6, NUT_TOP = 0.45, ROCK_H = 0.45;      // ROCK_H: how high a stepping rock stands, so a crab on one is that high
 export const TRICK_R = 0.85, TRICK_GAP = 1.1, HIT_R = 0.8, GOAL_R = 0.9, CHECK_R = 1;
+export const PAD_NUT_V = 12.5, PAD_CRAB_V = 10, PAD_H = 0.25;   // a jelly pad: how hard it throws a coconut (and a crab) up, and how high it stands
 export const STEP_UP = 0.6, CLIMB_V = 2.2, TOP_W = 0.45, PUSH_K = 0.6;   // a ledge the crab walks up; how fast it climbs a vine; how wide a wall top is; how fast a block goes
 export const COYOTE_S = 0.1, JUMP_BUFFER = 0.15, WADE = 0.35, RESPAWN_S = 1.4;
 export const THROW = { range0: 1.6, range1: 7, t0: 0.55, t1: 1.0, up: 0.75, ahead: 0.45 };
@@ -150,30 +151,53 @@ export const BEACH = {
     gold: [{ p: at(17.7, -42), h: 2.8 }, { p: at(15, 130), h: 3 }, { p: at(12, 200), h: 1.3 }],
 };
 
-// 2. BUBBLE STREAM: water, urchins, and vents.
-//   the beach                                                 d > 12.6
-//   vent A on the beach (it blows; a coconut dropped in it plugs it)          13.6, lon 60
-//   the stream: a current east onto urchins, between two dams                 11 – 12.6
-//   a dry strip at the cliff's foot, and vent B (the lift)                    9.9, lon 0
-//   the cliff (8.5), with a slide down at the back (its ladder once the top is yours)   9.2
-//   on top: a plate holds the gate round the pearl                            4.5 · 3
-// THE ANSWER. Throw a coconut into vent A: now B blows. Cross the stream (wade fast, or jump it), stand on B, ride it up and steer
-// over the cliff. On top, a coconut on the plate; the pearl.
+// 2. BUBBLE STREAM: a river valley on three levels.
+//   the beach (start, the palm)                                   d > 12.5
+//       · a rock shelf (4 high) with vent A on it, a jelly pad in front   13.6 – 15, lon 60
+//       · vent B by the river (the lift)                           13.3, lon 0
+//       · a stone post with a golden shell on top, a jelly pad by it; a crystal cage with another (opened by the log's bullseye)
+//   the river: deep, all the way round; logs drift on it (one carries a bullseye)            10 – 12.5
+//   the middle terrace (3.8 high)                                  4.6 – 9.6
+//       · the bank shot: a bullseye in a walled cove at the end of a spiked lane; a stone post at the lane's bend; open only at the far end
+//       · a ramp up to the mesa behind the green gate (the bullseye holds it open)
+//       · a pillar (9 high) with a plate on top, a coconut hanging over it from the mesa's palm
+//   the mesa (7.5 high), the pearl inside the gold fence (the plate holds it open)               0 – 4.6
+// THE ANSWER. Throw a coconut onto the jelly pad: it bounces up onto the shelf and into vent A, so B blows. Ride B over the river
+// onto the terrace. From the open end of the lane, bank a coconut off the post into the cove's bullseye: the green gate drops. Up the
+// ramp to the mesa; put a coconut on the pillar's plate (lob one, or knock the hanging one down onto it): the gold fence drops.
+const BANKPOST = at(7.6, 70), COVE = at(7.6, 92), PILLAR = at(5.3, -60), LANE_IN = at(5.2, 70);
 export const STREAM = {
-    id: 'stream', name: 'BUBBLE STREAM', world: 1, fast: 60, pay: 15, start: at(18.4, 0), goal: TOP, palm: at(17.7, -42), bank: 12.6,
-    story: 'Old Ink\'s bubbling vents, and a stream that carries things off. Only one vent blows at a time.',
-    hints: ['Vent A, on the beach, is the one blowing. Only one vent blows at a time.', 'Drop a coconut into vent A and it is plugged. Then the next vent blows.', 'The stream carries you (and coconuts) toward the urchins. Wade across quickly, or jump it.', 'Stand on vent B and steer over the cliff as it lifts you. On top, a coconut on the plate opens the gate.'],
-    ground: [[1.8, 'dais'], [3, 'stone'], [9.2, 'grass'], [11, 'rock'], [12.6, 'sea'], [99, 'sand']],
-    checks: [at(18.4, 0), at(7.6, 0)], zones: { 1: [5, 9.1] },
-    rings: [
-        { r: 9.2, h: 8.5, gap: [180, 9], kind: 'cliff' }, { r: 9.2, h: 8.5, only: [180, 9], way: 'out', kind: 'slide', earn: 1 },
-        { r: 3, h: 9, gate: 'plate', kind: 'gate' },
+    id: 'stream', name: 'BUBBLE STREAM', world: 1, fast: 120, pay: 20, start: at(18.4, 0), goal: TOP, palm: at(17.7, -42), bank: 12.5,
+    story: 'A river valley on three levels. Vents to ride, a bank shot to make, and a pearl up on the mesa.',
+    hints: ['Vent A is up on the rock shelf, too high to throw to. The jelly pad bounces whatever lands on it.', 'With A plugged, vent B blows: ride it over the river and steer onto the terrace.', 'The bullseye in the cove can only be reached off the stone post: throw down the lane from its open end.', 'Up on the mesa, the plate is on top of the pillar. Lob a coconut onto it, or knock the hanging coconut down.', 'Golden shells: on the post by the beach (bounce on the jelly), in the cage (hit the bullseye on the log), over the river (steer through it riding vent B).'],
+    ground: [[4.6, 'stone'], [9.6, 'grass'], [10, 'sand'], [12.5, 'sea'], [99, 'sand']],
+    checks: [at(18.4, 0), at(8.6, 0)], zones: { 1: [4.7, 9.5] },
+    ledges: [
+        { r0: 0, r1: 4.6, h: 7.5, kind: 'mesa' }, { r0: 4.6, r1: 9.6, h: 3.8, kind: 'terrace' },
+        { r0: 4.6, r1: 6.4, only: [180, 7], h: 7.5, h1: 3.8, kind: 'ramp' },
+        { r0: 13.6, r1: 15, only: [60, 6], h: 4, kind: 'shelf' },
     ],
-    bars: [{ a: at(12.6, -40), b: at(9.2, -40), h: 9, kind: 'dam' }, { a: at(12.6, 100), b: at(9.2, 100), h: 9, kind: 'dam' }],
-    currents: [{ r0: 11, r1: 12.6, only: [30, 70], speed: 3.2 }],
-    urchins: [at(12.2, 92), at(11.4, 92)].map(p => ({ p, r: 0.75 })),
-    vents: [{ id: 'A', p: at(13.8, 60), r: 0.7, drop: true }, { id: 'B', p: at(9.95, 0), r: 0.8, lift: 7.4 }],
-    plates: [{ p: at(4.6, 60), r: 0.9, gate: 'plate' }],
+    rings: [
+        { r: 6.6, h: 20, only: [180, 8], gate: 'green', kind: 'gate' }, { r: 1.8, h: 20, gate: 'gold', kind: 'gate' },
+        { c: COVE, r: 1.0, h: 7, gap: [lonOf(at(7.6, 80), COVE), 32], kind: 'cove', wash: true },
+        { c: at(16, -100), r: 0.9, h: 9, gate: 'cage', kind: 'gate' },
+    ],
+    bars: [
+        { a: at(6.6, 172.5), b: at(4.55, 172.5), h: 20, kind: 'rail' }, { a: at(6.6, 187.5), b: at(4.55, 187.5), h: 20, kind: 'rail' },
+        { a: at(7.0, 73.5), b: at(7.0, 91), h: 7, kind: 'lane' }, { a: at(8.2, 66.5), b: at(8.2, 91), h: 7, kind: 'lane' },
+        { a: at(5.6, 73.5), b: at(7.0, 73.5), h: 7, kind: 'lane' }, { a: at(5.6, 66.5), b: at(8.2, 66.5), h: 7, kind: 'lane' },
+    ],
+    posts: [{ p: BANKPOST, r: 0.45, h: 7 }, { p: PILLAR, r: 0.55, h: 9 }, { p: at(16.6, 110), r: 0.5, h: 3 }],
+    pads: [{ p: at(16.4, 60), r: 0.7 }, { p: at(17.6, 110), r: 0.7 }],
+    urchins: [at(6.7, 70), at(7.6, 76), at(7.6, 81), at(7.6, 86)].map(p => ({ p, r: 0.6, nutSafe: true })),
+    drains: [{ p: COVE, r: 1.0, to: LANE_IN }, ...[70, 74, 78, 82, 86, 89].map(lon => ({ p: at(7.6, lon), r: 0.75, to: LANE_IN })), { p: at(6.4, 70), r: 0.6, to: LANE_IN }],
+    currents: [{ r0: 10, r1: 12.5, only: [0, 180], speed: 1.6, deep: true }],
+    logs: [0, 120, 240].map(lon0 => ({ orbit: 11.25, lon0, speed: 14, h: 0.35, r: 0.95 })),
+    vents: [{ id: 'A', p: at(14.3, 60), r: 0.9, drop: true }, { id: 'B', p: at(13.3, 0), r: 0.8, lift: 3.2 }],
+    plates: [{ p: PILLAR, r: 0.5, gate: 'gold' }],
+    targets: [{ p: COVE, gate: 'green' }, { p: at(11.25, 0), log: 0, gate: 'cage' }],
+    hangs: [{ p: PILLAR, h: 9.9 }],
+    gold: [{ p: at(16.6, 110), h: 3 }, { p: at(16, -100), h: 0 }, { p: at(11.6, 6), h: 4.4 }],
 };
 
 // 3. GULL YARD: Old Ink's gull.
@@ -213,6 +237,7 @@ export function create(lv) {
         boss: lv.boss ? { hp: BOSS.hits, state: 'sleep', t: 0, n: 0, round: 0, tx: null, pile: 0, rest: false, touchCd: 0 } : null,
         gull: lv.gull ? { p: at(lv.gull.ring, lv.gull.from), h: 0, state: 'walk', t: 0, cool: 1, loot: 0, tx: null, from: null } : null };
     for (let i = 0; i < CARRY; i++) _palmNut(s, i);
+    for (const hg of lv.hangs || []) s.nuts.push({ id: s.id++, p: hg.p.slice(), d: tangent(hg.p, [1, 0, 0]), v: 0, h: hg.h, vh: 0, state: 'hang', age: 9, still: 0 });
     return s;
 }
 function _palmNut(s, i = s.id) { const n = { id: s.id++, p: around(s.lv.palm, 0.95, 200 + (i % 3) * 60), d: [0, 0, 0], v: 0, h: 0, vh: 0, state: 'rest', age: 9, still: 0 }; n.d = tangent(n.p, [1, 0, 0]); s.nuts.push(n); return n; }
@@ -243,12 +268,22 @@ export const urchinAt = (s, p, pad = 0) => (s.lv.urchins || []).find(u => dist(u
 /** How high the ground is at place p: the top of a rock, or the sea floor. */
 export function floorAt(s, p) {
     let f = rockUnder(s, p) ? ROCK_H : 0;
-    for (const l of s.lv.ledges || []) { const d = dist(p, l.c || TOP); if (d > l.r0 && d < l.r1 && covers(l, p)) f = Math.max(f, l.h); }
+    for (const l of s.lv.ledges || []) { const d = dist(p, l.c || TOP); if (d > l.r0 && d < l.r1 && covers(l, p)) f = Math.max(f, l.h1 == null ? l.h : l.h + (l.h1 - l.h) * (d - l.r0) / (l.r1 - l.r0)); }
+    for (const k of s.lv.posts || []) if (dist(p, k.p) < k.r) f = Math.max(f, k.h);
+    for (const k of s.lv.pads || []) if (dist(p, k.p) < k.r) f = Math.max(f, PAD_H);
     for (const w of s.lv.rings || []) if (w.top && up(s, w) && Math.abs(dist(p, w.c || TOP) - w.r) < TOP_W && covers(w, p)) f = Math.max(f, w.h);
     for (const b of s.blocks || []) if (dist(p, b.p) < b.r) f = Math.max(f, b.h);
     for (const l of s.logs || []) if (dist(p, l.p) < l.r) f = Math.max(f, l.h);
     return f;
 }
+/** Which way is downhill from p (a tangent; zero on the flat): the floor's slope, felt round about. For bouncing off the side of a ledge or a post. */
+function _floorN(s, p, h) {
+    let x = [0, 0, 0];
+    for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2, e1 = tangent(p, [0, 0, 1]), e2 = cross(p, e1), d = norm(mix(e1, e2, Math.cos(a), Math.sin(a))); if (floorAt(s, walk(p, d, 0.25 / R)) > h) x = mix(x, d, 1, -1); }
+    return dot(x, x) > 1e-9 ? tangent(p, x) : null;
+}
+/** Where a bullseye is now (one can ride a log), and how high its face is. */
+export const targetAt = (s, tg) => { const p = tg.log != null ? s.logs[tg.log].p : tg.p; return { p, h: floorAt(s, p) + (tg.h || 1.1) }; };
 /** Where the floating logs are at time t. */
 const _logsAt = (lv, t) => (lv.logs || []).map(l => ({ p: at(l.orbit, l.lon0 + l.speed * t), h: l.h || 0.35, r: l.r || 0.9 }));
 export const nutUnder = (s, p) => s.nuts.find(n => (n.state === 'rest' || n.state === 'float') && dist(n.p, p) < NUT_R) || null;
@@ -287,7 +322,7 @@ export function throwNut(s, charge = 0) {
     if (s.won || c.nuts < 1) return null;
     const { T, v } = _throwOf(charge), h0 = c.h + THROW.up;
     const hand = walk(c.p, c.face, THROW.ahead / R), from = _blocked(s, c.p, hand, h0, true) ? c.p.slice() : hand;
-    const n = { id: s.id++, p: from, d: tangent(from, c.face), v, h: h0, vh: (G * T) / 2 - h0 / T, state: 'fly', age: 0, used: false, still: 0 };
+    const n = { id: s.id++, p: from, d: tangent(from, c.face), v, h: h0, vh: (G * T) / 2 - (h0 - (c.air ? floorAt(s, c.p) : c.h)) / T, state: 'fly', age: 0, used: false, still: 0 };
     s.nuts.push(n); c.nuts--; s.throws++;
     return n;
 }
@@ -315,24 +350,32 @@ function _nut(s, n, dt, ev) {
         if (hit) {
             const k = dot(n.d, tangent(n.p, hit.n)); n.d = tangent(n.p, mix(n.d, tangent(n.p, hit.n), 1, -2 * k)); n.v *= 0.85; ev.push({ type: 'bank', nut: n, p: n.p });
             if (hit.w.hp) { s.dmg[hit.w.id] = (s.dmg[hit.w.id] || 0) + 1; n.v *= 0.3; const left = hit.w.hp - s.dmg[hit.w.id]; ev.push({ type: left > 0 ? 'crack' : 'break', w: hit.w, left, p: n.p }); }
-        } else if (floorAt(s, q) > n.h + 0.05) { n.d = n.d.map(x => -x); n.d = tangent(n.p, n.d); n.v *= 0.5; ev.push({ type: 'bank', nut: n, p: n.p }); }     // (the side of a ledge, a block or a wall top)
+        } else if (floorAt(s, q) > n.h + 0.05) {     // (the side of a ledge, a post, a block or a wall top: it bounces off like a wall)
+            const fn = _floorN(s, q, n.h) || n.d.map(x => -x), k = dot(n.d, fn); if (k < 0) n.d = tangent(n.p, mix(n.d, fn, 1, -2 * k)); else n.d = tangent(n.p, n.d.map(x => -x)); n.v *= 0.85; ev.push({ type: 'bank', nut: n, p: n.p });
+        }
         else { n.d = tangent(q, n.d); n.p = q; }
         n.vh -= G * dt; n.h += n.vh * dt;
         for (const tg of s.lv.targets || []) {
-            const th = tg.h || 1.1, gs = gatesOf(tg);
-            if (gs.every(g => s.open[g]) || Math.hypot(dist(n.p, tg.p), n.h - th) > HIT_R) continue;
+            const ta = targetAt(s, tg), gs = gatesOf(tg);
+            if (gs.every(g => s.open[g]) || Math.hypot(dist(n.p, ta.p), n.h - ta.h) > HIT_R) continue;
             for (const g of gs) { s.open[g] = tg.secs || true; s.stuckIn[g] = n.id; }             // (a timed bullseye opens its gate for tg.secs, then drops the coconut)
-            n.state = 'stuck'; n.p = tg.p.slice(); n.h = th; ev.push({ type: 'target', target: tg, nut: n, secs: tg.secs || 0 }); return;
+            n.state = 'stuck'; n.tg = tg; n.p = ta.p.slice(); n.h = ta.h; ev.push({ type: 'target', target: tg, nut: n, secs: tg.secs || 0 }); return;
+        }
+        for (const hn of s.nuts) if (hn.state === 'hang' && Math.hypot(dist(n.p, hn.p), n.h - hn.h) < 0.7) {    // a hanging coconut, knocked loose: it drops
+            hn.state = 'fly'; hn.v = 0.2; hn.vh = 0; hn.d = tangent(hn.p, n.d); hn.age = 0; n.v *= 0.4; n.vh = Math.min(n.vh, -1); ev.push({ type: 'knock', nut: hn, p: hn.p, h: hn.h });
         }
         const g = s.gull;
         if (g && g.state !== 'stun' && Math.hypot(dist(n.p, g.p), n.h - (g.h + 0.4)) < GULL.hit + 0.1) { _stun(s, ev, 'nut'); n.vh = Math.min(n.vh, -2); n.v *= 0.3; }
         const fl = floorAt(s, n.p);
+        const pad = n.vh < 0 && (s.lv.pads || []).find(k => dist(n.p, k.p) < k.r);
+        if (pad && n.h <= PAD_H + 0.05) { n.h = PAD_H; n.vh = PAD_NUT_V; n.v *= 0.8; ev.push({ type: 'pad', nut: n, p: n.p }); return; }
         if (n.h <= fl) {
             n.h = fl;
             if (s.boss && dist(n.p, TOP) < 1.95) n.p = at(BOSS.pileAt, lonOf(n.p));       // (never left inside the fence, out of reach)
-            if (urchinAt(s, n.p)) return _lose(s, n, ev, 'urchin');
+            const dr = (s.lv.drains || []).find(x => dist(n.p, x.p) < x.r); if (dr) { n.p = dr.to.slice(); n.h = floorAt(s, n.p); }     // (a place no crab can reach: it rolls out to where one can)
+            const ur = urchinAt(s, n.p); if (ur && !ur.nutSafe) return _lose(s, n, ev, 'urchin');
             const cw = fl < 0.05 && currentAt(s, n.p); if (cw && cw.deep) return _lose(s, n, ev, 'sink');      // (deep water: it sinks, and washes up under the palm)
-            const dv = (s.lv.vents || []).find(x => x.drop && !s.plug[x.id] && dist(x.p, n.p) < x.r + 0.2);
+            const dv = (s.lv.vents || []).find(x => x.drop && !s.plug[x.id] && dist(x.p, n.p) < x.r + 0.2 && Math.abs(fl - floorAt(s, x.p)) < 0.4);
             if (dv) { n.state = 'plug'; n.p = dv.p.slice(); n.h = 0; s.plug[dv.id] = n.id; ev.push({ type: 'plug', vent: dv, nut: n, now: blowing(s) }); return; }
             n.state = currentAt(s, n.p) && !rockUnder(s, n.p) ? 'float' : 'rest';
             ev.push({ type: n.state === 'float' ? 'plop' : 'thud', nut: n, p: n.p });
@@ -455,6 +498,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
 
     // The ground under the crab: walk up onto a rock, or off its edge and fall.
     if (!c.climb) c.climbing = false;
+    if (!c.air && !c.climb && (lv.pads || []).some(k => dist(c.p, k.p) < k.r)) { c.h = PAD_H; c.air = true; c.vh = PAD_CRAB_V; ev.push({ type: 'pad', p: c.p }); }      // (a jelly pad throws a crab up as soon as it steps on)
     if (!c.air && !c.climb) {
         const f = floorAt(s, c.p);
         if (c.h < f && f - c.h <= STEP_UP) c.h = f; else if (c.h > f + 1e-6) { c.air = true; c.vh = 0; }
@@ -463,7 +507,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
 
     // A vent that is blowing lifts a crab standing in it, high.
     const v = blowing(s);
-    if (v && v.lift && dist(c.p, v.p) < v.r && c.h < v.lift) {
+    if (v && v.lift && dist(c.p, v.p) < v.r && c.h < v.lift && c.h > floorAt(s, v.p) - 0.3) {
         if (!c.lifted) { c.lifted = true; ev.push({ type: 'lift', vent: v }); }
         c.air = true; c.vh = 8; c.h += 8 * dt;
     } else if (c.air) {
@@ -477,6 +521,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
         } else if (c.vh < 0) {
             const n = nutUnder(s, c.p), nt = n ? floorAt(s, n.p) + NUT_TOP : 0, fl = floorAt(s, c.p);
             if (n && was >= nt && c.h <= nt) { c.h = nt; c.vh = BOUNCE_V; ev.push({ type: 'bounce', nut: n }); }
+            else if (c.h <= fl && (s.lv.pads || []).some(k => dist(c.p, k.p) < k.r)) { c.h = fl; c.vh = PAD_CRAB_V; ev.push({ type: 'pad', p: c.p }); }
             else if (c.h <= fl) { c.h = fl; c.vh = 0; c.air = false; c.lifted = false; ev.push({ type: 'land', onRock: fl > 0 }); if (c.jbuf > 0) jump(s); }
         }
     }
@@ -495,6 +540,12 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
         const c0 = w.c || TOP;
         if (dist(n.p, c0) < w.r && dist(c.p, c0) > w.r && covers(w, n.p)) { n.p = around(c0, w.r + 0.7, lonOf(n.p, c0)); n.h = floorAt(s, n.p); ev.push({ type: 'nudge', nut: n }); }
     }
+    for (const n of s.nuts) if (n.state === 'stuck' && n.tg && n.tg.log != null) { const ta = targetAt(s, n.tg); n.p = ta.p.slice(); n.h = ta.h; }
+    // Taking a coconut back out of a bullseye: walk into it. Its gate shuts again.
+    if (c.nuts < CARRY) {
+        const n = s.nuts.find(x => x.state === 'stuck' && x.tg && dist(x.p, c.p) < 0.7 && c.h > x.h - 1.6 && c.h < x.h + 0.6);
+        if (n) { for (const g of gatesOf(n.tg)) if (s.stuckIn[g] === n.id) { delete s.open[g]; delete s.stuckIn[g]; } s.nuts.splice(s.nuts.indexOf(n), 1); c.nuts++; ev.push({ type: 'unstick', nut: n, target: n.tg }); }
+    }
     // Picking coconuts up: walk into one that is lying or floating.
     if (!c.air && c.nuts < CARRY) {
         const n = s.nuts.find(x => (x.state === 'rest' || x.state === 'float') && x.age > PICK_AGE && dist(x.p, c.p) < PICK_R);
@@ -506,7 +557,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
 
     // Plates: held down by the crab on the ground, or a coconut at rest.
     for (const pl of lv.plates || []) {
-        const on = (!c.air && dist(c.p, pl.p) < pl.r) || s.nuts.some(n => n.state === 'rest' && dist(n.p, pl.p) < pl.r);
+        const ph = floorAt(s, pl.p), on = (!c.air && dist(c.p, pl.p) < pl.r && Math.abs(c.h - ph) < 0.3) || s.nuts.some(n => n.state === 'rest' && dist(n.p, pl.p) < pl.r && Math.abs(n.h - ph) < 0.3);
         const gs = gatesOf(pl);
         if (on !== !!s.held[gs[0]]) { for (const g of gs) s.held[g] = on; ev.push({ type: on ? 'press' : 'release', plate: pl }); }
     }

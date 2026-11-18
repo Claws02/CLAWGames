@@ -1183,3 +1183,17 @@ body.tv #tv-seats { display: grid; grid-template-columns: repeat(auto-fill, minm
 /* the build buttons ride the right edge in a column above the hand and jump; on a wide short (landscape) screen they lie in a row above them so nothing runs off */
 @media (orientation: landscape) and (max-height: 560px) { .tp-bar { flex-direction: row; gap: 5px; margin: 0 0 2px; } .tp-b em { display: none; } .tp-b { min-width: 52px; } .tp-b span { font-size: 18px; }
   .tp-acts { flex-direction: column; } .tp-hint { bottom: calc(var(--sb, 0px) + 12px); right: 40%; text-align: left; } .tp-city b { font-size: 24px; } }
+
+/* the arrival card of a lair chamber: a sign at the door, like a test chamber's, with what's inside */
+.tp-sign { position: absolute; right: 10px; top: calc(var(--st, 0px) + 112px); width: 168px; padding: 8px 10px 9px; border: 3px solid var(--ink); border-radius: 16px; background: #fffdf6; box-shadow: 0 4px 0 var(--ink); color: var(--ink); pointer-events: none; animation: tp-sign-in .35s ease both; }
+.tp-sign.out { animation: tp-sign-out .5s ease both; }
+.tp-sign-n { font-size: 46px; line-height: .9; } .tp-sign-n small { font-size: 18px; opacity: .6; }
+.tp-sign-w { font-size: 10px; font-weight: 900; letter-spacing: 1px; opacity: .6; border-top: 3px solid var(--ink); margin-top: 3px; padding-top: 3px; }
+.tp-sign-t { font-size: 15px; line-height: 1.1; margin: 1px 0 5px; }
+.tp-sign-ic { display: flex; flex-direction: column; gap: 2px; }
+.tp-sign-ic span { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 900; letter-spacing: .3px; }
+.tp-sign-ic b { width: 26px; text-align: center; font-size: 15px; }
+.tp-sign-g { margin-top: 5px; padding-top: 4px; border-top: 2px dashed rgba(43, 18, 64, .35); font-size: 10px; font-weight: 900; }
+@keyframes tp-sign-in { from { transform: translateX(120%); } to { transform: none; } }
+@keyframes tp-sign-out { to { transform: translateX(120%); opacity: 0; } }
+@media (max-height: 560px) { .tp-sign { top: calc(var(--st, 0px) + 60px); } .tp-sign-ic { flex-direction: row; flex-wrap: wrap; } .tp-sign-ic span { font-size: 0; gap: 0; } }

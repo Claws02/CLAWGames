@@ -84,6 +84,19 @@ the first time it matters (`calm` vent, `🪜` ladder).
 | **Golden shells** | hidden collectibles at a height; touch to take; saved per chamber | `gold: [{ p, h }]` |
 | **Never lost** | a coconut lying inside a gate that shuts (with the crab outside) rolls out to the gate's foot | (always) |
 
+### Built for the new Bubble Stream (levels and trick shots)
+
+| Piece | Rule | Data |
+|---|---|---|
+| **Terrace / ramp / shelf** | raised ground; a ramp's height runs from `h` to `h1` | `ledges: [{ r0, r1, only, h, h1? }]` |
+| **Stone post / pillar** | a column: coconuts bank off it, you can't walk through; stand on top if you get up there | `posts: [{ p, r, h }]` |
+| **Jelly pad** | throws a landing coconut up and onward; bounces a crab | `pads: [{ p, r }]` |
+| **Bullseye holds its gate** | the gate is open only while a coconut is stuck in it; walk into it to take it back | (always) |
+| **Moving bullseye** | rides a log | target `log: i` |
+| **Hanging coconut** | knock it with a thrown one and it drops (onto a plate below) | `hangs: [{ p, h }]` |
+| **Drain** | a coconut coming to rest in a place no crab can reach rolls out to `to` | `drains: [{ p, r, to }]` |
+| **Coconut-safe urchins** | hurt the crab, not coconuts (for lanes a coconut must travel) | urchin `nutSafe` |
+
 ### Planned (each is one new rule)
 
 | Piece | Rule | Puzzle it makes |
