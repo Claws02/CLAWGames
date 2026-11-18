@@ -377,9 +377,12 @@ export function lairPieces(lv) {
     add((lv.blocks || []).length, '📦', 'SAND BLOCK'); add(r.some(w => w.kind === 'step'), '🪜', 'TALL STEP'); add(r.some(w => w.kind === 'cliff'), '⛰️', 'CLIFF');
     add((lv.currents || []).some(c => c.deep), '💧', 'DEEP WATER'); add((lv.currents || []).some(c => !c.deep), '🌊', 'CURRENT'); add((lv.logs || []).length, '🪵', 'LOGS');
     add((lv.rocks || []).length, '🪨', 'STEPPING ROCKS'); add((lv.eddies || []).length, '🌀', 'EDDY'); add((lv.urchins || []).length, '✴️', 'URCHINS');
-    add((lv.ledges || []).some(l => l.h1 == null && l.r1 - l.r0 > 1.6), '⛰️', 'TERRACES'); add((lv.ledges || []).some(l => l.h1 != null), '↗️', 'RAMP'); add((lv.pads || []).length, '🟣', 'JELLY PADS'); add((lv.posts || []).length, '🗿', 'STONE POSTS');
+    const z = lv.lake;
+    if (z) { add(1, '🧊', 'OBSIDIAN: YOU SLIDE (NO JUMPING)'); add(1, '⛰️', 'STEPS DOWN INTO THE CRATER'); add((z.blocks || []).length, '⬛', 'BLOCKS TO PUSH'); add((z.ramps || []).length, '↗️', 'RAMP (THE ONE WAY BACK UP)');
+        add((z.cracks || []).length, '💔', 'CRACKED GLASS (ONE STOP ONLY)'); add((z.plates || []).length, '⏺️', 'PLATE + GATE'); add(z.lava, '🌋', 'LAVA'); }
+    else { add((lv.ledges || []).some(l => l.h1 == null && l.r1 - l.r0 > 1.6), '⛰️', 'TERRACES'); add((lv.ledges || []).some(l => l.h1 != null), '↗️', 'RAMP'); add((lv.posts || []).length, '🗿', 'STONE POSTS'); }
+    add((lv.pads || []).length, '🟣', 'JELLY PADS');
     add((lv.hangs || []).length, '🌴', 'HANGING COCONUT'); add((lv.targets || []).some(x => x.log != null), '🎯', 'MOVING BULLSEYE'); add((lv.bars || []).some(b => b.kind === 'bumper'), '↩️', 'BANK SHOT');
-    add(lv.lake, '🧊', 'OBSIDIAN LAKE (YOU SLIDE)'); add(lv.lake && lv.lake.lava, '🌋', 'LAVA');
     add(lv.chasm, '🕳️', 'A BOTTOMLESS CHASM'); add((lv.crumbles || []).length, '🧱', 'CRUMBLING TILES'); add((lv.jets || []).length, '♨️', 'STEAM JETS');
     add(lv.tide, '🌊', 'THE TIDE'); add((lv.rafts || []).length, '🛟', 'RAFTS');
     add(lv.moon, '🌙', 'A MOON (LOW GRAVITY)'); add((lv.launch || []).length, '🚀', 'LAUNCH PAD');

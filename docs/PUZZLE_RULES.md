@@ -107,6 +107,21 @@ the first time it matters (`calm` vent, `🪜` ladder).
 | **Aimed jelly pad** | whatever lands on it is thrown onto `to` | pad `to` |
 | **Conditional drain** | only while a gate is shut | drain `unless` |
 
+### Built for World 3 (the obsidian lake, `lake: {...}`, rules in `LakeGrid.js`)
+| Piece | What it does | In the recipe |
+|---|---|---|
+| **Obsidian lake** | a grid you slide across, no walking, no jumping; one push of the stick = one move | `lake: { rows, cols, r0, dd, lon0, dl, levels, hs, exit, lava }` |
+| **Steps** | rows at different heights: slide down and keep going; up is a wall | `levels: [...]` per row, `hs: [...]` heights |
+| **Ramp** | the one way up a step (slide at it) | `ramps: [[r, c]]` |
+| **Pillar** | stops a slide in the cell before it | `pillars: [[r, c]]` |
+| **Block** | stops you; push it and it slides until stopped (down steps, into lava) | `blocks: [[r, c]]` |
+| **Cracked glass** | one stop cracks it, a second breaks it: lava | `cracks: [[r, c]]` |
+| **Plate + gate** | a coconut resting on the plate opens the gate on the bridge (exit) | `plates: [[r, c]]` |
+| **Sliding coconut** | thrown on the lake: two cells out, then slides; stop on one to pick it up | (always) |
+
+Prove a lake with `LakeGrid.solve(z, nuts)` (breadth-first over the grid rules, blocks, cracks and coconuts included), and check
+each piece matters: `solve` with the ramp taken away, or the block made a pillar, must find nothing.
+
 ### Planned (each is one new rule)
 
 | Piece | Rule | Puzzle it makes |

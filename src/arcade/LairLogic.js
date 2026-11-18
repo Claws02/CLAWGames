@@ -38,6 +38,7 @@
 //   blowing(s)                    the vent that is blowing now
 // ============================================================
 import { dot, cross, norm, mix, angle, tangent, toward, walk } from './PlanetLogic.js';
+import * as LG from './LakeGrid.js';
 
 export const R = 6.5, SPEED = 4.2, G = 18, TRAVEL_S = 2.2;      // TRAVEL_S: how long a flight between the planet and its moon takes
 /** Gravity where the crab is: a moon can have less (`gravity: 0.5`), so jumps go higher and coconuts fly further. */
@@ -356,22 +357,50 @@ export const DEEP = {
 // ── World 3: the volcano ────────────────────────────────────────────────────
 // Old Ink's ally, the Hermit King, keeps the pearl in his volcano. Sliding obsidian, heavy stones, cannons, and lava that rises.
 
-// 9. OBSIDIAN SLIDE: a lake of glassy obsidian in a sea of lava. On it you can't walk: you slide in a straight line until a pillar
-// stops you. Seven rows by nine; off the north edge only at the bridge (else lava), off the sides lava, off the south the beach.
-// Proven by a search (qa): the shortest way across is seven slides.
-const LAKE = { r0: 8, r1: 14, dd: 1, lon0: -40, lon1: 40, dl: 10, exit: 3, lava: { r0: 6.4, r1: 14.5 },
-    pillars: [[5, 3], [6, 2], [1, 2], [5, 7], [0, 6], [0, 7], [3, 7], [3, 1], [5, 6], [5, 0], [4, 1], [2, 8], [2, 2]] };
+// 9. OBSIDIAN SLIDE: the volcano's crater, and down its side a lake of glassy obsidian, in three steps, over the lava.
+// On the obsidian you can't walk (or jump): you slide in a straight line until something stops you. Its rules are in LakeGrid.js.
+//
+//   the rim (start, the palm)                        top, level with the lake's top step               d > 15.5
+//   the lake: 9 rows x 9 columns, row 0 by the pearl  three steps down: rows 6-8, 3-5, 0-2              7 – 15
+//       · a block on the top step: push it and it slides on, down the steps, to wherever it stops
+//       · a ramp: the one way back up a step (slide at it)
+//       · cracked glass: stop on it once and it cracks; twice and it breaks (lava)
+//       · the yellow plate: a coconut resting on it opens the gate on the bridge
+//   the bridge (off the bottom step at column 4) to the pearl                                          5 – 6.5
+//
+// The way (proven by a search in qa, 15 moves): in at column 5, bump the block; push it: down the steps it goes, to stop by the
+// bridge. Round and down to the cracked cell under the plate (by the ramp), throw a coconut onto the plate, then round to the block
+// and up the bridge.
+const LAKE = { rows: 9, cols: 9, r0: 7, dd: 1, lon0: -40, dl: 10, exit: 4, levels: [0, 0, 0, 1, 1, 1, 2, 2, 2], hs: [0.3, 1.2, 2.1], lava: { r0: 5.2, r1: 15.5 },
+    pillars: [[0, 5], [0, 2], [0, 1], [2, 4], [8, 4], [3, 6], [2, 0], [3, 0], [8, 7], [5, 3], [4, 1], [6, 7], [3, 3], [5, 1], [6, 0], [1, 6]],
+    blocks: [[7, 5]], cracks: [[3, 2], [7, 3], [6, 8]], ramps: [[3, 1]], plates: [[1, 2]] };
+const RIM_H = LAKE.hs[2];
+// The lake's steps as ledges (a ramp cell slopes from the step below up to its own), the rim, and the bridge.
+function _lakeLedges(z) {
+    const out = [], lonOf = c => z.lon0 + c * z.dl;
+    for (let r = 0; r < z.rows; r++) {
+        const d0 = z.r0 + (r - 0.5) * z.dd, d1 = z.r0 + (r + 0.5) * z.dd, h = lakeH(z, r), ramp = c => (z.ramps || []).some(([a, b]) => a === r && b === c);
+        let c = 0;
+        while (c < z.cols) {
+            if (ramp(c)) { out.push({ r0: d0, r1: d1, only: [lonOf(c), z.dl / 2], h: lakeH(z, r - 1), h1: h, kind: 'obsidian' }); c++; continue; }
+            let e = c; while (e + 1 < z.cols && !ramp(e + 1)) e++;
+            out.push({ r0: d0, r1: d1, only: [(lonOf(c) + lonOf(e)) / 2, ((e - c + 1) * z.dl) / 2], h, kind: 'obsidian' }); c = e + 1;
+        }
+    }
+    out.push({ r0: z.r0 + (z.rows - 0.5) * z.dd, r1: 20.3, h: RIM_H, kind: 'basalt' });
+    out.push({ r0: 5.0, r1: z.r0 - 0.5 * z.dd, only: [lonOf(z.exit), z.dl / 2 - 0.5], h: 0.06, h1: z.hs[0], kind: 'obsidian' });
+    return out;
+}
 export const SLIDE = {
-    id: 'slide', name: 'OBSIDIAN SLIDE', world: 3, theme: 'volcano', fast: 60, pay: 25, start: at(18.4, 0), goal: TOP, palm: at(17.6, -40), bank: 7,
-    story: 'The Hermit King keeps the pearl in his volcano. First, a lake of glassy obsidian over the lava: you can\'t stop once you slide.',
-    hints: ['On the obsidian you slide in a straight line until a pillar stops you. Push the stick to pick which way: toward the pearl, away, or sideways.', 'Off the sides, or off the far edge anywhere but the bridge, is lava. Off the near edge is the beach: a fresh start.', 'Plan from the bridge backwards: which pillar stops you in line with it?', 'Golden shells sit on two of the lake\'s cells, and on the obsidian post on the beach (the jelly).'],
-    ground: [[1.8, 'dais'], [6.4, 'stone'], [14.5, 'lava'], [99, 'sand']],
-    checks: [at(18.4, 0)],
+    id: 'slide', name: 'OBSIDIAN SLIDE', world: 3, theme: 'volcano', fast: 90, pay: 25, start: at(17, 0), goal: TOP, palm: at(18.4, -55), bank: 7,
+    story: 'The Hermit King keeps the pearl down in his crater. The way down is a lake of glassy obsidian, in steps: once you slide, you can\'t stop.',
+    hints: ['On the obsidian you slide in a straight line until something stops you, and you can\'t jump. Push the stick to pick which way.', 'Slide into the block, then push it: it slides too, down the steps, until something stops it. Watch where it ends up.', 'The gate on the bridge needs a coconut on the yellow plate. On the obsidian a throw goes two cells, then slides: hold THROW and push the stick to turn first.', 'Cracked glass takes one stop. The ramp is the only way back up a step. Stuck? Slide off into the lava: the lake sets back as it was.'],
+    ground: [[1.8, 'dais'], [5.2, 'stone'], [15.5, 'lava'], [99, 'sand']],
+    checks: [at(17, 0)],
     lake: LAKE,
-    ledges: [{ r0: 7.5, r1: 14.5, only: [0, 45], h: 0.02, kind: 'obsidian' }, { r0: 6.3, r1: 7.6, only: [LAKE.lon0 + LAKE.exit * LAKE.dl, 4.5], h: 0.02, kind: 'obsidian' }],
-    posts: [...LAKE.pillars.map(([r, c]) => ({ p: lakeAt(LAKE, r, c), r: 0.38, h: 2.2, kind: 'obsidian' })), { p: at(16.4, 110), r: 0.5, h: 3 }],
-    pads: [{ p: at(17.4, 110), r: 0.7 }],
-    gold: [{ p: lakeAt(LAKE, 6, 6), h: 0 }, { p: lakeAt(LAKE, 4, 6), h: 0 }, { p: at(16.4, 110), h: 3 }],
+    ledges: _lakeLedges(LAKE),
+    posts: LAKE.pillars.map(([r, c]) => ({ p: lakeAt(LAKE, r, c), r: 0.34, h: lakeH(LAKE, r) + 1.5, kind: 'obsidian' })),      // (too tall to jump onto from the rim)
+    gold: [[0, 8], [7, 1], [4, 8]].map(([r, c]) => ({ p: lakeAt(LAKE, r, c), h: lakeH(LAKE, r) })),
 };
 
 export const CHAMBERS = [BEACH, STREAM, YARD, STAIR, SINK, MOONPOOL, TIDE, DEEP, SLIDE];
@@ -381,15 +410,16 @@ export const ALL_OPEN = true;
 // ── A go at a chamber ───────────────────────────────────────────────────────
 export function create(lv) {
     const s = { lv, lv0: lv, w: 0, travel: null, t: 0, id: 1, won: false, falls: 0, cp: 0, throws: 0, calm: null, open: {}, held: {}, plug: {}, nuts: [], back: [], dmg: {}, gold: [], stuckIn: {},
-        blocks: (lv.blocks || []).map(b => ({ h: 1, r: 0.55, ...b, p: b.p.slice() })), logs: _logsAt(lv, 0),
+        blocks: (lv.blocks || []).map(b => ({ h: 1, r: 0.55, ...b, p: b.p.slice() })), logs: _logsAt(lv, 0), lake: lv.lake ? LG.fresh(lv.lake) : null,
         crab: { p: lv.start.slice(), f: tangent(lv.start, lv.goal), face: tangent(lv.start, lv.goal), h: 0, vh: 0, moving: false, air: false, coy: COYOTE_S, jbuf: 0, nuts: 0, lifted: false },
         boss: lv.boss ? { hp: (lv.boss.hits || BOSS.hits), state: 'sleep', t: 0, n: 0, round: 0, tx: null, pile: 0, rest: false, touchCd: 0 } : null,
         gull: lv.gull ? { p: at(lv.gull.ring, lv.gull.from), h: 0, state: 'walk', t: 0, cool: 1, loot: 0, tx: null, from: null } : null };
+    s.crab.h = floorAt(s, lv.start);
     if (lv.palm) for (let i = 0; i < CARRY; i++) _palmNut(s, i);
     for (const hg of lv.hangs || []) s.nuts.push({ id: s.id++, p: hg.p.slice(), d: tangent(hg.p, [1, 0, 0]), v: 0, h: hg.h, vh: 0, state: 'hang', age: 9, still: 0 });
     return s;
 }
-function _palmNut(s, i = s.id) { const n = { id: s.id++, w: 0, p: around((s.lv0 || s.lv).palm, 0.95, 200 + (i % 3) * 60), d: [0, 0, 0], v: 0, h: 0, vh: 0, state: 'rest', age: 9, still: 0 }; n.d = tangent(n.p, [1, 0, 0]); s.nuts.push(n); return n; }
+function _palmNut(s, i = s.id) { const n = { id: s.id++, w: 0, p: around((s.lv0 || s.lv).palm, 0.95, 200 + (i % 3) * 60), d: [0, 0, 0], v: 0, h: 0, vh: 0, state: 'rest', age: 9, still: 0 }; n.d = tangent(n.p, [1, 0, 0]); if (s.lv === (s.lv0 || s.lv)) n.h = floorAt(s, n.p); s.nuts.push(n); return n; }
 /** Coconuts in the claws, lying about (rest / float / fly), doing a job (plug / stuck), with the gull, on their way back. */
 export const count = s => ({ held: s.crab.nuts, loose: s.nuts.filter(n => n.state === 'rest' || n.state === 'float' || n.state === 'fly').length, working: s.nuts.filter(n => n.state === 'plug' || n.state === 'stuck').length, gull: s.gull ? s.gull.loot : 0, back: s.back.length });
 /** Where Old Ink's arm i lies round him now (degrees): they sway. */
@@ -423,6 +453,7 @@ export function floorAt(s, p) {
     for (const w of s.lv.rings || []) if (w.top && up(s, w) && Math.abs(dist(p, w.c || TOP) - w.r) < TOP_W && covers(w, p)) f = Math.max(f, w.h);
     for (const b of s.blocks || []) if (dist(p, b.p) < b.r) f = Math.max(f, b.h);
     for (const l of s.logs || []) if (dist(p, l.p) < l.r) f = Math.max(f, l.h);
+    if (s.lake) { const z = s.lv.lake || s.lv0.lake; if (z) for (const [r, c] of s.lake.blocks) if (dist(p, lakeAt(z, r, c)) < 0.42) f = Math.max(f, lakeH(z, r) + 0.8); }
     for (const k of s.lv.rafts || []) if (dist(p, k.p) < k.r) f = Math.max(f, (s.tideW || 0) + 0.3);
     return f;
 }
@@ -458,15 +489,18 @@ export function jetState(s, j) {
     const ph = (((s.t + (j.phase || 0)) % j.period) + j.period) % j.period;
     return ph > j.period - j.on ? 'fire' : ph > j.period - j.on - JET_WARN ? 'warn' : 'quiet';
 }
-/** The obsidian lake (a grid of cells, row 0 by the pearl): where cell (r, c) is, and which cell a place is nearest. */
+/** The obsidian lake (a grid of cells, row 0 by the pearl; its rules are in LakeGrid.js): where cell (r, c) is, which cell a place is on. */
 export function lakeAt(z, r, c) { return at(z.r0 + r * z.dd, z.lon0 + c * z.dl); }
+/** Is the lake's gate held open (a coconut resting on its plate)? */
+export const lakeGateOpen = s => !!(s.lv.lake && s.lake && LG.gateOpen(s.lv.lake, s.lake));
+/** How high cell row r stands (rows step down toward the crater in levels). */
+export function lakeH(z, r) { return z.hs[z.levels[Math.max(0, Math.min(z.rows - 1, r))]]; }
 const _lakeCell = (z, p) => ({ r: Math.round((dist(p, TOP) - z.r0) / z.dd), c: Math.round((lonOf(p) - z.lon0) / z.dl) });
-const _lakePillar = (z, r, c) => z.pillars.some(([a, b]) => a === r && b === c);
-/** Where a slide from cell (r, c) going (dr, dc) ends: a cell [r, c], or 'win' (off the north edge at the exit), 'lava', 'beach'. */
-export function lakeSlide(z, r, c, dr, dc) {
-    const rows = Math.round((z.r1 - z.r0) / z.dd) + 1, cols = Math.round((z.lon1 - z.lon0) / z.dl) + 1;
-    for (;;) { const nr = r + dr, nc = c + dc; if (nr < 0) return nc === z.exit ? 'win' : 'lava'; if (nr >= rows) return 'beach'; if (nc < 0 || nc >= cols) return 'lava'; if (_lakePillar(z, nr, nc)) return [r, c]; r = nr; c = nc; }
-}
+/** Is p on the lake (anywhere over its cells)? */
+export const onLake = (z, p) => { const d = dist(p, TOP), lon = lonOf(p); return d > z.r0 - z.dd / 2 && d < z.r0 + (z.rows - 0.5) * z.dd && lon > z.lon0 - z.dl / 2 && lon < z.lon0 + (z.cols - 0.5) * z.dl; };
+// The four ways at a place on the lake: toward the pearl (row - 1), away, east (col + 1), west.
+const _lakeDirs = p => { const n = toward(p, TOP), e = tangent(p, cross(TOP, p)); return [[-1, 0, n], [1, 0, n.map(x => -x)], [0, 1, e], [0, -1, e.map(x => -x)]]; };
+const _lakeWay = (p, d) => _lakeDirs(p).map(([dr, dc, v]) => [dr, dc, dot(d, v), v]).sort((a, b) => b[2] - a[2])[0];
 /** Where the floating logs are at time t. */
 const _logsAt = (lv, t) => (lv.logs || []).map(l => ({ p: at(l.orbit, l.lon0 + l.speed * t), h: l.h || 0.35, r: l.r || 0.9 }));
 export const nutUnder = (s, p) => s.nuts.find(n => (n.state === 'rest' || n.state === 'float') && dist(n.p, p) < NUT_R) || null;
@@ -493,6 +527,7 @@ function _blocked(s, a, b, h, nut = false) {
 export function jump(s) {
     const c = s.crab;
     if (s.won) return false;
+    if (s.lv.lake && (c.lake || c.slide)) { (s.pend || (s.pend = [])).push({ type: 'lake-nojump' }); c.jbuf = 0; return false; }     // (no jumping on the obsidian: your claws can't grip it)
     // (a blink of grace after walking off an edge, so a jump off the side of a rock still counts)
     if (c.air && !(c.coy > 0 && c.vh <= 0 && !c.lifted)) { c.jbuf = JUMP_BUFFER; return false; }
     c.vh = JUMP_V; c.air = true; c.jbuf = 0; c.coy = 0;
@@ -503,6 +538,15 @@ const _throwOf = charge => { const k = Math.max(0, Math.min(1, charge)), T = THR
 export function throwNut(s, charge = 0) {
     const c = s.crab;
     if (s.won || c.nuts < 1) return null;
+    if (c.lake && s.lv.lake) {
+        const z = s.lv.lake, [dr, dc] = _lakeWay(c.p, c.face), lr = c.lake[0] + 2 * dr, lc = c.lake[1] + 2 * dc;
+        const n = { id: s.id++, p: c.p.slice(), d: tangent(c.p, c.face), v: 0, h: c.h + THROW.up, vh: 0, w: s.w || 0, state: 'slide', age: 0, used: false, still: 0 };
+        s.nuts.push(n); c.nuts--; s.throws++;
+        const out = lr < 0 || lr >= z.rows || lc < 0 || lc >= z.cols || LG.pillarAt(z, lr, lc) || LG.blockAt(s.lake, lr, lc) || LG.holeAt(z, s.lake, lr, lc);
+        if (out) { n.lpts = [c.p.slice(), lr >= z.rows ? at(z.r0 + (z.rows - 0.3) * z.dd, z.lon0 + lc * z.dl) : lakeAt(z, lr, lc)]; n.li = 1; n.lend = null; n.arc = 1; }
+        else _nutSlide(s, n, lr, lc, dr, dc, c.p.slice());
+        n.li = 1; return n;
+    }
     const { T, v } = _throwOf(charge), h0 = c.h + THROW.up;
     const hand = walk(c.p, c.face, THROW.ahead / R), from = _blocked(s, c.p, hand, h0, true) ? c.p.slice() : hand;
     const n = { id: s.id++, p: from, d: tangent(from, c.face), v, h: h0, vh: (gOf(s) * T) / 2 - (h0 - (c.air ? floorAt(s, c.p) : c.h)) / T, w: s.w || 0, state: 'fly', age: 0, used: false, still: 0 };
@@ -511,6 +555,11 @@ export function throwNut(s, charge = 0) {
 }
 /** Where a throw from here would come down: { p, path, bank, wet } (it flies, banks and lands; then the water has it). */
 export function aim(s, charge = 0) {
+    if (s.crab.lake && s.lv.lake) {
+        const z = s.lv.lake, ls = LG.clone(s.lake), [dr, dc] = _lakeWay(s.crab.p, s.crab.face), r = s.crab.lake[0], c = s.crab.lake[1], t = LG.throwNut(z, ls, r, c, dr, dc);
+        const cells = t.path.length ? t.path : [[r + 2 * dr, c + 2 * dc]], path = cells.map(([a, b]) => { const p = lakeAt(z, a, b); return [p, a >= 0 && a < z.rows ? lakeH(z, a) : 0]; });
+        return { p: path[path.length - 1][0], path, bank: null, wet: false, hit: !!(t.end && LG.plateAt(z, ...t.end)), lake: true, lost: t.lost };
+    }
     const t = { ...s, nuts: [], back: [], open: { ...s.open }, held: { ...s.held }, plug: { ...s.plug }, dmg: { ...s.dmg }, stuckIn: { ...s.stuckIn }, gold: [...s.gold], crab: { ...s.crab, nuts: 1 }, gull: null, boss: null, throws: 0, id: 1 };
     const n = throwNut(t, charge), path = []; let bank = null, sent = null;
     for (let i = 0; i < 240 && n.state === 'fly'; i++) { const ev = []; _nut(t, n, 1 / 60, ev); if (!bank && ev.some(e => e.type === 'bank')) bank = [n.p, n.h]; const nl = ev.find(e => e.type === 'nut-launch'); if (nl) sent = nl.p; if (i % 3 === 0) path.push([n.p, n.h]); }
@@ -518,48 +567,85 @@ export function aim(s, charge = 0) {
     return { p: sent || n.p, path, bank, wet: n.state === 'float', hit: n.state === 'stuck' || n.state === 'plug' || !!sent || onPlate };      // (sent: it lands on a launch pad and flies off)     // (hit: it would end in a bullseye)
 }
 
-// The lake: returns true when it has moved the crab this step (so no walking).
+// The lake: returns true when it has the crab this step (so no walking). See LakeGrid.js for the rules; this moves the crab along them.
 function _lakeStep(s, dt, stick, ev) {
-    const z = s.lv.lake, c = s.crab, rows = Math.round((z.r1 - z.r0) / z.dd) + 1, cols = Math.round((z.lon1 - z.lon0) / z.dl) + 1, d = dist(c.p, TOP), lon = lonOf(c.p);
-    const inSector = lon > z.lon0 - z.dl / 2 && lon < z.lon1 + z.dl / 2;
-    if (c.slide) {          // sliding: on toward the next cell's centre; there, see what's beyond
-        const sl = c.slide, to = sl.next, tp = to.r >= rows ? at(z.r1 + 0.9, z.lon0 + to.c * z.dl) : to.r < 0 ? at(z.r0 - 0.9, z.lon0 + to.c * z.dl) : lakeAt(z, to.r, to.c);
-        const step = (SLIDE_V * dt) / R, left = angle(c.p, tp);
-        if (left > step) { c.p = walk(c.p, toward(c.p, tp), step); c.f = tangent(c.p, c.f); c.face = tangent(c.p, c.face); c.moving = true; return true; }
-        c.p = tp.slice(); c.f = tangent(c.p, c.f); c.face = tangent(c.p, c.face);
-        if (to.r < 0) { c.slide = null; if (to.c !== z.exit) { _reset(s, ev, 'burn'); } else ev.push({ type: 'lake-off' }); return true; }
-        if (to.r >= rows) { c.slide = null; ev.push({ type: 'lake-off' }); return true; }
-        const nr = to.r + sl.dr, nc = to.c + sl.dc;
-        if (nc < 0 || nc >= cols) { c.slide = null; _reset(s, ev, 'burn'); return true; }
-        if (nr >= 0 && nr < rows && _lakePillar(z, nr, nc)) { c.slide = null; c.cell = { r: to.r, c: to.c }; ev.push({ type: 'lake-stop', r: to.r, c: to.c }); return true; }
-        sl.next = { r: nr, c: nc }; return true;
-    }
-    // stepping onto the lake from the beach: you're off, sliding north
-    if (inSector && d < z.r1 + 0.5 && d > z.r1 + 0.05 && stick.x * stick.x + stick.y * stick.y > 0.1) {
-        const col = Math.max(0, Math.min(cols - 1, Math.round((lon - z.lon0) / z.dl)));
-        const right = cross(c.f, c.p), dir = norm(mix(right, c.f, stick.x, stick.y));
-        if (dot(dir, toward(c.p, TOP)) > 0.5) { if (_lakePillar(z, rows - 1, col)) return false; c.p = at(z.r1 + 0.45, z.lon0 + col * z.dl); c.slide = { dr: -1, dc: 0, next: { r: rows - 1, c: col } }; ev.push({ type: 'lake-go' }); return true; }
-    }
-    // stopped on a cell: the stick picks one of four ways (toward the pearl, away, east, west)
-    if (inSector && d > z.r0 - 0.5 && d < z.r1 + 0.05) {
-        const cell = _lakeCell(z, c.p), r = Math.max(0, Math.min(rows - 1, cell.r)), cc = Math.max(0, Math.min(cols - 1, cell.c));
-        c.p = lakeAt(z, r, cc);
-        if (stick.x * stick.x + stick.y * stick.y > 0.25) {
-            const right = cross(c.f, c.p), dir = norm(mix(right, c.f, stick.x, stick.y)), n = toward(c.p, TOP), e = tangent(c.p, cross(TOP, c.p));
-            const opts = [[-1, 0, dot(dir, n)], [1, 0, -dot(dir, n)], [0, 1, dot(dir, e)], [0, -1, -dot(dir, e)]].sort((a, b) => b[2] - a[2]);
-            const [dr, dc] = opts[0], nr = r + dr, nc = cc + dc;
-            if (!(nr >= 0 && nr < rows && nc >= 0 && nc < cols && _lakePillar(z, nr, nc))) { c.slide = { dr, dc, next: { r: nr, c: nc } }; c.face = tangent(c.p, dr ? (dr < 0 ? n : n.map(x => -x)) : (dc > 0 ? e : e.map(x => -x))); ev.push({ type: 'lake-go' }); }
-        }
+    const z = s.lv.lake, c = s.crab, G = s.lake, canPick = c.nuts < CARRY;
+    const go = (m, dir) => {           // start a slide (or push) the grid has worked out
+        if (m.kind === 'push') { ev.push({ type: 'lake-push', ...m.block }); if (m.block.lost) ev.push({ type: 'lake-sink', p: lakeAt(z, ...m.block.path[m.block.path.length - 1]) }); return; }
+        if (m.kind === 'none') { if (!c.bumped) { c.bumped = true; ev.push({ type: 'lake-bump' }); } return; }
+        c.lakeHold = true;
+        c.slide = { pts: m.path.map(([r, cc]) => r >= z.rows ? at(z.r0 + (z.rows - 0.3) * z.dd, z.lon0 + cc * z.dl) : lakeAt(z, r, cc)), i: 0, ...m }; c.lake = null;
+        if (dir) c.face = tangent(c.p, dir); ev.push({ type: 'lake-go' });
+    };
+    if (c.slide) {          // sliding: on to the next cell, and the next, to where the grid said it ends
+        const sl = c.slide, tp = sl.pts[sl.i], step = (SLIDE_V * dt) / R, left = tp ? angle(c.p, tp) : 0;
+        if (tp && left > step) c.p = walk(c.p, toward(c.p, tp), step); else if (tp) { c.p = tp.slice(); sl.i++; }
+        c.f = tangent(c.p, c.f); c.face = tangent(c.p, c.face); c.moving = true; c.air = false; c.vh = 0;
+        const f = floorAt(s, c.p); c.h = f < c.h ? Math.max(f, c.h - 7 * dt) : Math.min(f, c.h + 5 * dt);
+        if (sl.i < sl.pts.length) return true;
+        c.slide = null; c.bumped = false;
+        if (sl.out === 'stop') {
+            c.lake = sl.end.slice(); c.p = lakeAt(z, ...c.lake); c.h = floorAt(s, c.p); ev.push({ type: 'lake-stop', r: c.lake[0], c: c.lake[1] });
+            if (sl.cracked) ev.push({ type: 'lake-crack', r: sl.cracked[0], c: sl.cracked[1] });
+            if (sl.picked) { const n = s.nuts.find(x => x.lake && x.lake[0] === sl.picked[0] && x.lake[1] === sl.picked[1]); if (n) { s.nuts.splice(s.nuts.indexOf(n), 1); c.nuts++; ev.push({ type: 'pick', nut: n }); } }
+        } else if (sl.out === 'win') { c.lake = null; ev.push({ type: 'lake-off', win: true }); }
+        else if (sl.out === 'rim') { c.lake = null; _lakeReset(s, ev); ev.push({ type: 'lake-off' }); }
+        else { if (sl.broke) ev.push({ type: 'lake-break', r: sl.broke[0], c: sl.broke[1] }); _reset(s, ev, 'burn'); }
         return true;
     }
-    // the lava round the lake (and between it and the pearl, but for the exit's bridge)
-    const lv = z.lava; if (lv && d > lv.r0 && d < lv.r1 && !(Math.abs(((lon - (z.lon0 + z.exit * z.dl) + 540) % 360) - 180) < z.dl / 2 && d < z.r0)) { _reset(s, ev, 'burn'); return true; }
+    if (c.lake) {           // stopped on a cell: the stick picks one of four ways (winding up a throw, it only turns you)
+        c.p = lakeAt(z, ...c.lake); c.h = floorAt(s, c.p);
+        if (stick.x * stick.x + stick.y * stick.y > 0.25) {
+            const right = cross(c.f, c.p), dir = norm(mix(right, c.f, stick.x, stick.y)), [dr, dc, , v] = _lakeWay(c.p, dir);
+            c.face = tangent(c.p, v);
+            if (!c.aiming && !c.lakeHold) { c.lakeHold = true; go(LG.move(z, G, c.lake[0], c.lake[1], dr, dc, canPick), v); }      // (one push of the stick, one move: let go to choose again)
+        } else { c.bumped = false; c.lakeHold = false; }
+        return true;
+    }
+    // Onto the lake from the rim (walking, or coming down from a jump): you're off, sliding on the way you were going.
+    if (onLake(z, c.p)) {
+        const cell = _lakeCell(z, c.p), r = Math.max(0, Math.min(z.rows - 1, cell.r)), cc = Math.max(0, Math.min(z.cols - 1, cell.c));
+        const [dr, dc, , v] = _lakeWay(c.p, c.face);
+        const m = r === z.rows - 1 && dr === -1 ? LG.enter(z, G, cc, canPick) : LG.drop(z, G, r, cc, dr, dc, canPick);
+        c.p = r === z.rows - 1 && dr === -1 ? at(z.r0 + (z.rows - 0.5) * z.dd, z.lon0 + cc * z.dl) : lakeAt(z, r, cc);
+        if (m.end && m.end[0] >= z.rows) { c.p = at(z.r0 + (z.rows - 0.5) * z.dd + 0.2, lonOf(c.p)); return false; }      // (a pillar right at the edge: no way on here)
+        go({ kind: 'slide', ...m, path: m.path.length ? m.path : [[r, cc]] }, v); ev.push({ type: 'lake-on' }); return true;
+    }
     return false;
 }
+// The lake goes back as it was: blocks home, cracks healed; coconuts lying on it melt away (and turn up under the palm again).
+function _lakeReset(s, ev) {
+    const z = s.lv.lake; if (!z) return;
+    const dirty = s.lake.blocks.join(';') !== (z.blocks || []).join(';') || Object.values(s.lake.cracks).some(x => x) || s.lake.nuts.length;
+    s.lake = LG.fresh(z);
+    for (const n of s.nuts.filter(x => x.lake)) _lose(s, n, ev, 'burn');
+    if (dirty) ev.push({ type: 'lake-reset' });
+}
+// A coconut on the lake slides too: from cell (r, c), the way (dr, dc), along the grid.
+function _nutSlide(s, n, r, c, dr, dc, from) {
+    const z = s.lv.lake, sl = LG.slide(z, s.lake, r, c, dr, dc, 'nut'), cells = [[r, c], ...sl.path];
+    n.state = 'slide'; n.lpts = (from ? [from] : []).concat(cells.map(([a, b]) => lakeAt(z, a, b))); n.li = 0; n.lend = sl.end; n.v = 0; n.vh = 0; n.arc = from ? 1 : 0;
+    if (sl.end) s.lake.nuts.push(sl.end);
+}
 
+// Lava: anywhere low in the lava band (the lake, the rim and the bridge stand above it).
+function _lava(s, ev) {
+    const z = s.lv.lake, c = s.crab; if (!z || !z.lava || c.air || c.slide || c.lake) return false;
+    const d = dist(c.p, TOP); if (d > z.lava.r0 && d < z.lava.r1 && floorAt(s, c.p) < 0.05 && c.h < 0.1) { _reset(s, ev, 'burn'); return true; }
+    return false;
+}
 function _lose(s, n, ev, why) { s.nuts.splice(s.nuts.indexOf(n), 1); s.back.push(RESPAWN_S); ev.push({ type: 'lost', nut: n, p: n.p, why }); }
 function _nut(s, n, dt, ev) {
     n.age += dt;
+    if (n.state === 'slide') {           // across the obsidian, cell by cell (the first leg, out of the claws, is a little arc)
+        const tp = n.lpts[n.li], step = ((n.arc && n.li === 1 ? SLIDE_V * 1.3 : SLIDE_V) * dt) / R;
+        if (tp && angle(n.p, tp) > step) { const a0 = n.li === 1 && n.arc ? angle(n.lpts[0], tp) : 0; n.p = walk(n.p, toward(n.p, tp), step); n.h = floorAt(s, n.p) + (a0 ? 1.2 * Math.sin(Math.PI * (1 - angle(n.p, tp) / a0)) : 0); return; }
+        if (tp) { n.p = tp.slice(); n.li++; n.h = floorAt(s, n.p); if (n.li < n.lpts.length) return; }
+        if (n.lend) { n.state = 'rest'; n.lake = n.lend.slice(); n.h = floorAt(s, n.p); ev.push({ type: 'thud', nut: n, p: n.p }); if (LG.plateAt(s.lv.lake, ...n.lake) && LG.gateOpen(s.lv.lake, s.lake)) ev.push({ type: 'lake-plate', p: n.p }); }
+        else _lose(s, n, ev, 'burn');
+        return;
+    }
+    if (n.lake) return;
     if (n.state === 'fly') {
         const q = walk(n.p, n.d, (n.v * dt) / R), bs = s.boss;
         if (bs && !n.blocked && bs.state !== 'sleep' && bs.state !== 'down' && dist(q, TOP) < BOSS.headR && n.h > BOSS.h0 && n.h < BOSS.h1) {
@@ -604,6 +690,13 @@ function _nut(s, n, dt, ev) {
             } else { n.vh = PAD_NUT_V; n.v *= 0.8; }
             ev.push({ type: 'pad', nut: n, p: n.p }); return;
         }
+        if (n.h <= fl && s.lv.lake) {         // down on the obsidian: it slides on the way it was going; down in the lava: gone
+            const z = s.lv.lake, d0 = dist(n.p, TOP);
+            if (onLake(z, n.p)) { const cell = _lakeCell(z, n.p), r = Math.max(0, Math.min(z.rows - 1, cell.r)), cc = Math.max(0, Math.min(z.cols - 1, cell.c)), [dr, dc] = _lakeWay(n.p, n.d);
+                if (LG.pillarAt(z, r, cc) || LG.blockAt(s.lake, r, cc) || LG.holeAt(z, s.lake, r, cc)) return _lose(s, n, ev, 'burn');
+                _nutSlide(s, n, r, cc, dr, dc); return; }
+            if (z.lava && d0 > z.lava.r0 && d0 < z.lava.r1 && fl < 0.05) return _lose(s, n, ev, 'burn');
+        }
         if (n.h <= fl) {
             n.h = fl;
             if (s.boss && dist(n.p, TOP) < 1.95) n.p = at(BOSS.pileAt, lonOf(n.p));       // (never left inside the fence, out of reach)
@@ -639,8 +732,9 @@ function _nut(s, n, dt, ev) {
 
 function _reset(s, ev, why) {
     const c = s.crab, at0 = s.lv.checks[s.cp];
-    c.slide = null;
-    Object.assign(c, { p: at0.slice(), f: tangent(at0, s.lv.goal), face: tangent(at0, s.lv.goal), h: 0, vh: 0, air: false, coy: COYOTE_S, jbuf: 0, lifted: false });
+    c.slide = null; c.lake = null;
+    if (s.lv.lake) _lakeReset(s, ev);
+    Object.assign(c, { p: at0.slice(), f: tangent(at0, s.lv.goal), face: tangent(at0, s.lv.goal), h: floorAt(s, at0), vh: 0, air: false, coy: COYOTE_S, jbuf: 0, lifted: false });
     s.falls++;
     ev.push({ type: why, at: s.cp });
 }
@@ -688,6 +782,7 @@ function _gull(s, dt, ev) {
 export function step(s, dt, stick = { x: 0, y: 0 }) {
     const ev = [], c = s.crab, lv = s.lv;
     if (s.won) return ev;
+    if (s.pend) { ev.push(...s.pend); s.pend = null; }
     s.t += dt;
     c.jbuf = Math.max(0, c.jbuf - dt);
     for (let i = s.back.length - 1; i >= 0; i--) { s.back[i] -= dt; if (s.back[i] <= 0) { s.back.splice(i, 1); ev.push({ type: 'washed', nut: _palmNut(s) }); } }
@@ -716,7 +811,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
         if (s.open[g] <= 0) { delete s.open[g]; const n = s.nuts.find(x => x.id === s.stuckIn[g]); if (n) { n.state = 'rest'; n.h = floorAt(s, n.p); n.age = 9; } ev.push({ type: 'timeout', gate: g }); }
     }
     // The obsidian lake: on it there's no walking, only sliding, in a straight line, until a pillar stops you.
-    if (lv.lake && !c.air && _lakeStep(s, dt, stick, ev)) return ev;
+    if (lv.lake && (c.slide || c.lake || !c.air) && _lakeStep(s, dt, stick, ev)) { _lava(s, ev); return ev; }
     // Walk (in the air too). In a current the crab wades slowly and is carried along.
     c.climb = false;
     const cu = !c.air && floorAt(s, c.p) < 0.05 ? currentAt(s, c.p) : null;
@@ -793,6 +888,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     if (c.holeCd <= 0 && c.h <= floorAt(s, c.p) + 0.05) { const hole = _holeAt(s, c.p, false);
         if (hole) { const out = holeExit(hole), fwd = c.face.map(x => -x); c.p = out.slice(); c.face = tangent(out, fwd); c.f = tangent(out, c.f.map(x => -x)); c.h = floorAt(s, out); c.vh = Math.max(6, c.fallV || 0); c.air = true; c.holeCd = 0.9; ev.push({ type: 'hole', crab: true, hole, p: hole.p, out }); } }
     c.fallV = c.air && c.vh < 0 ? -c.vh : 0;
+    if (lv.lake && _lava(s, ev)) return ev;
     // The tide: up and down on its clock. Caught standing below the water in the lagoon, the crab is swept back to its flag.
     if (lv.tide) {
         const was = s.tideW || 0; s.tideW = tideAt(lv, s.t);
@@ -831,7 +927,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     }
     // Picking coconuts up: walk into one that is lying or floating.
     if (!c.air && c.nuts < CARRY) {
-        const n = s.nuts.find(x => (x.w || 0) === (s.w || 0) && (x.state === 'rest' || x.state === 'float') && x.age > PICK_AGE && dist(x.p, c.p) < PICK_R);
+        const n = s.nuts.find(x => (x.w || 0) === (s.w || 0) && (x.state === 'rest' || x.state === 'float') && !x.lake && x.age > PICK_AGE && dist(x.p, c.p) < PICK_R);
         if (n) { s.nuts.splice(s.nuts.indexOf(n), 1); c.nuts++; ev.push({ type: 'pick', nut: n }); }
     }
     if (s.gull) _gull(s, dt, ev);

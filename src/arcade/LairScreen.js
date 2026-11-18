@@ -238,7 +238,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         }
     }
     // Terraces, ramps and shelves: raised ground with a grassy (or stone) top and rocky cliff sides, darker bands of strata.
-    const LEDGE = { obsidian: { top: [0x1c1726, 0x231d30], side: [0x120e1a, 0x18131f, 0x0e0b14] },  beachShelf: { top: [0xf2d9cf, 0xe7c7bd], side: [0xd9bfae, 0xccb09e, 0xe2cbbd] },  coralShelf: { top: [0xff9bb3, 0xff8aa6], side: [0xb98be6, 0xa877dc, 0xcaa2ef] },  terrace: { top: [0x8fd96a, 0x7fcf5c], side: [0xc9935a, 0xb98249, 0xd6a46a] }, mesa: { top: [0xe8b46a, 0xdca65c], side: [0xd9893f, 0xc4742f, 0xe69b52] }, ramp: { top: [0xcfae7a, 0xc19f6c], side: [0xa98758, 0x977648, 0xb89668] }, shelf: { top: [0xaab0c4, 0x9aa1b6], side: [0x8890a8, 0x7a8299, 0x969db3] } };
+    const LEDGE = { basalt: { top: [0x5a4a5e, 0x514356], side: [0x3a2c3c, 0x46343f, 0x2e2230] }, obsidian: { top: [0x1c1726, 0x231d30], side: [0x120e1a, 0x18131f, 0x0e0b14] },  beachShelf: { top: [0xf2d9cf, 0xe7c7bd], side: [0xd9bfae, 0xccb09e, 0xe2cbbd] },  coralShelf: { top: [0xff9bb3, 0xff8aa6], side: [0xb98be6, 0xa877dc, 0xcaa2ef] },  terrace: { top: [0x8fd96a, 0x7fcf5c], side: [0xc9935a, 0xb98249, 0xd6a46a] }, mesa: { top: [0xe8b46a, 0xdca65c], side: [0xd9893f, 0xc4742f, 0xe69b52] }, ramp: { top: [0xcfae7a, 0xc19f6c], side: [0xa98758, 0x977648, 0xb89668] }, shelf: { top: [0xaab0c4, 0x9aa1b6], side: [0x8890a8, 0x7a8299, 0x969db3] } };
     for (const l of level.ledges || []) {
         const pal = LEDGE[l.kind] || LEDGE.terrace, c0 = l.c || TOP, partial = !!(l.only || l.gap), lon0 = l.only ? l.only[0] - l.only[1] : 0, lon1 = l.only ? l.only[0] + l.only[1] : 360;
         const nR = Math.max(2, Math.ceil((l.r1 - l.r0) / 0.4)), circ = 2 * Math.PI * R * Math.sin(Math.max(l.r1, 0.5) / R), nL = Math.max(8, Math.ceil(circ * (lon1 - lon0) / 360 / 0.45));
@@ -361,10 +361,29 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         const col = new T.Mesh(G.tube || new T.CylinderGeometry(1, 1, 1, 16, 1, true), basic(0xf4f8ff, { transparent: true, opacity: 0.0, depthWrite: false, side: T.DoubleSide })); col.visible = false; g.add(col);
         const bub = []; for (let k = 0; k < 5; k++) { const b = new T.Mesh(G.sphLow, basic(0xdff6ff, { transparent: true, opacity: 0.8 })); b.scale.setScalar(0.12); b.visible = false; g.add(b); bub.push(b); }
         put(g, j.p, [1, 0, 0], base); scene.add(g); return { j, g, col, bub }; });
-    if (level.lake) { const z = level.lake, rows = Math.round((z.r1 - z.r0) / z.dd) + 1, cols = Math.round((z.lon1 - z.lon0) / z.dl) + 1, m = basic(0xff7a2a, { transparent: true, opacity: 0.35, depthWrite: false });
-        for (let r = 0; r <= rows; r++) for (let c = 0; c < cols; c++) { const p = K.lakeAt(z, r - 0.5, c), d = new T.Mesh(G.box, m); d.scale.set(0.05, 0.02, 0.8); put(d, p, tangent(p, cross(TOP, p)), 0.05); scene.add(d); }
-        for (let r = 0; r < rows; r++) for (let c = 0; c <= cols; c++) { const p = K.lakeAt(z, r, c - 0.5), d = new T.Mesh(G.box, m); d.scale.set(0.05, 0.02, 0.8); put(d, p, toward(p, TOP), 0.05); scene.add(d); }
-        const ex = K.lakeAt(z, -0.9, z.exit), arw = Y.prop([{ geo: G.coneLow, color: 0xffd23a, s: [0.5, 0.6, 0.12], r: [Math.PI / 2, 0, 0], p: [0, 0.12, 0] }], { thick: 0.04 }); put(arw, ex, toward(ex, TOP), 0.04); scene.add(arw); }
+    // The obsidian lake: glowing seams between its cells, so the grid reads; blocks to push; cracks; the plate and the gate at the bridge.
+    let lakeVis = null;
+    if (level.lake) { const z = level.lake, m = basic(0xff7a2a, { transparent: true, opacity: 0.4, depthWrite: false }), H = r => K.lakeH(z, r) + 0.03;
+        for (let r = 0; r <= z.rows; r++) for (let c = 0; c < z.cols; c++) { const p = K.lakeAt(z, r - 0.5, c), d = new T.Mesh(G.box, m); d.scale.set(0.05, 0.02, 0.8); put(d, p, tangent(p, cross(TOP, p)), Math.max(H(r - 1), H(Math.min(r, z.rows - 1)))); scene.add(d); }
+        for (let r = 0; r < z.rows; r++) for (let c = 0; c <= z.cols; c++) { const p = K.lakeAt(z, r, c - 0.5), d = new T.Mesh(G.box, m); d.scale.set(0.05, 0.02, 0.8); put(d, p, toward(p, TOP), H(r)); scene.add(d); }
+        for (const [r, c] of z.ramps || []) for (let k = 0; k < 3; k++) { const p = K.lakeAt(z, r - 0.3 + k * 0.3, c), a = Y.prop([{ geo: G.coneLow, color: 0xffb37a, s: [0.36, 0.3, 0.08], r: [-Math.PI / 2, 0, 0], p: [0, 0.06, 0] }], { thick: 0.03 }); put(a, p, toward(p, TOP).map(x => -x), K.lakeH(z, r - 1) + (K.lakeH(z, r) - K.lakeH(z, r - 1)) * (0.2 + k * 0.3) + 0.05); scene.add(a); }
+        const ex = K.lakeAt(z, -0.9, z.exit), arw = Y.prop([{ geo: G.coneLow, color: 0xffd23a, s: [0.5, 0.6, 0.12], r: [Math.PI / 2, 0, 0], p: [0, 0.12, 0] }], { thick: 0.04 }); put(arw, ex, toward(ex, TOP), fl(ex) + 0.04); scene.add(arw);
+        // blocks: chunky obsidian cubes with a glowing seam, so they read as "push me", not as pillars
+        const blocks = (z.blocks || []).map(() => { const g = Y.prop([{ geo: G.box, color: 0x3a2f4e, s: [0.72, 0.72, 0.72], p: [0, 0.36, 0] }, { geo: G.box, color: 0xff8a2a, s: [0.74, 0.06, 0.74], p: [0, 0.5, 0], ink: false }, { geo: G.box, color: 0x52446c, s: [0.5, 0.06, 0.5], p: [0, 0.74, 0] }], { thick: 0.05 }); scene.add(g); return { g, p: null, h: 0, sink: 0 }; });
+        // cracks: a pale web on the glass; cracked, it glows; broken, a hole of lava
+        const cracks = (z.cracks || []).map(([r, c]) => { const p = K.lakeAt(z, r, c), g = new T.Group(), web = [], mats = [];
+            for (let k = 0; k < 4; k++) { const mt = basic(0xcfc4ea); mats.push(mt); const ln = new T.Mesh(G.box, mt); ln.scale.set(0.62 - k * 0.08, 0.02, 0.04); ln.rotation.y = k * 0.8 + 0.3; ln.position.y = 0.035; g.add(ln); web.push(ln); }
+            const hole = new T.Mesh(G.disc, basic(0xff5a1a)); hole.scale.setScalar(0.4); hole.position.y = 0.04; hole.visible = false; g.add(hole);
+            put(g, p, [1, 0, 0], K.lakeH(z, r)); scene.add(g); return { r, c, g, mats, hole, last: -1 }; });
+        // the plate (a coconut on it holds the gate open) and the gate across the bridge, joined by a line of dots in the gate's colour
+        const gc = GATE_COLOR.plate, plates = (z.plates || []).map(([r, c]) => { const p = K.lakeAt(z, r, c), g = new T.Group(), off = Y.toon(gc), on = Y.toon(C.green), top = Y.part(G.cylLow, off, 0.04); top.scale.set(0.7, 0.1, 0.7); top.position.y = 0.06; g.add(top); put(g, p, [1, 0, 0], K.lakeH(z, r)); scene.add(g); return { top, off, on }; });
+        let gate = null;
+        if ((z.plates || []).length) { const gp = K.lakeAt(z, -0.55, z.exit), g = new T.Group();
+            for (let k = -2; k <= 2; k++) { const bar = Y.part(G.cyl, Y.toon(gc, { transparent: true, opacity: 0.85 }), 0.04); bar.scale.set(0.09, 1.3, 0.09); bar.position.set(k * 0.17, 0.65, 0); g.add(bar); }
+            put(g, gp, tangent(gp, cross(TOP, gp)), K.lakeH(z, 0)); scene.add(g); gate = { g, gp, y: 0 };
+            for (const [r, c] of z.plates) { const a = K.lakeAt(z, r, c), len = K.dist(a, gp), n = Math.max(2, Math.floor(len / 0.4)); for (let k = 1; k < n; k++) { const f = k / n, q = norm(mix(a, gp, 1 - f, f)), d = new T.Mesh(G.disc, basic(gc, { transparent: true, opacity: 0.55, depthWrite: false })); d.scale.setScalar(0.12); put(d, q, null, fl(q) + 0.05); scene.add(d); } } }
+        lakeVis = { z, blocks, cracks, plates, gate };
+    }
     const embers = []; if (THEME.embers) { const rnd = rngOf(31); for (let i = 0; i < 40; i++) { const e = new T.Mesh(G.sphLow, basic(i % 3 ? 0xff8a2a : 0xffd23a)); e.scale.setScalar(0.06 + rnd() * 0.05); scene.add(e); embers.push({ e, p: K.at(7 + rnd() * 8, rnd() * 360), h: rnd() * 3, v: 0.6 + rnd() * 0.8 }); } }
     // A palm on the mesa with a coconut hanging from its frond on a rope.
     const hangVis = (level.hangs || []).map(hg => {
@@ -589,7 +608,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         col.needsUpdate = true;
     };
 
-    let pitch = 0, shelfK = 0, s = shared || K.create(level), t = 0, myW = shared ? shared.w : 0, charge = -1, cheer = 0, camP = null, shake = 0, doneAt = 0, told = false, disposed = false, intro = 0, camStart = null, snap = false, inkMad = 0, bristle = 0, downT = 0, hurtFlash = 0, swat = 0;
+    let pitch = 0, shelfK = 0, lakeK = 0, s = shared || K.create(level), t = 0, myW = shared ? shared.w : 0, charge = -1, cheer = 0, camP = null, shake = 0, doneAt = 0, told = false, disposed = false, intro = 0, camStart = null, snap = false, inkMad = 0, bristle = 0, downT = 0, hurtFlash = 0, swat = 0;
 
     function events(evs) {
         for (const e of evs) {
@@ -649,7 +668,15 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             else if (e.type === 'scald') { burst(at3(s.crab.p, 0.6), 0xffffff, 26, 5); hooks.sfx('land_bad'); hooks.buzz([30, 30]); hooks.hint('SCALDED BY THE STEAM · BACK AT THE FLAG (WAIT FOR THE BURST, THEN GO)', 2.4); snap = true; }
             else if (e.type === 'burn') { burst(at3(s.crab.p, 0.3), 0xff6a1f, 30, 5); hooks.sfx('land_bad'); hooks.buzz([30, 30]); hooks.hint('INTO THE LAVA! · BACK AT THE FLAG', 2.2); snap = true; }
             else if (e.type === 'lake-go') hooks.sfx('swap');
-            else if (e.type === 'lake-stop') { burst(at3(s.crab.p, 0.2), 0x8a74c4, 8, 2); hooks.sfx('tick'); }
+            else if (e.type === 'lake-stop') { burst(at3(s.crab.p, s.crab.h + 0.2), 0x8a74c4, 8, 2); hooks.sfx('tick'); const z = level.lake; if (e.r === 0 && e.c === z.exit && !K.lakeGateOpen(s)) hooks.hint('THE GATE IS SHUT · A COCONUT ON THE YELLOW PLATE OPENS IT', 2.6); }
+            else if (e.type === 'lake-push') { hooks.sfx('dice_land'); hooks.buzz(12); if (!s.pushSaid) { s.pushSaid = true; hooks.hint('PUSHED! A BLOCK SLIDES TOO, UNTIL SOMETHING STOPS IT', 2.4); } }
+            else if (e.type === 'lake-sink') { burst(at3(e.p, 0.3), 0xff6a1f, 22, 4); hooks.hint('THE BLOCK SLID INTO THE LAVA · GO BACK TO THE RIM TO SET THE LAKE BACK', 2.6); }
+            else if (e.type === 'lake-crack') { hooks.sfx('tick'); hooks.buzz([10, 20, 10]); hooks.hint('IT CRACKED! STOP ON IT AGAIN AND IT BREAKS', 2.4); }
+            else if (e.type === 'lake-break') { hooks.hint('IT BROKE! CRACKED GLASS TAKES ONE STOP, NOT TWO', 2.4); }
+            else if (e.type === 'lake-reset') hooks.hint('THE LAKE SETS BACK AS IT WAS', 1.8);
+            else if (e.type === 'lake-nojump') { hooks.buzz(8); hooks.hint('NO JUMPING ON THE OBSIDIAN · YOUR CLAWS CAN\'T GRIP IT', 1.8); }
+            else if (e.type === 'lake-bump') hooks.sfx('tick');
+            else if (e.type === 'lake-plate') { hooks.sfx('land_good'); hooks.hint('THE GATE OPENS!', 1.8); }
             else if (e.type === 'won') { burst(at3(level.goal, 1.5), 0xff8ad8, 50, 7); burst(at3(level.goal, 1.5), 0xffd84a, 40, 6); hooks.sfx('win'); hooks.buzz([30, 30, 30, 30, 120]); cheer = 1.2; inkMad = 2; doneAt = t + 1.8; }
         }
     }
@@ -751,6 +778,15 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         jetVis.forEach((v, i) => { const st = K.jetState(s, v.j);
             v.col.visible = st === 'fire'; if (st === 'fire') { v.col.scale.set(v.j.r * (0.8 + 0.1 * Math.sin(t * 30 + i)), 3.2, v.j.r * (0.8 + 0.1 * Math.sin(t * 25 + i))); v.col.position.y = 1.7; v.col.material.opacity = 0.55 + 0.2 * Math.sin(t * 20); }
             v.bub.forEach((b, k) => { b.visible = st === 'warn'; if (b.visible) { const ph = (t * 1.8 + k / 5) % 1; b.position.set(Math.cos(k * 1.3) * v.j.r * 0.4, 0.2 + ph * 0.9, Math.sin(k * 1.3) * v.j.r * 0.4); b.material.opacity = 0.9 - ph * 0.8; } }); });
+        if (lakeVis && s.lake) { const { z } = lakeVis;
+            lakeVis.blocks.forEach((v, i) => { const b = s.lake.blocks[i]; if (!b) return; const lost = b[0] < -50;
+                if (!lost) { const p = K.lakeAt(z, b[0], b[1]), h = K.lakeH(z, b[0]); if (!v.p) { v.p = p.slice(); v.h = h; } const a = K.dist(v.p, p) / R; if (a > 1e-4) v.p = walk(v.p, toward(v.p, p), Math.min(a, (K.SLIDE_V * dt) / R)); v.h += Math.max(-7 * dt, Math.min(5 * dt, h - v.h)); v.sink = 0; }
+                else if (v.p) v.sink = Math.min(1.5, v.sink + dt);
+                v.g.visible = !!v.p && v.sink < 1.4; if (v.p) put(v.g, v.p, toward(v.p, TOP), v.h - v.sink); });
+            lakeVis.cracks.forEach(v => { const st = s.lake.cracks[v.r + ',' + v.c] || 0; if (st === v.last) return; v.last = st; v.mats.forEach(mt => mt.color.setHex(st ? 0xff8a2a : 0xcfc4ea)); v.hole.visible = st >= 2; });
+            const open = K.lakeGateOpen(s); lakeVis.plates.forEach(v => { v.top.material = open ? v.on : v.off; });
+            if (lakeVis.gate) { const gt = lakeVis.gate; gt.y += Math.max(-dt * 3, Math.min(dt * 3, (open ? -1.4 : 0) - gt.y)); put(gt.g, gt.gp, tangent(gt.gp, cross(TOP, gt.gp)), K.lakeH(z, 0) + gt.y); }
+        }
         embers.forEach(m => { m.h += m.v * dt; if (m.h > 3.5) m.h = 0; put(m.e, m.p, null, m.h); });
         spots.forEach(v => {
             const on = K.dist(c.p, v.sp.p) < 0.8, done = !!s.open[v.sp.gate];
@@ -847,7 +883,8 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
 
         // The camera: behind and above, higher when the crab is, swinging in from far out on a fresh go, steeper on the shelf.
         const dT = K.dist(c.p, TOP); shelfK += ((dT < 9.7 && dT > 5.0 ? 1 : 0) - shelfK) * Math.min(1, dt * 3);
-        const up = V(c.p), f = V(c.f), want = up.clone().multiplyScalar(R + (9.6 + 3.2 * shelfK) * (1 + 0.4 * pitch) + c.h * 0.45).addScaledVector(f, -(8.6 - 3.6 * shelfK) * (1 - 0.35 * pitch));
+        lakeK += ((c.lake || c.slide ? 1 : 0) - lakeK) * Math.min(1, dt * 2);       // (on the obsidian: higher, looking down on the grid)
+        const up = V(c.p), f = V(c.f), want = up.clone().multiplyScalar(R + (9.6 + 3.2 * shelfK + 3.5 * lakeK) * (1 + 0.4 * pitch) + c.h * 0.45).addScaledVector(f, -(8.6 - 3.6 * shelfK - 1.8 * lakeK) * (1 - 0.35 * pitch));
         { // never inside a terrace: keep the camera above the ground (and the crab's own level) wherever it would be
           const cp = norm([want.x, want.y, want.z]), gh = Math.max(fl(cp), fl(norm(mix(c.p, cp, 0.5, 0.5))), fl(norm(mix(c.p, cp, 0.8, 0.2))), c.h);
           if (gh > c.h + 0.8) want.copy(up).multiplyScalar(R + gh + 7.5).addScaledVector(f, -2.2);        // (a cliff behind the crab: look down from above it instead)
@@ -895,6 +932,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         hold(on, now = null) {
             if (s.won) return null;
             if (now != null) { charge = -1; if (s.crab.nuts < 1) return null; hooks.sfx('swap'); return K.throwNut(s, now); }
+            s.crab.aiming = !!on && s.crab.nuts > 0;
             if (on) { if (charge < 0) { if (s.crab.nuts < 1) { hooks.hint('NO COCONUT IN YOUR CLAWS: WALK INTO ONE TO PICK IT UP', 2); return null; } charge = 0; } return null; }
             if (charge < 0) return null;
             const kk = Math.min(1, charge); charge = -1;
