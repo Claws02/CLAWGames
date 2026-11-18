@@ -221,3 +221,10 @@ with it and settle where they are when it goes out. **Rafts** (`rafts: [{ p, r }
 answer: at low tide walk out to the raft by the mesa with the coconuts; at high tide lob one onto the lighthouse rock's plate (2.8 up:
 no throw from the sand reaches it) and jump from the raft onto the mesa (4 up: nothing reaches it from the sand). Golden shells: far out
 on the sand (only at low tide), on the tall rock (a jump from a raft at high tide), on the coral post (the jelly).
+
+**8. Ink's Deep** (built, World 2's boss): Old Ink's second lair, with a darker look (`theme: 'deep'`). Two timed hazards on the way:
+a bottomless **chasm** crossed on **crumbling tiles** (`chasm: { r0, r1 }`, `crumbles: [{ p, r }]`: a tile cracks when stepped on,
+falls `CRUMBLE_S` later and is back `TILE_BACK_S` after that; off the tiles in the chasm, back to the flag; coconuts there are
+lost), and a corridor of **steam jets** (`jets: [{ p, r, period, on, phase, boss? }]`: each bubbles for `JET_WARN` s, then fires and
+scalds a crab back to its flag; `boss` jets only work while he's awake). Then the arena: a boss can be tuned per chamber
+(`boss: { hits: 4, speed: 0.8, arena: 5.5 }`): four hits, faster slams, and steam jets round the arena while he's up.

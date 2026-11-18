@@ -52,6 +52,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
     const THEME = {
         beach: { sky: 0x9fe0ff, hemi: [0xffffff, 0x8a7aa0], ground: { sand: [0xf3d890, 0xe9c87a], sea: [0x5aaed4, 0x4a9ec6], rock: [0xd2b98f, 0xc2a77c], grass: [0x8fd96a, 0x76c456], stone: [0xb9a6ea, 0xa994de], dais: [0xf6bdf3, 0xe9a7ee] } },
         moon: { sky: 0x141d40, hemi: [0xe8e4ff, 0x3a3366], ground: { sand: [0xc9c3dc, 0xbdb6d2], sea: [0x8f86b8, 0x8077aa], rock: [0xa59cc6, 0x968db9], grass: [0xb4acd2, 0xa69ec6], stone: [0xd8d2ea, 0xccc5e2], dais: [0xe6e0f6, 0xdcd5f0] }, stars: true, craters: true },
+        deep: { sky: 0x182a52, hemi: [0xc8e8ff, 0x3a2a66], ground: { sand: [0xd9c4d8, 0xcbb4cb], sea: [0x0e1a33, 0x0b1529], rock: [0x8a7fb8, 0x7d72ab], grass: [0x2f9c8a, 0x278a7a], stone: [0x6fb8b0, 0x62aaa2], dais: [0xffc4e6, 0xffb0dc] }, decor: true },
         reef: { sky: 0x2f7f9c, hemi: [0xd8fff6, 0x5a3f8a], ground: { sand: [0xf2d9cf, 0xe7c7bd], sea: [0x2fb3c4, 0x27a1b3], rock: [0xc7a9e0, 0xb796d4], grass: [0x46c2a6, 0x37ad93], stone: [0x8fd4c9, 0x7cc7bb], dais: [0xffc4e6, 0xffb0dc] }, decor: true },
     }[level.theme || 'beach'] || null;
     const scene = new T.Scene(); scene.background = new T.Color(THEME.sky);
@@ -344,6 +345,21 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         tideMesh = new T.Mesh(geo, basic(0x2fb3c4, { transparent: true, opacity: 0.62, side: T.DoubleSide, depthWrite: false })); scene.add(tideMesh);
     }
     const raftVis = (level.rafts || []).map(k => { const g = Y.prop([...[-1, 0, 1].map(j => ({ geo: G.cyl, color: j ? 0xa87440 : 0xc98f52, s: [0.42, k.r * 2, 0.42], r: [0, 0, Math.PI / 2], p: [0, 0.1, j * 0.42] })), { geo: G.box, color: 0x8a5a2e, s: [0.12, 0.08, k.r * 1.6], p: [k.r * 0.6, 0.32, 0] }, { geo: G.box, color: 0x8a5a2e, s: [0.12, 0.08, k.r * 1.6], p: [-k.r * 0.6, 0.32, 0] }], { thick: 0.06 }); scene.add(g); return { k, g }; });
+    // The chasm: a dark ring going down into nothing; crumbling tiles across it (they shake, crack and drop when stepped on).
+    if (level.chasm) { const z = level.chasm, nR = 6, nL = 72, pos = [];
+        const P3 = (r, lon) => V(around(z.c || TOP, r, lon)).multiplyScalar(R + 0.04);
+        for (let i = 0; i < nR; i++) for (let j = 0; j < nL; j++) { const r0 = z.r0 + (i / nR) * (z.r1 - z.r0), r1 = z.r0 + ((i + 1) / nR) * (z.r1 - z.r0), a0 = (j / nL) * 360, a1 = ((j + 1) / nL) * 360; for (const q of [P3(r0, a0), P3(r1, a0), P3(r1, a1), P3(r0, a0), P3(r1, a1), P3(r0, a1)]) pos.push(q.x, q.y, q.z); }
+        const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); scene.add(new T.Mesh(geo, basic(0x050a16, { side: T.DoubleSide })));
+        for (const r of [z.r0, z.r1]) { const items = arcPoints({ r }, 0.6), m = Y.instanced(G.rockSoft, items.length, 0.06); scene.add(m.body); scene.add(m.line); items.forEach((it, i) => m.set(i, stand(it.p, it.f, 0.12, 0.6, 0.3, 0.5, i), [0x5d5490, 0x4c447d][i % 2])); m.done(); } }
+    const tileVis = (level.crumbles || []).map(tl => { const g = Y.prop([{ geo: G.cylLow, color: 0xb9a6d6, s: [tl.r * 2, 0.35, tl.r * 2], p: [0, -0.1, 0] }, { geo: G.cylLow, color: 0xd2c4e6, s: [tl.r * 1.6, 0.06, tl.r * 1.6], p: [0, 0.09, 0], ink: false }], { thick: 0.05 });
+        const crack = new T.Group(); for (let k = 0; k < 3; k++) { const c2 = new T.Mesh(G.box, basic(0x2b1240)); c2.scale.set(tl.r * 1.4, 0.03, 0.05); c2.rotation.y = k * 1.05; c2.position.y = 0.13; crack.add(c2); } crack.visible = false; g.add(crack);
+        put(g, tl.p, [1, 0, 0], 0); scene.add(g); return { tl, g, crack, drop: 0 }; });
+    // Steam jets: a vent in the floor; it bubbles (the warning), then a column of steam roars up.
+    const jetVis = (level.jets || []).map(j => { const base = fl(j.p), g = new T.Group();
+        g.add(Y.prop([{ geo: G.cylLow, color: 0x7d72ab, s: [j.r * 2, 0.16, j.r * 2], p: [0, 0.06, 0] }, { geo: G.cylLow, color: 0x2b1f4a, s: [j.r * 1.2, 0.04, j.r * 1.2], p: [0, 0.15, 0], ink: false }], { thick: 0.05 }));
+        const col = new T.Mesh(G.tube || new T.CylinderGeometry(1, 1, 1, 16, 1, true), basic(0xf4f8ff, { transparent: true, opacity: 0.0, depthWrite: false, side: T.DoubleSide })); col.visible = false; g.add(col);
+        const bub = []; for (let k = 0; k < 5; k++) { const b = new T.Mesh(G.sphLow, basic(0xdff6ff, { transparent: true, opacity: 0.8 })); b.scale.setScalar(0.12); b.visible = false; g.add(b); bub.push(b); }
+        put(g, j.p, [1, 0, 0], base); scene.add(g); return { j, g, col, bub }; });
     // A palm on the mesa with a coconut hanging from its frond on a rope.
     const hangVis = (level.hangs || []).map(hg => {
         const foot = walk(hg.p, toward(hg.p, TOP), 1.2 / R), g = new T.Group(); const trunk = Y.prop([{ geo: G.cyl, color: 0xa87440, s: [0.3, 2.6, 0.3], p: [0, 1.3, 0], r: [0, 0, -0.2] }, { geo: G.sph, color: 0x4cc064, s: [1.6, 0.2, 0.7], p: [0.6, 2.6, 0], r: [0, 0, -0.3] }, { geo: G.sph, color: 0x37a655, s: [0.7, 0.2, 1.4], p: [-0.2, 2.65, 0.3] }], { thick: 0.06 });
@@ -621,6 +637,10 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             else if (e.type === 'tide-in') { hooks.hint('🌊 THE TIDE IS COMING IN!', 2.2); hooks.sfx('boost'); }
             else if (e.type === 'tide-out') { hooks.hint('🌊 THE TIDE IS GOING OUT', 2); }
             else if (e.type === 'swept') { burst(at3(s.crab.p, 0.3), 0x7ec8ff, 26, 4); hooks.sfx('land_bad'); hooks.buzz([30, 30]); hooks.hint('SWEPT AWAY BY THE TIDE · BACK AT THE FLAG', 2.2); snap = true; }
+            else if (e.type === 'tile-crack') { hooks.sfx('tick'); const v = tileVis[e.i]; if (v) burst(at3(v.tl.p, 0.2), 0xd2c4e6, 6, 2); }
+            else if (e.type === 'tile-fall') { burst(at3(e.p, 0.2), 0xb9a6d6, 18, 3.5); hooks.sfx('dice_land'); }
+            else if (e.type === 'fall') { hooks.sfx('land_bad'); hooks.buzz([30, 30]); hooks.hint('INTO THE CHASM! · BACK AT THE FLAG (DON\'T STOP ON THE TILES)', 2.4); snap = true; }
+            else if (e.type === 'scald') { burst(at3(s.crab.p, 0.6), 0xffffff, 26, 5); hooks.sfx('land_bad'); hooks.buzz([30, 30]); hooks.hint('SCALDED BY THE STEAM · BACK AT THE FLAG (WAIT FOR THE BURST, THEN GO)', 2.4); snap = true; }
             else if (e.type === 'won') { burst(at3(level.goal, 1.5), 0xff8ad8, 50, 7); burst(at3(level.goal, 1.5), 0xffd84a, 40, 6); hooks.sfx('win'); hooks.buzz([30, 30, 30, 30, 120]); cheer = 1.2; inkMad = 2; doneAt = t + 1.8; }
         }
     }
@@ -716,6 +736,12 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         });
         if (tideMesh) { const W = s.tideW || 0; tideMesh.visible = W > 0.02; tideMesh.scale.setScalar((R + W) / R); }
         raftVis.forEach((v, i) => put(v.g, v.k.p, [1, 0, 0], (s.tideW || 0) + 0.02 + Math.sin(t * 2 + i) * ((s.tideW || 0) > 0.1 ? 0.04 : 0)));
+        tileVis.forEach((v, i) => { const st = s.tiles && s.tiles[i], down = st && st.down > 0, cracking = st && st.k >= 0;
+            v.drop = down ? Math.min(6, v.drop + dt * 12) : Math.max(0, v.drop - dt * 6); v.crack.visible = !!cracking || v.drop > 0;
+            put(v.g, v.tl.p, [1, 0, 0], -v.drop + (cracking ? (Math.random() - 0.5) * 0.06 : 0)); v.g.visible = v.drop < 5.5; });
+        jetVis.forEach((v, i) => { const st = K.jetState(s, v.j);
+            v.col.visible = st === 'fire'; if (st === 'fire') { v.col.scale.set(v.j.r * (0.8 + 0.1 * Math.sin(t * 30 + i)), 3.2, v.j.r * (0.8 + 0.1 * Math.sin(t * 25 + i))); v.col.position.y = 1.7; v.col.material.opacity = 0.55 + 0.2 * Math.sin(t * 20); }
+            v.bub.forEach((b, k) => { b.visible = st === 'warn'; if (b.visible) { const ph = (t * 1.8 + k / 5) % 1; b.position.set(Math.cos(k * 1.3) * v.j.r * 0.4, 0.2 + ph * 0.9, Math.sin(k * 1.3) * v.j.r * 0.4); b.material.opacity = 0.9 - ph * 0.8; } }); });
         spots.forEach(v => {
             const on = K.dist(c.p, v.sp.p) < 0.8, done = !!s.open[v.sp.gate];
             v.ring.scale.setScalar(0.75 + 0.06 * Math.sin(t * (on ? 9 : 4))); v.g.visible = !done;

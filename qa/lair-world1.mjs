@@ -1,6 +1,6 @@
 // World 1 of Old Ink's Lair: the three teaching chambers, each played through by a player that uses only the stick, the jump button
 // and the throw, and the things each one must teach (and must not let you skip).  node qa/lair-world1.mjs
-import { K, P, at, TOP, DT, stickTo, run, go, hop, face, gather, chargeFor, solve } from './lair-solve.mjs';
+import { K, P, at, TOP, DT, stickTo, run, go, hop, face, gather, chargeFor, solve, fight } from './lair-solve.mjs';
 const { BEACH, STREAM, YARD, CHAMBERS } = K;
 let fails = 0;
 const ok = (c, msg) => { if (msg) console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) fails++; };
@@ -297,6 +297,48 @@ const lowTide = () => {
     run(q, 13); const up = n && n.state === 'float' && Math.abs(n.h - K.tideAt(TIDE, q.t)) < 0.05; run(q, 12); ok(up && n.state === 'rest', '   a coconut left on the sand floats up with the tide and settles again when it goes out'); }
   { const q = K.create(TIDE); q.crab.p = at(13.2, 160).slice(); for (let i = 0; i < 60; i++) K.step(q, DT, stickTo(q, at(13.6, 160))); ok(q.gold.includes(0), '   the golden shell far out on the sand: there for the taking at low tide'); } }
 
-ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink,pool,tide' && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, Gull Yard, then the Drowned Stair with Old Ink; World 2 so far: Sinkhole Reef, Moon Pool, Low Tide; all open while testing');
+// ── World 2, chamber 8: Ink's Deep (the boss) ────────────────────────────────
+const { DEEP } = K;
+const jetAt = (s, j, ahead) => K.jetState({ ...s, t: s.t + ahead }, j);
+// walk to p, but never into a jet's reach unless it will stay quiet while we pass
+const dashTo = (s, p, ev = [], secs = 20) => {
+  for (let i = 0; i < secs / DT && K.dist(s.crab.p, p) > 0.2; i++) {
+    const nx = P.walk(s.crab.p, P.toward(s.crab.p, p), 0.6 / K.R);
+    const risky = (DEEP.jets || []).some(j => K.dist(nx, j.p) < j.r + 0.25 && [0, 0.15, 0.3, 0.45, 0.6].some(a => jetAt(s, j, a) !== 'quiet'));
+    const inJet = (DEEP.jets || []).some(j => K.dist(s.crab.p, j.p) < j.r + 0.1);
+    ev.push(...K.step(s, DT, risky && !inJet ? { x: 0, y: 0 } : stickTo(s, p)));
+  }
+  return ev;
+};
+const deep = () => {
+  const s = K.create(DEEP), ev = [], note = {};
+  gather(s, ev);
+  // 1. across the crumbling tiles without stopping
+  go(s, at(15.5, 0), ev, 0.15, 10); for (let i = 0; i < 4 / DT && K.dist(s.crab.p, TOP) > 10.2; i++) ev.push(...K.step(s, DT, stickTo(s, at(9.8, 0))));
+  note.crossed = K.dist(s.crab.p, TOP) < 10.5 && !s.falls; note.cracked = ev.some(e => e.type === 'tile-crack');
+  // 2. round the steam corridor, timing each jet
+  for (let lon = 12; lon <= 180; lon += 12) dashTo(s, at(9.0, lon), ev, 12);
+  note.corridor = Math.abs(K.lonOf(s.crab.p)) > 170 && !s.falls;
+  // 3. into the arena, and the fight
+  go(s, at(6.6, 180), ev, 0.2, 6); go(s, at(4.0, 180), ev, 0.2, 6); go(s, at(2.5, 180), ev, 0.2, 6);
+  const f0 = s.falls; fight(s, ev, note, 400); note.down = s.boss.state === 'down'; note.fightFalls = s.falls - f0;
+  go(s, TOP, ev, 0.3, 8);
+  return { s, ev, note };
+};
+{ const { s, ev, note } = deep();
+  ok(note.cracked && note.crossed, "8. INK'S DEEP: across the chasm on the crumbling tiles, without stopping");
+  ok(note.corridor, '   round the steam corridor, waiting out each jet\'s burst and dashing past');
+  ok(note.down && s.boss.hp === 0 && ev.filter(e => e.type === 'ink-hit').length === 4, `   Old Ink, four hits this time (${note.slams} slams; ${note.fightFalls} knocked back)`);
+  ok(s.won, `   the pearl (${s.t.toFixed(0)} s)`);
+  { const q = K.create(DEEP); q.crab.p = DEEP.crumbles[1].p.slice(); const e = run(q, 2); ok(e.some(x => x.type === 'tile-fall') && e.some(x => x.type === 'fall') && q.falls === 1, '   standing still on a tile: it cracks, falls away, and so does the crab (back to the flag)'); }
+  { const q = K.create(DEEP); q.crab.p = DEEP.crumbles[1].p.slice(); run(q, 1.5); const e = run(q, K.TILE_BACK_S + 0.5); ok(e.some(x => x.type === 'tile-back'), '   a fallen tile comes back a few seconds later'); }
+  { const q = K.create(DEEP); q.crab.p = at(15.3, 90).slice(); K.jump(q); for (let i = 0; i < 90; i++) K.step(q, DT, stickTo(q, at(9, 90))); ok(K.dist(q.crab.p, TOP) > 10.5 || q.falls > 0, '   the chasm is too wide to jump'); }
+  { const j = DEEP.jets[0]; const q = K.create(DEEP); q.cp = 1; let warned = false, fired = false, firstFire = -1;
+    for (let i = 0; i < 4 / DT; i++) { const st = K.jetState(q, j); if (st === 'warn' && firstFire < 0) warned = true; if (st === 'fire' && firstFire < 0) firstFire = i; if (st === 'fire') fired = true; K.step(q, DT); }
+    ok(warned && fired, '   every steam jet bubbles (a warning) before it fires');
+    const r = K.create(DEEP); r.cp = 1; for (let i = 0; i < 4 / DT && K.jetState(r, j) !== 'fire'; i++) K.step(r, DT); r.crab.p = j.p.slice(); const e = run(r, 0.1); ok(e.some(x => x.type === 'scald'), '   standing in one as it fires: scalded, back to the flag'); }
+  { const q = K.create(DEEP); ok(DEEP.jets.filter(j => j.boss).every(j => K.jetState(q, j) === 'quiet'), '   the jets round the arena are quiet until Old Ink wakes'); } }
+
+ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink,pool,tide,deep' && CHAMBERS[7].boss && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, Gull Yard, then the Drowned Stair with Old Ink; World 2: Sinkhole Reef, Moon Pool, Low Tide, then Ink\'s Deep with Old Ink; all open while testing');
 console.log(fails ? `\nWORLD 1 FAIL (${fails})` : '\nWORLD 1 PASS');
 process.exit(fails ? 1 : 0);

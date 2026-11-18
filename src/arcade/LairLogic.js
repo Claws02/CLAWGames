@@ -47,6 +47,7 @@ export const CARRY = 3, PICK_R = 0.6, PICK_AGE = 0.8;    // coconuts carried; ho
 export const NUT_R = 0.6, NUT_TOP = 0.45, ROCK_H = 0.45;      // ROCK_H: how high a stepping rock stands, so a crab on one is that high
 export const TRICK_R = 0.85, TRICK_GAP = 1.1, HIT_R = 0.8, GOAL_R = 0.9, CHECK_R = 1;
 export const PAD_NUT_V = 12.5, PAD_CRAB_V = 10, PAD_H = 0.25;   // a jelly pad: how hard it throws a coconut (and a crab) up, and how high it stands
+export const CRUMBLE_S = 0.8, TILE_BACK_S = 4;
 export const STEP_UP = 0.6, CLIMB_V = 2.2, TOP_W = 0.45, PUSH_K = 0.6;   // a ledge the crab walks up; how fast it climbs a vine; how wide a wall top is; how fast a block goes
 export const COYOTE_S = 0.1, JUMP_BUFFER = 0.15, WADE = 0.35, RESPAWN_S = 1.4;
 export const THROW = { range0: 1.6, range1: 7, t0: 0.55, t1: 1.0, up: 0.75, ahead: 0.45 };
@@ -330,7 +331,29 @@ export const TIDE = {
     gold: [{ p: at(13.6, 160), h: 0 }, { p: at(11, -110), h: 3.6 }, { p: at(16.4, 120), h: 3 }],
 };
 
-export const CHAMBERS = [BEACH, STREAM, YARD, STAIR, SINK, MOONPOOL, TIDE];
+// 8. INK'S DEEP: Old Ink's second lair, World 2's boss. Two timed hazards on the way, then a harder fight.
+//   the beach: the start, the palm                                                    d > 15
+//   the chasm (4.5 wide, bottomless): five crumbling tiles across it at lon 0          10.5 – 15
+//   the steam corridor: between two coral walls, in at lon 0, out at lon 180; steam jets along it, each warning then firing
+//   the arena: Old Ink on the pearl; he wakes as you come in. Four hits, faster slams, and steam jets round the arena while he's up
+// THE ANSWER. Cross the tiles without stopping. Wait out each jet's burst and dash past (either way round the corridor). In the arena,
+// dodge the slam and the jets, throw at his head in the moment after each slam (piles of coconuts keep coming), four times; the pearl.
+const CORR = (lon, d = 9) => at(d, lon);
+export const DEEP = {
+    id: 'deep', name: "INK'S DEEP", world: 2, theme: 'deep', boss: { hits: 4, speed: 0.8, arena: 5.5 }, fast: 150, pay: 50, start: at(18.4, 0), goal: TOP, palm: at(17.6, -40), bank: 7,
+    story: 'Old Ink is down here with the pearl. The way in crumbles under you, and the deep breathes steam.',
+    hints: ['The tiles over the chasm crack the moment you step on them and fall away a moment later. Don\'t stop.', 'Each steam jet bubbles before it fires. Wait for the burst, then dash past.', 'Old Ink slams where you stand: step out of the red ring or jump. Just after a slam, his head is open: throw!', 'Four hits this time, and he slams faster. Watch the jets round the arena while he\'s up.', 'Golden shells: by the inner wall of the corridor, on the side tile in the chasm, and over the arena (a bounce on a coconut).'],
+    ground: [[1.8, 'dais'], [7.3, 'stone'], [10.5, 'rock'], [15, 'sea'], [99, 'sand']],
+    checks: [at(18.4, 0), at(9.0, 0), at(7.0, 180)], zones: { 1: [7.4, 10.4] },
+    chasm: { r0: 10.5, r1: 15 },
+    crumbles: [14.45, 13.55, 12.65, 11.75, 10.95].map(d => ({ p: at(d, 0), r: 0.6 })).concat([{ p: at(12.9, 25), r: 0.62 }]),
+    rings: [{ r: 10.6, h: 20, gap: [0, 8], kind: 'coral' }, { r: 7.3, h: 20, gap: [180, 9], kind: 'coral' }],
+    jets: [...[25, 50, 75, 100, 125, 150].map((lon, i) => ({ p: CORR(lon), r: 0.8, period: 3, on: 1.0, phase: i * 0.9 })), ...[-25, -50, -75, -100, -125, -150].map((lon, i) => ({ p: CORR(lon), r: 0.8, period: 2.6, on: 1.0, phase: i * 0.7 })),
+        ...[0, 60, 120, 180, 240, 300].map((lon, i) => ({ p: at(4.6, lon), r: 0.75, period: 3.4, on: 0.9, phase: i * 0.55, boss: true }))],
+    gold: [{ p: CORR(90, 8.0), h: 0 }, { p: at(12.9, 25), h: 0 }, { p: at(3.4, 90), h: 2.6 }],
+};
+
+export const CHAMBERS = [BEACH, STREAM, YARD, STAIR, SINK, MOONPOOL, TIDE, DEEP];
 /** While testing, every chamber is open. (Turn it off to make each chamber open when the one before it is cleared.) */
 export const ALL_OPEN = true;
 
@@ -339,7 +362,7 @@ export function create(lv) {
     const s = { lv, lv0: lv, w: 0, travel: null, t: 0, id: 1, won: false, falls: 0, cp: 0, throws: 0, calm: null, open: {}, held: {}, plug: {}, nuts: [], back: [], dmg: {}, gold: [], stuckIn: {},
         blocks: (lv.blocks || []).map(b => ({ h: 1, r: 0.55, ...b, p: b.p.slice() })), logs: _logsAt(lv, 0),
         crab: { p: lv.start.slice(), f: tangent(lv.start, lv.goal), face: tangent(lv.start, lv.goal), h: 0, vh: 0, moving: false, air: false, coy: COYOTE_S, jbuf: 0, nuts: 0, lifted: false },
-        boss: lv.boss ? { hp: BOSS.hits, state: 'sleep', t: 0, n: 0, round: 0, tx: null, pile: 0, rest: false, touchCd: 0 } : null,
+        boss: lv.boss ? { hp: (lv.boss.hits || BOSS.hits), state: 'sleep', t: 0, n: 0, round: 0, tx: null, pile: 0, rest: false, touchCd: 0 } : null,
         gull: lv.gull ? { p: at(lv.gull.ring, lv.gull.from), h: 0, state: 'walk', t: 0, cool: 1, loot: 0, tx: null, from: null } : null };
     if (lv.palm) for (let i = 0; i < CARRY; i++) _palmNut(s, i);
     for (const hg of lv.hangs || []) s.nuts.push({ id: s.id++, p: hg.p.slice(), d: tangent(hg.p, [1, 0, 0]), v: 0, h: hg.h, vh: 0, state: 'hang', age: 9, still: 0 });
@@ -407,6 +430,13 @@ export function tidePhase(lv, t) {
 }
 /** Is p in the lagoon the tide comes into? */
 export const inTide = (lv, p) => { const z = lv.tide; if (!z) return false; const d = dist(p, z.c || TOP); return d > z.r0 && d < z.r1 && covers(z, p); };
+/** A steam jet: bubbling (a warning) for JET_WARN s, then firing for `on` s, every `period` s. → 'quiet' | 'warn' | 'fire' */
+export const JET_WARN = 0.8;
+export function jetState(s, j) {
+    if (j.boss && !(s.boss && s.boss.state !== 'sleep' && s.boss.state !== 'down')) return 'quiet';
+    const ph = (((s.t + (j.phase || 0)) % j.period) + j.period) % j.period;
+    return ph > j.period - j.on ? 'fire' : ph > j.period - j.on - JET_WARN ? 'warn' : 'quiet';
+}
 /** Where the floating logs are at time t. */
 const _logsAt = (lv, t) => (lv.logs || []).map(l => ({ p: at(l.orbit, l.lon0 + l.speed * t), h: l.h || 0.35, r: l.r || 0.9 }));
 export const nutUnder = (s, p) => s.nuts.find(n => (n.state === 'rest' || n.state === 'float') && dist(n.p, p) < NUT_R) || null;
@@ -511,6 +541,7 @@ function _nut(s, n, dt, ev) {
             const dr = (s.lv.drains || []).find(x => dist(n.p, x.p) < x.r && !(x.unless && (s.open[x.unless] || s.held[x.unless]))) || (s.lv.pools || []).find(x => dist(n.p, x.p) < x.r); if (dr) { n.p = dr.to.slice(); n.h = floorAt(s, n.p); }     // (a place no crab can reach: it rolls out to where one can)
             const ur = urchinAt(s, n.p); if (ur && !ur.nutSafe) return _lose(s, n, ev, 'urchin');
             const lpn = (s.lv.launch || []).find(k => dist(n.p, k.p) < k.r + 0.3); if (lpn) { n.w = lpn.to === 'moon' ? 1 : 0; n.p = around(lpn.land, 0.9, n.id * 47); n.h = 0; n.state = 'rest'; n.age = 9; ev.push({ type: 'nut-launch', nut: n, p: lpn.p, to: lpn.to }); return; }
+            if (s.lv.chasm) { const dd = dist(n.p, s.lv.chasm.c || TOP), tileUp = (s.lv.crumbles || []).some((tl, i) => !(s.tiles && s.tiles[i].down > 0) && dist(n.p, tl.p) < tl.r); if (dd > s.lv.chasm.r0 && dd < s.lv.chasm.r1 && !tileUp) return _lose(s, n, ev, 'chasm'); }
             const cw = fl < 0.05 && currentAt(s, n.p); if (cw && cw.deep) return _lose(s, n, ev, 'sink');      // (deep water: it sinks, and washes up under the palm)
             const dv = (s.lv.vents || []).find(x => x.drop && !s.plug[x.id] && dist(x.p, n.p) < x.r + 0.2 && Math.abs(fl - floorAt(s, x.p)) < 0.4);
             if (dv) { n.state = 'plug'; n.p = dv.p.slice(); n.h = 0; s.plug[dv.id] = n.id; ev.push({ type: 'plug', vent: dv, nut: n, now: blowing(s) }); return; }
@@ -696,6 +727,18 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
         if ((s.tideW > was) !== (s.tideRise || false)) { s.tideRise = s.tideW > was; ev.push({ type: s.tideRise ? 'tide-in' : 'tide-out' }); }
         if (!c.air && inTide(lv, c.p) && c.h < s.tideW - 0.35) { _reset(s, ev, 'swept'); return ev; }
     }
+    // Steam jets: firing, they scald a crab standing in them back to its flag.
+    for (const j of lv.jets || []) if (jetState(s, j) === 'fire' && dist(c.p, j.p) < j.r && c.h < floorAt(s, j.p) + 1.4) { _reset(s, ev, 'scald'); return ev; }
+    // Crumbling tiles over a chasm: one starts to crack when stepped on, falls away CRUMBLE_S later, and is back TILE_BACK_S after that.
+    if (lv.chasm) {
+        s.tiles = s.tiles || (lv.crumbles || []).map(() => ({ k: -1, down: 0 }));
+        (lv.crumbles || []).forEach((tl, i) => { const st = s.tiles[i];
+            if (st.down > 0) { st.down -= dt; if (st.down <= 0) { st.down = 0; st.k = -1; ev.push({ type: 'tile-back', i }); } return; }
+            if (st.k < 0 && !c.air && dist(c.p, tl.p) < tl.r) { st.k = 0; ev.push({ type: 'tile-crack', i }); }
+            if (st.k >= 0) { st.k += dt; if (st.k >= CRUMBLE_S) { st.down = TILE_BACK_S; st.k = -1; ev.push({ type: 'tile-fall', i, p: tl.p }); } } });
+        const d = dist(c.p, lv.chasm.c || TOP), onTile = (lv.crumbles || []).some((tl, i) => s.tiles[i].down <= 0 && dist(c.p, tl.p) < tl.r);
+        if (!c.air && d > lv.chasm.r0 && d < lv.chasm.r1 && !onTile) { _reset(s, ev, 'fall'); return ev; }
+    }
     // Urchins; deep water.
     if (c.h < 0.7 && urchinAt(s, c.p, 0.15)) { _reset(s, ev, 'ouch'); return ev; }
     if (!c.air && (lv.pools || []).some(q => dist(c.p, q.p) < q.r) && c.h < floorAt(s, c.p) + 0.05) { _reset(s, ev, 'sink'); return ev; }      // (a deep pool)
@@ -745,17 +788,18 @@ function _pile(s, ev, n) {
 /** Old Ink: wakes when the crab comes into the chamber, then winds up, slams, and goes dizzy, round after round. */
 function _boss(s, dt, ev) {
     const b = s.boss, c = s.crab; if (b.state === 'down') return;
-    if (b.state === 'sleep') { if (dist(c.p, TOP) < BOSS.arena) { b.state = 'idle'; b.t = 0; ev.push({ type: 'ink-wake' }); _pile(s, ev, BOSS.piles); } return; }
+    const bc = typeof s.lv.boss === 'object' ? s.lv.boss : {}, arena = bc.arena || BOSS.arena;
+    if (b.state === 'sleep') { if (dist(c.p, TOP) < arena) { b.state = 'idle'; b.t = 0; ev.push({ type: 'ink-wake' }); _pile(s, ev, BOSS.piles); } return; }
     b.t += dt; const r = Math.min(2, b.round);
     // touching him is a hit, the same as a slam
     b.touchCd = Math.max(0, b.touchCd - dt);
     if (b.touchCd <= 0 && dist(c.p, TOP) < BOSS.touch && c.h < 1.2) { b.touchCd = 1; c.p = at(2.6, lonOf(c.p)); c.f = tangent(c.p, c.f); c.face = tangent(c.p, c.face); c.vh = 5; c.air = true; s.falls++; ev.push({ type: 'ink-ouch', touch: true }); }
     // coconuts keep coming: when two or fewer are lying about, a fresh pile
     const loose = s.nuts.filter(n => n.state === 'rest' || n.state === 'float').length;
-    if (loose < 2 && dist(c.p, TOP) < BOSS.arena + 0.5) { b.spawn = (b.spawn || 0) + dt; if (b.spawn >= BOSS.pileEvery) { b.spawn = 0; _pile(s, ev, BOSS.piles - loose); } } else b.spawn = 0;
+    if (loose < 2 && dist(c.p, TOP) < arena + 0.5) { b.spawn = (b.spawn || 0) + dt; if (b.spawn >= BOSS.pileEvery) { b.spawn = 0; _pile(s, ev, BOSS.piles - loose); } } else b.spawn = 0;
     if (b.state === 'idle') { if (b.t >= (b.rest ? BOSS.rest : BOSS.wake)) { b.rest = false; b.state = 'wind'; b.t = 0; b.tx = c.p.slice(); ev.push({ type: 'ink-wind' }); } }
     else if (b.state === 'wind') {
-        const dur = BOSS.wind[r];
+        const dur = BOSS.wind[r] * (bc.speed || 1);
         if (b.t < dur * 0.55) b.tx = c.p.slice();                         // (follows the crab, then commits)
         if (b.t >= dur) {
             const hitC = dist(c.p, b.tx) < BOSS.hitR && c.h < 0.9;
