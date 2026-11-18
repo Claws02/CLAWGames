@@ -39,7 +39,7 @@
 // ============================================================
 import { dot, cross, norm, mix, angle, tangent, toward, walk } from './PlanetLogic.js';
 
-export const R = 6.5, SPEED = 4.2, G = 18, TRAVEL_S = 1.6;      // TRAVEL_S: how long a flight between the planet and its moon takes
+export const R = 6.5, SPEED = 4.2, G = 18, TRAVEL_S = 2.2;      // TRAVEL_S: how long a flight between the planet and its moon takes
 /** Gravity where the crab is: a moon can have less (`gravity: 0.5`), so jumps go higher and coconuts fly further. */
 const gOf = s => G * ((s.lv && s.lv.gravity) || 1);
 export const JUMP_V = 6.84, BOUNCE_V = 9.67;             // apex 1.3 and 2.6 above where you left
@@ -305,7 +305,32 @@ export const MOONPOOL = {
     moon: MOON,
 };
 
-export const CHAMBERS = [BEACH, STREAM, YARD, STAIR, SINK, MOONPOOL];
+// 7. LOW TIDE: a lagoon that floods and drains on a clock.
+//   the beach (dry: the tide never reaches it): the start, the palm                      d > 15
+//   the lagoon: sand for 9 s, then the tide comes in (4 s), 2.4 deep for 7 s, and goes out (4 s)     4.4 – 15
+//       · rafts: they sit on the sand when the tide is out and float up with it
+//       · the lighthouse rock (2.8 high) with a plate on top: no throw from the sand reaches it; from a raft at high tide one does
+//       · the golden shells: one on the sand far out (only there at low tide), one on the tall rock (jump from a raft at high tide)
+//   the mesa (4 high): too high from the sand, a jump from a raft at high tide; the pearl inside the gold fence (the plate holds it)
+// THE ANSWER. At low tide, walk out to a raft by the mesa with the coconuts. The tide comes in and lifts it. At high tide, lob a coconut
+// onto the lighthouse rock's plate (the gold fence drops), and jump from the raft onto the mesa: the pearl.
+export const TIDE = {
+    id: 'tide', name: 'LOW TIDE', world: 2, theme: 'reef', fast: 90, pay: 25, start: at(18.4, 0), goal: TOP, palm: at(17.6, -40), bank: 7,
+    story: 'Here the sea comes and goes. Watch the waterline: what the tide covers, it carries off.',
+    hints: ['The lagoon floods and drains on a clock. Caught on the sand when the water comes in, you\'re swept back to your flag.', 'Rafts sit on the sand at low tide and float up with the water. Stand on one and let the tide lift you.', 'The plate is on top of the lighthouse rock, too high to throw to from the sand. From a raft at high tide, it isn\'t.', 'The mesa is too high to jump onto from the sand. From a raft at high tide, it isn\'t.', 'Golden shells: on the sand far out (it\'s under water at high tide: be quick), on the tall rock (a jump from a raft at high tide), and on the coral post (the jelly).'],
+    ground: [[1.8, 'dais'], [4.4, 'stone'], [15, 'rock'], [99, 'sand']],
+    checks: [at(18.4, 0)],
+    tide: { r0: 4.4, r1: 15, high: 2.4, out: 9, rise: 4, in: 7, fall: 4 },
+    ledges: [{ r0: 0, r1: 4.4, h: 4, kind: 'mesa' }, { r0: 15, r1: 21, h: 0.3, kind: 'beachShelf' }],
+    rings: [{ r: 1.8, h: 20, gate: 'gold', kind: 'gate' }],
+    posts: [{ p: at(9, 60), r: 0.8, h: 2.8, kind: 'lighthouse' }, { p: at(11, -110), r: 0.6, h: 3.6 }, { p: at(16.4, 120), r: 0.5, h: 3 }],
+    pads: [{ p: at(17.4, 120), r: 0.7 }],
+    rafts: [{ p: at(5.4, 20), r: 0.9 }, { p: at(10.6, 50), r: 0.9 }, { p: at(10.4, -95), r: 0.9 }],
+    plates: [{ p: at(9, 60), r: 0.75, gate: 'gold' }],
+    gold: [{ p: at(13.6, 160), h: 0 }, { p: at(11, -110), h: 3.6 }, { p: at(16.4, 120), h: 3 }],
+};
+
+export const CHAMBERS = [BEACH, STREAM, YARD, STAIR, SINK, MOONPOOL, TIDE];
 /** While testing, every chamber is open. (Turn it off to make each chamber open when the one before it is cleared.) */
 export const ALL_OPEN = true;
 
@@ -354,6 +379,7 @@ export function floorAt(s, p) {
     for (const w of s.lv.rings || []) if (w.top && up(s, w) && Math.abs(dist(p, w.c || TOP) - w.r) < TOP_W && covers(w, p)) f = Math.max(f, w.h);
     for (const b of s.blocks || []) if (dist(p, b.p) < b.r) f = Math.max(f, b.h);
     for (const l of s.logs || []) if (dist(p, l.p) < l.r) f = Math.max(f, l.h);
+    for (const k of s.lv.rafts || []) if (dist(p, k.p) < k.r) f = Math.max(f, (s.tideW || 0) + 0.3);
     return f;
 }
 /** Which way is downhill from p (a tangent; zero on the flat): the floor's slope, felt round about. For bouncing off the side of a ledge or a post. */
@@ -367,6 +393,20 @@ export const targetAt = (s, tg) => { const p = tg.log != null ? s.logs[tg.log].p
 /** The far end of a hole: the point straight through the planet (or hole.to). */
 export const holeExit = h => h.to || h.p.map(x => -x);
 const _holeAt = (s, p, nut) => (s.lv.holes || []).find(h => dist(p, h.p) < h.r && (nut || !h.nutOnly) && !(h.lid && up(s, { gate: h.lid })));
+/** The tide: how high the water stands in a lagoon at time t (it starts low, and is high half a period later). */
+export function tideAt(lv, t) {           // out for `out` s, comes in over `rise` s, stays in for `in` s, goes out over `fall` s; and again
+    const z = lv.tide; if (!z) return 0;
+    const P = z.out + z.rise + z.in + z.fall, ph = ((t % P) + P) % P, ease = k => k * k * (3 - 2 * k);
+    return z.high * (ph < z.out ? 0 : ph < z.out + z.rise ? ease((ph - z.out) / z.rise) : ph < z.out + z.rise + z.in ? 1 : ease(1 - (ph - z.out - z.rise - z.in) / z.fall));
+}
+/** Which way the tide is going, and how long until it changes: { name: 'out' | 'coming in' | 'in' | 'going out', left } (seconds). */
+export function tidePhase(lv, t) {
+    const z = lv.tide; if (!z) return null;
+    const P = z.out + z.rise + z.in + z.fall, ph = ((t % P) + P) % P, ends = [['out', z.out], ['coming in', z.out + z.rise], ['in', z.out + z.rise + z.in], ['going out', P]];
+    const [name, end] = ends.find(([, e]) => ph < e); return { name, left: end - ph };
+}
+/** Is p in the lagoon the tide comes into? */
+export const inTide = (lv, p) => { const z = lv.tide; if (!z) return false; const d = dist(p, z.c || TOP); return d > z.r0 && d < z.r1 && covers(z, p); };
 /** Where the floating logs are at time t. */
 const _logsAt = (lv, t) => (lv.logs || []).map(l => ({ p: at(l.orbit, l.lon0 + l.speed * t), h: l.h || 0.35, r: l.r || 0.9 }));
 export const nutUnder = (s, p) => s.nuts.find(n => (n.state === 'rest' || n.state === 'float') && dist(n.p, p) < NUT_R) || null;
@@ -479,6 +519,11 @@ function _nut(s, n, dt, ev) {
         }
         return;
     }
+    if (s.lv.tide && (n.state === 'rest' || n.state === 'float') && inTide(s.lv, n.p)) {
+        const W = s.tideW || 0, fl = floorAt(s, n.p);
+        if (W > fl + 0.15) { if (n.state !== 'float') { n.state = 'float'; ev.push({ type: 'afloat', nut: n }); } n.h = W; n.tide = true; return; }
+        if (n.state === 'float' && n.tide) { n.state = 'rest'; n.h = fl; n.tide = false; return; }
+    }
     if (n.state !== 'float') return;
     // Afloat: the eddy by a cove takes it in; otherwise the current has it.
     const ed = (s.lv.eddies || []).find(e => dist(e.p, n.p) < e.r), cu = currentAt(s, n.p);
@@ -552,7 +597,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
             const tr = s.travel; s.travel = null; s.w = tr.to === 'moon' ? 1 : 0; s.lv = s.w ? s.lv0.moon : s.lv0;
             Object.assign(c, { p: tr.land.slice(), h: floorAt(s, tr.land), vh: 0, air: false, coy: COYOTE_S, jbuf: 0, lifted: false, holeCd: 0.5 });
             c.f = tangent(c.p, s.lv.goal || s.lv.face || TOP); c.face = c.f; s.cp = s.lv.arriveCp != null ? s.lv.arriveCp : 0;
-            ev.push({ type: 'arrive', w: s.w });
+            s.arriving = 1.5; ev.push({ type: 'arrive', w: s.w });      // (arriving: the screen shows the crab coming down out of the sky)
         }
         return ev;
     }
@@ -639,12 +684,18 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     if (stand && stand !== v && !c.air) { if (s.calm !== stand.id) { s.calm = stand.id; ev.push({ type: 'calm', vent: stand, blowing: v }); } } else if (!stand) s.calm = null;
     // A launch pad: step on, and fly to the moon (or home). What's in the claws goes too.
     if (!c.air && !c.holeCd) { const lp = (lv.launch || []).find(k => dist(c.p, k.p) < k.r && c.h <= floorAt(s, k.p) + 0.1);
-        if (lp) { s.travel = { t: TRAVEL_S, to: lp.to, land: lp.land }; ev.push({ type: 'launch', to: lp.to, p: lp.p }); return ev; } }
+        if (lp) { s.travel = { t: TRAVEL_S, to: lp.to, land: lp.land, from: lp.p }; ev.push({ type: 'launch', to: lp.to, p: lp.p }); return ev; } }
     // Holes: into one, out of its far end, facing on, popped up (the faster it fell in, the higher it comes out).
     c.holeCd = Math.max(0, (c.holeCd || 0) - dt);
     if (c.holeCd <= 0 && c.h <= floorAt(s, c.p) + 0.05) { const hole = _holeAt(s, c.p, false);
         if (hole) { const out = holeExit(hole), fwd = c.face.map(x => -x); c.p = out.slice(); c.face = tangent(out, fwd); c.f = tangent(out, c.f.map(x => -x)); c.h = floorAt(s, out); c.vh = Math.max(6, c.fallV || 0); c.air = true; c.holeCd = 0.9; ev.push({ type: 'hole', crab: true, hole, p: hole.p, out }); } }
     c.fallV = c.air && c.vh < 0 ? -c.vh : 0;
+    // The tide: up and down on its clock. Caught standing below the water in the lagoon, the crab is swept back to its flag.
+    if (lv.tide) {
+        const was = s.tideW || 0; s.tideW = tideAt(lv, s.t);
+        if ((s.tideW > was) !== (s.tideRise || false)) { s.tideRise = s.tideW > was; ev.push({ type: s.tideRise ? 'tide-in' : 'tide-out' }); }
+        if (!c.air && inTide(lv, c.p) && c.h < s.tideW - 0.35) { _reset(s, ev, 'swept'); return ev; }
+    }
     // Urchins; deep water.
     if (c.h < 0.7 && urchinAt(s, c.p, 0.15)) { _reset(s, ev, 'ouch'); return ev; }
     if (!c.air && (lv.pools || []).some(q => dist(c.p, q.p) < q.r) && c.h < floorAt(s, c.p) + 0.05) { _reset(s, ev, 'sink'); return ev; }      // (a deep pool)

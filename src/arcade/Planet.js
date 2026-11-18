@@ -379,6 +379,7 @@ export function lairPieces(lv) {
     add((lv.rocks || []).length, '🪨', 'STEPPING ROCKS'); add((lv.eddies || []).length, '🌀', 'EDDY'); add((lv.urchins || []).length, '✴️', 'URCHINS');
     add((lv.ledges || []).some(l => l.h1 == null && l.r1 - l.r0 > 1.6), '⛰️', 'TERRACES'); add((lv.ledges || []).some(l => l.h1 != null), '↗️', 'RAMP'); add((lv.pads || []).length, '🟣', 'JELLY PADS'); add((lv.posts || []).length, '🗿', 'STONE POSTS');
     add((lv.hangs || []).length, '🌴', 'HANGING COCONUT'); add((lv.targets || []).some(x => x.log != null), '🎯', 'MOVING BULLSEYE'); add((lv.bars || []).some(b => b.kind === 'bumper'), '↩️', 'BANK SHOT');
+    add(lv.tide, '🌊', 'THE TIDE'); add((lv.rafts || []).length, '🛟', 'RAFTS');
     add(lv.moon, '🌙', 'A MOON (LOW GRAVITY)'); add((lv.launch || []).length, '🚀', 'LAUNCH PAD');
     add((lv.holes || []).some(h => !h.nutOnly), '🕳️', 'SINKHOLES'); add((lv.holes || []).some(h => h.nutOnly), '#️⃣', 'BLOWHOLES (COCONUTS ONLY)');
     add((lv.vents || []).length, '🫧', 'VENTS'); add(lv.gull, '🐦', 'GULL'); add((lv.plates || []).length, '⏺️', 'PLATE'); add((lv.targets || []).some(x => !x.secs), '🎯', 'BULLSEYE');
@@ -418,12 +419,12 @@ export function lairHint() { if (_mode !== 'trick' || !_trial) return; _hintN = 
 function _lairHud() {
     const s = _trial.state(), lv = _trial.base || _trial.level, i = LL.CHAMBERS.indexOf(lv), k = _trial.charging(), n = LL.count(s);
     const hint = _hintT > 0 ? _hintMsg : '';
-    const bs = s.boss, inkHp = bs && bs.state !== 'sleep' ? bs.hp : -1, inkSt = bs ? bs.state : '';
-    const sig = [lv.id, n.held, n.loose, n.working, n.gull, s.falls, hint, _hintN, inkHp, inkSt, s.gold.length, inkSt === 'down' ? 1 : 0, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
+    const tp = LL.tidePhase(s.lv0 || lv, s.t), bs = s.boss, inkHp = bs && bs.state !== 'sleep' ? bs.hp : -1, inkSt = bs ? bs.state : '';
+    const sig = [lv.id, n.held, n.loose, n.working, n.gull, s.falls, hint, _hintN, inkHp, inkSt, s.gold.length, tp ? tp.name + Math.ceil(tp.left) : '', inkSt === 'down' ? 1 : 0, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
     if (sig === _lastHud) return;
     _lastHud = sig;
     $('tp-trial-n').textContent = `🐙 ${i + 1}/${LL.CHAMBERS.length} ${lv.name}`;
-    $('tp-trial-s').textContent = `${'🥥'.repeat(n.held)}${'▫️'.repeat(LL.CARRY - n.held)} ${n.held}/${LL.CARRY}${n.gull ? ' · 🐦 HAS ONE' : ''}${lv.gold ? ` · ✨🐚 ${s.gold.length}/${lv.gold.length}` : ''}${inkHp >= 0 ? ` · 🐙 ${'❤️'.repeat(inkHp)}${'🖤'.repeat(LL.BOSS.hits - inkHp)}` : ''}${n.working ? ` · ${n.working} AT WORK` : ''}${s.falls ? ` · FALLS ${s.falls}` : ''}`;
+    $('tp-trial-s').textContent = `${'🥥'.repeat(n.held)}${'▫️'.repeat(LL.CARRY - n.held)} ${n.held}/${LL.CARRY}${n.gull ? ' · 🐦 HAS ONE' : ''}${lv.gold ? ` · ✨🐚 ${s.gold.length}/${lv.gold.length}` : ''}${tp ? ` · 🌊 ${tp.name.toUpperCase()} ${Math.ceil(tp.left)}s` : ''}${inkHp >= 0 ? ` · 🐙 ${'❤️'.repeat(inkHp)}${'🖤'.repeat(LL.BOSS.hits - inkHp)}` : ''}${n.working ? ` · ${n.working} AT WORK` : ''}${s.falls ? ` · FALLS ${s.falls}` : ''}`;
     const goal = $('tp-goal'); goal.textContent = _hintN ? `💡 ${_hintN}/${lv.hints.length}: ${lv.hints[_hintN - 1]}` : inkSt === 'recover' ? '🎯 NOW! HIS HEAD IS OPEN: THROW!' : inkSt === 'hurt' ? '🥥 HIT! HE IS SHAKEN: DODGE': inkSt === 'down' ? '🎯 HE IS DOWN: TAKE THE PEARL (A COCONUT ON THE PLATE HOLDS THE FENCE OPEN)' : inkHp >= 0 ? '🔴 DODGE THE SLAM · THEN 🥥 AT HIS HEAD WHILE HIS ARM IS STUCK' : '🎯 REACH THE TIDE PEARL · 💡 FOR A HINT'; goal.classList.remove('tut'); goal.classList.add('wide');
     const ab = $('btn-tp-act'); ab.classList.remove('off', 'idle'); ab.hidden = false; ab.querySelector('span').textContent = '🥥'; ab.querySelector('small').textContent = n.held < 1 ? 'NONE' : k >= 0 ? 'LET GO!' : 'HOLD: THROW';
     ab.classList.toggle('off', n.held < 1 && k < 0);

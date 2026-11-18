@@ -236,7 +236,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         }
     }
     // Terraces, ramps and shelves: raised ground with a grassy (or stone) top and rocky cliff sides, darker bands of strata.
-    const LEDGE = { coralShelf: { top: [0xff9bb3, 0xff8aa6], side: [0xb98be6, 0xa877dc, 0xcaa2ef] },  terrace: { top: [0x8fd96a, 0x7fcf5c], side: [0xc9935a, 0xb98249, 0xd6a46a] }, mesa: { top: [0xe8b46a, 0xdca65c], side: [0xd9893f, 0xc4742f, 0xe69b52] }, ramp: { top: [0xcfae7a, 0xc19f6c], side: [0xa98758, 0x977648, 0xb89668] }, shelf: { top: [0xaab0c4, 0x9aa1b6], side: [0x8890a8, 0x7a8299, 0x969db3] } };
+    const LEDGE = { beachShelf: { top: [0xf2d9cf, 0xe7c7bd], side: [0xd9bfae, 0xccb09e, 0xe2cbbd] },  coralShelf: { top: [0xff9bb3, 0xff8aa6], side: [0xb98be6, 0xa877dc, 0xcaa2ef] },  terrace: { top: [0x8fd96a, 0x7fcf5c], side: [0xc9935a, 0xb98249, 0xd6a46a] }, mesa: { top: [0xe8b46a, 0xdca65c], side: [0xd9893f, 0xc4742f, 0xe69b52] }, ramp: { top: [0xcfae7a, 0xc19f6c], side: [0xa98758, 0x977648, 0xb89668] }, shelf: { top: [0xaab0c4, 0x9aa1b6], side: [0x8890a8, 0x7a8299, 0x969db3] } };
     for (const l of level.ledges || []) {
         const pal = LEDGE[l.kind] || LEDGE.terrace, c0 = l.c || TOP, partial = !!(l.only || l.gap), lon0 = l.only ? l.only[0] - l.only[1] : 0, lon1 = l.only ? l.only[0] + l.only[1] : 360;
         const nR = Math.max(2, Math.ceil((l.r1 - l.r0) / 0.4)), circ = 2 * Math.PI * R * Math.sin(Math.max(l.r1, 0.5) / R), nL = Math.max(8, Math.ceil(circ * (lon1 - lon0) / 360 / 0.45));
@@ -261,7 +261,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
     // Stone posts (a pillar is a tall one): a column with rings and a cap.
     for (const k of level.posts || []) {
         const base = K.floorAt({ ...sfl, lv: { ...level, posts: [] } }, k.p), hh = k.h - base;
-        const g = Y.prop([{ geo: G.cyl, color: 0xb7aec8, s: [k.r * 2, hh, k.r * 2], p: [0, hh / 2, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.3, 0.18, k.r * 2.3], p: [0, 0.09, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.25, 0.12, k.r * 2.25], p: [0, hh * 0.55, 0] }, { geo: G.cylLow, color: 0xd0c8de, s: [k.r * 2.4, 0.2, k.r * 2.4], p: [0, hh - 0.1, 0] }], { thick: 0.07 });
+        const g = k.kind === 'lighthouse' ? Y.prop([...[0, 1, 2, 3].map(j => ({ geo: G.cyl, color: j % 2 ? 0xffffff : 0xff4d4d, s: [k.r * 2 * (1 - j * 0.06), hh / 4, k.r * 2 * (1 - j * 0.06)], p: [0, hh / 8 + (j * hh) / 4, 0] })), { geo: G.cylLow, color: 0xffe45a, s: [k.r * 1.3, 0.12, k.r * 1.3], p: [0, hh + 0.06, 0], ink: false }], { thick: 0.07 }) : Y.prop([{ geo: G.cyl, color: 0xb7aec8, s: [k.r * 2, hh, k.r * 2], p: [0, hh / 2, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.3, 0.18, k.r * 2.3], p: [0, 0.09, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.25, 0.12, k.r * 2.25], p: [0, hh * 0.55, 0] }, { geo: G.cylLow, color: 0xd0c8de, s: [k.r * 2.4, 0.2, k.r * 2.4], p: [0, hh - 0.1, 0] }], { thick: 0.07 });
         put(g, k.p, [1, 0, 0], base); scene.add(g);
     }
     // Jelly pads: a pink wobbly dome.
@@ -327,10 +327,23 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
     });
     if (THEME.stars) { const pos = []; const rnd = rngOf(55); for (let i = 0; i < 260; i++) { const v = new T.Vector3(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).normalize().multiplyScalar(120); pos.push(v.x, v.y, v.z); } const sg = new T.BufferGeometry(); sg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); scene.add(new T.Points(sg, new T.PointsMaterial({ color: 0xffffff, size: 0.7 }))); }
     if (THEME.craters) { const rnd = rngOf(77); for (let i = 0; i < 14; i++) { const p = K.at(7.5 + rnd() * 12, rnd() * 360); if ((level.launch || []).some(k => K.dist(k.p, p) < 2) || (level.posts || []).some(k => K.dist(k.p, p) < 1.5)) continue; const r = 0.5 + rnd() * 0.8, cr = new T.Mesh(G.ring, basic(0x8a81b2, { transparent: true, opacity: 0.8, side: T.DoubleSide })); cr.scale.setScalar(r); put(cr, p, null, fl(p) + 0.05); scene.add(cr); const fl2 = new T.Mesh(G.disc, basic(0xa59cc6)); fl2.scale.setScalar(r * 0.82); put(fl2, p, null, fl(p) + 0.04); scene.add(fl2); } }
+    let otherPos = null, flightPos = null;
     if (level.moon || level.theme === 'moon') {     // the other world, hanging in the sky
-        const other = level.moon ? { r: 2.4, c: 0xd8d2ea, at: new T.Vector3(0.5, 0.75, -0.45) } : { r: 5, c: 0x46c2a6, at: new T.Vector3(-0.4, -0.55, 0.7) };
-        const sph = Y.part(new T.SphereGeometry(other.r, 24, 16), Y.toon(other.c, { emissive: new T.Color(other.c).multiplyScalar(0.25) }), 0.12); sph.position.copy(other.at.normalize().multiplyScalar(R * 4.5)); scene.add(sph);
+        const lp0 = (level.launch || [])[0], upv = lp0 ? V(lp0.p).add(V(tangent(lp0.p, TOP)).multiplyScalar(0.7)) : new T.Vector3(0.5, 0.75, -0.45);      // (it hangs above the launch pad, so a flight goes up into the sky)
+        const other = level.moon ? { r: 2.4, c: 0xd8d2ea, at: upv } : { r: 5, c: 0x46c2a6, at: upv };
+        const sph = Y.part(new T.SphereGeometry(other.r, 24, 16), Y.toon(other.c, { emissive: new T.Color(other.c).multiplyScalar(0.25) }), 0.12); sph.position.copy(other.at.normalize().multiplyScalar(R * 4.5)); scene.add(sph); otherPos = sph.position.clone();
     }
+    // The tide: a sheet of water over the lagoon that rises and falls; rafts ride on it.
+    let tideMesh = null;
+    if (level.tide) {
+        const z = level.tide, nR = 10, nL = 72, pos = [];
+        const P3 = (r, lon) => V(around(z.c || TOP, r, lon)).multiplyScalar(R);
+        for (let i = 0; i < nR; i++) for (let j = 0; j < nL; j++) { const r0 = z.r0 + (i / nR) * (z.r1 - z.r0), r1 = z.r0 + ((i + 1) / nR) * (z.r1 - z.r0), a0 = (j / nL) * 360, a1 = ((j + 1) / nL) * 360;
+            for (const q of [P3(r0, a0), P3(r1, a0), P3(r1, a1), P3(r0, a0), P3(r1, a1), P3(r0, a1)]) pos.push(q.x, q.y, q.z); }
+        const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+        tideMesh = new T.Mesh(geo, basic(0x2fb3c4, { transparent: true, opacity: 0.62, side: T.DoubleSide, depthWrite: false })); scene.add(tideMesh);
+    }
+    const raftVis = (level.rafts || []).map(k => { const g = Y.prop([...[-1, 0, 1].map(j => ({ geo: G.cyl, color: j ? 0xa87440 : 0xc98f52, s: [0.42, k.r * 2, 0.42], r: [0, 0, Math.PI / 2], p: [0, 0.1, j * 0.42] })), { geo: G.box, color: 0x8a5a2e, s: [0.12, 0.08, k.r * 1.6], p: [k.r * 0.6, 0.32, 0] }, { geo: G.box, color: 0x8a5a2e, s: [0.12, 0.08, k.r * 1.6], p: [-k.r * 0.6, 0.32, 0] }], { thick: 0.06 }); scene.add(g); return { k, g }; });
     // A palm on the mesa with a coconut hanging from its frond on a rope.
     const hangVis = (level.hangs || []).map(hg => {
         const foot = walk(hg.p, toward(hg.p, TOP), 1.2 / R), g = new T.Group(); const trunk = Y.prop([{ geo: G.cyl, color: 0xa87440, s: [0.3, 2.6, 0.3], p: [0, 1.3, 0], r: [0, 0, -0.2] }, { geo: G.sph, color: 0x4cc064, s: [1.6, 0.2, 0.7], p: [0.6, 2.6, 0], r: [0, 0, -0.3] }, { geo: G.sph, color: 0x37a655, s: [0.7, 0.2, 1.4], p: [-0.2, 2.65, 0.3] }], { thick: 0.06 });
@@ -605,6 +618,9 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             else if (e.type === 'hole') { burst(at3(e.p, 0.3), 0x9be7ff, 16, 3.5); burst(at3(e.out, 0.5), 0x9be7ff, 20, 4.5); hooks.sfx('boost'); if (e.crab) { hooks.buzz([15, 20, 30]); snap = true; hooks.hint('🕳️ THROUGH THE PLANET! (A HOLE COMES OUT ON THE FAR SIDE)', 2.4); } }
             else if (e.type === 'launch') { burst(at3(e.p, 0.5), 0x9be7ff, 40, 7); hooks.sfx('boost'); hooks.buzz([20, 30, 50]); hooks.say(e.to === 'moon' ? '🌙 TO THE MOON!' : '🌍 HOME!', '#c7d2fe'); }
             else if (e.type === 'nut-launch') { burst(at3(e.p, 0.5), 0x9be7ff, 18, 5); hooks.sfx('boost'); hooks.pop(at3(e.p, 1.4), e.to === 'moon' ? '🥥 OFF TO THE MOON' : '🥥 OFF HOME'); }
+            else if (e.type === 'tide-in') { hooks.hint('🌊 THE TIDE IS COMING IN!', 2.2); hooks.sfx('boost'); }
+            else if (e.type === 'tide-out') { hooks.hint('🌊 THE TIDE IS GOING OUT', 2); }
+            else if (e.type === 'swept') { burst(at3(s.crab.p, 0.3), 0x7ec8ff, 26, 4); hooks.sfx('land_bad'); hooks.buzz([30, 30]); hooks.hint('SWEPT AWAY BY THE TIDE · BACK AT THE FLAG', 2.2); snap = true; }
             else if (e.type === 'won') { burst(at3(level.goal, 1.5), 0xff8ad8, 50, 7); burst(at3(level.goal, 1.5), 0xffd84a, 40, 6); hooks.sfx('win'); hooks.buzz([30, 30, 30, 30, 120]); cheer = 1.2; inkMad = 2; doneAt = t + 1.8; }
         }
     }
@@ -698,6 +714,8 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             const shut = K.up(s, v.w); (v.dots || []).forEach((d, k) => { d.visible = shut; d.material.opacity = 0.4 + 0.4 * Math.max(0, Math.sin(t * 5 - k * 0.6)); });
             if (shut && !v.said && Math.abs(K.dist(c.p, v.w.c || TOP) - v.w.r) < 1.6) { v.said = true; hooks.hint(v.w.remote === 'moon' ? '🌙 THIS FENCE\'S SWITCH IS ON THE MOON: FOLLOW THE DOTS TO THE LAUNCH PAD' : '🔒 THIS GATE\'S SWITCH IS SOMEWHERE ELSE', 4); }
         });
+        if (tideMesh) { const W = s.tideW || 0; tideMesh.visible = W > 0.02; tideMesh.scale.setScalar((R + W) / R); }
+        raftVis.forEach((v, i) => put(v.g, v.k.p, [1, 0, 0], (s.tideW || 0) + 0.02 + Math.sin(t * 2 + i) * ((s.tideW || 0) > 0.1 ? 0.04 : 0)));
         spots.forEach(v => {
             const on = K.dist(c.p, v.sp.p) < 0.8, done = !!s.open[v.sp.gate];
             v.ring.scale.setScalar(0.75 + 0.06 * Math.sin(t * (on ? 9 : 4))); v.g.visible = !done;
@@ -730,8 +748,20 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
 
         // The crab.
         cheer = Math.max(0, cheer - dt);
-        crab.g.visible = shadow.visible = !s.travel; if (s.travel) { const k = 1 - s.travel.t / K.TRAVEL_S; camP && camP.addScaledVector(V(c.p), dt * 6 * k); }
-        put(crab.g, c.p, c.face, c.h); put(shadow, c.p, c.face, 0.04 + K.floorAt(s, c.p)); shadow.scale.setScalar(Math.max(0.4, 1 - (c.h - K.floorAt(s, c.p)) * 0.1));
+        crab.g.visible = true; shadow.visible = !s.travel && !(s.arriving > 0);
+        put(crab.g, c.p, c.face, c.h); crab.g.scale.setScalar(1);
+        flightPos = null;
+        if (s.travel && otherPos) {                      // leaving: rise off the pad, then away toward the other world in the sky
+            const k = 1 - s.travel.t / K.TRAVEL_S, e = k * k * (3 - 2 * k), pad = at3(s.travel.from, 0.4), up = V(s.travel.from);
+            const ctrl = pad.clone().addScaledVector(up, 6), a = pad.clone().multiplyScalar((1 - e) * (1 - e)).add(ctrl.clone().multiplyScalar(2 * e * (1 - e))).add(otherPos.clone().multiplyScalar(0.9 * e * e));
+            crab.g.position.copy(a); crab.g.scale.setScalar(1 - 0.75 * e); crab.g.rotateX(t * 8); flightPos = a;
+            if (Math.random() < 0.5) burst(a, 0x9be7ff, 2, 1.5);
+        } else if (s.arriving > 0 && otherPos) {         // arriving: down out of the sky onto the landing place
+            const k = 1 - s.arriving / 1.5, e = 1 - (1 - k) * (1 - k), land = at3(c.p, c.h), far = otherPos.clone().multiplyScalar(0.85), ctrl = land.clone().addScaledVector(V(c.p), 7);
+            const a = far.multiplyScalar((1 - e) * (1 - e)).add(ctrl.multiplyScalar(2 * e * (1 - e))).add(land.clone().multiplyScalar(e * e));
+            crab.g.position.copy(a); crab.g.scale.setScalar(0.35 + 0.65 * e); flightPos = a;
+            if (Math.random() < 0.5) burst(a, 0x9be7ff, 2, 1.5);
+        } put(shadow, c.p, c.face, 0.04 + K.floorAt(s, c.p)); shadow.scale.setScalar(Math.max(0.4, 1 - (c.h - K.floorAt(s, c.p)) * 0.1));
         kit.pose(crab, dt, c.moving && !c.air, Math.max(cheer > 0 ? 0.3 : 0, charge >= 0 ? 0.14 : 0));
 
         // The gull: its shadow and the red ring are the warning.
@@ -787,6 +817,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
           if (gh > c.h + 0.8) want.copy(up).multiplyScalar(R + gh + 7.5).addScaledVector(f, -2.2);        // (a cliff behind the crab: look down from above it instead)
           else if (want.length() < R + gh + 3.2) want.setLength(R + gh + 3.2); }
         if (snap && camP) { camP.copy(want); snap = false; }
+        if (!camP && s.arriving > 0) { camP = at3(c.p, 12).addScaledVector(V(c.f), -10); intro = 0; }
         if (!camP) { camP = V(TOP).multiplyScalar(R + fl(TOP) + 4.5).addScaledVector(V(tangent(TOP, c.p)), -11); camStart = camP.clone(); intro = 3.2; }
         intro = Math.max(0, intro - dt);
         if (intro > 0 && intro < 1.9 && camStart) {          // the swoop from the pearl to the crab: over the planet, not through it
@@ -794,10 +825,11 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             const dir = a0.multiplyScalar(Math.sin((1 - e) * om) / Math.sin(om)).add(a1.multiplyScalar(Math.sin(e * om) / Math.sin(om))).normalize();
             camP.copy(dir).multiplyScalar(camStart.length() * (1 - e) + want.length() * e + 9 * Math.sin(Math.PI * e));
         } else if (intro <= 0) camP.lerp(want, dt ? Math.min(1, dt * 7) : 0);
+        if (flightPos) { const back = s.travel ? at3(s.travel.from, 2.5 + 5 * (1 - s.travel.t / K.TRAVEL_S)).addScaledVector(V(tangent(s.travel.from, TOP)), 8) : at3(c.p, 10).addScaledVector(V(c.f), -9); camP.lerp(back, Math.min(1, dt * 3)); }
         camera.position.copy(camP);
         shake = Math.max(0, shake - dt * 2.4);
         if (shake > 0 && dt) camera.position.add(new T.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(shake * 0.5));
-        const lookCrab = V(c.p).multiplyScalar(R + c.h * 0.4).addScaledVector(f, 1.8), lookPearl = V(TOP).multiplyScalar(R + fl(TOP) + 1), k3 = intro > 1.9 ? 1 : intro > 0 ? intro / 1.9 : 0;
+        const lookCrab = flightPos ? flightPos.clone() : V(c.p).multiplyScalar(R + c.h * 0.4).addScaledVector(f, 1.8), lookPearl = V(TOP).multiplyScalar(R + fl(TOP) + 1), k3 = intro > 1.9 ? 1 : intro > 0 ? intro / 1.9 : 0;
         camera.up.copy(V(TOP).multiplyScalar(k3).addScaledVector(V(c.p), 1 - k3).addScaledVector(V(tangent(TOP, c.p)), 1.6 * k3 * (1 - k3)).normalize()); camera.lookAt(lookCrab.lerp(lookPearl, k3 * k3));
         sun.position.copy(camera.position).addScaledVector(V(cross(c.f, c.p)), 9).addScaledVector(V(c.p), 6); sun.target.position.set(0, 0, 0);
         const sz = renderer.getSize(new T.Vector2());
@@ -812,7 +844,8 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             t += dt;
             if (dt && !s.won) {
                 if (charge >= 0) charge += dt / CHARGE_S;
-                for (let i = 0; i < steps; i++) events(K.step(s, dt, stick));
+                if (s.arriving > 0) { s.arriving = Math.max(0, s.arriving - dt); if (s.arriving <= 0) { burst(at3(s.crab.p, 0.3), 0x9be7ff, 26, 4); hooks.sfx('land_good'); hooks.buzz(14); } }
+                else for (let i = 0; i < steps; i++) events(K.step(s, dt, stick));
             }
             if ((s.w || 0) !== myW && hooks.travel) { hooks.travel(s); return; }
             if (s.won && !told && !doneAt) doneAt = t + 0.9;

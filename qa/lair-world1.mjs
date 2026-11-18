@@ -246,13 +246,13 @@ const { MOONPOOL } = K;
 const moonPool = () => {
   const s = K.create(MOONPOOL), ev = [], note = {};
   gather(s, ev);
-  go(s, MOONPOOL.launch[0].p, ev, 0.2, 10); note.launched = ev.some(e => e.type === 'launch'); ev.push(...run(s, K.TRAVEL_S + 0.3));
+  for (let i = 0; i < 12 / DT && !s.travel; i++) ev.push(...K.step(s, DT, stickTo(s, MOONPOOL.launch[0].p))); note.launched = ev.some(e => e.type === 'launch'); ev.push(...run(s, K.TRAVEL_S + 0.3));
   note.moon = s.w === 1 && s.crab.nuts === 3;
   go(s, at(6.8, 10), ev, 0.2, 10); K.jump(s); let top = 0; for (let i = 0; i < 200 && s.crab.air; i++) { ev.push(...K.step(s, DT, stickTo(s, at(4.6, 5)))); top = Math.max(top, s.crab.h); }
   note.hop = top; note.inCrater = K.dist(s.crab.p, TOP) < 6;
   const pl = MOONPOOL.moon.plates[0]; go(s, at(5.2, 0), ev, 0.2, 5); face(s, pl.p); K.throwNut(s, chargeFor(s, pl.p)); ev.push(...run(s, 2)); note.gold = !!s.held.gold;
   K.jump(s); for (let i = 0; i < 200 && s.crab.air; i++) ev.push(...K.step(s, DT, stickTo(s, at(8, 0))));
-  go(s, MOONPOOL.moon.launch[0].p, ev, 0.2, 12); ev.push(...run(s, K.TRAVEL_S + 0.3)); note.home = s.w === 0 && !!s.held.gold;
+  for (let i = 0; i < 12 / DT && !s.travel; i++) ev.push(...K.step(s, DT, stickTo(s, MOONPOOL.moon.launch[0].p))); ev.push(...run(s, K.TRAVEL_S + 0.3)); note.home = s.w === 0 && !!s.held.gold;
   go(s, at(6, 180), ev, 0.3, 12); go(s, TOP, ev, 0.3, 8);
   return { s, ev, note };
 };
@@ -269,6 +269,34 @@ const moonPool = () => {
     let got = false; if (n) { go(q, P.walk(n.p, P.toward(MOONPOOL.moon.posts[0].p, n.p), 0.9 / K.R), [], 0.1, 3); hop(q, n.p); for (let i = 0; i < 200 && q.crab.air; i++) K.step(q, DT, q.crab.vh < 0 && q.crab.h > 3.6 ? stickTo(q, MOONPOOL.moon.posts[0].p, 0.8) : { x: 0, y: 0 }); got = q.gold.includes(100); }
     ok(got, '   on the moon a bounce on a coconut reaches the top of the 4.6 pillar: a golden shell'); } }
 
-ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink,pool' && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, Gull Yard, then the Drowned Stair with Old Ink; World 2 so far: Sinkhole Reef, Moon Pool; all open while testing');
+// ── World 2, chamber 7: Low Tide ────────────────────────────────────────────
+const { TIDE } = K;
+const lowTide = () => {
+  const s = K.create(TIDE), ev = [], note = {};
+  gather(s, ev);
+  go(s, TIDE.rafts[0].p, ev, 0.2, 10); note.onRaft = Math.abs(s.crab.h - 0.3) < 0.05 && !s.falls;
+  for (let i = 0; i < 25 / DT && (s.tideW || 0) < TIDE.tide.high - 0.01; i++) ev.push(...K.step(s, DT));
+  note.lifted = s.crab.h > 2.6 && !s.falls;
+  const pl = TIDE.plates[0]; face(s, pl.p); K.throwNut(s, chargeFor(s, pl.p)); ev.push(...run(s, 1.5)); note.gold = !!s.held.gold;
+  K.jump(s); for (let i = 0; i < 200 && s.crab.air; i++) ev.push(...K.step(s, DT, stickTo(s, TOP))); note.mesa = Math.abs(s.crab.h - 4) < 0.05;
+  go(s, TOP, ev, 0.3, 6);
+  return { s, ev, note };
+};
+{ const { s, ev, note } = lowTide();
+  ok(note.onRaft, '7. LOW TIDE: at low tide, out across the sand onto the raft by the mesa');
+  ok(note.lifted && ev.some(e => e.type === 'tide-in'), '   the tide comes in and lifts the raft (and the crab on it)');
+  ok(note.gold, '   at high tide, from the raft, a lob reaches the lighthouse rock\'s plate: the gold fence drops');
+  ok(note.mesa && s.won && s.falls === 0, `   a jump from the raft onto the mesa: the pearl (${s.t.toFixed(0)} s, no falls)`);
+  { const q = K.create(TIDE); q.crab.p = at(12, 30).slice(); const e = run(q, 16); ok(e.some(x => x.type === 'swept') && q.falls >= 1, '   caught on the sand when the tide comes in: swept back to the flag'); }
+  { let hit = 0; for (let d = 10; d <= 14.5; d += 0.9) for (let lon = 30; lon <= 90; lon += 10) for (let ch = 0; ch <= 1; ch += 0.1) { const q = K.create(TIDE); q.crab.p = at(d, lon).slice(); q.crab.nuts = 1; face(q, TIDE.plates[0].p); K.throwNut(q, ch); run(q, 2); if (q.held.gold) hit++; }
+    ok(hit === 0, '   from the sand no throw lands on the lighthouse plate (it\'s 2.8 up)'); }
+  { const q = K.create(TIDE); q.crab.nuts = 1; q.crab.p = at(5.6, 60).slice(); face(q, TOP); K.throwNut(q, 0.02); run(q, 1); const n = q.nuts.find(x => x.state === 'rest');
+    let top = 0; if (n) { go(q, P.walk(n.p, P.toward(TOP, n.p), 0.9 / K.R), [], 0.1, 3); hop(q, n.p); for (let i = 0; i < 120 && q.crab.air; i++) { K.step(q, DT, stickTo(q, TOP)); top = Math.max(top, q.crab.h); } }
+    ok(K.floorAt(q, q.crab.p) < 4, `   from the sand a bounce on a coconut (${top.toFixed(1)} up) doesn't reach the mesa (4): it takes the raft at high tide`); }
+  { const q = K.create(TIDE); q.crab.nuts = 1; q.crab.p = at(9.5, 0).slice(); face(q, at(8, 0)); K.throwNut(q, 0.02); run(q, 1); const n = q.nuts.find(x => x.state === 'rest' && K.dist(x.p, TOP) < 12); q.crab.p = at(17, 0).slice();
+    run(q, 13); const up = n && n.state === 'float' && Math.abs(n.h - K.tideAt(TIDE, q.t)) < 0.05; run(q, 12); ok(up && n.state === 'rest', '   a coconut left on the sand floats up with the tide and settles again when it goes out'); }
+  { const q = K.create(TIDE); q.crab.p = at(13.2, 160).slice(); for (let i = 0; i < 60; i++) K.step(q, DT, stickTo(q, at(13.6, 160))); ok(q.gold.includes(0), '   the golden shell far out on the sand: there for the taking at low tide'); } }
+
+ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink,pool,tide' && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, Gull Yard, then the Drowned Stair with Old Ink; World 2 so far: Sinkhole Reef, Moon Pool, Low Tide; all open while testing');
 console.log(fails ? `\nWORLD 1 FAIL (${fails})` : '\nWORLD 1 PASS');
 process.exit(fails ? 1 : 0);

@@ -210,3 +210,14 @@ bounce), floating over the crater's far rim (a moon jump), the coral post on the
   blowhole still works too. The aim turns green when a throw will come to rest on a plate (any chamber).
 - Moon Pool: the gold fence's switch is on the moon. A gate can say so (`remote: 'moon'`): dots run from it to the launch pad, and
   coming up to it says "this fence's switch is on the moon".
+
+**The flight to the moon** is animated now: the crab rises off the launch pad and flies across the sky to the other world (which
+hangs above the pad), then comes down out of the sky onto the landing place (`s.arriving`; it can't move until it lands).
+
+**7. Low Tide** (built): a chamber can have a **tide** (`tide: { r0, r1, high, out, rise, in, fall }`): the lagoon is sand while the
+tide is out, then the water comes in to `high` and goes out again on that clock (`tideAt`, `tidePhase`; the HUD shows which way it is
+going and how long until it turns). Caught on the sand below the water, the crab is swept back to its flag; coconuts there float up
+with it and settle where they are when it goes out. **Rafts** (`rafts: [{ p, r }]`) sit on the sand and float up with the tide. The
+answer: at low tide walk out to the raft by the mesa with the coconuts; at high tide lob one onto the lighthouse rock's plate (2.8 up:
+no throw from the sand reaches it) and jump from the raft onto the mesa (4 up: nothing reaches it from the sand). Golden shells: far out
+on the sand (only at low tide), on the tall rock (a jump from a raft at high tide), on the coral post (the jelly).
