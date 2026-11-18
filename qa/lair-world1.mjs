@@ -1,6 +1,6 @@
 // World 1 of Old Ink's Lair: the three teaching chambers, each played through by a player that uses only the stick, the jump button
 // and the throw, and the things each one must teach (and must not let you skip).  node qa/lair-world1.mjs
-import { K, P, at, TOP, DT, stickTo, run, go, hop, face, gather, chargeFor, solve } from './lair-solve.mjs';
+import { K, P, at, TOP, DT, stickTo, run, go, hop, face, gather, chargeFor, solve, fight } from './lair-solve.mjs';
 const { BEACH, STREAM, YARD, CHAMBERS } = K;
 let fails = 0;
 const ok = (c, msg) => { if (msg) console.log(`${c ? 'OK  ' : 'FAIL'} ${msg}`); if (!c) fails++; };
@@ -225,6 +225,13 @@ const sink = () => {
   ok(note.gold, '   a coconut into the pit\'s blowhole comes up in the walled pit on its plate: the gold fence drops');
   ok(note.inside && s.won && s.falls === 0, `   into the big sinkhole: out by the pearl (${s.t.toFixed(0)} s, no falls)`);
   { const q = K.create(SINK); q.crab.p = at(18.0, 0).slice(); for (let i = 0; i < 120; i++) K.step(q, DT, stickTo(q, at(15, 0))); ok(K.dist(q.crab.p, TOP) > 7, '   with the lid shut the crab walks over the big sinkhole'); }
+  { // inside the reef wall: lob a coconut over the pit's low wall onto its plate (the aim turns green for it)
+    const q = K.create(SINK); q.open.lid = 99; q.cp = 1; const pit = SINK.plates[0].p; q.crab.p = P.walk(pit, P.toward(pit, TOP), 2.2 / K.R); q.crab.nuts = 1;
+    const f = aimFor(q, pit, x => !!x.held.gold, { a0: -10, a1: 10, da: 2 }); let green = false;
+    if (f) { turnTo(q, pit, f.a); green = K.aim(q, f.ch).hit; K.throwNut(q, f.ch); run(q, 2.5); }
+    ok(q.held.gold && green, '   from inside the reef wall a coconut lobbed over the pit\'s low wall lands on its plate (and the aim turns green for that throw): the gold fence drops');
+    const r = K.create(SINK); r.open.lid = 99; r.cp = 1; r.crab.p = P.walk(pit, P.toward(pit, TOP), 1.4 / K.R); K.jump(r); for (let i = 0; i < 90; i++) K.step(r, DT, stickTo(r, pit));
+    ok(!r.held.gold && K.dist(r.crab.p, pit) > 0.9, '   a crab can\'t just jump into the pit (its wall is 1.6, a jump goes 1.3)'); }
   { const q = K.create(SINK); q.crab.p = at(SINK.spots[0].p ? 18.0 : 18, 60).slice(); for (let i = 0; i < 120; i++) K.step(q, DT, stickTo(q, SINK.holes[1].p)); ok(K.dist(q.crab.p, TOP) > 7, '   a blowhole is a grate: the crab walks over it, only coconuts go down'); }
   { let spot = 0, tries = 0; for (let a = -10; a <= 10; a += 2) for (let ch = 0; ch <= 0.6; ch += 0.05) { tries++; const q = K.create(SINK); q.crab.p = SINK.spots[0].p.slice(); q.crab.nuts = 1; turnTo(q, SINK.holes[1].p, a); K.throwNut(q, ch); run(q, 3); if (q.open.lid) spot++; }
     ok(spot >= tries * 0.15, `   from the spot, ${spot} of ${tries} throws at the blowhole open the lid (the aim turns green on them)`); }
@@ -239,13 +246,13 @@ const { MOONPOOL } = K;
 const moonPool = () => {
   const s = K.create(MOONPOOL), ev = [], note = {};
   gather(s, ev);
-  go(s, MOONPOOL.launch[0].p, ev, 0.2, 10); note.launched = ev.some(e => e.type === 'launch'); ev.push(...run(s, K.TRAVEL_S + 0.3));
+  for (let i = 0; i < 12 / DT && !s.travel; i++) ev.push(...K.step(s, DT, stickTo(s, MOONPOOL.launch[0].p))); note.launched = ev.some(e => e.type === 'launch'); ev.push(...run(s, K.TRAVEL_S + 0.3));
   note.moon = s.w === 1 && s.crab.nuts === 3;
   go(s, at(6.8, 10), ev, 0.2, 10); K.jump(s); let top = 0; for (let i = 0; i < 200 && s.crab.air; i++) { ev.push(...K.step(s, DT, stickTo(s, at(4.6, 5)))); top = Math.max(top, s.crab.h); }
   note.hop = top; note.inCrater = K.dist(s.crab.p, TOP) < 6;
   const pl = MOONPOOL.moon.plates[0]; go(s, at(5.2, 0), ev, 0.2, 5); face(s, pl.p); K.throwNut(s, chargeFor(s, pl.p)); ev.push(...run(s, 2)); note.gold = !!s.held.gold;
   K.jump(s); for (let i = 0; i < 200 && s.crab.air; i++) ev.push(...K.step(s, DT, stickTo(s, at(8, 0))));
-  go(s, MOONPOOL.moon.launch[0].p, ev, 0.2, 12); ev.push(...run(s, K.TRAVEL_S + 0.3)); note.home = s.w === 0 && !!s.held.gold;
+  for (let i = 0; i < 12 / DT && !s.travel; i++) ev.push(...K.step(s, DT, stickTo(s, MOONPOOL.moon.launch[0].p))); ev.push(...run(s, K.TRAVEL_S + 0.3)); note.home = s.w === 0 && !!s.held.gold;
   go(s, at(6, 180), ev, 0.3, 12); go(s, TOP, ev, 0.3, 8);
   return { s, ev, note };
 };
@@ -262,6 +269,103 @@ const moonPool = () => {
     let got = false; if (n) { go(q, P.walk(n.p, P.toward(MOONPOOL.moon.posts[0].p, n.p), 0.9 / K.R), [], 0.1, 3); hop(q, n.p); for (let i = 0; i < 200 && q.crab.air; i++) K.step(q, DT, q.crab.vh < 0 && q.crab.h > 3.6 ? stickTo(q, MOONPOOL.moon.posts[0].p, 0.8) : { x: 0, y: 0 }); got = q.gold.includes(100); }
     ok(got, '   on the moon a bounce on a coconut reaches the top of the 4.6 pillar: a golden shell'); } }
 
-ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink,pool' && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, Gull Yard, then the Drowned Stair with Old Ink; World 2 so far: Sinkhole Reef, Moon Pool; all open while testing');
+// ── World 2, chamber 7: Low Tide ────────────────────────────────────────────
+const { TIDE } = K;
+const lowTide = () => {
+  const s = K.create(TIDE), ev = [], note = {};
+  gather(s, ev);
+  go(s, TIDE.rafts[0].p, ev, 0.2, 10); note.onRaft = Math.abs(s.crab.h - 0.3) < 0.05 && !s.falls;
+  for (let i = 0; i < 25 / DT && (s.tideW || 0) < TIDE.tide.high - 0.01; i++) ev.push(...K.step(s, DT));
+  note.lifted = s.crab.h > 2.6 && !s.falls;
+  const pl = TIDE.plates[0]; face(s, pl.p); K.throwNut(s, chargeFor(s, pl.p)); ev.push(...run(s, 1.5)); note.gold = !!s.held.gold;
+  K.jump(s); for (let i = 0; i < 200 && s.crab.air; i++) ev.push(...K.step(s, DT, stickTo(s, TOP))); note.mesa = Math.abs(s.crab.h - 4) < 0.05;
+  go(s, TOP, ev, 0.3, 6);
+  return { s, ev, note };
+};
+{ const { s, ev, note } = lowTide();
+  ok(note.onRaft, '7. LOW TIDE: at low tide, out across the sand onto the raft by the mesa');
+  ok(note.lifted && ev.some(e => e.type === 'tide-in'), '   the tide comes in and lifts the raft (and the crab on it)');
+  ok(note.gold, '   at high tide, from the raft, a lob reaches the lighthouse rock\'s plate: the gold fence drops');
+  ok(note.mesa && s.won && s.falls === 0, `   a jump from the raft onto the mesa: the pearl (${s.t.toFixed(0)} s, no falls)`);
+  { const q = K.create(TIDE); q.crab.p = at(12, 30).slice(); const e = run(q, 16); ok(e.some(x => x.type === 'swept') && q.falls >= 1, '   caught on the sand when the tide comes in: swept back to the flag'); }
+  { let hit = 0; for (let d = 10; d <= 14.5; d += 0.9) for (let lon = 30; lon <= 90; lon += 10) for (let ch = 0; ch <= 1; ch += 0.1) { const q = K.create(TIDE); q.crab.p = at(d, lon).slice(); q.crab.nuts = 1; face(q, TIDE.plates[0].p); K.throwNut(q, ch); run(q, 2); if (q.held.gold) hit++; }
+    ok(hit === 0, '   from the sand no throw lands on the lighthouse plate (it\'s 2.8 up)'); }
+  { const q = K.create(TIDE); q.crab.nuts = 1; q.crab.p = at(5.6, 60).slice(); face(q, TOP); K.throwNut(q, 0.02); run(q, 1); const n = q.nuts.find(x => x.state === 'rest');
+    let top = 0; if (n) { go(q, P.walk(n.p, P.toward(TOP, n.p), 0.9 / K.R), [], 0.1, 3); hop(q, n.p); for (let i = 0; i < 120 && q.crab.air; i++) { K.step(q, DT, stickTo(q, TOP)); top = Math.max(top, q.crab.h); } }
+    ok(K.floorAt(q, q.crab.p) < 4, `   from the sand a bounce on a coconut (${top.toFixed(1)} up) doesn't reach the mesa (4): it takes the raft at high tide`); }
+  { const q = K.create(TIDE); q.crab.nuts = 1; q.crab.p = at(9.5, 0).slice(); face(q, at(8, 0)); K.throwNut(q, 0.02); run(q, 1); const n = q.nuts.find(x => x.state === 'rest' && K.dist(x.p, TOP) < 12); q.crab.p = at(17, 0).slice();
+    run(q, 13); const up = n && n.state === 'float' && Math.abs(n.h - K.tideAt(TIDE, q.t)) < 0.05; run(q, 12); ok(up && n.state === 'rest', '   a coconut left on the sand floats up with the tide and settles again when it goes out'); }
+  { const q = K.create(TIDE); q.crab.p = at(13.2, 160).slice(); for (let i = 0; i < 60; i++) K.step(q, DT, stickTo(q, at(13.6, 160))); ok(q.gold.includes(0), '   the golden shell far out on the sand: there for the taking at low tide'); } }
+
+// ── World 2, chamber 8: Ink's Deep (the boss) ────────────────────────────────
+const { DEEP } = K;
+const jetAt = (s, j, ahead) => K.jetState({ ...s, t: s.t + ahead }, j);
+// walk to p, but never into a jet's reach unless it will stay quiet while we pass
+const dashTo = (s, p, ev = [], secs = 20) => {
+  for (let i = 0; i < secs / DT && K.dist(s.crab.p, p) > 0.2; i++) {
+    const nx = P.walk(s.crab.p, P.toward(s.crab.p, p), 0.6 / K.R);
+    const risky = (DEEP.jets || []).some(j => K.dist(nx, j.p) < j.r + 0.25 && [0, 0.15, 0.3, 0.45, 0.6].some(a => jetAt(s, j, a) !== 'quiet'));
+    const inJet = (DEEP.jets || []).some(j => K.dist(s.crab.p, j.p) < j.r + 0.1);
+    ev.push(...K.step(s, DT, risky && !inJet ? { x: 0, y: 0 } : stickTo(s, p)));
+  }
+  return ev;
+};
+const deep = () => {
+  const s = K.create(DEEP), ev = [], note = {};
+  gather(s, ev);
+  // 1. across the crumbling tiles without stopping
+  go(s, at(15.5, 0), ev, 0.15, 10); for (let i = 0; i < 4 / DT && K.dist(s.crab.p, TOP) > 10.2; i++) ev.push(...K.step(s, DT, stickTo(s, at(9.8, 0))));
+  note.crossed = K.dist(s.crab.p, TOP) < 10.5 && !s.falls; note.cracked = ev.some(e => e.type === 'tile-crack');
+  // 2. round the steam corridor, timing each jet
+  for (let lon = 12; lon <= 180; lon += 12) dashTo(s, at(9.0, lon), ev, 12);
+  note.corridor = Math.abs(K.lonOf(s.crab.p)) > 170 && !s.falls;
+  // 3. into the arena, and the fight
+  go(s, at(6.6, 180), ev, 0.2, 6); go(s, at(4.0, 180), ev, 0.2, 6); go(s, at(2.5, 180), ev, 0.2, 6);
+  const f0 = s.falls; fight(s, ev, note, 400); note.down = s.boss.state === 'down'; note.fightFalls = s.falls - f0;
+  go(s, TOP, ev, 0.3, 8);
+  return { s, ev, note };
+};
+{ const { s, ev, note } = deep();
+  ok(note.cracked && note.crossed, "8. INK'S DEEP: across the chasm on the crumbling tiles, without stopping");
+  ok(note.corridor, '   round the steam corridor, waiting out each jet\'s burst and dashing past');
+  ok(note.down && s.boss.hp === 0 && ev.filter(e => e.type === 'ink-hit').length === 4, `   Old Ink, four hits this time (${note.slams} slams; ${note.fightFalls} knocked back)`);
+  ok(s.won, `   the pearl (${s.t.toFixed(0)} s)`);
+  { const q = K.create(DEEP); q.crab.p = DEEP.crumbles[1].p.slice(); const e = run(q, 2); ok(e.some(x => x.type === 'tile-fall') && e.some(x => x.type === 'fall') && q.falls === 1, '   standing still on a tile: it cracks, falls away, and so does the crab (back to the flag)'); }
+  { const q = K.create(DEEP); q.crab.p = DEEP.crumbles[1].p.slice(); run(q, 1.5); const e = run(q, K.TILE_BACK_S + 0.5); ok(e.some(x => x.type === 'tile-back'), '   a fallen tile comes back a few seconds later'); }
+  { const q = K.create(DEEP); q.crab.p = at(15.3, 90).slice(); K.jump(q); for (let i = 0; i < 90; i++) K.step(q, DT, stickTo(q, at(9, 90))); ok(K.dist(q.crab.p, TOP) > 10.5 || q.falls > 0, '   the chasm is too wide to jump'); }
+  { const j = DEEP.jets[0]; const q = K.create(DEEP); q.cp = 1; let warned = false, fired = false, firstFire = -1;
+    for (let i = 0; i < 4 / DT; i++) { const st = K.jetState(q, j); if (st === 'warn' && firstFire < 0) warned = true; if (st === 'fire' && firstFire < 0) firstFire = i; if (st === 'fire') fired = true; K.step(q, DT); }
+    ok(warned && fired, '   every steam jet bubbles (a warning) before it fires');
+    const r = K.create(DEEP); r.cp = 1; for (let i = 0; i < 4 / DT && K.jetState(r, j) !== 'fire'; i++) K.step(r, DT); r.crab.p = j.p.slice(); const e = run(r, 0.1); ok(e.some(x => x.type === 'scald'), '   standing in one as it fires: scalded, back to the flag'); }
+  { const q = K.create(DEEP); ok(DEEP.jets.filter(j => j.boss).every(j => K.jetState(q, j) === 'quiet'), '   the jets round the arena are quiet until Old Ink wakes'); } }
+
+// ── World 3, chamber 9: Obsidian Slide ──────────────────────────────────────
+const { SLIDE } = K;
+const lakeSolve = z => {        // the shortest way across the lake, by search over the game's own slide rule
+  const rows = Math.round((z.r1 - z.r0) / z.dd) + 1, cols = Math.round((z.lon1 - z.lon0) / z.dl) + 1, key = (r, c) => r * 100 + c, seen = new Map(), q = [];
+  for (let c = 0; c < cols; c++) { const s = K.lakeSlide(z, rows, c, -1, 0); if (s === 'win') return [[c, 'N']]; if (Array.isArray(s) && s[0] < rows && !seen.has(key(...s))) { seen.set(key(...s), [[c, 'N']]); q.push(s); } }
+  while (q.length) { const [r, c] = q.shift(), path = seen.get(key(r, c));
+    for (const [dr, dc, nm] of [[-1, 0, 'N'], [1, 0, 'S'], [0, 1, 'E'], [0, -1, 'W']]) { const s = K.lakeSlide(z, r, c, dr, dc); if (s === 'win') return [...path, nm]; if (Array.isArray(s) && !seen.has(key(...s))) { seen.set(key(...s), [...path, nm]); q.push(s); } } }
+  return null;
+};
+const slideRun = () => {
+  const s = K.create(SLIDE), ev = [], z = SLIDE.lake, plan = lakeSolve(z), note = { moves: plan.length };
+  const dirPt = nm => { const d = K.dist(s.crab.p, TOP), lon = K.lonOf(s.crab.p); return nm === 'N' ? at(d - 1, lon) : nm === 'S' ? at(d + 1, lon) : nm === 'E' ? at(d, lon + 10) : at(d, lon - 10); };
+  go(s, at(15.2, z.lon0 + plan[0][0] * z.dl), ev, 0.1, 10);
+  for (const m of plan) { const nm = Array.isArray(m) ? m[1] : m; for (let i = 0; i < 3 / DT && !s.crab.slide; i++) ev.push(...K.step(s, DT, stickTo(s, dirPt(nm)))); for (let i = 0; i < 4 / DT && s.crab.slide; i++) ev.push(...K.step(s, DT)); }
+  go(s, at(5, z.lon0 + z.exit * z.dl), ev, 0.3, 5); go(s, TOP, ev, 0.3, 6);
+  return { s, ev, note };
+};
+{ const { s, ev, note } = slideRun();
+  ok(note.moves === 7, `9. OBSIDIAN SLIDE: a search over the lake's own rules finds the shortest way across is ${note.moves} slides`);
+  ok(s.won && s.falls === 0 && ev.filter(e => e.type === 'lake-stop').length >= 5, `   played with the stick: slide, stop at a pillar, choose again, off the bridge; the pearl (${s.t.toFixed(0)} s, no falls)`);
+  { const q = K.create(SLIDE), z = SLIDE.lake; q.crab.p = K.lakeAt(z, 6, 0).slice(); q.crab.f = P.tangent(q.crab.p, TOP); const e = []; for (let i = 0; i < 10; i++) e.push(...K.step(q, DT, stickTo(q, at(14, -55)))); for (let i = 0; i < 3 / DT && q.crab.slide; i++) e.push(...K.step(q, DT));
+    ok(e.some(x => x.type === 'burn') && q.falls === 1, '   sliding off the side of the lake: into the lava, back to the flag'); }
+  { const q = K.create(SLIDE), z = SLIDE.lake; q.crab.p = K.lakeAt(z, 5, 1).slice(); const p0 = q.crab.p.slice(); for (let i = 0; i < 60; i++) K.step(q, DT, { x: 0, y: 0 }); ok(K.dist(q.crab.p, p0) < 0.05, '   on the obsidian, without a push, you stay put; with one you slide until something stops you'); }
+  { const q = K.create(SLIDE), z = SLIDE.lake; q.crab.p = K.lakeAt(z, 0, 1).slice(); q.crab.f = P.tangent(q.crab.p, TOP); const e = []; for (let i = 0; i < 10; i++) e.push(...K.step(q, DT, stickTo(q, TOP))); for (let i = 0; i < 2 / DT && q.crab.slide; i++) e.push(...K.step(q, DT)); for (let i = 0; i < 30; i++) e.push(...K.step(q, DT));
+    ok(e.some(x => x.type === 'burn'), '   off the far edge anywhere but the bridge: lava'); }
+  { const q = K.create(SLIDE); q.crab.p = at(12, 90).slice(); const e = run(q, 0.3); ok(e.some(x => x.type === 'burn'), '   the lava round the lake burns'); } }
+
+ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink,pool,tide,deep,slide' && CHAMBERS[7].boss && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, Gull Yard, then the Drowned Stair with Old Ink; World 2: Sinkhole Reef, Moon Pool, Low Tide, then Ink\'s Deep with Old Ink; all open while testing');
 console.log(fails ? `\nWORLD 1 FAIL (${fails})` : '\nWORLD 1 PASS');
 process.exit(fails ? 1 : 0);

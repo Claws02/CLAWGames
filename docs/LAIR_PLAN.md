@@ -203,3 +203,40 @@ half: jumps go twice as high, so its crater's 2.2 rim is an easy hop). The scree
 (the state carries over), and each world shows the other in its sky; the moon has a dark starry sky and craters. The answer: fly
 up with the coconuts, hop into the crater, a coconut on its plate, fly home, the pearl. Golden shells: the moon's pillar (a moon
 bounce), floating over the crater's far rim (a moon jump), the coral post on the planet.
+
+### After the eleventh play-test (couldn't open the last gate in the coral caves)
+- Sinkhole Reef: the pit's plate could only be reached through a blowhole back on the beach, and nothing said so. The pit's wall is
+  now low (1.6: too high to jump, easy to lob over), so from inside the reef wall a coconut lobbed over it lands on the plate. The
+  blowhole still works too. The aim turns green when a throw will come to rest on a plate (any chamber).
+- Moon Pool: the gold fence's switch is on the moon. A gate can say so (`remote: 'moon'`): dots run from it to the launch pad, and
+  coming up to it says "this fence's switch is on the moon".
+
+**The flight to the moon** is animated now: the crab rises off the launch pad and flies across the sky to the other world (which
+hangs above the pad), then comes down out of the sky onto the landing place (`s.arriving`; it can't move until it lands).
+
+**7. Low Tide** (built): a chamber can have a **tide** (`tide: { r0, r1, high, out, rise, in, fall }`): the lagoon is sand while the
+tide is out, then the water comes in to `high` and goes out again on that clock (`tideAt`, `tidePhase`; the HUD shows which way it is
+going and how long until it turns). Caught on the sand below the water, the crab is swept back to its flag; coconuts there float up
+with it and settle where they are when it goes out. **Rafts** (`rafts: [{ p, r }]`) sit on the sand and float up with the tide. The
+answer: at low tide walk out to the raft by the mesa with the coconuts; at high tide lob one onto the lighthouse rock's plate (2.8 up:
+no throw from the sand reaches it) and jump from the raft onto the mesa (4 up: nothing reaches it from the sand). Golden shells: far out
+on the sand (only at low tide), on the tall rock (a jump from a raft at high tide), on the coral post (the jelly).
+
+**8. Ink's Deep** (built, World 2's boss): Old Ink's second lair, with a darker look (`theme: 'deep'`). Two timed hazards on the way:
+a bottomless **chasm** crossed on **crumbling tiles** (`chasm: { r0, r1 }`, `crumbles: [{ p, r }]`: a tile cracks when stepped on,
+falls `CRUMBLE_S` later and is back `TILE_BACK_S` after that; off the tiles in the chasm, back to the flag; coconuts there are
+lost), and a corridor of **steam jets** (`jets: [{ p, r, period, on, phase, boss? }]`: each bubbles for `JET_WARN` s, then fires and
+scalds a crab back to its flag; `boss` jets only work while he's awake). Then the arena: a boss can be tuned per chamber
+(`boss: { hits: 4, speed: 0.8, arena: 5.5 }`): four hits, faster slams, and steam jets round the arena while he's up.
+
+## World 3: the volcano (started)
+Plan: **9 Obsidian Slide** (sliding), **10 Heavy Stone** (carry a heavy rock; it presses heavy plates and cools into a stepping stone
+in lava), **11 Cannon Ridge** (load and aim cannons to hit far targets), **12 The Hermit King** (a new villain, Old Ink's ally: a giant
+hermit crab in a volcanic shell, with the lava rising during the fight). World 3's look (`theme: 'volcano'`): a dark red sky, black
+sand, glowing lava, obsidian, embers drifting up.
+
+**9. Obsidian Slide** (built): an obsidian lake (`lake: { r0, r1, dd, lon0, lon1, dl, exit, lava, pillars }`, a grid of cells) in a
+sea of lava. On it you can't walk: a push picks one of four ways (toward the pearl, away, east, west) and you slide until a pillar
+stops you (`lakeSlide`). Off the sides, or off the far edge anywhere but the bridge, is lava (back to the flag); off the near edge is
+the beach. The layout was found by a search for one whose shortest way across is seven slides (`qa/lair-world1.mjs` runs the search
+over the game's own slide rule and plays the answer with the stick).
