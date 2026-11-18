@@ -112,6 +112,9 @@ wasn't checked (a real phone; how it feels to a person).
 | The crab "fell through" the floating rocks | things with a height have a floor (`ROCK_H`, `floorAt`) |
 | "The vent doesn't lift me" | test the lift with a held stick; say when a vent is calm and which one blows |
 | "A broken wall I can't do anything with" | never an invisible wall; draw it as something real (the dam) |
+| "I can just jump and get out of the rules" (Obsidian Slide v1) | a rule-bound floor must hold in the air too: no jumping on it, and landing on it from the air puts you under its rules |
+| "Holding the stick sent me after the block" | grid moves need a fresh push of the stick each time (`lakeHold`) |
+| A puzzle's rules split between the search and the game | keep the rules in one pure module (`LakeGrid.js`) that both the qa search and the game call |
 | "The ramp isn't real" | a thing that looks usable must do something (the slide's ladder, earned at the shelf) |
 | Walking off a rock glided across a gap | gaps bigger than a fall can glide; rocks in a line across a current, not downstream |
 | The eddy trapped the crab | say which pieces act on coconuts only, and test a crab in them |

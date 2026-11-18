@@ -235,8 +235,21 @@ in lava), **11 Cannon Ridge** (load and aim cannons to hit far targets), **12 Th
 hermit crab in a volcanic shell, with the lava rising during the fight). World 3's look (`theme: 'volcano'`): a dark red sky, black
 sand, glowing lava, obsidian, embers drifting up.
 
-**9. Obsidian Slide** (built): an obsidian lake (`lake: { r0, r1, dd, lon0, lon1, dl, exit, lava, pillars }`, a grid of cells) in a
-sea of lava. On it you can't walk: a push picks one of four ways (toward the pearl, away, east, west) and you slide until a pillar
-stops you (`lakeSlide`). Off the sides, or off the far edge anywhere but the bridge, is lava (back to the flag); off the near edge is
-the beach. The layout was found by a search for one whose shortest way across is seven slides (`qa/lair-world1.mjs` runs the search
-over the game's own slide rule and plays the answer with the stick).
+**9. Obsidian Slide** (rebuilt after play-testing): v1 was a flat lake of pillars, and you could simply **jump** and walk off the
+rules. v2 is a crater: you start high on the volcano's rim and work **down** a lake of obsidian in three steps to the bridge and the
+pearl. Its rules live in their own pure module, **`LakeGrid.js`** (a grid: no time, no 3D), and the game just moves the crab along
+what the grid says, so the search that proves a layout and the game can never disagree.
+- **No jumping on the obsidian** ("your claws can't grip it": the button says so). Jumping onto the lake from the rim lands you
+  sliding, under the same rules. Every move takes a fresh push of the stick (holding it after a push would slide you after the block).
+- **Steps** (`levels` per row, `hs` heights): sliding down a step you drop and keep going; up a step is a wall, but for a **ramp** cell.
+- **Blocks**: slide into one and you stop; push the stick at it and it slides on (down the steps too) until something stops it. It can
+  go into the lava (lost: "go back to the rim to set the lake back").
+- **Cracked glass**: stop on it once and it cracks; stop on it again and it breaks (lava). Sliding over it does nothing.
+- **Coconuts slide too**: on the lake a throw goes two cells straight (hold THROW and push the stick to turn without sliding; the aim
+  turns green when it will end on the plate), then slides on. One resting on the **yellow plate** opens the **gate** on the bridge.
+  Stop on a coconut and you pick it up (off the plate, the gate shuts).
+- Off the near edge onto the rim, or into the lava (back to the flag): the lake **sets back** as it was (blocks home, cracks healed).
+- The layout: a search kept random layouts whose shortest way needs the push, the ramp, a stop on cracked glass and a throw, and
+  where taking away the ramp, or making the block a pillar, leaves no way at all. Its 15 moves: in at column 5 and bump the block;
+  push it, and it rides down the steps to stop by the bridge; round and down to the cracked cell under the plate (by the ramp); a
+  coconut onto the plate; round to the block, and up the bridge. `qa/lair-world1.mjs` plays it with the stick and the throw button.
