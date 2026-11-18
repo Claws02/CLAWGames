@@ -253,7 +253,9 @@ export function createLair(kit, level, hooks) {
         put(g, k.p, [1, 0, 0], base); scene.add(g);
     }
     // Jelly pads: a pink wobbly dome.
-    const padMeshes = (level.pads || []).map(k => { const g = Y.prop([{ geo: G.sph, color: 0xff8ad8, s: [k.r * 2, 0.5, k.r * 2], p: [0, 0.05, 0] }, { geo: G.sphLow, color: 0xffd1f0, s: [k.r * 0.8, 0.12, k.r * 0.6], p: [-k.r * 0.3, 0.24, -k.r * 0.2], ink: false }], { thick: 0.06 }); put(g, k.p, [1, 0, 0], fl(k.p) - 0.02 - (K.PAD_H || 0.25) + 0.02); scene.add(g); return { k, g, wob: 0 }; });
+    const padMeshes = (level.pads || []).map(k => { const g = Y.prop([{ geo: G.sph, color: 0xff8ad8, s: [k.r * 2, 0.5, k.r * 2], p: [0, 0.05, 0] }, { geo: G.sphLow, color: 0xffd1f0, s: [k.r * 0.8, 0.12, k.r * 0.6], p: [-k.r * 0.3, 0.24, -k.r * 0.2], ink: false }], { thick: 0.06 }); put(g, k.p, k.to ? toward(k.p, k.to) : [1, 0, 0], fl(k.p) - 0.02 - (K.PAD_H || 0.25) + 0.02); scene.add(g);
+        if (k.to) { const ar = Y.prop([{ geo: G.box, color: 0xfff3a0, s: [0.22, 0.06, 0.6], p: [0, 0.3, -0.1] }, { geo: G.coneLow, color: 0xfff3a0, s: [0.5, 0.45, 0.08], p: [0, 0.3, 0.38], r: [Math.PI / 2, 0, 0] }], { thick: 0.04 }); g.add(ar); }
+        return { k, g, wob: 0 }; });
     // Stone walls (the bank-shot lane, the ramp's rails): a low run of blocks along each bar.
     for (const b of (level.bars || []).filter(x => x.kind === 'lane' || x.kind === 'rail' || x.kind === 'chute')) {
         const len = K.dist(b.a, b.b), n = Math.max(2, Math.round(len / 0.5)), m = Y.instanced(G.rockSoft, n, 0.08), nrm = norm(cross(b.a, b.b)); scene.add(m.body); scene.add(m.line);

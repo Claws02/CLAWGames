@@ -145,7 +145,7 @@ const stream = (opt = {}) => {
   { let direct = 0, any = 0; for (let d = 16.8; d <= 19; d += 0.55) for (let lon = 50; lon <= 70; lon += 4) for (let ch = 0; ch <= 1; ch += 0.1) { const q = K.create(STREAM); q.crab.p = at(d, lon).slice(); q.crab.nuts = 1; face(q, SA().p); K.throwNut(q, ch); const e = run(q, 3); if (q.plug.A) { any++; if (!e.some(x => x.type === 'pad')) direct++; } }
     ok(any > 0 && direct === 0, `   vent A is too high to throw to: of the throws from the beach that plug it (${any}), every one bounced off the jelly pad`); }
   { const q = K.create(STREAM); q.crab.p = STREAM.pads[1].p.slice(); let top = 0; const e = []; for (let i = 0; i < 90; i++) { e.push(...K.step(q, DT)); top = Math.max(top, q.crab.h); }
-    ok(e.some(x => x.type === 'pad') && top > 2.6 && top < 3.4, `   a crab on the jelly pad bounces (${top.toFixed(1)} up): high enough for the post (3), not for the shelf (4) or the terrace (3.8)`);
+    ok(e.some(x => x.type === 'pad') && top > 2.6 && top < 3.4, `   a crab on the jelly pad bounces (${top.toFixed(1)} up): high enough for the post (3), not for the terrace (3.8)`);
     const r = K.create(STREAM); r.crab.p = at(17.4, 110).slice(); r.crab.f = P.tangent(r.crab.p, TOP); const e2 = []; go(r, STREAM.pads[1].p, e2, 0.15, 3); for (let i = 0; i < 120; i++) e2.push(...K.step(r, DT, r.crab.vh < 0 && r.crab.h > 2.2 ? stickTo(r, STREAM.posts[1].p, 0.8) : { x: 0, y: 0 }));
     ok(r.gold.includes(0) && Math.abs(r.crab.h - 3) < 0.05, '   bounce on it and steer onto the post: a golden shell'); }
   { const q = K.create(STREAM); q.crab.p = SB().p.slice(); const e = run(q, 2); ok(!e.some(x => x.type === 'lift') && e.some(x => x.type === 'calm'), '   vent B is calm while A blows (and says so)'); }

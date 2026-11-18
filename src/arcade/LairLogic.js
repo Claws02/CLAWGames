@@ -138,8 +138,8 @@ export const BEACH = {
     ground: [[1.8, 'dais'], [2.2, 'stone'], [3.2, 'stone'], [8, 'grass'], [10, 'grass'], [14, 'sea'], [99, 'sand']],
     checks: [at(18.4, 0), at(9.2, 0)], zones: { 1: [8.1, 9.9] },
     rings: [
-        { r: 15, h: 3, top: true, gap: [0, 7], vine: [90, 6], kind: 'castle' },
-        { r: 15, h: 3, only: [0, 7], hp: 2, id: 'crack', kind: 'crack' },
+        { r: 15, h: 3, top: true, gap: [0, 14], vine: [90, 6], kind: 'castle' },
+        { r: 15, h: 3, only: [0, 14], hp: 2, id: 'crack', kind: 'crack' },
         { r: 8, h: 2, top: true, gap: [180, 8], kind: 'castle' }, { r: 8, h: 2, only: [180, 8], way: 'out', kind: 'slide', show: 2 },
         { r: 3.2, h: 9, gate: 'red', kind: 'gate' }, { r: 2.2, h: 9, gate: 'blue', kind: 'gate' },
     ],
@@ -153,7 +153,7 @@ export const BEACH = {
 
 // 2. BUBBLE STREAM: a river valley on three levels.
 //   the beach (start, the palm)                                   d > 12.5
-//       · a rock shelf (4 high) with vent A on it, a jelly pad in front   13.6 – 15, lon 60
+//       · a rock shelf (3 high) with vent A on it, a jelly pad in front   13.6 – 15, lon 60
 //       · vent B by the river (the lift)                           13.3, lon 0
 //       · a stone post with a golden shell on top, a jelly pad by it; a crystal cage with another (opened by the log's bullseye)
 //   the river: deep, all the way round; logs drift on it (one carries a bullseye)            10 – 12.5
@@ -178,13 +178,13 @@ const CHUTE = [[_cw(0.55, 0.5), _cw(_len - 0.4, 0.5)], [_cw(0.55, -0.5), _cw(_le
 export const STREAM = {
     id: 'stream', name: 'BUBBLE STREAM', world: 1, fast: 120, pay: 20, start: at(18.4, 0), goal: TOP, palm: at(17.7, -42), bank: 12.5,
     story: 'A river valley on three levels. Vents to ride, a bank shot to make, and a pearl up on the mesa.',
-    hints: ['Vent A is up on the rock shelf, too high to throw to. The jelly pad bounces whatever lands on it.', 'With A plugged, vent B blows: ride it over the river and steer onto the terrace.', 'The bank shot: stand on the painted spot, and throw at the yellow bumper in the pool. It bounces the coconut into the bullseye (follow the green dots). The aim turns green when it will hit.', 'Up on the mesa, the plate is on top of the pillar. Lob a coconut onto it, or knock the hanging coconut down.', 'Golden shells: on the post by the beach (bounce on the jelly), in the cage (hit the bullseye on the log), over the river (steer through it riding vent B).'],
+    hints: ['Vent A is up on the rock shelf, too high to throw to. The jelly pad in front has an arrow: whatever lands on it is thrown that way.', 'With A plugged, vent B blows: ride it over the river and steer onto the terrace.', 'The bank shot: stand on the painted spot, and throw at the yellow bumper in the pool. It bounces the coconut into the bullseye (follow the green dots). The aim turns green when it will hit.', 'Up on the mesa, the plate is on top of the pillar. Lob a coconut onto it, or knock the hanging coconut down.', 'Golden shells: on the post by the beach (bounce on the jelly), in the cage (hit the bullseye on the log), over the river (steer through it riding vent B).'],
     ground: [[4.6, 'stone'], [9.6, 'grass'], [10, 'sand'], [12.5, 'sea'], [99, 'sand']],
     checks: [at(18.4, 0), at(8.6, 0)], zones: { 1: [4.7, 9.5] },
     ledges: [
         { r0: 0, r1: 4.6, h: 7.5, kind: 'mesa' }, { r0: 4.6, r1: 9.6, h: 3.8, kind: 'terrace' },
         { r0: 4.6, r1: 6.4, only: [180, 7], h: 7.5, h1: 3.8, kind: 'ramp' },
-        { r0: 13.6, r1: 15, only: [60, 6], h: 4, kind: 'shelf' },
+        { r0: 13.5, r1: 15.1, only: [60, 8], h: 3, kind: 'shelf' },
     ],
     rings: [
         { r: 4.4, h: 20, gate: 'green', kind: 'gate' }, { r: 1.8, h: 20, gate: 'gold', kind: 'gate' },       // (the green fence runs round the whole mesa)
@@ -193,13 +193,13 @@ export const STREAM = {
     ],
     bars: [{ a: BUMP_A, b: BUMP_B, h: 7, kind: 'bumper' }, ...CHUTE.map(([a, b]) => ({ a, b, h: 7, kind: 'chute' }))],
     posts: [{ p: PILLAR, r: 0.55, h: 9 }, { p: at(16.6, 110), r: 0.5, h: 3 }],
-    pads: [{ p: at(16.4, 60), r: 0.7 }, { p: at(17.6, 110), r: 0.7 }],
+    pads: [{ p: at(16.5, 60), r: 1.0, to: at(14.3, 60) }, { p: at(17.6, 110), r: 0.7 }],
     pools: [{ p: POOL, r: dist(BUMP, ALCOVE) / 2 + 0.6, to: SPOT }, { p: ALCOVE, r: 1.9, to: SPOT }, { p: BUMP, r: 1.5, to: SPOT }],
     drains: [{ p: ALCOVE, r: 0.9, to: SPOT }],
     spots: [{ p: SPOT, via: BUMP, to: ALCOVE, gate: 'green' }],
     currents: [{ r0: 10, r1: 12.5, only: [0, 180], speed: 1.6, deep: true }],
     logs: [0, 120, 240].map(lon0 => ({ orbit: 11.25, lon0, speed: 14, h: 0.35, r: 0.95 })),
-    vents: [{ id: 'A', p: at(14.3, 60), r: 0.9, drop: true }, { id: 'B', p: at(13.3, 0), r: 0.8, lift: 3.2 }],
+    vents: [{ id: 'A', p: at(14.3, 60), r: 1.0, drop: true }, { id: 'B', p: at(13.3, 0), r: 0.8, lift: 3.2 }],
     plates: [{ p: PILLAR, r: 0.5, gate: 'gold' }],
     targets: [{ p: ALCOVE, gate: 'green', tall: 1.4 }, { p: at(11.25, 0), log: 0, gate: 'cage' }],
     hangs: [{ p: PILLAR, h: 9.9 }],
@@ -337,7 +337,7 @@ export function aim(s, charge = 0) {
     const t = { ...s, nuts: [], back: [], open: { ...s.open }, held: { ...s.held }, plug: { ...s.plug }, dmg: { ...s.dmg }, stuckIn: { ...s.stuckIn }, gold: [...s.gold], crab: { ...s.crab, nuts: 1 }, gull: null, boss: null, throws: 0, id: 1 };
     const n = throwNut(t, charge), path = []; let bank = null;
     for (let i = 0; i < 240 && n.state === 'fly'; i++) { const ev = []; _nut(t, n, 1 / 60, ev); if (!bank && ev.some(e => e.type === 'bank')) bank = [n.p, n.h]; if (i % 3 === 0) path.push([n.p, n.h]); }
-    return { p: n.p, path, bank, wet: n.state === 'float', hit: n.state === 'stuck' };     // (hit: it would end in a bullseye)
+    return { p: n.p, path, bank, wet: n.state === 'float', hit: n.state === 'stuck' || n.state === 'plug' };     // (hit: it would end in a bullseye)
 }
 
 function _lose(s, n, ev, why) { s.nuts.splice(s.nuts.indexOf(n), 1); s.back.push(RESPAWN_S); ev.push({ type: 'lost', nut: n, p: n.p, why }); }
@@ -374,7 +374,13 @@ function _nut(s, n, dt, ev) {
         if (g && g.state !== 'stun' && Math.hypot(dist(n.p, g.p), n.h - (g.h + 0.4)) < GULL.hit + 0.1) { _stun(s, ev, 'nut'); n.vh = Math.min(n.vh, -2); n.v *= 0.3; }
         const fl = floorAt(s, n.p);
         const pad = n.vh < 0 && (s.lv.pads || []).find(k => dist(n.p, k.p) < k.r);
-        if (pad && n.h <= PAD_H + 0.05) { n.h = PAD_H; n.vh = PAD_NUT_V; n.v *= 0.8; ev.push({ type: 'pad', nut: n, p: n.p }); return; }
+        if (pad && n.h <= PAD_H + 0.05) {
+            n.h = PAD_H;
+            if (pad.to) {          // an aimed pad (a launch pad): whatever lands on it is thrown onto pad.to, whatever way it came in
+                const Tf = 1.0, dh = floorAt(s, pad.to) - PAD_H; n.d = toward(n.p, pad.to); n.v = dist(n.p, pad.to) / Tf; n.vh = (dh + 0.5 * G * Tf * Tf) / Tf;
+            } else { n.vh = PAD_NUT_V; n.v *= 0.8; }
+            ev.push({ type: 'pad', nut: n, p: n.p }); return;
+        }
         if (n.h <= fl) {
             n.h = fl;
             if (s.boss && dist(n.p, TOP) < 1.95) n.p = at(BOSS.pileAt, lonOf(n.p));       // (never left inside the fence, out of reach)

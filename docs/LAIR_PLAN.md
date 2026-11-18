@@ -173,3 +173,10 @@ see where the pearl was. Now:
   the swoop is done), and a 🔮 compass at the top left always points to the pearl with its distance.
 - Fixed: the ground height at the very centre of a ledge read as 0, so the pearl sat inside the mesa.
 - New pieces: `pools` (deep, round, coconuts wash to `to`), bumper and chute bars, `spots` (a painted throw spot and its guide).
+
+## Small fixes (after the tenth play-test)
+- The pearl compass is gone (the opening swoop shows the pearl instead).
+- Bubble Stream: vent A's shelf is lower (3), and its jelly pad is now an **aimed pad** (Portal's launch pad): whatever lands on
+  it is thrown onto the vent, whichever way it came in (`pads: [{ p, r, to }]`, an arrow on the pad shows where). About half of all
+  throws from in front of it now plug the vent; still none plugs it without the pad. The aim turns green for a vent too.
+- Coconut Beach: the cracked section of the wall is twice as wide (28°), so the way in is wider once it's broken.
