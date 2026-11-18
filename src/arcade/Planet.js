@@ -245,7 +245,7 @@ export function pause() {
     if (_mode === 'trick') {
         if (!_trial || _paused) return;
         _paused = true; _ptr = null; _stick = { x: 0, y: 0 }; const st = $('tp-stick'); if (st) st.hidden = true;
-        return _card(`<div class="tp-title bfont">⏸ PAUSED</div><div class="tp-stat">🐙 ${_trial.level.name}</div>
+        return _card(`<div class="tp-title bfont">⏸ PAUSED</div><div class="tp-stat">🐙 ${(_trial.base || _trial.level).name}</div>
             <button class="go-btn bfont" data-do="resume" id="btn-tp-resume">RESUME</button>
             <button class="go-btn bfont tp-alt" data-do="trial-again">↻ START AGAIN</button>
             <button class="go-btn bfont tp-alt" data-do="trials">THE LAIR</button>
@@ -332,7 +332,7 @@ function _do(what, arg) {
     if (what === 'giveup') { _paused = false; _s.over = true; _overAt = 0; return _end(); }
     if (what === 'menu') return _menu();
     if (what === 'trial') return playTrial(+arg);
-    if (what === 'trial-again') { _paused = false; $('tp-over').hidden = true; _trial?.restart(); _lastHud = ''; return; }
+    if (what === 'trial-again') { _paused = false; $('tp-over').hidden = true; if (_trial && _trial.base && _trial.base.moon) playTrial(LL.CHAMBERS.indexOf(_trial.base)); else _trial?.restart(); _lastHud = ''; return; }
     if (what === 'trials') return _lairCard();
     if (what === 'city') return _backToCity();
     if (what === 'shop') { if (_mode !== 'menu') _menu(); return _shop(); }
@@ -379,6 +379,7 @@ export function lairPieces(lv) {
     add((lv.rocks || []).length, '🪨', 'STEPPING ROCKS'); add((lv.eddies || []).length, '🌀', 'EDDY'); add((lv.urchins || []).length, '✴️', 'URCHINS');
     add((lv.ledges || []).some(l => l.h1 == null && l.r1 - l.r0 > 1.6), '⛰️', 'TERRACES'); add((lv.ledges || []).some(l => l.h1 != null), '↗️', 'RAMP'); add((lv.pads || []).length, '🟣', 'JELLY PADS'); add((lv.posts || []).length, '🗿', 'STONE POSTS');
     add((lv.hangs || []).length, '🌴', 'HANGING COCONUT'); add((lv.targets || []).some(x => x.log != null), '🎯', 'MOVING BULLSEYE'); add((lv.bars || []).some(b => b.kind === 'bumper'), '↩️', 'BANK SHOT');
+    add(lv.moon, '🌙', 'A MOON (LOW GRAVITY)'); add((lv.launch || []).length, '🚀', 'LAUNCH PAD');
     add((lv.holes || []).some(h => !h.nutOnly), '🕳️', 'SINKHOLES'); add((lv.holes || []).some(h => h.nutOnly), '#️⃣', 'BLOWHOLES (COCONUTS ONLY)');
     add((lv.vents || []).length, '🫧', 'VENTS'); add(lv.gull, '🐦', 'GULL'); add((lv.plates || []).length, '⏺️', 'PLATE'); add((lv.targets || []).some(x => !x.secs), '🎯', 'BULLSEYE');
     add((lv.targets || []).some(x => x.secs), '⏱️', 'TIMED GATE'); add(lv.boss, '🐙', 'OLD INK'); add((lv.gold || []).length, '✨🐚', `GOLDEN SHELLS ×${(lv.gold || []).length}`);
@@ -398,9 +399,11 @@ export function playTrial(i) {
     if (!LL.ALL_OPEN && i > 0 && !_starsOf(LL.CHAMBERS[i - 1].id)[0]) return null;      // (locked until the chamber before it is cleared)
     if (_trial) _trial.dispose();
     _paused = false; _hintN = 0; $('tp-over').hidden = true;
-    _trial = createLair({ T, renderer: _gl.renderer, toon: Y, crab: color => _crab(color, 0.62, null, true), pose: _crabPose, skin: skin().color }, lv, {
-        say: _say, hint: _hintNow, sfx: _sfx, buzz: _buzz, pop: (v, text) => _popAt(v, text, _trial?.camera), won: s => _lairWon(lv, s),
-    });
+    const kit = { T, renderer: _gl.renderer, toon: Y, crab: color => _crab(color, 0.62, null, true), pose: _crabPose, skin: skin().color };
+    const hooks = { say: _say, hint: _hintNow, sfx: _sfx, buzz: _buzz, pop: (v, text) => _popAt(v, text, _trial?.camera), won: s => _lairWon(lv, s),
+        // a chamber with a moon: when the crab lands in the other world, that world's screen takes over, with the same state
+        travel: st => { const nx = createLair(kit, st.w ? lv.moon : lv, hooks, st); nx.base = lv; if (_trial) _trial.dispose(); _trial = nx; _lastHud = ''; } };
+    _trial = createLair(kit, lv, hooks); _trial.base = lv;
     $('tp-trial').hidden = false; $('tp-acts').hidden = false; $('tp-goal').hidden = false; $('tp-top').hidden = false; $('tp-top').classList.add('trial'); $('btn-tp-hint').hidden = false;
     _lastHud = '';
     _say(`🐙 ${lv.name}`, '#fde047');
@@ -411,9 +414,9 @@ export const playLair = playTrial;
 /** The throw button in the lair: down winds up, up throws. */
 export function holdThrow(on) { if (_mode === 'trick' && _trial && !_paused) return _trial.hold(on); return null; }
 /** The 💡 button: the next hint for this chamber. */
-export function lairHint() { if (_mode !== 'trick' || !_trial) return; _hintN = Math.min(_trial.level.hints.length, _hintN + 1); _lastHud = ''; _sfx('tick'); }
+export function lairHint() { if (_mode !== 'trick' || !_trial) return; _hintN = Math.min((_trial.base || _trial.level).hints.length, _hintN + 1); _lastHud = ''; _sfx('tick'); }
 function _lairHud() {
-    const s = _trial.state(), lv = _trial.level, i = LL.CHAMBERS.indexOf(lv), k = _trial.charging(), n = LL.count(s);
+    const s = _trial.state(), lv = _trial.base || _trial.level, i = LL.CHAMBERS.indexOf(lv), k = _trial.charging(), n = LL.count(s);
     const hint = _hintT > 0 ? _hintMsg : '';
     const bs = s.boss, inkHp = bs && bs.state !== 'sleep' ? bs.hp : -1, inkSt = bs ? bs.state : '';
     const sig = [lv.id, n.held, n.loose, n.working, n.gull, s.falls, hint, _hintN, inkHp, inkSt, s.gold.length, inkSt === 'down' ? 1 : 0, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
@@ -1079,7 +1082,7 @@ export function _debug() {
         air: s?.crab.air || 0, carry: s?.crab.carry || null, course: s?.course ? { k: s.course.k, got: s.course.got, done: s.course.done, n: s.course.pts.length, tier: s.course.tier, cp: s.course.cp } : null, reach: !!_gl?.reach.visible,
         drawn: { builds: _vis.builds.size, items: _vis.items.size, stars: _vis.stars.size, course: _courseVis ? _courseVis.parts.length : 0 }, dust: sv().dust, up: { ...sv().up }, skin: sv().skin, theme: theme().id,
         saved: sv().run ? { day: sv().run.day, shells: sv().run.shells } : null, seen: Object.keys(sv().seen), tip: _el && !$('tp-tip').hidden ? $('tp-tip').textContent : '',
-        trial: _trial ? { id: _trial.level.id, won: _trial.state().won, throws: _trial.state().throws, held: _trial.state().crab.nuts, count: LL.count(_trial.state()), falls: _trial.state().falls, cp: _trial.state().cp, plug: { ..._trial.state().plug }, open: { ..._trial.state().open }, gull: _trial.state().gull ? _trial.state().gull.state : null, h: +_trial.state().crab.h.toFixed(2), charging: _trial.charging() } : null, lair: { ...sv().lair },
+        trial: _trial ? { id: (_trial.base || _trial.level).id, w: _trial.state().w || 0, won: _trial.state().won, throws: _trial.state().throws, held: _trial.state().crab.nuts, count: LL.count(_trial.state()), falls: _trial.state().falls, cp: _trial.state().cp, plug: { ..._trial.state().plug }, open: { ..._trial.state().open }, gull: _trial.state().gull ? _trial.state().gull.state : null, h: +_trial.state().crab.h.toFixed(2), charging: _trial.charging() } : null, lair: { ...sv().lair },
         calls: _gl ? _gl.renderer.info.render.calls : 0 };
 }
 export const _game = () => _s;

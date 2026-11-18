@@ -30,7 +30,7 @@ const GATE_COLOR = { lid: 0x9be7ff,  eye: 0xff5fa8, plate: 0xffc83a, yard: 0x5fd
 const SHOW = { cliff: 2.4, cove: 1.5, step: 2, gate: 2.1 };      // how tall each kind of wall is drawn
 const rngOf = seed => () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
-export function createLair(kit, level, hooks) {
+export function createLair(kit, level, hooks, shared = null) {      // (shared: the state carried over from the other world of a chamber with a moon)
     const { T, renderer } = kit, R = K.R, Y = kit.toon || makeToon(T);
     const V = a => new T.Vector3(a[0], a[1], a[2]);
     const basic = (color, o = {}) => new T.MeshBasicMaterial({ color, ...o });
@@ -47,10 +47,11 @@ export function createLair(kit, level, hooks) {
         return new T.Matrix4().makeBasis(x, up, f).scale(new T.Vector3(sx, sy, sz)).setPosition(up.clone().multiplyScalar(R + lift));
     };
     const around = K.around, TOP = K.TOP;
-    const sfl = { ...K.create(level), blocks: [], logs: [] }, fl = p => K.floorAt(sfl, p);      // (the ground's height: terraces, ramps, posts)
+    const sfl = { lv: level, blocks: [], logs: [], open: {}, held: {}, dmg: {} }, fl = p => K.floorAt(sfl, p);      // (the ground's height: terraces, ramps, posts)
     // Each world has its own look: World 1 a sunny island, World 2 the coral caves (deep teal sky, pale coral sand, sea-grass, pink coral).
     const THEME = {
         beach: { sky: 0x9fe0ff, hemi: [0xffffff, 0x8a7aa0], ground: { sand: [0xf3d890, 0xe9c87a], sea: [0x5aaed4, 0x4a9ec6], rock: [0xd2b98f, 0xc2a77c], grass: [0x8fd96a, 0x76c456], stone: [0xb9a6ea, 0xa994de], dais: [0xf6bdf3, 0xe9a7ee] } },
+        moon: { sky: 0x141d40, hemi: [0xe8e4ff, 0x3a3366], ground: { sand: [0xc9c3dc, 0xbdb6d2], sea: [0x8f86b8, 0x8077aa], rock: [0xa59cc6, 0x968db9], grass: [0xb4acd2, 0xa69ec6], stone: [0xd8d2ea, 0xccc5e2], dais: [0xe6e0f6, 0xdcd5f0] }, stars: true, craters: true },
         reef: { sky: 0x2f7f9c, hemi: [0xd8fff6, 0x5a3f8a], ground: { sand: [0xf2d9cf, 0xe7c7bd], sea: [0x2fb3c4, 0x27a1b3], rock: [0xc7a9e0, 0xb796d4], grass: [0x46c2a6, 0x37ad93], stone: [0x8fd4c9, 0x7cc7bb], dais: [0xffc4e6, 0xffb0dc] }, decor: true },
     }[level.theme || 'beach'] || null;
     const scene = new T.Scene(); scene.background = new T.Color(THEME.sky);
@@ -131,6 +132,7 @@ export function createLair(kit, level, hooks) {
             { y0: 0, h: 1.3, thick: 0.13, color: C.cliff, depth: 1.5, inset: 0.4, wide: 1.3 },
             { y0: 0.95, h: 1.15, thick: 0.12, color: C.cliff, depth: 1.25, inset: 0.58, wide: 1.25 },
             { y0: 1.9, h: 0.8, thick: 0.11, color: [C.moss, C.mossDark], depth: 1.3, inset: 0.7, wide: 1.5 }], 0.7);
+        else if (kind === 'crater') boulderWall(w, kind, [{ y0: 0, h: 1.4, thick: 0.1, color: [0x9d94c2, 0x8a81b2, 0xb2aad4], depth: 1.6, wide: 1.4 }, { y0: 1.0, h: 1.0, thick: 0.09, color: [0xc2bbdc, 0xb0a8d0], depth: 1.1, inset: 0.2, wide: 1.3 }], 0.6);
         else if (kind === 'coral') boulderWall(w, kind, [
             { y0: 0, h: 1.5, thick: 0.1, color: [0xff7f9e, 0xf06a8c, 0xff9bb3], depth: 1.4, wide: 1.4 },
             { y0: 1.1, h: 1.3, thick: 0.1, color: [0xb98be6, 0xa877dc, 0xcaa2ef], depth: 1.1, inset: 0.15, wide: 1.3 },
@@ -316,6 +318,18 @@ export function createLair(kit, level, hooks) {
             put(g, p, [rnd(), 0.2, rnd()], fl(p)); scene.add(g);
         }
     }
+    // Launch pads: a glowing ring with a chevron pointing up; where it flies you, the other world hangs in the sky.
+    const launchVis = (level.launch || []).map(k => {
+        const g = Y.prop([{ geo: G.cylLow, color: 0x6b5fa8, s: [k.r * 2.3, 0.2, k.r * 2.3], p: [0, 0.1, 0] }, { geo: G.cylLow, color: 0x9be7ff, s: [k.r * 1.7, 0.08, k.r * 1.7], p: [0, 0.22, 0], ink: false }], { thick: 0.06 });
+        for (let j = 0; j < 3; j++) { const ch = new T.Mesh(G.coneLow, basic(0xffffff, { transparent: true, opacity: 0.8 })); ch.scale.set(0.35, 0.3, 0.35); ch.position.y = 0.5 + j * 0.45; ch.userData.j = j; g.add(ch); }
+        put(g, k.p, [1, 0, 0], fl(k.p)); scene.add(g); return { k, g };
+    });
+    if (THEME.stars) { const pos = []; const rnd = rngOf(55); for (let i = 0; i < 260; i++) { const v = new T.Vector3(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).normalize().multiplyScalar(120); pos.push(v.x, v.y, v.z); } const sg = new T.BufferGeometry(); sg.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); scene.add(new T.Points(sg, new T.PointsMaterial({ color: 0xffffff, size: 0.7 }))); }
+    if (THEME.craters) { const rnd = rngOf(77); for (let i = 0; i < 14; i++) { const p = K.at(7.5 + rnd() * 12, rnd() * 360); if ((level.launch || []).some(k => K.dist(k.p, p) < 2) || (level.posts || []).some(k => K.dist(k.p, p) < 1.5)) continue; const r = 0.5 + rnd() * 0.8, cr = new T.Mesh(G.ring, basic(0x8a81b2, { transparent: true, opacity: 0.8, side: T.DoubleSide })); cr.scale.setScalar(r); put(cr, p, null, fl(p) + 0.05); scene.add(cr); const fl2 = new T.Mesh(G.disc, basic(0xa59cc6)); fl2.scale.setScalar(r * 0.82); put(fl2, p, null, fl(p) + 0.04); scene.add(fl2); } }
+    if (level.moon || level.theme === 'moon') {     // the other world, hanging in the sky
+        const other = level.moon ? { r: 2.4, c: 0xd8d2ea, at: new T.Vector3(0.5, 0.75, -0.45) } : { r: 5, c: 0x46c2a6, at: new T.Vector3(-0.4, -0.55, 0.7) };
+        const sph = Y.part(new T.SphereGeometry(other.r, 24, 16), Y.toon(other.c, { emissive: new T.Color(other.c).multiplyScalar(0.25) }), 0.12); sph.position.copy(other.at.normalize().multiplyScalar(R * 4.5)); scene.add(sph);
+    }
     // A palm on the mesa with a coconut hanging from its frond on a rope.
     const hangVis = (level.hangs || []).map(hg => {
         const foot = walk(hg.p, toward(hg.p, TOP), 1.2 / R), g = new T.Group(); const trunk = Y.prop([{ geo: G.cyl, color: 0xa87440, s: [0.3, 2.6, 0.3], p: [0, 1.3, 0], r: [0, 0, -0.2] }, { geo: G.sph, color: 0x4cc064, s: [1.6, 0.2, 0.7], p: [0.6, 2.6, 0], r: [0, 0, -0.3] }, { geo: G.sph, color: 0x37a655, s: [0.7, 0.2, 1.4], p: [-0.2, 2.65, 0.3] }], { thick: 0.06 });
@@ -405,7 +419,7 @@ export function createLair(kit, level, hooks) {
         const off = Y.toon(C.pole), on = Y.toon(C.green), cloth = Y.part(G.box, off, 0.03); cloth.scale.set(0.7, 0.42, 0.04); cloth.position.set(0.36, 1.25, 0); g.add(cloth);
         scene.add(g); return { p, i, g, cloth, off, on };
     });
-    const palm = (() => {
+    const palm = !level.palm ? { top: new T.Group() } : (() => {
         const trunk = [], leaves = [], g = new T.Group(), top = new T.Group();
         for (let i = 0; i < 5; i++) trunk.push({ geo: G.cylLow, color: i % 2 ? 0xb07a45 : 0x9a6b3f, p: [i * 0.045, 0.22 + i * 0.4, 0], r: [0, 0, -0.09], s: [0.22 - i * 0.02, 0.44, 0.22 - i * 0.02] });
         g.add(Y.prop(trunk, { thick: 0.045 }));
@@ -427,7 +441,7 @@ export function createLair(kit, level, hooks) {
     });
     // Signal lines: a dotted line on the ground from each plate and bullseye to every gate it works, in that gate's colour.
     // Dim while the switch is off; bright, with a pulse running along it, while it holds the gate; a timed one goes dark dot by dot.
-    const signals = [], s0 = { ...K.create(level), blocks: [], logs: [] };
+    const signals = [], s0 = sfl;
     for (const [kind, list] of [['plate', level.plates || []], ['target', level.targets || []]]) for (const sw of list) for (const g of [].concat(sw.gate)) {
         const ring = (level.rings || []).find(r => r.gate === g); if (!ring) continue;
         const c0 = ring.c || TOP, dest = around(c0, ring.r + (K.dist(sw.p, c0) > ring.r ? 0.35 : -0.35), K.lonOf(sw.p, c0)), len = K.dist(sw.p, dest), st = (sw.r || 0.45) + 0.2, n = Math.max(2, Math.floor((len - st - 0.15) / 0.38));
@@ -533,7 +547,7 @@ export function createLair(kit, level, hooks) {
         col.needsUpdate = true;
     };
 
-    let pitch = 0, shelfK = 0, s = K.create(level), t = 0, charge = -1, cheer = 0, camP = null, shake = 0, doneAt = 0, told = false, disposed = false, intro = 0, camStart = null, snap = false, inkMad = 0, bristle = 0, downT = 0, hurtFlash = 0, swat = 0;
+    let pitch = 0, shelfK = 0, s = shared || K.create(level), t = 0, myW = shared ? shared.w : 0, charge = -1, cheer = 0, camP = null, shake = 0, doneAt = 0, told = false, disposed = false, intro = 0, camStart = null, snap = false, inkMad = 0, bristle = 0, downT = 0, hurtFlash = 0, swat = 0;
 
     function events(evs) {
         for (const e of evs) {
@@ -582,6 +596,8 @@ export function createLair(kit, level, hooks) {
             else if (e.type === 'knock') { burst(at3(e.p, e.h), 0xffe9b0, 22, 4); hooks.sfx('coin_gain'); hooks.pop(at3(e.p, e.h + 1), '🥥 KNOCKED LOOSE!'); }
             else if (e.type === 'unstick') { burst(at3(e.nut.p, e.nut.h), 0xffffff, 12, 3); hooks.sfx('tick'); hooks.hint('🥥 YOU TOOK THE COCONUT BACK: ITS GATE SHUTS AGAIN', 2.2); }
             else if (e.type === 'hole') { burst(at3(e.p, 0.3), 0x9be7ff, 16, 3.5); burst(at3(e.out, 0.5), 0x9be7ff, 20, 4.5); hooks.sfx('boost'); if (e.crab) { hooks.buzz([15, 20, 30]); snap = true; hooks.hint('🕳️ THROUGH THE PLANET! (A HOLE COMES OUT ON THE FAR SIDE)', 2.4); } }
+            else if (e.type === 'launch') { burst(at3(e.p, 0.5), 0x9be7ff, 40, 7); hooks.sfx('boost'); hooks.buzz([20, 30, 50]); hooks.say(e.to === 'moon' ? '🌙 TO THE MOON!' : '🌍 HOME!', '#c7d2fe'); }
+            else if (e.type === 'nut-launch') { burst(at3(e.p, 0.5), 0x9be7ff, 18, 5); hooks.sfx('boost'); hooks.pop(at3(e.p, 1.4), e.to === 'moon' ? '🥥 OFF TO THE MOON' : '🥥 OFF HOME'); }
             else if (e.type === 'won') { burst(at3(level.goal, 1.5), 0xff8ad8, 50, 7); burst(at3(level.goal, 1.5), 0xffd84a, 40, 6); hooks.sfx('win'); hooks.buzz([30, 30, 30, 30, 120]); cheer = 1.2; inkMad = 2; doneAt = t + 1.8; }
         }
     }
@@ -626,7 +642,7 @@ export function createLair(kit, level, hooks) {
         const bs = s.boss, bst = bs ? bs.state : 'none', alive = bst !== 'down';
         hurtFlash = Math.max(0, hurtFlash - dt * 2.5); downT = bst === 'down' ? Math.min(1.6, downT + dt) : 0;
         const dk = Math.min(1, downT / 1.6), dizzy = false, hurt = bst === 'hurt';
-        pearl.visible = !bs || bst === 'down' || s.won;
+        pearl.visible = !!level.goal && (!bs || bst === 'down' || s.won);
         octo.g.visible = dk < 1 && !!level.boss;
         put(octo.g, inkAt, toward(inkAt, c.p), fl(inkAt) - dk * 3.2); octo.g.scale.setScalar(OSC * (1 - dk * 0.7) * (1 + Math.sin(t * 1.5) * 0.025 + (inkMad > 0 ? 0.25 * Math.abs(Math.sin(t * 14)) : 0) + (hurt ? 0.12 * Math.sin(bs.t * 34) : 0) + (bst === 'wind' ? 0.05 * Math.min(1, bs.t) : 0)));
         const open = bst === 'recover'; swat = Math.max(0, swat - dt);
@@ -670,6 +686,7 @@ export function createLair(kit, level, hooks) {
         hangVis.forEach(v => { const n = s.nuts.find(x => x.state === 'hang'); v.rope.visible = !!n; if (n) { const top = n.h + 1.6; v.rope.scale.set(0.05, top - n.h, 0.05); put(v.rope, n.p, null, (top + n.h) / 2 + 0.2); } });
         padMeshes.forEach(v => { v.wob = Math.max(0, v.wob - dt * 3); v.g.scale.set(1 + v.wob * 0.15, 1 - v.wob * 0.4, 1 + v.wob * 0.15); });
         holeVis.forEach(v => { if (v.lid) { const open = !K.up(s, { gate: v.h.lid }); v.k += ((open ? 1 : 0) - v.k) * Math.min(1, dt * 4); v.lid.position.y = -v.k * (v.h.r + 0.3); v.lid.visible = v.k < 0.98; } v.sw.rotation.y = t * 1.5; });
+        launchVis.forEach(v => v.g.children.forEach(ch => { if (ch.userData.j != null) { ch.position.y = 0.5 + ((ch.userData.j * 0.45 + t * 0.9) % 1.35); ch.material.opacity = 0.9 - (ch.position.y - 0.5) / 1.6; } }));
         spots.forEach(v => {
             const on = K.dist(c.p, v.sp.p) < 0.8, done = !!s.open[v.sp.gate];
             v.ring.scale.setScalar(0.75 + 0.06 * Math.sin(t * (on ? 9 : 4))); v.g.visible = !done;
@@ -684,6 +701,7 @@ export function createLair(kit, level, hooks) {
         // Coconuts: lying, floating, flying, plugging a vent, stuck in the bullseye.
         const seen = new Set();
         for (const n of s.nuts) {
+            if ((n.w || 0) !== (s.w || 0)) continue;
             seen.add(n.id);
             let v = nuts.get(n.id);
             if (!v) {
@@ -701,6 +719,7 @@ export function createLair(kit, level, hooks) {
 
         // The crab.
         cheer = Math.max(0, cheer - dt);
+        crab.g.visible = shadow.visible = !s.travel; if (s.travel) { const k = 1 - s.travel.t / K.TRAVEL_S; camP && camP.addScaledVector(V(c.p), dt * 6 * k); }
         put(crab.g, c.p, c.face, c.h); put(shadow, c.p, c.face, 0.04 + K.floorAt(s, c.p)); shadow.scale.setScalar(Math.max(0.4, 1 - (c.h - K.floorAt(s, c.p)) * 0.1));
         kit.pose(crab, dt, c.moving && !c.air, Math.max(cheer > 0 ? 0.3 : 0, charge >= 0 ? 0.14 : 0));
 
@@ -784,6 +803,7 @@ export function createLair(kit, level, hooks) {
                 if (charge >= 0) charge += dt / CHARGE_S;
                 for (let i = 0; i < steps; i++) events(K.step(s, dt, stick));
             }
+            if ((s.w || 0) !== myW && hooks.travel) { hooks.travel(s); return; }
             if (s.won && !told && !doneAt) doneAt = t + 0.9;
             if (doneAt && t >= doneAt) { doneAt = 0; told = true; hooks.won(s); }
             draw(dt);

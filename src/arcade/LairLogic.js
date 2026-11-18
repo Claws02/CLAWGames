@@ -39,7 +39,9 @@
 // ============================================================
 import { dot, cross, norm, mix, angle, tangent, toward, walk } from './PlanetLogic.js';
 
-export const R = 6.5, SPEED = 4.2, G = 18;
+export const R = 6.5, SPEED = 4.2, G = 18, TRAVEL_S = 1.6;      // TRAVEL_S: how long a flight between the planet and its moon takes
+/** Gravity where the crab is: a moon can have less (`gravity: 0.5`), so jumps go higher and coconuts fly further. */
+const gOf = s => G * ((s.lv && s.lv.gravity) || 1);
 export const JUMP_V = 6.84, BOUNCE_V = 9.67;             // apex 1.3 and 2.6 above where you left
 export const CARRY = 3, PICK_R = 0.6, PICK_AGE = 0.8;    // coconuts carried; how near picks one up; how soon after a throw
 export const NUT_R = 0.6, NUT_TOP = 0.45, ROCK_H = 0.45;      // ROCK_H: how high a stepping rock stands, so a crab on one is that high
@@ -273,22 +275,52 @@ export const SINK = {
     gold: [{ p: anti(16.8, 0), h: 2.8 }, { p: at(12.5, -100), h: 3 }, { p: anti(4.2, 90), h: 2.2 }],
 };
 
-export const CHAMBERS = [BEACH, STREAM, YARD, STAIR, SINK];
+// 6. MOON POOL: a little moon, and a launch pad to it. Gates are shared between the two worlds, and the moon's gravity is half
+// the planet's (you jump twice as high; coconuts fly further).
+//   the planet: the start, the palm, the launch pad; the pearl inside the gold fence, inside a ring of coral          (d > 7)
+//   the moon: a landing place, the pad home; a crater with a 2.2 rim (nothing a crab clears on the planet, an easy hop here)
+//       inside the crater: the plate that holds the gold fence on the planet
+// THE ANSWER. Pick up the coconuts and step on the launch pad. On the moon, hop over the crater's rim and put a coconut on the plate:
+// the gold fence back on the planet drops. Take the pad home; the pearl.
+const MOON = {
+    id: 'moon-of-pool', name: 'THE MOON', theme: 'moon', gravity: 0.5, goal: null, face: TOP, bank: 99, arriveCp: 0,
+    checks: [at(17.4, 20)],
+    rings: [{ r: 6, h: 2.2, kind: 'crater' }],
+    launch: [{ p: at(16.2, -30), r: 0.85, to: 'home', land: at(15.2, 30) }],
+    plates: [{ p: at(3.4, 0), r: 0.9, gate: 'gold' }],
+    posts: [{ p: at(10.5, 120), r: 0.6, h: 4.6 }],
+    gold: [{ p: at(10.5, 120), h: 4.6 }, { p: at(6, 200), h: 4.2 }],
+};
+export const MOONPOOL = {
+    id: 'pool', name: 'MOON POOL', world: 2, theme: 'reef', fast: 75, pay: 25, start: at(18.4, 0), goal: TOP, palm: at(17.6, -40), bank: 7, arriveCp: 1,
+    story: 'A little moon hangs over this reef. A launch pad flies you there, and what you do up there changes things down here.',
+    hints: ['Step on the launch pad to fly to the moon. Whatever is in your claws comes too.', 'The moon\'s gravity is weak: you jump twice as high there.', 'Inside the moon\'s crater, a coconut on the plate holds the gold fence open, back on the planet.', 'Take the pad on the moon to come home. A coconut thrown onto a launch pad flies over on its own.', 'Golden shells: on the moon\'s pillar (bounce on a coconut up there), floating over the far rim of the crater (a moon jump), and on the coral post here (bounce off the jelly).'],
+    ground: [[1.8, 'dais'], [5, 'stone'], [99, 'sand']],
+    checks: [at(18.4, 0), at(15.2, 30)],
+    rings: [{ r: 5, h: 20, gap: [180, 12], kind: 'coral' }, { r: 1.8, h: 20, gate: 'gold', kind: 'gate' }],
+    launch: [{ p: at(15.4, 0), r: 0.85, to: 'moon', land: at(17.4, 20) }],
+    posts: [{ p: at(13.2, 110), r: 0.5, h: 3 }],
+    pads: [{ p: at(14.2, 110), r: 0.7 }],
+    gold: [{ p: at(13.2, 110), h: 3 }],
+    moon: MOON,
+};
+
+export const CHAMBERS = [BEACH, STREAM, YARD, STAIR, SINK, MOONPOOL];
 /** While testing, every chamber is open. (Turn it off to make each chamber open when the one before it is cleared.) */
 export const ALL_OPEN = true;
 
 // ── A go at a chamber ───────────────────────────────────────────────────────
 export function create(lv) {
-    const s = { lv, t: 0, id: 1, won: false, falls: 0, cp: 0, throws: 0, calm: null, open: {}, held: {}, plug: {}, nuts: [], back: [], dmg: {}, gold: [], stuckIn: {},
+    const s = { lv, lv0: lv, w: 0, travel: null, t: 0, id: 1, won: false, falls: 0, cp: 0, throws: 0, calm: null, open: {}, held: {}, plug: {}, nuts: [], back: [], dmg: {}, gold: [], stuckIn: {},
         blocks: (lv.blocks || []).map(b => ({ h: 1, r: 0.55, ...b, p: b.p.slice() })), logs: _logsAt(lv, 0),
         crab: { p: lv.start.slice(), f: tangent(lv.start, lv.goal), face: tangent(lv.start, lv.goal), h: 0, vh: 0, moving: false, air: false, coy: COYOTE_S, jbuf: 0, nuts: 0, lifted: false },
         boss: lv.boss ? { hp: BOSS.hits, state: 'sleep', t: 0, n: 0, round: 0, tx: null, pile: 0, rest: false, touchCd: 0 } : null,
         gull: lv.gull ? { p: at(lv.gull.ring, lv.gull.from), h: 0, state: 'walk', t: 0, cool: 1, loot: 0, tx: null, from: null } : null };
-    for (let i = 0; i < CARRY; i++) _palmNut(s, i);
+    if (lv.palm) for (let i = 0; i < CARRY; i++) _palmNut(s, i);
     for (const hg of lv.hangs || []) s.nuts.push({ id: s.id++, p: hg.p.slice(), d: tangent(hg.p, [1, 0, 0]), v: 0, h: hg.h, vh: 0, state: 'hang', age: 9, still: 0 });
     return s;
 }
-function _palmNut(s, i = s.id) { const n = { id: s.id++, p: around(s.lv.palm, 0.95, 200 + (i % 3) * 60), d: [0, 0, 0], v: 0, h: 0, vh: 0, state: 'rest', age: 9, still: 0 }; n.d = tangent(n.p, [1, 0, 0]); s.nuts.push(n); return n; }
+function _palmNut(s, i = s.id) { const n = { id: s.id++, w: 0, p: around((s.lv0 || s.lv).palm, 0.95, 200 + (i % 3) * 60), d: [0, 0, 0], v: 0, h: 0, vh: 0, state: 'rest', age: 9, still: 0 }; n.d = tangent(n.p, [1, 0, 0]); s.nuts.push(n); return n; }
 /** Coconuts in the claws, lying about (rest / float / fly), doing a job (plug / stuck), with the gull, on their way back. */
 export const count = s => ({ held: s.crab.nuts, loose: s.nuts.filter(n => n.state === 'rest' || n.state === 'float' || n.state === 'fly').length, working: s.nuts.filter(n => n.state === 'plug' || n.state === 'stuck').length, gull: s.gull ? s.gull.loot : 0, back: s.back.length });
 /** Where Old Ink's arm i lies round him now (degrees): they sway. */
@@ -373,16 +405,16 @@ export function throwNut(s, charge = 0) {
     if (s.won || c.nuts < 1) return null;
     const { T, v } = _throwOf(charge), h0 = c.h + THROW.up;
     const hand = walk(c.p, c.face, THROW.ahead / R), from = _blocked(s, c.p, hand, h0, true) ? c.p.slice() : hand;
-    const n = { id: s.id++, p: from, d: tangent(from, c.face), v, h: h0, vh: (G * T) / 2 - (h0 - (c.air ? floorAt(s, c.p) : c.h)) / T, state: 'fly', age: 0, used: false, still: 0 };
+    const n = { id: s.id++, p: from, d: tangent(from, c.face), v, h: h0, vh: (gOf(s) * T) / 2 - (h0 - (c.air ? floorAt(s, c.p) : c.h)) / T, w: s.w || 0, state: 'fly', age: 0, used: false, still: 0 };
     s.nuts.push(n); c.nuts--; s.throws++;
     return n;
 }
 /** Where a throw from here would come down: { p, path, bank, wet } (it flies, banks and lands; then the water has it). */
 export function aim(s, charge = 0) {
     const t = { ...s, nuts: [], back: [], open: { ...s.open }, held: { ...s.held }, plug: { ...s.plug }, dmg: { ...s.dmg }, stuckIn: { ...s.stuckIn }, gold: [...s.gold], crab: { ...s.crab, nuts: 1 }, gull: null, boss: null, throws: 0, id: 1 };
-    const n = throwNut(t, charge), path = []; let bank = null;
-    for (let i = 0; i < 240 && n.state === 'fly'; i++) { const ev = []; _nut(t, n, 1 / 60, ev); if (!bank && ev.some(e => e.type === 'bank')) bank = [n.p, n.h]; if (i % 3 === 0) path.push([n.p, n.h]); }
-    return { p: n.p, path, bank, wet: n.state === 'float', hit: n.state === 'stuck' || n.state === 'plug' };     // (hit: it would end in a bullseye)
+    const n = throwNut(t, charge), path = []; let bank = null, sent = null;
+    for (let i = 0; i < 240 && n.state === 'fly'; i++) { const ev = []; _nut(t, n, 1 / 60, ev); if (!bank && ev.some(e => e.type === 'bank')) bank = [n.p, n.h]; const nl = ev.find(e => e.type === 'nut-launch'); if (nl) sent = nl.p; if (i % 3 === 0) path.push([n.p, n.h]); }
+    return { p: sent || n.p, path, bank, wet: n.state === 'float', hit: n.state === 'stuck' || n.state === 'plug' || !!sent };      // (sent: it lands on a launch pad and flies off)     // (hit: it would end in a bullseye)
 }
 
 function _lose(s, n, ev, why) { s.nuts.splice(s.nuts.indexOf(n), 1); s.back.push(RESPAWN_S); ev.push({ type: 'lost', nut: n, p: n.p, why }); }
@@ -405,7 +437,7 @@ function _nut(s, n, dt, ev) {
             const fn = _floorN(s, q, n.h) || n.d.map(x => -x), k = dot(n.d, fn); if (k < 0) n.d = tangent(n.p, mix(n.d, fn, 1, -2 * k)); else n.d = tangent(n.p, n.d.map(x => -x)); n.v *= 0.85; ev.push({ type: 'bank', nut: n, p: n.p });
         }
         else { n.d = tangent(q, n.d); n.p = q; }
-        n.vh -= G * dt; n.h += n.vh * dt;
+        n.vh -= gOf(s) * dt; n.h += n.vh * dt;
         for (const tg of s.lv.targets || []) {
             const ta = targetAt(s, tg), gs = gatesOf(tg);
             if (gs.every(g => s.open[g]) || (tg.tall ? dist(n.p, ta.p) > HIT_R || Math.abs(n.h - ta.h) > tg.tall : Math.hypot(dist(n.p, ta.p), n.h - ta.h) > HIT_R)) continue;
@@ -428,7 +460,7 @@ function _nut(s, n, dt, ev) {
         if (pad && n.h <= PAD_H + 0.05) {
             n.h = PAD_H;
             if (pad.to) {          // an aimed pad (a launch pad): whatever lands on it is thrown onto pad.to, whatever way it came in
-                const Tf = 1.0, dh = floorAt(s, pad.to) - PAD_H; n.d = toward(n.p, pad.to); n.v = dist(n.p, pad.to) / Tf; n.vh = (dh + 0.5 * G * Tf * Tf) / Tf;
+                const Tf = 1.0, dh = floorAt(s, pad.to) - PAD_H; n.d = toward(n.p, pad.to); n.v = dist(n.p, pad.to) / Tf; n.vh = (dh + 0.5 * gOf(s) * Tf * Tf) / Tf;
             } else { n.vh = PAD_NUT_V; n.v *= 0.8; }
             ev.push({ type: 'pad', nut: n, p: n.p }); return;
         }
@@ -437,6 +469,7 @@ function _nut(s, n, dt, ev) {
             if (s.boss && dist(n.p, TOP) < 1.95) n.p = at(BOSS.pileAt, lonOf(n.p));       // (never left inside the fence, out of reach)
             const dr = (s.lv.drains || []).find(x => dist(n.p, x.p) < x.r && !(x.unless && (s.open[x.unless] || s.held[x.unless]))) || (s.lv.pools || []).find(x => dist(n.p, x.p) < x.r); if (dr) { n.p = dr.to.slice(); n.h = floorAt(s, n.p); }     // (a place no crab can reach: it rolls out to where one can)
             const ur = urchinAt(s, n.p); if (ur && !ur.nutSafe) return _lose(s, n, ev, 'urchin');
+            const lpn = (s.lv.launch || []).find(k => dist(n.p, k.p) < k.r + 0.3); if (lpn) { n.w = lpn.to === 'moon' ? 1 : 0; n.p = around(lpn.land, 0.9, n.id * 47); n.h = 0; n.state = 'rest'; n.age = 9; ev.push({ type: 'nut-launch', nut: n, p: lpn.p, to: lpn.to }); return; }
             const cw = fl < 0.05 && currentAt(s, n.p); if (cw && cw.deep) return _lose(s, n, ev, 'sink');      // (deep water: it sinks, and washes up under the palm)
             const dv = (s.lv.vents || []).find(x => x.drop && !s.plug[x.id] && dist(x.p, n.p) < x.r + 0.2 && Math.abs(fl - floorAt(s, x.p)) < 0.4);
             if (dv) { n.state = 'plug'; n.p = dv.p.slice(); n.h = 0; s.plug[dv.id] = n.id; ev.push({ type: 'plug', vent: dv, nut: n, now: blowing(s) }); return; }
@@ -511,6 +544,17 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     s.t += dt;
     c.jbuf = Math.max(0, c.jbuf - dt);
     for (let i = s.back.length - 1; i >= 0; i--) { s.back[i] -= dt; if (s.back[i] <= 0) { s.back.splice(i, 1); ev.push({ type: 'washed', nut: _palmNut(s) }); } }
+    // In flight between the planet and its moon: nothing else happens until it lands.
+    if (s.travel) {
+        s.travel.t -= dt;
+        if (s.travel.t <= 0) {
+            const tr = s.travel; s.travel = null; s.w = tr.to === 'moon' ? 1 : 0; s.lv = s.w ? s.lv0.moon : s.lv0;
+            Object.assign(c, { p: tr.land.slice(), h: floorAt(s, tr.land), vh: 0, air: false, coy: COYOTE_S, jbuf: 0, lifted: false, holeCd: 0.5 });
+            c.f = tangent(c.p, s.lv.goal || s.lv.face || TOP); c.face = c.f; s.cp = s.lv.arriveCp != null ? s.lv.arriveCp : 0;
+            ev.push({ type: 'arrive', w: s.w });
+        }
+        return ev;
+    }
 
     // The floating logs drift on; a crab standing on one goes with it.
     if (lv.logs) {
@@ -557,7 +601,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     }
     if (cu) move(walk(c.p, cu.d, (cu.speed * dt) / R));          // (the eddy by the cove is for coconuts: a crab is only ever swept past it)
     c.wet = !!cu;
-    for (const n of s.nuts.slice()) _nut(s, n, dt, ev);
+    for (const n of s.nuts.slice()) if ((n.w || 0) === (s.w || 0)) _nut(s, n, dt, ev);
 
     // The ground under the crab: walk up onto a rock, or off its edge and fall.
     if (!c.climb) c.climbing = false;
@@ -575,7 +619,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
         c.air = true; c.vh = 8; c.h += 8 * dt;
     } else if (c.air) {
         const was = c.h;
-        c.vh -= G * dt; c.h += c.vh * dt;
+        c.vh -= gOf(s) * dt; c.h += c.vh * dt;
         const g = s.gull;
         const fly = s.nuts.find(n => n.state === 'fly' && !n.used && n.age > 0.2 && dist(n.p, c.p) < TRICK_R && c.h >= n.h - 0.15 && c.h - n.h < TRICK_GAP);
         if (fly) { fly.used = true; fly.vh = -5; c.vh = BOUNCE_V; ev.push({ type: 'trick', nut: fly, h: c.h }); }
@@ -592,6 +636,9 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     // Standing on a lift vent that is not the one blowing: say so, once.
     const stand = (lv.vents || []).find(x => x.lift && dist(c.p, x.p) < x.r);
     if (stand && stand !== v && !c.air) { if (s.calm !== stand.id) { s.calm = stand.id; ev.push({ type: 'calm', vent: stand, blowing: v }); } } else if (!stand) s.calm = null;
+    // A launch pad: step on, and fly to the moon (or home). What's in the claws goes too.
+    if (!c.air && !c.holeCd) { const lp = (lv.launch || []).find(k => dist(c.p, k.p) < k.r && c.h <= floorAt(s, k.p) + 0.1);
+        if (lp) { s.travel = { t: TRAVEL_S, to: lp.to, land: lp.land }; ev.push({ type: 'launch', to: lp.to, p: lp.p }); return ev; } }
     // Holes: into one, out of its far end, facing on, popped up (the faster it fell in, the higher it comes out).
     c.holeCd = Math.max(0, (c.holeCd || 0) - dt);
     if (c.holeCd <= 0 && c.h <= floorAt(s, c.p) + 0.05) { const hole = _holeAt(s, c.p, false);
@@ -602,7 +649,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     if (!c.air && (lv.pools || []).some(q => dist(c.p, q.p) < q.r) && c.h < floorAt(s, c.p) + 0.05) { _reset(s, ev, 'sink'); return ev; }      // (a deep pool)
     if (!c.air && c.h < 0.05) { const dw = currentAt(s, c.p); if (dw && dw.deep) { _reset(s, ev, 'sink'); return ev; } }
     // Golden shells: touch one (at its height) to take it.
-    (lv.gold || []).forEach((g, i) => { if (!s.gold.includes(i) && dist(c.p, g.p) < 0.75 && Math.abs(c.h - (g.h || 0)) < 0.9) { s.gold.push(i); ev.push({ type: 'gold', i, p: g.p, h: g.h || 0 }); } });
+    (lv.gold || []).forEach((g, j) => { const i = (s.w ? 100 : 0) + j; if (!s.gold.includes(i) && dist(c.p, g.p) < 0.75 && Math.abs(c.h - (g.h || 0)) < 0.9) { s.gold.push(i); ev.push({ type: 'gold', i, p: g.p, h: g.h || 0 }); } });
     // A coconut lying inside a shut gate the crab is outside of is out of reach: it rolls out to the gate's foot.
     for (const n of s.nuts) if (n.state === 'rest') for (const w of lv.rings || []) {
         if (!w.gate || !up(s, w)) continue;
@@ -617,7 +664,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     }
     // Picking coconuts up: walk into one that is lying or floating.
     if (!c.air && c.nuts < CARRY) {
-        const n = s.nuts.find(x => (x.state === 'rest' || x.state === 'float') && x.age > PICK_AGE && dist(x.p, c.p) < PICK_R);
+        const n = s.nuts.find(x => (x.w || 0) === (s.w || 0) && (x.state === 'rest' || x.state === 'float') && x.age > PICK_AGE && dist(x.p, c.p) < PICK_R);
         if (n) { s.nuts.splice(s.nuts.indexOf(n), 1); c.nuts++; ev.push({ type: 'pick', nut: n }); }
     }
     if (s.gull) _gull(s, dt, ev);
@@ -626,12 +673,12 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
 
     // Plates: held down by the crab on the ground, or a coconut at rest.
     for (const pl of lv.plates || []) {
-        const ph = floorAt(s, pl.p), on = (!c.air && dist(c.p, pl.p) < pl.r && Math.abs(c.h - ph) < 0.3) || s.nuts.some(n => n.state === 'rest' && dist(n.p, pl.p) < pl.r && Math.abs(n.h - ph) < 0.3);
+        const ph = floorAt(s, pl.p), on = (!c.air && dist(c.p, pl.p) < pl.r && Math.abs(c.h - ph) < 0.3) || s.nuts.some(n => (n.w || 0) === (s.w || 0) && n.state === 'rest' && dist(n.p, pl.p) < pl.r && Math.abs(n.h - ph) < 0.3);
         const gs = gatesOf(pl);
         if (on !== !!s.held[gs[0]]) { for (const g of gs) s.held[g] = on; ev.push({ type: on ? 'press' : 'release', plate: pl }); }
     }
-    lv.checks.forEach((p, i) => { const z = lv.zones && lv.zones[i], dT = dist(c.p, TOP); if (i > s.cp && !c.air && (dist(c.p, p) < CHECK_R || (z && dT > z[0] && dT < z[1]))) { s.cp = i; ev.push({ type: 'check', i, p }); } });
-    if (!c.air && dist(c.p, lv.goal) < GOAL_R && (!s.boss || s.boss.state === 'down')) { s.won = true; ev.push({ type: 'won', t: s.t, falls: s.falls }); }
+    (lv.checks || []).forEach((p, i) => { const z = lv.zones && lv.zones[i], dT = dist(c.p, TOP); if (i > s.cp && !c.air && (dist(c.p, p) < CHECK_R || (z && dT > z[0] && dT < z[1]))) { s.cp = i; ev.push({ type: 'check', i, p }); } });
+    if (!c.air && lv.goal && dist(c.p, lv.goal) < GOAL_R && (!s.boss || s.boss.state === 'down')) { s.won = true; ev.push({ type: 'won', t: s.t, falls: s.falls }); }
     return ev;
 }
 

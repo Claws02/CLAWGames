@@ -194,3 +194,12 @@ spot a coconut thrown into a blowhole flies up inside the reef wall into the lid
 pit on its plate (the gold fence round the pearl). A sinkhole inside leads back out, and coconuts that end up inside while the lid
 is shut wash back to the spot. Pieces: `holes: [{ p, r, nutOnly?, lid?, to? }]` (the far end is `-p` unless `to`), drains with
 `unless` (only while a gate is shut). Proven in `qa/lair-world1.mjs`.
+
+**6. Moon Pool** (built): a chamber can have a **moon** (`moon: { ...a second level }`), reached by **launch pads**
+(`launch: [{ p, r, to: 'moon' | 'home', land }]`). Stepping on one flies the crab (and what's in its claws) to the other world in
+`TRAVEL_S`; a coconut that lands on one flies over on its own. **Gates are shared between the worlds** (a plate on the moon holds a
+fence on the planet), each world keeps its own coconuts lying about (`n.w`), and a world can have its own **gravity** (the moon's is
+half: jumps go twice as high, so its crater's 2.2 rim is an easy hop). The screen is rebuilt for whichever world the crab is in
+(the state carries over), and each world shows the other in its sky; the moon has a dark starry sky and craters. The answer: fly
+up with the coconuts, hop into the crater, a coconut on its plate, fly home, the pearl. Golden shells: the moon's pillar (a moon
+bounce), floating over the crater's far rim (a moon jump), the coral post on the planet.
