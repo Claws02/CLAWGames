@@ -133,6 +133,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             { y0: 0.95, h: 1.15, thick: 0.12, color: C.cliff, depth: 1.25, inset: 0.58, wide: 1.25 },
             { y0: 1.9, h: 0.8, thick: 0.11, color: [C.moss, C.mossDark], depth: 1.3, inset: 0.7, wide: 1.5 }], 0.7);
         else if (kind === 'crater') boulderWall(w, kind, [{ y0: 0, h: 1.4, thick: 0.1, color: [0x9d94c2, 0x8a81b2, 0xb2aad4], depth: 1.6, wide: 1.4 }, { y0: 1.0, h: 1.0, thick: 0.09, color: [0xc2bbdc, 0xb0a8d0], depth: 1.1, inset: 0.2, wide: 1.3 }], 0.6);
+        else if (kind === 'coralLow') boulderWall(w, kind, [{ y0: 0, h: 1.2, thick: 0.08, color: [0xff7f9e, 0xf06a8c, 0xffb35c], depth: 0.8, wide: 1.3 }, { y0: 0.9, h: 0.6, thick: 0.07, color: [0xb98be6, 0x6fe0c5], depth: 0.6, inset: 0.05, wide: 1.2 }], 0.42);
         else if (kind === 'coral') boulderWall(w, kind, [
             { y0: 0, h: 1.5, thick: 0.1, color: [0xff7f9e, 0xf06a8c, 0xff9bb3], depth: 1.4, wide: 1.4 },
             { y0: 1.1, h: 1.3, thick: 0.1, color: [0xb98be6, 0xa877dc, 0xcaa2ef], depth: 1.1, inset: 0.15, wide: 1.3 },
@@ -451,6 +452,12 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         if (kind === 'target') { const rg = new T.Mesh(G.ring, basic(GATE_COLOR[g] || 0xffffff, { transparent: true, opacity: 0.9, depthWrite: false, side: T.DoubleSide })); rg.scale.setScalar(0.6); put(rg, sw.p, null, 0.1); scene.add(rg); }
         signals.push({ kind, sw, g, dots });
     }
+    const remotes = (level.rings || []).filter(w => w.gate && w.remote).map(w => {
+        const pad = (level.launch || [])[0]; if (!pad) return { w };
+        const c0 = w.c || TOP, from = around(c0, w.r + 0.4, K.lonOf(pad.p, c0)), len = K.dist(from, pad.p), n = Math.max(2, Math.floor((len - 1.2) / 0.45)), dots = [];
+        for (let k = 0; k <= n; k++) { const f = (0.1 + k * (len - 1.2) / n) / len, p = norm(mix(from, pad.p, 1 - f, f)), d = new T.Mesh(G.disc, basic(GATE_COLOR[w.gate] || 0xffc83a, { transparent: true, opacity: 0.55, depthWrite: false })); d.scale.setScalar(0.16); put(d, p, null, fl(p) + 0.1); scene.add(d); dots.push(d); }
+        return { w, dots, said: false };
+    });
     const pearl = new T.Group();
     { const orb = Y.part(G.sph, Y.toon(C.pearl, { emissive: new T.Color(0xff8ad8).multiplyScalar(0.5) }), 0.05); orb.scale.setScalar(1.0); orb.position.y = 0.95; pearl.add(orb);
       const shine = new T.Mesh(G.sph, basic(0xffffff)); shine.scale.setScalar(0.22); shine.position.set(-0.2, 1.18, 0.2); pearl.add(shine);
@@ -687,6 +694,10 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         padMeshes.forEach(v => { v.wob = Math.max(0, v.wob - dt * 3); v.g.scale.set(1 + v.wob * 0.15, 1 - v.wob * 0.4, 1 + v.wob * 0.15); });
         holeVis.forEach(v => { if (v.lid) { const open = !K.up(s, { gate: v.h.lid }); v.k += ((open ? 1 : 0) - v.k) * Math.min(1, dt * 4); v.lid.position.y = -v.k * (v.h.r + 0.3); v.lid.visible = v.k < 0.98; } v.sw.rotation.y = t * 1.5; });
         launchVis.forEach(v => v.g.children.forEach(ch => { if (ch.userData.j != null) { ch.position.y = 0.5 + ((ch.userData.j * 0.45 + t * 0.9) % 1.35); ch.material.opacity = 0.9 - (ch.position.y - 0.5) / 1.6; } }));
+        remotes.forEach(v => {
+            const shut = K.up(s, v.w); (v.dots || []).forEach((d, k) => { d.visible = shut; d.material.opacity = 0.4 + 0.4 * Math.max(0, Math.sin(t * 5 - k * 0.6)); });
+            if (shut && !v.said && Math.abs(K.dist(c.p, v.w.c || TOP) - v.w.r) < 1.6) { v.said = true; hooks.hint(v.w.remote === 'moon' ? '🌙 THIS FENCE\'S SWITCH IS ON THE MOON: FOLLOW THE DOTS TO THE LAUNCH PAD' : '🔒 THIS GATE\'S SWITCH IS SOMEWHERE ELSE', 4); }
+        });
         spots.forEach(v => {
             const on = K.dist(c.p, v.sp.p) < 0.8, done = !!s.open[v.sp.gate];
             v.ring.scale.setScalar(0.75 + 0.06 * Math.sin(t * (on ? 9 : 4))); v.g.visible = !done;

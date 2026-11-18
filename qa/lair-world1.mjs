@@ -225,6 +225,13 @@ const sink = () => {
   ok(note.gold, '   a coconut into the pit\'s blowhole comes up in the walled pit on its plate: the gold fence drops');
   ok(note.inside && s.won && s.falls === 0, `   into the big sinkhole: out by the pearl (${s.t.toFixed(0)} s, no falls)`);
   { const q = K.create(SINK); q.crab.p = at(18.0, 0).slice(); for (let i = 0; i < 120; i++) K.step(q, DT, stickTo(q, at(15, 0))); ok(K.dist(q.crab.p, TOP) > 7, '   with the lid shut the crab walks over the big sinkhole'); }
+  { // inside the reef wall: lob a coconut over the pit's low wall onto its plate (the aim turns green for it)
+    const q = K.create(SINK); q.open.lid = 99; q.cp = 1; const pit = SINK.plates[0].p; q.crab.p = P.walk(pit, P.toward(pit, TOP), 2.2 / K.R); q.crab.nuts = 1;
+    const f = aimFor(q, pit, x => !!x.held.gold, { a0: -10, a1: 10, da: 2 }); let green = false;
+    if (f) { turnTo(q, pit, f.a); green = K.aim(q, f.ch).hit; K.throwNut(q, f.ch); run(q, 2.5); }
+    ok(q.held.gold && green, '   from inside the reef wall a coconut lobbed over the pit\'s low wall lands on its plate (and the aim turns green for that throw): the gold fence drops');
+    const r = K.create(SINK); r.open.lid = 99; r.cp = 1; r.crab.p = P.walk(pit, P.toward(pit, TOP), 1.4 / K.R); K.jump(r); for (let i = 0; i < 90; i++) K.step(r, DT, stickTo(r, pit));
+    ok(!r.held.gold && K.dist(r.crab.p, pit) > 0.9, '   a crab can\'t just jump into the pit (its wall is 1.6, a jump goes 1.3)'); }
   { const q = K.create(SINK); q.crab.p = at(SINK.spots[0].p ? 18.0 : 18, 60).slice(); for (let i = 0; i < 120; i++) K.step(q, DT, stickTo(q, SINK.holes[1].p)); ok(K.dist(q.crab.p, TOP) > 7, '   a blowhole is a grate: the crab walks over it, only coconuts go down'); }
   { let spot = 0, tries = 0; for (let a = -10; a <= 10; a += 2) for (let ch = 0; ch <= 0.6; ch += 0.05) { tries++; const q = K.create(SINK); q.crab.p = SINK.spots[0].p.slice(); q.crab.nuts = 1; turnTo(q, SINK.holes[1].p, a); K.throwNut(q, ch); run(q, 3); if (q.open.lid) spot++; }
     ok(spot >= tries * 0.15, `   from the spot, ${spot} of ${tries} throws at the blowhole open the lid (the aim turns green on them)`); }

@@ -244,20 +244,20 @@ export const YARD = {
 //       · a blowhole (a grate: coconuts only) that comes up inside the reef wall, flying on toward the lid's bullseye
 //       · a blowhole that comes up in a walled pit, on its plate
 //   the reef wall, all the way round (nothing climbs it)               6.8
-//   inside: the lid's bullseye, the pit (its plate holds the gold fence), a sinkhole back out, the gold fence and the pearl
+//   inside: the lid's bullseye, the pit with a low wall (its plate holds the gold fence), a sinkhole back out, the gold fence and the pearl
 // THE ANSWER. Throw a coconut into the blowhole from its painted spot: it shoots up inside the reef wall into the bullseye, and the
-// lid opens. Throw one into the pit's blowhole: it comes up on the pit's plate, and the gold fence drops. Jump in the big sinkhole:
-// out you come by the pearl.
+// lid opens. Jump in the big sinkhole: out you come by the pearl. Lob a coconut over the pit's low wall onto its plate (or, from the
+// beach, throw one into the pit's blowhole: it comes up on the plate): the gold fence drops.
 const PIR = Math.PI * R, anti = (d, lon) => at(PIR - d, lon + 180);
 const PITC = at(4.2, 90), H_MAIN = at(16.8, 0), H_THROW = at(15.4, 60), LIDT = at(6.0, -120), THROWSPOT = at(18.4, 60);
 export const SINK = {
     id: 'sink', name: 'SINKHOLE REEF', world: 2, theme: 'reef', fast: 90, pay: 25, start: at(18.6, -20), goal: TOP, palm: at(17.4, -60), bank: 7,
     story: 'Old Ink fled deep into the coral caves. Here the pearl is right under your feet: through the planet.',
-    hints: ['A sinkhole goes straight through the planet and comes up on the far side, by the pearl. This one is shut by a crystal lid.', 'Blowholes (the grates) only take coconuts. A coconut thrown in comes out of the far side still flying the same way.', 'Stand on the painted spot and throw into the blowhole: it flies up into the bullseye on the far side. The aim turns green when it will.', 'The other blowhole comes up in the walled pit, right on its plate.', 'Golden shells: over the far end of the sinkhole (jump in from up high and you fly out higher), on the coral post (bounce off the jelly), and over the pit\'s blowhole.'],
+    hints: ['A sinkhole goes straight through the planet and comes up on the far side, by the pearl. This one is shut by a crystal lid.', 'Blowholes (the grates) only take coconuts. A coconut thrown in comes out of the far side still flying the same way.', 'Stand on the painted spot and throw into the blowhole: it flies up into the bullseye on the far side. The aim turns green when it will.', 'The plate in the walled pit holds the gold fence open: lob a coconut over the pit\'s low wall (the aim turns green), or throw one into the other blowhole on the beach: it comes up right on the plate.', 'Golden shells: over the far end of the sinkhole (jump in from up high and you fly out higher), on the coral post (bounce off the jelly), and over the pit\'s blowhole.'],
     ground: [[1.8, 'dais'], [6.8, 'stone'], [99, 'sand']],
     checks: [at(18.6, -20), at(3.4, 175)], zones: { 1: [1.9, 6.7] },
     rings: [
-        { r: 6.8, h: 20, kind: 'coral' }, { c: PITC, r: 0.9, h: 20, kind: 'coral' }, { r: 1.8, h: 20, gate: 'gold', kind: 'gate' },
+        { r: 6.8, h: 20, kind: 'coral' }, { c: PITC, r: 1.0, h: 1.6, kind: 'coralLow' }, { r: 1.8, h: 20, gate: 'gold', kind: 'gate' },
     ],
     holes: [
         { p: H_MAIN, r: 0.75, lid: 'lid' },
@@ -297,7 +297,7 @@ export const MOONPOOL = {
     hints: ['Step on the launch pad to fly to the moon. Whatever is in your claws comes too.', 'The moon\'s gravity is weak: you jump twice as high there.', 'Inside the moon\'s crater, a coconut on the plate holds the gold fence open, back on the planet.', 'Take the pad on the moon to come home. A coconut thrown onto a launch pad flies over on its own.', 'Golden shells: on the moon\'s pillar (bounce on a coconut up there), floating over the far rim of the crater (a moon jump), and on the coral post here (bounce off the jelly).'],
     ground: [[1.8, 'dais'], [5, 'stone'], [99, 'sand']],
     checks: [at(18.4, 0), at(15.2, 30)],
-    rings: [{ r: 5, h: 20, gap: [180, 12], kind: 'coral' }, { r: 1.8, h: 20, gate: 'gold', kind: 'gate' }],
+    rings: [{ r: 5, h: 20, gap: [180, 12], kind: 'coral' }, { r: 1.8, h: 20, gate: 'gold', kind: 'gate', remote: 'moon' }],
     launch: [{ p: at(15.4, 0), r: 0.85, to: 'moon', land: at(17.4, 20) }],
     posts: [{ p: at(13.2, 110), r: 0.5, h: 3 }],
     pads: [{ p: at(14.2, 110), r: 0.7 }],
@@ -414,7 +414,8 @@ export function aim(s, charge = 0) {
     const t = { ...s, nuts: [], back: [], open: { ...s.open }, held: { ...s.held }, plug: { ...s.plug }, dmg: { ...s.dmg }, stuckIn: { ...s.stuckIn }, gold: [...s.gold], crab: { ...s.crab, nuts: 1 }, gull: null, boss: null, throws: 0, id: 1 };
     const n = throwNut(t, charge), path = []; let bank = null, sent = null;
     for (let i = 0; i < 240 && n.state === 'fly'; i++) { const ev = []; _nut(t, n, 1 / 60, ev); if (!bank && ev.some(e => e.type === 'bank')) bank = [n.p, n.h]; const nl = ev.find(e => e.type === 'nut-launch'); if (nl) sent = nl.p; if (i % 3 === 0) path.push([n.p, n.h]); }
-    return { p: sent || n.p, path, bank, wet: n.state === 'float', hit: n.state === 'stuck' || n.state === 'plug' || !!sent };      // (sent: it lands on a launch pad and flies off)     // (hit: it would end in a bullseye)
+    const onPlate = n.state === 'rest' && (t.lv.plates || []).some(pl => dist(n.p, pl.p) < pl.r && Math.abs(n.h - floorAt(t, pl.p)) < 0.3);
+    return { p: sent || n.p, path, bank, wet: n.state === 'float', hit: n.state === 'stuck' || n.state === 'plug' || !!sent || onPlate };      // (sent: it lands on a launch pad and flies off)     // (hit: it would end in a bullseye)
 }
 
 function _lose(s, n, ev, why) { s.nuts.splice(s.nuts.indexOf(n), 1); s.back.push(RESPAWN_S); ev.push({ type: 'lost', nut: n, p: n.p, why }); }

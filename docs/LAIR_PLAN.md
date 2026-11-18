@@ -203,3 +203,10 @@ half: jumps go twice as high, so its crater's 2.2 rim is an easy hop). The scree
 (the state carries over), and each world shows the other in its sky; the moon has a dark starry sky and craters. The answer: fly
 up with the coconuts, hop into the crater, a coconut on its plate, fly home, the pearl. Golden shells: the moon's pillar (a moon
 bounce), floating over the crater's far rim (a moon jump), the coral post on the planet.
+
+### After the eleventh play-test (couldn't open the last gate in the coral caves)
+- Sinkhole Reef: the pit's plate could only be reached through a blowhole back on the beach, and nothing said so. The pit's wall is
+  now low (1.6: too high to jump, easy to lob over), so from inside the reef wall a coconut lobbed over it lands on the plate. The
+  blowhole still works too. The aim turns green when a throw will come to rest on a plate (any chamber).
+- Moon Pool: the gold fence's switch is on the moon. A gate can say so (`remote: 'moon'`): dots run from it to the launch pad, and
+  coming up to it says "this fence's switch is on the moon".
