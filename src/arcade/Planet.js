@@ -105,6 +105,7 @@ export function mount(el) {
         <div class="tp-zones" id="tp-zones" hidden><span>☝️ LEFT THUMB<br>TO WALK</span><span>👀 RIGHT THUMB<br>TO LOOK AROUND</span></div>
         <div class="tp-tip" id="tp-tip" hidden></div>
         <div class="tp-sign" id="tp-sign" hidden></div>
+        <div class="tp-pearldir" id="tp-pearldir" hidden><i>▲</i><b>🔮</b><small></small></div>
         <div class="tp-hint" id="tp-hint"></div>
         <div class="tp-acts" id="tp-acts">
             <div class="tp-bar" id="tp-bar">
@@ -265,7 +266,7 @@ export function pause() {
 export function resume() { if (!_paused) return; _paused = false; $('tp-over').hidden = true; _last = performance.now(); }
 function _leave() { _autosave(); document.querySelector('#scr-sologame [data-back]')?.click(); }
 
-function _hud_show(on) { $('tp-sign').hidden = true; _signT = 0; $('tp-trial').hidden = true; $('tp-top').classList.remove('trial'); $('tp-goal').classList.remove('wide'); $('btn-tp-act').style.removeProperty('--k'); $('btn-tp-act').hidden = false; ['tp-top', 'tp-bar', 'tp-acts', 'tp-goal'].forEach(id => { $(id).hidden = !on; }); if (!on) { $('tp-hint').textContent = ''; $('tp-tip').hidden = true; } }
+function _hud_show(on) { $('tp-pearldir').hidden = true; $('tp-sign').hidden = true; _signT = 0; $('tp-trial').hidden = true; $('tp-top').classList.remove('trial'); $('tp-goal').classList.remove('wide'); $('btn-tp-act').style.removeProperty('--k'); $('btn-tp-act').hidden = false; ['tp-top', 'tp-bar', 'tp-acts', 'tp-goal'].forEach(id => { $(id).hidden = !on; }); if (!on) { $('tp-hint').textContent = ''; $('tp-tip').hidden = true; } }
 
 function _menu() {
     // The autopilot's island, behind the card.
@@ -383,12 +384,19 @@ export function lairPieces(lv) {
     add((lv.targets || []).some(x => x.secs), '⏱️', 'TIMED GATE'); add(lv.boss, '🐙', 'OLD INK'); add((lv.gold || []).length, '✨🐚', `GOLDEN SHELLS ×${(lv.gold || []).length}`);
     return out;
 }
-let _signT = 0;
+let _signT = 0, _signShown = false;
+/** The pearl compass: an arrow at the top of the screen that points the way to the pearl, and how far it is. */
+function _pearlDir() {
+    const el = $('tp-pearldir'), s = _trial.state(), c = s.crab, goal = _trial.level.goal || LL.TOP, d = LL.dist(c.p, goal);
+    if (s.won || d < 2.2) { el.hidden = true; return; }
+    const to = L.tangent(c.p, goal), right = L.cross(c.f, c.p), a = Math.atan2(L.dot(to, right), L.dot(to, c.f));
+    el.hidden = false; el.firstElementChild.style.transform = `rotate(${a}rad)`; el.lastElementChild.textContent = `${Math.round(d)} m`;
+}
 function _showSign(lv, i) {
     const el = $('tp-sign');
     el.innerHTML = `<div class="tp-sign-n bfont">${i + 1}<small>/${LL.CHAMBERS.length}</small></div><div class="tp-sign-w">WORLD ${lv.world || 1}</div><div class="tp-sign-t bfont">${lv.name}</div>
         <div class="tp-sign-ic">${lairPieces(lv).map(([ic, nm]) => `<span><b>${ic}</b>${nm}</span>`).join('')}</div><div class="tp-sign-g">🎯 THE TIDE PEARL</div>`;
-    el.hidden = false; el.classList.remove('out'); _signT = 4.8;
+    el.hidden = true; el.classList.remove('out'); _signT = 8; _signShown = false;          // (it slides in once the opening look at the pearl is over)
 }
 /** Start chamber i (0-based). */
 export function playTrial(i) {
@@ -529,7 +537,8 @@ function _frame(dt) {
             if (_keys.l || _keys.r || _keys.u || _keys.d) stick = { x: (_keys.r ? 1 : 0) - (_keys.l ? 1 : 0), y: (_keys.u ? 1 : 0) - (_keys.d ? 1 : 0) };
             _trial.frame(_paused ? 0 : dt, stick);
             _lairHud();
-            if (_signT > 0 && !_paused) { _signT -= dt; if (_signT <= 0.5 && !$('tp-sign').classList.contains('out')) $('tp-sign').classList.add('out'); if (_signT <= 0) $('tp-sign').hidden = true; }
+            _pearlDir();
+            if (_signT > 0 && !_paused) { _signT -= dt; if (_signT <= 4.8 && !_signShown) { _signShown = true; $('tp-sign').hidden = false; } if (_signT <= 0.5 && !$('tp-sign').classList.contains('out')) $('tp-sign').classList.add('out'); if (_signT <= 0) $('tp-sign').hidden = true; }
         } else if (_gl) _draw(0);
         return;
     }

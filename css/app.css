@@ -1197,3 +1197,8 @@ body.tv #tv-seats { display: grid; grid-template-columns: repeat(auto-fill, minm
 @keyframes tp-sign-in { from { transform: translateX(120%); } to { transform: none; } }
 @keyframes tp-sign-out { to { transform: translateX(120%); opacity: 0; } }
 @media (max-height: 560px) { .tp-sign { top: calc(var(--st, 0px) + 60px); } .tp-sign-ic { flex-direction: row; flex-wrap: wrap; } .tp-sign-ic span { font-size: 0; gap: 0; } }
+
+/* the pearl compass: points the way to the pearl from wherever the crab is */
+.tp-pearldir { position: absolute; left: 10px; top: calc(var(--st, 0px) + 112px); width: 54px; padding: 4px 0 3px; border: 3px solid var(--ink); border-radius: 14px; background: rgba(255, 255, 255, .92); box-shadow: 0 3px 0 var(--ink); color: var(--ink); text-align: center; pointer-events: none; display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.tp-pearldir i { font-style: normal; font-size: 20px; color: #ff4fb4; display: block; transition: transform .12s linear; -webkit-text-stroke: 1px var(--ink); }
+.tp-pearldir b { font-size: 16px; } .tp-pearldir small { font-size: 10px; font-weight: 900; }

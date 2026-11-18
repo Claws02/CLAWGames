@@ -159,3 +159,17 @@ Bubble Stream and Gull Yard are next, as a river and as sea stacks, once Caleb h
   post (bounce off a jelly pad), in a cage opened by the bullseye riding a log, over the river (steer through it on vent B).
 - Proven by `qa/lair-world1.mjs`: the answer, and that each shortcut is shut (no direct throw into vent A, no bounce onto the mesa
   or over the gold fence, no throw over the cove wall, nothing from the terrace onto the pillar, every cove hit is a bank shot).
+
+## The bank shot remodelled, and the goal always in view (after the ninth play-test)
+Caleb found the spiked-lane bank shot confusing, skipped it with a coconut (a trick-shot bounce onto the mesa), and couldn't
+see where the pearl was. Now:
+- **The bank shot reads at a glance**: a painted throw spot with crab footprints, a big yellow bumper with arrows (in the way a
+  coconut glances off) standing in a deep pool, and the bullseye at the end of a short chute that faces only the bumper. Yellow
+  dots on the ground run spot → bumper → bullseye. The aim preview turns **green** when a throw will end in a bullseye (any
+  chamber). A coconut that falls in the pool washes back up at the spot. A bullseye can be `tall` (it catches over a bigger height).
+- **No skipping**: the green fence now runs round the whole mesa (the bullseye holds it open), so no bounce or trick shot gets
+  onto the mesa early. `qa/lair-world1.mjs` throws at the bullseye from all over the terrace: nothing gets in except off the bumper.
+- **The goal in view**: every chamber opens on the pearl and swoops over the planet to the crab (the arrival card waits until
+  the swoop is done), and a 🔮 compass at the top left always points to the pearl with its distance.
+- Fixed: the ground height at the very centre of a ledge read as 0, so the pearl sat inside the mesa.
+- New pieces: `pools` (deep, round, coconuts wash to `to`), bumper and chute bars, `spots` (a painted throw spot and its guide).
