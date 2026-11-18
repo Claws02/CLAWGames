@@ -143,3 +143,19 @@ Bubble Stream and Gull Yard are next, as a river and as sea stacks, once Caleb h
   Bullseyes get a ring in their gate's colour.
 - **Arrival card** (Portal's chamber sign): the chamber number, world, name and an icon for every piece in it, built from the
   chamber's own data (`lairPieces` in `Planet.js`), on the right for five seconds when you arrive.
+
+## Bubble Stream rebuilt: levels and trick shots (after the eighth play-test)
+- **Bullseyes hold their gate only while a coconut is in them.** Walk into one to take the coconut back; the gate shuts again.
+- **Height:** chambers can have terraces (`ledges`), ramps (a ledge with `h1`: the height runs from `h` at `r0` to `h1` at `r1`),
+  shelves and stone posts (`posts`, a pillar is a tall one). Throws land level with the floor you stand on, so a throw from a
+  terrace arcs out and carries further. The camera stays above terraces and looks down when a cliff is behind the crab.
+- **Trick-shot pieces:** jelly pads (`pads`: a coconut landing on one is thrown up and on; a crab stepping on one is bounced),
+  bank shots (coconuts bounce properly off posts, ledge sides and walls), moving bullseyes (`log: i` rides a log), hanging coconuts
+  (`hangs`: knock one loose and it drops), urchins that are safe for coconuts (`nutSafe`) and `drains` that roll a coconut out of a
+  place no crab can reach.
+- **The new Bubble Stream** (a river valley on three levels): off the jelly pad into vent A on its shelf; ride vent B over the deep
+  river onto the terrace; bank a coconut off the post down the spiked lane into the cove's bullseye (the green gate drops); up the
+  ramp to the mesa; knock the hanging coconut onto the pillar's plate (or lob one) and the gold fence drops. Golden shells: on a
+  post (bounce off a jelly pad), in a cage opened by the bullseye riding a log, over the river (steer through it on vent B).
+- Proven by `qa/lair-world1.mjs`: the answer, and that each shortcut is shut (no direct throw into vent A, no bounce onto the mesa
+  or over the gold fence, no throw over the cove wall, nothing from the terrace onto the pillar, every cove hit is a bank shot).

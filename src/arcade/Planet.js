@@ -377,6 +377,8 @@ export function lairPieces(lv) {
     add((lv.blocks || []).length, '📦', 'SAND BLOCK'); add(r.some(w => w.kind === 'step'), '🪜', 'TALL STEP'); add(r.some(w => w.kind === 'cliff'), '⛰️', 'CLIFF');
     add((lv.currents || []).some(c => c.deep), '💧', 'DEEP WATER'); add((lv.currents || []).some(c => !c.deep), '🌊', 'CURRENT'); add((lv.logs || []).length, '🪵', 'LOGS');
     add((lv.rocks || []).length, '🪨', 'STEPPING ROCKS'); add((lv.eddies || []).length, '🌀', 'EDDY'); add((lv.urchins || []).length, '✴️', 'URCHINS');
+    add((lv.ledges || []).some(l => l.h1 == null && l.r1 - l.r0 > 1.6), '⛰️', 'TERRACES'); add((lv.ledges || []).some(l => l.h1 != null), '↗️', 'RAMP'); add((lv.pads || []).length, '🟣', 'JELLY PADS'); add((lv.posts || []).length, '🗿', 'STONE POSTS');
+    add((lv.hangs || []).length, '🌴', 'HANGING COCONUT'); add((lv.targets || []).some(x => x.log != null), '🎯', 'MOVING BULLSEYE'); add((lv.drains || []).length && (lv.targets || []).length, '↩️', 'BANK SHOT');
     add((lv.vents || []).length, '🫧', 'VENTS'); add(lv.gull, '🐦', 'GULL'); add((lv.plates || []).length, '⏺️', 'PLATE'); add((lv.targets || []).some(x => !x.secs), '🎯', 'BULLSEYE');
     add((lv.targets || []).some(x => x.secs), '⏱️', 'TIMED GATE'); add(lv.boss, '🐙', 'OLD INK'); add((lv.gold || []).length, '✨🐚', `GOLDEN SHELLS ×${(lv.gold || []).length}`);
     return out;

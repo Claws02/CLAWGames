@@ -93,38 +93,92 @@ function gather2(s, ev) { for (let k = 0; k < 6 && s.crab.nuts < K.CARRY; k++) {
     const b = K.create(BEACH); b.crab.p = at(17.7 + 0.3, -42).slice(); K.jump(b); run(b, 1);
     ok(got && !b.gold.includes(0), '   the golden shell over the palm: a bounce on a coconut reaches it, a jump doesn\'t'); } }
 
-// ── 2. Bubble Stream ────────────────────────────────────────────────────────
-const stream = () => {
+// ── 2. Bubble Stream: the river valley on three levels ──────────────────────
+// the throw (an aim turned by `a` degrees from facing `at`, and a charge) that the simulation says does `want`; the state is copied
+const clone = s => ({ ...s, crab: { ...s.crab }, nuts: s.nuts.map(n => ({ ...n })), boss: s.boss ? { ...s.boss } : null, gull: null, back: [], open: { ...s.open }, held: { ...s.held }, plug: { ...s.plug }, dmg: { ...s.dmg }, stuckIn: { ...s.stuckIn }, gold: [...s.gold], blocks: s.blocks.map(b => ({ ...b })) });
+const turnTo = (s, p, a) => { face(s, p); const c = s.crab, side = P.cross(c.p, c.face), r = a * Math.PI / 180; c.face = P.tangent(c.p, P.mix(c.face, side, Math.cos(r), Math.sin(r))); };
+const aimFor = (s, p, want, { a0 = -30, a1 = 30, da = 2, secs = 3 } = {}) => {
+  for (let ch = 0; ch <= 1.001; ch += 0.05) for (let a = a0; a <= a1; a += da) { const q = clone(s); turnTo(q, p, a); if (!K.throwNut(q, ch)) return null; const e = run(q, secs); if (want(q, e)) return { a, ch }; }
+  return null;
+};
+const throwAim = (s, p, f, ev, secs = 2.5) => { turnTo(s, p, f.a); K.throwNut(s, f.ch); ev.push(...run(s, secs)); };
+const SA = () => STREAM.vents[0], SB = () => STREAM.vents[1];
+const BANKP = () => STREAM.posts[0].p, PILLARP = () => STREAM.plates[0].p, COVEP = () => STREAM.targets[0].p, LANE_INP = () => STREAM.drains[0].to;
+// walk round the terrace at distance d from the pearl to longitude lon, in steps (never straight across the mesa)
+const ringTo = (s, d, lon, ev = []) => { go(s, at(d, K.lonOf(s.crab.p)), ev, 0.2, 4); for (let k = 0; k < 40; k++) { const dl = ((lon - K.lonOf(s.crab.p) + 540) % 360) - 180; if (Math.abs(dl) < 2) break; go(s, at(d, K.lonOf(s.crab.p) + Math.sign(dl) * Math.min(12, Math.abs(dl))), ev, 0.25, 4); } return ev; };
+const stream = (opt = {}) => {
   const s = K.create(STREAM), ev = [], note = {};
   gather(s, ev);
-  const A = STREAM.vents[0], B = STREAM.vents[1];
-  note.blowing0 = K.blowing(s).id;
-  go(s, at(15.6, 55), ev); face(s, A.p); K.throwNut(s, chargeFor(s, A.p)); ev.push(...run(s, 1.2)); note.plug = !!s.plug.A; note.blowing1 = K.blowing(s).id;
-  go(s, at(12.9, 0), ev); hop(s, at(10.2, -4), ev); note.crossed = K.dist(s.crab.p, TOP) < 11 && !s.falls;
-  go(s, B.p, ev, 0.2, 3);
-  for (let i = 0; i < 4 / DT && s.crab.h < B.lift - 0.2; i++) ev.push(...K.step(s, DT));
-  let top = 0; for (let i = 0; i < 3 / DT && s.crab.air; i++) { ev.push(...K.step(s, DT, stickTo(s, at(7.4, 0)))); top = Math.max(top, s.crab.h); }
-  note.top = top; note.up = K.dist(s.crab.p, TOP) < 9.2; note.upN = s.crab.nuts;
-  const pl = STREAM.plates[0]; go(s, at(5.9, 30), ev); face(s, pl.p); K.throwNut(s, chargeFor(s, pl.p)); ev.push(...run(s, 1.2)); note.plate = !!s.held.plate;
+  // 1. off the jelly pad onto the shelf and into vent A
+  note.b0 = K.blowing(s).id;
+  go(s, at(18.0, 50), ev, 0.12, 10); const fA = aimFor(s, SA().p, q => !!q.plug.A, { a0: -10, a1: 10 }); if (fA) throwAim(s, SA().p, fA, ev);
+  note.plug = !!s.plug.A; note.viaPad = ev.some(e => e.type === 'pad'); note.b1 = K.blowing(s) && K.blowing(s).id;
+  if (opt.stopAtB) return { s, ev, note };
+  // 2. vent B over the river onto the terrace
+  go(s, SB().p, ev, 0.2, 10);
+  for (let i = 0; i < 4 / DT && s.crab.h < SB().lift - 0.2; i++) ev.push(...K.step(s, DT));
+  for (let i = 0; i < 4 / DT && s.crab.air; i++) ev.push(...K.step(s, DT, stickTo(s, at(8.4, 0))));
+  note.terrace = Math.abs(s.crab.h - 3.8) < 0.05 && !s.falls; note.tN = s.crab.nuts;
+  if (opt.stopAtTerrace) return { s, ev, note };
+  // 3. the bank shot from the open end of the lane
+  go(s, at(8.6, 40), ev, 0.2, 8); go(s, at(5.0, 50), ev, 0.2, 8); go(s, at(4.75, 66), ev, 0.12, 8);
+  let fB = null; for (let k = 0; k < 6 && !fB; k++) { fB = aimFor(s, BANKP(), q => !!q.open.green, { a0: -24, a1: 24, da: 1.5, secs: 2.5 }); if (!fB) go(s, at(4.75 + (k % 3) * 0.25, 64 + k * 1.5), ev, 0.1, 3); }
+  if (fB) throwAim(s, BANKP(), fB, ev); note.green = !!s.open.green; note.banked = (() => { const ti = ev.findIndex(e => e.type === 'target'), bi = ev.slice(0, ti).map(e => e.type).lastIndexOf('bank'); return ti >= 0 && bi >= 0; })();
+  if (opt.stopAtGreen) return { s, ev, note };
+  // 4. up the ramp to the mesa, and the pillar's plate (knock the hanging coconut down onto it)
+  go(s, at(5.4, 60), ev, 0.2, 4); ringTo(s, 5.2, 120, ev); ringTo(s, 7.2, 180, ev); go(s, at(5.4, 180), ev, 0.15, 6); go(s, at(3.6, 180), ev, 0.2, 6);
+  note.mesa = Math.abs(s.crab.h - 7.5) < 0.05;
+  ringTo(s, 2.6, -100, ev);
+  let fP = aimFor(s, PILLARP(), (q, e) => !!q.held.gold && e.some(x => x.type === 'knock'), { a0: -12, a1: 12, da: 2, secs: 3 });
+  if (fP) throwAim(s, PILLARP(), fP, ev, 3); note.gold = !!s.held.gold; note.knock = ev.some(e => e.type === 'knock');
   go(s, TOP, ev, 0.3, 8);
   return { s, ev, note };
 };
 { const { s, ev, note } = stream();
-  ok(note.blowing0 === 'A' && note.plug && note.blowing1 === 'B', '2. BUBBLE STREAM: vent A blows first; a coconut thrown into it plugs it, and then vent B blows');
-  ok(note.crossed, '   a jump crosses the stream');
-  ok(note.up && note.top > 8.5 && note.top < 9.6 && note.upN === 2, `   vent B lifts the crab ${note.top.toFixed(1)} high, over the 8.5 cliff, steering; up there with two coconuts`);
-  ok(note.plate && s.won && s.falls === 0, `   a coconut on the plate: the pearl (${s.t.toFixed(0)} s, no falls)`);
-  // what it must teach
-  const a = K.create(STREAM); a.crab.p = STREAM.vents[1].p.slice(); const e1 = run(a, 2);
-  ok(!has(e1, 'lift') && has(e1, 'calm'), '   standing on B while A blows: nothing, and it says only one vent blows');
-  const b = K.create(STREAM); b.crab.p = at(12.9, 0).slice(); const lon0 = K.lonOf(b.crab.p); for (let i = 0; i < 3 / DT && K.dist(b.crab.p, TOP) > 11; i++) K.step(b, DT, stickTo(b, at(10, K.lonOf(b.crab.p))));
-  ok(K.dist(b.crab.p, TOP) < 11.2 && K.lonOf(b.crab.p) - lon0 > 10 && !b.falls, `   wading across, the stream carries the crab downstream (${(K.lonOf(b.crab.p) - lon0).toFixed(0)}°), but there's time to get over`);
-  const c = K.create(STREAM); c.crab.p = at(11.8, 40).slice(); const e2 = run(c, 12);
-  ok(has(e2, 'ouch') && c.falls === 1, '   standing still in it, the stream carries the crab onto the urchins: back to the flag');
-  const d = K.create(STREAM); d.crab.nuts = 1; d.crab.p = at(13.9, 20).slice(); face(d, TOP); K.throwNut(d, 0.05); const e3 = run(d, 14);
-  ok(has(e3, 'plop') && has(e3, 'lost') && has(e3, 'washed'), '   a coconut that falls in floats away onto the urchins, and washes up under the palm again');
-  const f = K.create(STREAM); f.crab.p = at(12.8, -60).slice(); go(f, at(10, -60), [], 0.3, 4); go(f, at(10, 0), [], 0.3, 6);
-  ok(K.dist(f.crab.p, at(10, 0)) > 2, '   the dams stop a walk round the end of the stream'); }
+  ok(note.b0 === 'A' && note.plug && note.viaPad && note.b1 === 'B', '2. BUBBLE STREAM: a coconut off the jelly pad bounces up onto the shelf and plugs vent A; now vent B blows');
+  ok(note.terrace && note.tN === 2, '   vent B lifts the crab over the deep river; steering, it lands on the terrace (3.8 up) with two coconuts');
+  ok(note.green && note.banked, '   from the open end of the lane, a coconut banked off the stone post finds the bullseye in the cove: the green gate drops');
+  ok(note.mesa, '   up the ramp onto the mesa (7.5 up)');
+  ok(note.gold && note.knock, '   a coconut knocks the hanging one loose; it drops onto the pillar\'s plate and the gold fence drops');
+  ok(s.won && s.falls === 0, `   the pearl (${s.t.toFixed(0)} s, no falls)`);
+  // each piece does what it says, and nothing skips it
+  { let direct = 0, any = 0; for (let d = 16.8; d <= 19; d += 0.55) for (let lon = 50; lon <= 70; lon += 4) for (let ch = 0; ch <= 1; ch += 0.1) { const q = K.create(STREAM); q.crab.p = at(d, lon).slice(); q.crab.nuts = 1; face(q, SA().p); K.throwNut(q, ch); const e = run(q, 3); if (q.plug.A) { any++; if (!e.some(x => x.type === 'pad')) direct++; } }
+    ok(any > 0 && direct === 0, `   vent A is too high to throw to: of the throws from the beach that plug it (${any}), every one bounced off the jelly pad`); }
+  { const q = K.create(STREAM); q.crab.p = STREAM.pads[1].p.slice(); let top = 0; const e = []; for (let i = 0; i < 90; i++) { e.push(...K.step(q, DT)); top = Math.max(top, q.crab.h); }
+    ok(e.some(x => x.type === 'pad') && top > 2.6 && top < 3.4, `   a crab on the jelly pad bounces (${top.toFixed(1)} up): high enough for the post (3), not for the shelf (4) or the terrace (3.8)`);
+    const r = K.create(STREAM); r.crab.p = at(17.4, 110).slice(); r.crab.f = P.tangent(r.crab.p, TOP); const e2 = []; go(r, STREAM.pads[1].p, e2, 0.15, 3); for (let i = 0; i < 120; i++) e2.push(...K.step(r, DT, r.crab.vh < 0 && r.crab.h > 2.2 ? stickTo(r, STREAM.posts[2].p, 0.8) : { x: 0, y: 0 }));
+    ok(r.gold.includes(0) && Math.abs(r.crab.h - 3) < 0.05, '   bounce on it and steer onto the post: a golden shell'); }
+  { const q = K.create(STREAM); q.crab.p = SB().p.slice(); const e = run(q, 2); ok(!e.some(x => x.type === 'lift') && e.some(x => x.type === 'calm'), '   vent B is calm while A blows (and says so)'); }
+  { const q = K.create(STREAM); q.crab.p = at(12.7, 30).slice(); const e = run(q, 1.5, stickTo(q, TOP)); ok(e.some(x => x.type === 'sink'), '   the river is deep: wading in, back to the flag'); }
+  { const { s: q } = stream({ stopAtTerrace: true }); q.crab.nuts = 1; go(q, at(6.8, 0), [], 0.15, 6); face(q, TOP); K.throwNut(q, 0.02); run(q, 1); const n = q.nuts.filter(x => x.state === 'rest').sort((a, b) => K.dist(a.p, q.crab.p) - K.dist(b.p, q.crab.p))[0];
+    let top = 0; if (n) { go(q, P.walk(n.p, P.toward(TOP, n.p), 0.9 / K.R), [], 0.1, 3); hop(q, n.p); for (let i = 0; i < 120 && q.crab.air; i++) { K.step(q, DT, stickTo(q, TOP)); top = Math.max(top, q.crab.h); } }
+    ok(n && K.floorAt(q, q.crab.p) < 4 && top < 7.5, `   from the terrace a bounce on a coconut (${top.toFixed(1)} up) doesn't get onto the mesa (7.5): the ramp is the way`); }
+  { const { s: q } = stream({ stopAtTerrace: true }); ringTo(q, 7.2, 180); go(q, at(5.4, 180), [], 0.15, 4);
+    ok(K.dist(q.crab.p, TOP) > 6.5, '   the green gate stops the crab at the foot of the ramp');
+    const r = stream({ stopAtTerrace: true }).s; ringTo(r, 6.0, 165); go(r, at(5.6, 180), [], 0.15, 4); ok(K.floorAt(r, r.crab.p) < 4, '   and the rails stop it getting onto the ramp from the side'); }
+  { let hits = 0, banked = 0; for (const [d, lon] of [[4.75, 64], [5.0, 67], [5.3, 70], [4.9, 72]]) for (let a = -24; a <= 24; a += 3) for (let ch = 0; ch <= 0.8; ch += 0.1) {
+      const q = K.create(STREAM); q.cp = 1; q.crab.p = at(d, lon).slice(); q.crab.h = 3.8; q.crab.nuts = 1; turnTo(q, BANKP(), a); K.throwNut(q, ch); const e = run(q, 2.5); const ti = e.findIndex(x => x.type === 'target');
+      if (ti >= 0) { hits++; if (e.slice(0, ti).some(x => x.type === 'bank')) banked++; } }
+    ok(hits === banked, `   every throw from the lane's open end that finds the cove's bullseye banked off something first (${hits} of them)`); }
+  { let hit = 0; for (const [d, lon] of [[8.9, 92], [8.9, 100], [7.6, 104], [6.3, 96]]) for (let ch = 0; ch <= 1; ch += 0.1) for (let a = -30; a <= 30; a += 5) { const q = K.create(STREAM); q.cp = 1; q.crab.p = at(d, lon).slice(); q.crab.h = 3.8; q.crab.nuts = 1; turnTo(q, COVEP(), a); K.throwNut(q, ch); if (run(q, 2.5).some(x => x.type === 'target')) hit++; }
+    ok(hit === 0, '   from outside the cove a coconut can\'t be thrown over its wall onto the bullseye'); }
+  { const q = K.create(STREAM); q.cp = 1; q.crab.p = at(5.0, 40).slice(); q.crab.h = 3.8; for (const [p0, h0] of [[at(8.3, 92), 4.0], [at(7.6, 80), 5]]) q.nuts.push({ id: 900 + q.nuts.length, p: p0.slice(), d: P.tangent(p0, TOP), v: 0.05, h: h0, vh: 0, state: 'fly', age: 9, still: 0 }); run(q, 2); const n = q.nuts.filter(x => x.state === 'rest' && x.id >= 900).every(x => K.dist(x.p, LANE_INP()) < 0.5) && q.nuts.find(x => x.id >= 900);
+    ok(n && K.dist(n.p, LANE_INP()) < 0.5, '   a coconut that ends up in the lane or the cove rolls back out to the lane\'s open end (never out of reach)'); }
+  { let fromTerr = 0; for (let d = 5.6; d <= 9.4; d += 0.6) for (let lon = -100; lon <= -20; lon += 10) for (let ch = 0; ch <= 1; ch += 0.1) { if (K.dist(at(d, lon), PILLARP()) < 0.8) continue; const q = K.create(STREAM); q.cp = 1; q.crab.p = at(d, lon).slice(); q.crab.h = 3.8; q.crab.nuts = 1; face(q, PILLARP()); K.throwNut(q, ch); run(q, 3); if (q.held.gold) fromTerr++; }
+    ok(fromTerr === 0, '   from the terrace nothing reaches the pillar\'s plate: it\'s a job for the mesa'); }
+  { const q = K.create(STREAM); q.cp = 1; q.open.green = true; q.crab.p = at(2.2, 0).slice(); q.crab.h = 7.5; q.crab.nuts = 1; face(q, TOP); K.throwNut(q, 0.02); run(q, 1); const n = q.nuts.find(x => x.state === 'rest' && K.dist(x.p, TOP) > 1.8);
+    let top = 0; if (n) { go(q, P.walk(n.p, P.toward(TOP, n.p), 0.9 / K.R), [], 0.1, 3); hop(q, n.p); for (let i = 0; i < 120 && q.crab.air; i++) { K.step(q, DT, stickTo(q, TOP)); top = Math.max(top, q.crab.h); } }
+    ok(!q.won && K.dist(q.crab.p, TOP) > 1.8, `   the gold fence can't be bounced over (${top.toFixed(1)} up)`); }
+  { const q = K.create(STREAM); q.crab.nuts = 3; let opened = false; for (let i = 0; i < 40 / DT && !opened; i++) { const tg = K.targetAt(q, STREAM.targets[1]); if (i % 30 === 0 && q.crab.nuts > 0) { q.crab.p = at(13.6, K.lonOf(tg.p) - 8).slice(); const f = aimFor(q, tg.p, x => !!x.open.cage, { a0: -16, a1: 16, da: 4, secs: 2 }); if (f) { throwAim(q, tg.p, f, [], 0.1); } } K.step(q, DT); opened = !!q.open.cage; }
+    const before = K.lonOf(K.targetAt(q, STREAM.targets[1]).p); run(q, 2); const after = K.lonOf(K.targetAt(q, STREAM.targets[1]).p);
+    ok(opened && Math.abs(after - before) > 10, '   the bullseye riding a log can be hit (time it); the coconut rides on with it and the cage stays open');
+    go(q, at(16.6, -100), [], 0.2, 20); go(q, at(16, -100), [], 0.2, 4); ok(q.gold.includes(1), '   inside the cage: a golden shell'); }
+  { const q = K.create(STREAM); const e = []; q.plug.A = 99; q.crab.p = SB().p.slice(); for (let i = 0; i < 4 / DT && q.crab.h < SB().lift - 0.2; i++) e.push(...K.step(q, DT)); for (let i = 0; i < 4 / DT && q.crab.air; i++) e.push(...K.step(q, DT, stickTo(q, at(11.6, 6))));
+    ok(q.gold.includes(2), '   riding vent B, steer through the golden shell over the river'); } }
+// taking a coconut back out of a bullseye: walk into it, and its gate shuts again
+{ const q = K.create(YARD); q.crab.nuts = 1; const tg = YARD.targets[0]; q.crab.p = at(11.9, 8).slice(); face(q, tg.p); K.throwNut(q, chargeFor(q, tg.p, 1.1)); run(q, 1.2); const was = !!q.open.yard;
+  go(q, tg.p, [], 0.3, 6); const e = run(q, 0.3);
+  ok(was && !q.open.yard && q.crab.nuts === 1, '   (any chamber) walk into a bullseye and you take its coconut back: its gate shuts again'); }
 
 // ── 3. Gull Yard ────────────────────────────────────────────────────────────
 const yard = () => {
