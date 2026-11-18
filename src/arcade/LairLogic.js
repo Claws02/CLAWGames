@@ -231,7 +231,49 @@ export const YARD = {
     gull: { ring: 7.5, from: 60 },
 };
 
-export const CHAMBERS = [BEACH, STREAM, YARD, STAIR];
+
+// ── World 2: the coral caves ────────────────────────────────────────────────
+// Old Ink fled deeper with the pearl. Each chamber teaches one new thing (holes through the planet, a moon, the tide), then he waits.
+
+// 5. SINKHOLE REEF: holes straight through the planet. The beach is the far side of the planet from the pearl, so the pearl is
+// right under your feet: a hole goes down here and comes up over there, still going the same way (a coconut keeps flying).
+//   the beach: the start, the palm                                    d > 7
+//       · the big sinkhole, under a crystal lid (the bullseye opens it): it comes up inside the reef wall, by the pearl
+//       · a blowhole (a grate: coconuts only) that comes up inside the reef wall, flying on toward the lid's bullseye
+//       · a blowhole that comes up in a walled pit, on its plate
+//   the reef wall, all the way round (nothing climbs it)               6.8
+//   inside: the lid's bullseye, the pit (its plate holds the gold fence), a sinkhole back out, the gold fence and the pearl
+// THE ANSWER. Throw a coconut into the blowhole from its painted spot: it shoots up inside the reef wall into the bullseye, and the
+// lid opens. Throw one into the pit's blowhole: it comes up on the pit's plate, and the gold fence drops. Jump in the big sinkhole:
+// out you come by the pearl.
+const PIR = Math.PI * R, anti = (d, lon) => at(PIR - d, lon + 180);
+const PITC = at(4.2, 90), H_MAIN = at(16.8, 0), H_THROW = at(15.4, 60), LIDT = at(6.0, -120), THROWSPOT = at(18.4, 60);
+export const SINK = {
+    id: 'sink', name: 'SINKHOLE REEF', world: 2, theme: 'reef', fast: 90, pay: 25, start: at(18.6, -20), goal: TOP, palm: at(17.4, -60), bank: 7,
+    story: 'Old Ink fled deep into the coral caves. Here the pearl is right under your feet: through the planet.',
+    hints: ['A sinkhole goes straight through the planet and comes up on the far side, by the pearl. This one is shut by a crystal lid.', 'Blowholes (the grates) only take coconuts. A coconut thrown in comes out of the far side still flying the same way.', 'Stand on the painted spot and throw into the blowhole: it flies up into the bullseye on the far side. The aim turns green when it will.', 'The other blowhole comes up in the walled pit, right on its plate.', 'Golden shells: over the far end of the sinkhole (jump in from up high and you fly out higher), on the coral post (bounce off the jelly), and over the pit\'s blowhole.'],
+    ground: [[1.8, 'dais'], [6.8, 'stone'], [99, 'sand']],
+    checks: [at(18.6, -20), at(3.4, 175)], zones: { 1: [1.9, 6.7] },
+    rings: [
+        { r: 6.8, h: 20, kind: 'coral' }, { c: PITC, r: 0.9, h: 20, kind: 'coral' }, { r: 1.8, h: 20, gate: 'gold', kind: 'gate' },
+    ],
+    holes: [
+        { p: H_MAIN, r: 0.75, lid: 'lid' },
+        { p: H_THROW, r: 0.8, nutOnly: true },
+        { p: anti(4.2, 90), r: 0.8, nutOnly: true },
+        { p: at(5.6, 10), r: 0.7 },            // (a way back out to the beach, so nobody is ever stuck inside)
+    ],
+    ledges: [{ r0: 15.3, r1: 16.0, only: [0, 7], h: 2, kind: 'coralShelf' }],
+    posts: [{ p: at(12.5, -100), r: 0.5, h: 3 }],
+    pads: [{ p: at(13.5, -100), r: 0.7 }],
+    plates: [{ p: PITC, r: 0.6, gate: 'gold' }],
+    targets: [{ p: LIDT, gate: 'lid', tall: 1.0 }],
+    spots: [{ p: THROWSPOT, via: H_THROW, gate: 'lid' }],
+    drains: [{ p: PITC, r: 0.9, to: PITC }, { p: TOP, r: 6.8, to: THROWSPOT, unless: 'lid' }],
+    gold: [{ p: anti(16.8, 0), h: 2.8 }, { p: at(12.5, -100), h: 3 }, { p: anti(4.2, 90), h: 2.2 }],
+};
+
+export const CHAMBERS = [BEACH, STREAM, YARD, STAIR, SINK];
 /** While testing, every chamber is open. (Turn it off to make each chamber open when the one before it is cleared.) */
 export const ALL_OPEN = true;
 
@@ -290,6 +332,9 @@ function _floorN(s, p, h) {
 }
 /** Where a bullseye is now (one can ride a log), and how high its face is. */
 export const targetAt = (s, tg) => { const p = tg.log != null ? s.logs[tg.log].p : tg.p; return { p, h: floorAt(s, p) + (tg.h || 1.1) }; };
+/** The far end of a hole: the point straight through the planet (or hole.to). */
+export const holeExit = h => h.to || h.p.map(x => -x);
+const _holeAt = (s, p, nut) => (s.lv.holes || []).find(h => dist(p, h.p) < h.r && (nut || !h.nutOnly) && !(h.lid && up(s, { gate: h.lid })));
 /** Where the floating logs are at time t. */
 const _logsAt = (lv, t) => (lv.logs || []).map(l => ({ p: at(l.orbit, l.lon0 + l.speed * t), h: l.h || 0.35, r: l.r || 0.9 }));
 export const nutUnder = (s, p) => s.nuts.find(n => (n.state === 'rest' || n.state === 'float') && dist(n.p, p) < NUT_R) || null;
@@ -373,6 +418,12 @@ function _nut(s, n, dt, ev) {
         const g = s.gull;
         if (g && g.state !== 'stun' && Math.hypot(dist(n.p, g.p), n.h - (g.h + 0.4)) < GULL.hit + 0.1) { _stun(s, ev, 'nut'); n.vh = Math.min(n.vh, -2); n.v *= 0.3; }
         const fl = floorAt(s, n.p);
+        const hole = n.vh < 0 && n.h <= floorAt(s, n.p) + 0.05 && !n.holeCd && _holeAt(s, n.p, true);
+        if (hole) {
+            const out = holeExit(hole); n.d = tangent(out, n.d.map(x => -x)); n.p = out.slice(); n.h = floorAt(s, out) + 0.1; n.vh = Math.max(4, -n.vh); n.holeCd = 0.4;
+            ev.push({ type: 'hole', nut: n, hole, p: hole.p, out }); return;
+        }
+        if (n.holeCd) n.holeCd = Math.max(0, n.holeCd - dt);
         const pad = n.vh < 0 && (s.lv.pads || []).find(k => dist(n.p, k.p) < k.r);
         if (pad && n.h <= PAD_H + 0.05) {
             n.h = PAD_H;
@@ -384,7 +435,7 @@ function _nut(s, n, dt, ev) {
         if (n.h <= fl) {
             n.h = fl;
             if (s.boss && dist(n.p, TOP) < 1.95) n.p = at(BOSS.pileAt, lonOf(n.p));       // (never left inside the fence, out of reach)
-            const dr = (s.lv.drains || []).find(x => dist(n.p, x.p) < x.r) || (s.lv.pools || []).find(x => dist(n.p, x.p) < x.r); if (dr) { n.p = dr.to.slice(); n.h = floorAt(s, n.p); }     // (a place no crab can reach: it rolls out to where one can)
+            const dr = (s.lv.drains || []).find(x => dist(n.p, x.p) < x.r && !(x.unless && (s.open[x.unless] || s.held[x.unless]))) || (s.lv.pools || []).find(x => dist(n.p, x.p) < x.r); if (dr) { n.p = dr.to.slice(); n.h = floorAt(s, n.p); }     // (a place no crab can reach: it rolls out to where one can)
             const ur = urchinAt(s, n.p); if (ur && !ur.nutSafe) return _lose(s, n, ev, 'urchin');
             const cw = fl < 0.05 && currentAt(s, n.p); if (cw && cw.deep) return _lose(s, n, ev, 'sink');      // (deep water: it sinks, and washes up under the palm)
             const dv = (s.lv.vents || []).find(x => x.drop && !s.plug[x.id] && dist(x.p, n.p) < x.r + 0.2 && Math.abs(fl - floorAt(s, x.p)) < 0.4);
@@ -541,6 +592,11 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     // Standing on a lift vent that is not the one blowing: say so, once.
     const stand = (lv.vents || []).find(x => x.lift && dist(c.p, x.p) < x.r);
     if (stand && stand !== v && !c.air) { if (s.calm !== stand.id) { s.calm = stand.id; ev.push({ type: 'calm', vent: stand, blowing: v }); } } else if (!stand) s.calm = null;
+    // Holes: into one, out of its far end, facing on, popped up (the faster it fell in, the higher it comes out).
+    c.holeCd = Math.max(0, (c.holeCd || 0) - dt);
+    if (c.holeCd <= 0 && c.h <= floorAt(s, c.p) + 0.05) { const hole = _holeAt(s, c.p, false);
+        if (hole) { const out = holeExit(hole), fwd = c.face.map(x => -x); c.p = out.slice(); c.face = tangent(out, fwd); c.f = tangent(out, c.f.map(x => -x)); c.h = floorAt(s, out); c.vh = Math.max(6, c.fallV || 0); c.air = true; c.holeCd = 0.9; ev.push({ type: 'hole', crab: true, hole, p: hole.p, out }); } }
+    c.fallV = c.air && c.vh < 0 ? -c.vh : 0;
     // Urchins; deep water.
     if (c.h < 0.7 && urchinAt(s, c.p, 0.15)) { _reset(s, ev, 'ouch'); return ev; }
     if (!c.air && (lv.pools || []).some(q => dist(c.p, q.p) < q.r) && c.h < floorAt(s, c.p) + 0.05) { _reset(s, ev, 'sink'); return ev; }      // (a deep pool)

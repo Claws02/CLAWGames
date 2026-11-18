@@ -202,6 +202,38 @@ const yard = () => {
   const b = K.create(YARD); b.open.yard = true; b.cp = 1; b.crab.p = at(7.2, 60).slice(); b.crab.nuts = 1; b.gull.cool = 0; const e = run(b, 12);
   ok(has(e, 'steal') || has(e, 'gull-dive'), '   stand in the yard and the gull comes for you'); }
 
-ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair' && CHAMBERS[3].boss && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, Gull Yard, then the Drowned Stair with Old Ink; all open while testing');
+// ── World 2, chamber 5: Sinkhole Reef ───────────────────────────────────────
+const { SINK } = K;
+const sink = () => {
+  const s = K.create(SINK), ev = [], note = {};
+  gather(s, ev); note.got = s.crab.nuts;
+  // 1. from the painted spot, a coconut into the blowhole: it comes up inside the reef wall into the bullseye, and the lid opens
+  go(s, SINK.spots[0].p, ev, 0.1, 12); const fL = aimFor(s, SINK.holes[1].p, q => !!q.open.lid, { a0: -12, a1: 12, da: 2 }); if (fL) throwAim(s, SINK.holes[1].p, fL, ev, 3);
+  note.lid = !!s.open.lid; note.through = ev.some(e => e.type === 'hole' && e.nut);
+  // 2. a coconut into the pit's blowhole: it comes up on the plate, and the gold fence drops
+  const ph = SINK.holes[2].p; go(s, at(K.dist(ph, TOP) + 2.4, K.lonOf(ph)), ev, 0.15, 12); const fP = aimFor(s, ph, q => !!q.held.gold, { a0: -10, a1: 10, da: 2 }); if (fP) throwAim(s, ph, fP, ev, 3);
+  note.gold = !!s.held.gold;
+  // 3. into the big sinkhole: out by the pearl
+  go(s, at(18.0, 0), ev, 0.2, 10); go(s, SINK.holes[0].p, ev, 0.2, 4); for (let i = 0; i < 90 && s.crab.air; i++) ev.push(...K.step(s, DT));
+  note.inside = K.dist(s.crab.p, TOP) < 6.8;
+  go(s, TOP, ev, 0.3, 8);
+  return { s, ev, note };
+};
+{ const { s, ev, note } = sink();
+  ok(note.got === 3, '5. SINKHOLE REEF: three coconuts from the palm');
+  ok(note.lid && note.through, '   from the painted spot, a coconut thrown into the blowhole comes up on the far side of the planet still flying, into the bullseye: the lid opens');
+  ok(note.gold, '   a coconut into the pit\'s blowhole comes up in the walled pit on its plate: the gold fence drops');
+  ok(note.inside && s.won && s.falls === 0, `   into the big sinkhole: out by the pearl (${s.t.toFixed(0)} s, no falls)`);
+  { const q = K.create(SINK); q.crab.p = at(18.0, 0).slice(); for (let i = 0; i < 120; i++) K.step(q, DT, stickTo(q, at(15, 0))); ok(K.dist(q.crab.p, TOP) > 7, '   with the lid shut the crab walks over the big sinkhole'); }
+  { const q = K.create(SINK); q.crab.p = at(SINK.spots[0].p ? 18.0 : 18, 60).slice(); for (let i = 0; i < 120; i++) K.step(q, DT, stickTo(q, SINK.holes[1].p)); ok(K.dist(q.crab.p, TOP) > 7, '   a blowhole is a grate: the crab walks over it, only coconuts go down'); }
+  { let spot = 0, tries = 0; for (let a = -10; a <= 10; a += 2) for (let ch = 0; ch <= 0.6; ch += 0.05) { tries++; const q = K.create(SINK); q.crab.p = SINK.spots[0].p.slice(); q.crab.nuts = 1; turnTo(q, SINK.holes[1].p, a); K.throwNut(q, ch); run(q, 3); if (q.open.lid) spot++; }
+    ok(spot >= tries * 0.15, `   from the spot, ${spot} of ${tries} throws at the blowhole open the lid (the aim turns green on them)`); }
+  { const q = K.create(SINK); q.crab.nuts = 1; q.crab.p = at(8.0, 0).slice(); face(q, TOP); for (const ch of [0.3, 0.6]) { q.crab.nuts = 1; K.throwNut(q, ch); run(q, 3); }
+    ok(q.nuts.filter(n => n.state === 'rest').every(n => K.dist(n.p, TOP) > 6.8), '   a coconut that ends up inside the reef wall while the lid is shut washes back out to the spot (never out of reach)'); }
+  { const q = K.create(SINK); q.open.lid = 99; q.crab.p = at(5.0, 10).slice(); const e = run(q, 1.5, stickTo(q, SINK.holes[3].p)); ok(e.some(x => x.type === 'hole') && K.dist(q.crab.p, TOP) > 7, '   inside, a sinkhole leads back out to the beach (never stuck inside)'); }
+  { const q = K.create(SINK); q.open.lid = 99; q.crab.p = at(15.65, 0).slice(); q.crab.h = 2; q.crab.f = P.tangent(q.crab.p, at(20, 0)); q.crab.face = q.crab.f; K.jump(q); const e = []; for (let i = 0; i < 120; i++) e.push(...K.step(q, DT, q.crab.holeCd > 0 ? { x: 0, y: 0 } : stickTo(q, SINK.holes[0].p, 0.7)));
+    ok(e.some(x => x.type === 'hole') && q.gold.includes(0), '   jump into the sinkhole from the coral shelf and you fly out high on the far side: a golden shell'); } }
+
+ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink' && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, Gull Yard, then the Drowned Stair with Old Ink; World 2 starts with Sinkhole Reef; all open while testing');
 console.log(fails ? `\nWORLD 1 FAIL (${fails})` : '\nWORLD 1 PASS');
 process.exit(fails ? 1 : 0);

@@ -180,3 +180,17 @@ see where the pearl was. Now:
   it is thrown onto the vent, whichever way it came in (`pads: [{ p, r, to }]`, an arrow on the pad shows where). About half of all
   throws from in front of it now plug the vent; still none plugs it without the pad. The aim turns green for a vent too.
 - Coconut Beach: the cracked section of the wall is twice as wide (28°), so the way in is wider once it's broken.
+
+## World 2: the coral caves (started)
+Plan, one chamber at a time: **5 Sinkhole Reef** (holes through the planet), **6 Moon Pool** (a launch pad to a little moon),
+**7 Low Tide** (the water rises and falls), **8 Ink's Deep** (Old Ink returns, with timed hazards: steam jets, crumbling ground).
+Each world has its own look (`THEME` in `LairScreen.js`: World 2 has a deep teal sky, pale coral sand, sea-grass, coral walls,
+kelp and coral bushes about the sand).
+
+**5. Sinkhole Reef** (built): the beach is the far side of the planet from the pearl, so a hole straight down comes up by the pearl.
+A coconut that goes into a hole comes out of the far end still flying the same way (Portal's momentum), and so does a crab: jump
+in from up high and you fly out high. Blowholes are grates (coconuts only). The big sinkhole is under a crystal lid; from a painted
+spot a coconut thrown into a blowhole flies up inside the reef wall into the lid's bullseye; another blowhole comes up in a walled
+pit on its plate (the gold fence round the pearl). A sinkhole inside leads back out, and coconuts that end up inside while the lid
+is shut wash back to the spot. Pieces: `holes: [{ p, r, nutOnly?, lid?, to? }]` (the far end is `-p` unless `to`), drains with
+`unless` (only while a gate is shut). Proven in `qa/lair-world1.mjs`.
