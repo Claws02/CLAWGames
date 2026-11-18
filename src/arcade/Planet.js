@@ -365,8 +365,8 @@ function _lairCard() {
         <div class="tp-sub">You carry up to <b>3 coconuts</b>. <b>Hold 🥥 and let go to throw</b> one, <b>walk into it</b> to pick it up, <b>jump on it</b> to bounce. They float, they plug, they weigh things down.</div>
         <div class="tp-stat">${total}/${LL.CHAMBERS.length * 3} ⭐ · a first clear pays 🐚, each new star ${PER_STAR} ✨</div>
         <div class="tp-sub">${LL.ALL_OPEN ? '🔓 all open while testing' : ''}</div>
-        <div class="tp-lvls">${LL.CHAMBERS.map((c, i) => (i === 0 || LL.CHAMBERS[i - 1].world !== c.world ? `<div class="tp-sub" style="margin:4px 0 0"><b>WORLD ${c.world}</b> · ${c.world === 2 ? 'the coral caves' : 'the island'}</div>` : '') + (() => { const open = LL.ALL_OPEN || i === 0 || _starsOf(LL.CHAMBERS[i - 1].id)[0]; return `<button class="tp-lvl" data-do="trial" data-arg="${i}"${open ? '' : ' disabled'}><b class="bfont">${open ? i + 1 : '🔒'}</b><span>${c.name}${c.boss ? ' 🐙' : ''}</span><i>${_starText(_starsOf(c.id))}</i></button>`; })()).join('')}
-            <div class="tp-sub" style="opacity:.7">More of World 2 soon…</div></div>
+        <div class="tp-lvls">${LL.CHAMBERS.map((c, i) => (i === 0 || LL.CHAMBERS[i - 1].world !== c.world ? `<div class="tp-sub" style="margin:4px 0 0"><b>WORLD ${c.world}</b> · ${c.world === 3 ? 'the volcano' : c.world === 2 ? 'the coral caves' : 'the island'}</div>` : '') + (() => { const open = LL.ALL_OPEN || i === 0 || _starsOf(LL.CHAMBERS[i - 1].id)[0]; return `<button class="tp-lvl" data-do="trial" data-arg="${i}"${open ? '' : ' disabled'}><b class="bfont">${open ? i + 1 : '🔒'}</b><span>${c.name}${c.boss ? ' 🐙' : ''}</span><i>${_starText(_starsOf(c.id))}</i></button>`; })()).join('')}
+            <div class="tp-sub" style="opacity:.7">More of World 3 soon…</div></div>
         <button class="go-btn bfont tp-alt" data-do="city" id="btn-tp-city">‹ BACK TO THE CITY</button>`, true);
 }
 /** What a chamber has in it, as icons for its arrival card (like the sign at the door of a test chamber). */
@@ -379,6 +379,7 @@ export function lairPieces(lv) {
     add((lv.rocks || []).length, '🪨', 'STEPPING ROCKS'); add((lv.eddies || []).length, '🌀', 'EDDY'); add((lv.urchins || []).length, '✴️', 'URCHINS');
     add((lv.ledges || []).some(l => l.h1 == null && l.r1 - l.r0 > 1.6), '⛰️', 'TERRACES'); add((lv.ledges || []).some(l => l.h1 != null), '↗️', 'RAMP'); add((lv.pads || []).length, '🟣', 'JELLY PADS'); add((lv.posts || []).length, '🗿', 'STONE POSTS');
     add((lv.hangs || []).length, '🌴', 'HANGING COCONUT'); add((lv.targets || []).some(x => x.log != null), '🎯', 'MOVING BULLSEYE'); add((lv.bars || []).some(b => b.kind === 'bumper'), '↩️', 'BANK SHOT');
+    add(lv.lake, '🧊', 'OBSIDIAN LAKE (YOU SLIDE)'); add(lv.lake && lv.lake.lava, '🌋', 'LAVA');
     add(lv.chasm, '🕳️', 'A BOTTOMLESS CHASM'); add((lv.crumbles || []).length, '🧱', 'CRUMBLING TILES'); add((lv.jets || []).length, '♨️', 'STEAM JETS');
     add(lv.tide, '🌊', 'THE TIDE'); add((lv.rafts || []).length, '🛟', 'RAFTS');
     add(lv.moon, '🌙', 'A MOON (LOW GRAVITY)'); add((lv.launch || []).length, '🚀', 'LAUNCH PAD');

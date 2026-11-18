@@ -53,6 +53,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         beach: { sky: 0x9fe0ff, hemi: [0xffffff, 0x8a7aa0], ground: { sand: [0xf3d890, 0xe9c87a], sea: [0x5aaed4, 0x4a9ec6], rock: [0xd2b98f, 0xc2a77c], grass: [0x8fd96a, 0x76c456], stone: [0xb9a6ea, 0xa994de], dais: [0xf6bdf3, 0xe9a7ee] } },
         moon: { sky: 0x141d40, hemi: [0xe8e4ff, 0x3a3366], ground: { sand: [0xc9c3dc, 0xbdb6d2], sea: [0x8f86b8, 0x8077aa], rock: [0xa59cc6, 0x968db9], grass: [0xb4acd2, 0xa69ec6], stone: [0xd8d2ea, 0xccc5e2], dais: [0xe6e0f6, 0xdcd5f0] }, stars: true, craters: true },
         deep: { sky: 0x182a52, hemi: [0xc8e8ff, 0x3a2a66], ground: { sand: [0xd9c4d8, 0xcbb4cb], sea: [0x0e1a33, 0x0b1529], rock: [0x8a7fb8, 0x7d72ab], grass: [0x2f9c8a, 0x278a7a], stone: [0x6fb8b0, 0x62aaa2], dais: [0xffc4e6, 0xffb0dc] }, decor: true },
+        volcano: { sky: 0x3a1a26, hemi: [0xffd9c2, 0x4a1a2a], ground: { sand: [0x4a4250, 0x3e3746], sea: [0xff6a1f, 0xff8a2a], rock: [0x5a4f63, 0x4f4558], grass: [0x6b5f74, 0x5f5468], stone: [0x7a6a74, 0x6e5f69], dais: [0xffb37a, 0xffa060], lava: [0xff5a1a, 0xff8a24] }, embers: true },
         reef: { sky: 0x2f7f9c, hemi: [0xd8fff6, 0x5a3f8a], ground: { sand: [0xf2d9cf, 0xe7c7bd], sea: [0x2fb3c4, 0x27a1b3], rock: [0xc7a9e0, 0xb796d4], grass: [0x46c2a6, 0x37ad93], stone: [0x8fd4c9, 0x7cc7bb], dais: [0xffc4e6, 0xffb0dc] }, decor: true },
     }[level.theme || 'beach'] || null;
     const scene = new T.Scene(); scene.background = new T.Color(THEME.sky);
@@ -237,7 +238,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         }
     }
     // Terraces, ramps and shelves: raised ground with a grassy (or stone) top and rocky cliff sides, darker bands of strata.
-    const LEDGE = { beachShelf: { top: [0xf2d9cf, 0xe7c7bd], side: [0xd9bfae, 0xccb09e, 0xe2cbbd] },  coralShelf: { top: [0xff9bb3, 0xff8aa6], side: [0xb98be6, 0xa877dc, 0xcaa2ef] },  terrace: { top: [0x8fd96a, 0x7fcf5c], side: [0xc9935a, 0xb98249, 0xd6a46a] }, mesa: { top: [0xe8b46a, 0xdca65c], side: [0xd9893f, 0xc4742f, 0xe69b52] }, ramp: { top: [0xcfae7a, 0xc19f6c], side: [0xa98758, 0x977648, 0xb89668] }, shelf: { top: [0xaab0c4, 0x9aa1b6], side: [0x8890a8, 0x7a8299, 0x969db3] } };
+    const LEDGE = { obsidian: { top: [0x1c1726, 0x231d30], side: [0x120e1a, 0x18131f, 0x0e0b14] },  beachShelf: { top: [0xf2d9cf, 0xe7c7bd], side: [0xd9bfae, 0xccb09e, 0xe2cbbd] },  coralShelf: { top: [0xff9bb3, 0xff8aa6], side: [0xb98be6, 0xa877dc, 0xcaa2ef] },  terrace: { top: [0x8fd96a, 0x7fcf5c], side: [0xc9935a, 0xb98249, 0xd6a46a] }, mesa: { top: [0xe8b46a, 0xdca65c], side: [0xd9893f, 0xc4742f, 0xe69b52] }, ramp: { top: [0xcfae7a, 0xc19f6c], side: [0xa98758, 0x977648, 0xb89668] }, shelf: { top: [0xaab0c4, 0x9aa1b6], side: [0x8890a8, 0x7a8299, 0x969db3] } };
     for (const l of level.ledges || []) {
         const pal = LEDGE[l.kind] || LEDGE.terrace, c0 = l.c || TOP, partial = !!(l.only || l.gap), lon0 = l.only ? l.only[0] - l.only[1] : 0, lon1 = l.only ? l.only[0] + l.only[1] : 360;
         const nR = Math.max(2, Math.ceil((l.r1 - l.r0) / 0.4)), circ = 2 * Math.PI * R * Math.sin(Math.max(l.r1, 0.5) / R), nL = Math.max(8, Math.ceil(circ * (lon1 - lon0) / 360 / 0.45));
@@ -262,7 +263,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
     // Stone posts (a pillar is a tall one): a column with rings and a cap.
     for (const k of level.posts || []) {
         const base = K.floorAt({ ...sfl, lv: { ...level, posts: [] } }, k.p), hh = k.h - base;
-        const g = k.kind === 'lighthouse' ? Y.prop([...[0, 1, 2, 3].map(j => ({ geo: G.cyl, color: j % 2 ? 0xffffff : 0xff4d4d, s: [k.r * 2 * (1 - j * 0.06), hh / 4, k.r * 2 * (1 - j * 0.06)], p: [0, hh / 8 + (j * hh) / 4, 0] })), { geo: G.cylLow, color: 0xffe45a, s: [k.r * 1.3, 0.12, k.r * 1.3], p: [0, hh + 0.06, 0], ink: false }], { thick: 0.07 }) : Y.prop([{ geo: G.cyl, color: 0xb7aec8, s: [k.r * 2, hh, k.r * 2], p: [0, hh / 2, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.3, 0.18, k.r * 2.3], p: [0, 0.09, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.25, 0.12, k.r * 2.25], p: [0, hh * 0.55, 0] }, { geo: G.cylLow, color: 0xd0c8de, s: [k.r * 2.4, 0.2, k.r * 2.4], p: [0, hh - 0.1, 0] }], { thick: 0.07 });
+        const g = k.kind === 'obsidian' ? Y.prop([{ geo: G.cyl, color: 0x2a2236, s: [k.r * 2, hh, k.r * 2], p: [0, hh / 2, 0] }, { geo: G.coneLow, color: 0x3e3352, s: [k.r * 1.9, 0.6, k.r * 1.9], p: [0, hh + 0.3, 0] }, { geo: G.box, color: 0x8a74c4, s: [0.08, hh * 0.7, 0.04], p: [k.r * 0.6, hh * 0.5, k.r * 0.75], ink: false }], { thick: 0.06 }) : k.kind === 'lighthouse' ? Y.prop([...[0, 1, 2, 3].map(j => ({ geo: G.cyl, color: j % 2 ? 0xffffff : 0xff4d4d, s: [k.r * 2 * (1 - j * 0.06), hh / 4, k.r * 2 * (1 - j * 0.06)], p: [0, hh / 8 + (j * hh) / 4, 0] })), { geo: G.cylLow, color: 0xffe45a, s: [k.r * 1.3, 0.12, k.r * 1.3], p: [0, hh + 0.06, 0], ink: false }], { thick: 0.07 }) : Y.prop([{ geo: G.cyl, color: 0xb7aec8, s: [k.r * 2, hh, k.r * 2], p: [0, hh / 2, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.3, 0.18, k.r * 2.3], p: [0, 0.09, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.25, 0.12, k.r * 2.25], p: [0, hh * 0.55, 0] }, { geo: G.cylLow, color: 0xd0c8de, s: [k.r * 2.4, 0.2, k.r * 2.4], p: [0, hh - 0.1, 0] }], { thick: 0.07 });
         put(g, k.p, [1, 0, 0], base); scene.add(g);
     }
     // Jelly pads: a pink wobbly dome.
@@ -360,6 +361,11 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         const col = new T.Mesh(G.tube || new T.CylinderGeometry(1, 1, 1, 16, 1, true), basic(0xf4f8ff, { transparent: true, opacity: 0.0, depthWrite: false, side: T.DoubleSide })); col.visible = false; g.add(col);
         const bub = []; for (let k = 0; k < 5; k++) { const b = new T.Mesh(G.sphLow, basic(0xdff6ff, { transparent: true, opacity: 0.8 })); b.scale.setScalar(0.12); b.visible = false; g.add(b); bub.push(b); }
         put(g, j.p, [1, 0, 0], base); scene.add(g); return { j, g, col, bub }; });
+    if (level.lake) { const z = level.lake, rows = Math.round((z.r1 - z.r0) / z.dd) + 1, cols = Math.round((z.lon1 - z.lon0) / z.dl) + 1, m = basic(0xff7a2a, { transparent: true, opacity: 0.35, depthWrite: false });
+        for (let r = 0; r <= rows; r++) for (let c = 0; c < cols; c++) { const p = K.lakeAt(z, r - 0.5, c), d = new T.Mesh(G.box, m); d.scale.set(0.05, 0.02, 0.8); put(d, p, tangent(p, cross(TOP, p)), 0.05); scene.add(d); }
+        for (let r = 0; r < rows; r++) for (let c = 0; c <= cols; c++) { const p = K.lakeAt(z, r, c - 0.5), d = new T.Mesh(G.box, m); d.scale.set(0.05, 0.02, 0.8); put(d, p, toward(p, TOP), 0.05); scene.add(d); }
+        const ex = K.lakeAt(z, -0.9, z.exit), arw = Y.prop([{ geo: G.coneLow, color: 0xffd23a, s: [0.5, 0.6, 0.12], r: [Math.PI / 2, 0, 0], p: [0, 0.12, 0] }], { thick: 0.04 }); put(arw, ex, toward(ex, TOP), 0.04); scene.add(arw); }
+    const embers = []; if (THEME.embers) { const rnd = rngOf(31); for (let i = 0; i < 40; i++) { const e = new T.Mesh(G.sphLow, basic(i % 3 ? 0xff8a2a : 0xffd23a)); e.scale.setScalar(0.06 + rnd() * 0.05); scene.add(e); embers.push({ e, p: K.at(7 + rnd() * 8, rnd() * 360), h: rnd() * 3, v: 0.6 + rnd() * 0.8 }); } }
     // A palm on the mesa with a coconut hanging from its frond on a rope.
     const hangVis = (level.hangs || []).map(hg => {
         const foot = walk(hg.p, toward(hg.p, TOP), 1.2 / R), g = new T.Group(); const trunk = Y.prop([{ geo: G.cyl, color: 0xa87440, s: [0.3, 2.6, 0.3], p: [0, 1.3, 0], r: [0, 0, -0.2] }, { geo: G.sph, color: 0x4cc064, s: [1.6, 0.2, 0.7], p: [0.6, 2.6, 0], r: [0, 0, -0.3] }, { geo: G.sph, color: 0x37a655, s: [0.7, 0.2, 1.4], p: [-0.2, 2.65, 0.3] }], { thick: 0.06 });
@@ -641,6 +647,9 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             else if (e.type === 'tile-fall') { burst(at3(e.p, 0.2), 0xb9a6d6, 18, 3.5); hooks.sfx('dice_land'); }
             else if (e.type === 'fall') { hooks.sfx('land_bad'); hooks.buzz([30, 30]); hooks.hint('INTO THE CHASM! · BACK AT THE FLAG (DON\'T STOP ON THE TILES)', 2.4); snap = true; }
             else if (e.type === 'scald') { burst(at3(s.crab.p, 0.6), 0xffffff, 26, 5); hooks.sfx('land_bad'); hooks.buzz([30, 30]); hooks.hint('SCALDED BY THE STEAM · BACK AT THE FLAG (WAIT FOR THE BURST, THEN GO)', 2.4); snap = true; }
+            else if (e.type === 'burn') { burst(at3(s.crab.p, 0.3), 0xff6a1f, 30, 5); hooks.sfx('land_bad'); hooks.buzz([30, 30]); hooks.hint('INTO THE LAVA! · BACK AT THE FLAG', 2.2); snap = true; }
+            else if (e.type === 'lake-go') hooks.sfx('swap');
+            else if (e.type === 'lake-stop') { burst(at3(s.crab.p, 0.2), 0x8a74c4, 8, 2); hooks.sfx('tick'); }
             else if (e.type === 'won') { burst(at3(level.goal, 1.5), 0xff8ad8, 50, 7); burst(at3(level.goal, 1.5), 0xffd84a, 40, 6); hooks.sfx('win'); hooks.buzz([30, 30, 30, 30, 120]); cheer = 1.2; inkMad = 2; doneAt = t + 1.8; }
         }
     }
@@ -742,6 +751,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         jetVis.forEach((v, i) => { const st = K.jetState(s, v.j);
             v.col.visible = st === 'fire'; if (st === 'fire') { v.col.scale.set(v.j.r * (0.8 + 0.1 * Math.sin(t * 30 + i)), 3.2, v.j.r * (0.8 + 0.1 * Math.sin(t * 25 + i))); v.col.position.y = 1.7; v.col.material.opacity = 0.55 + 0.2 * Math.sin(t * 20); }
             v.bub.forEach((b, k) => { b.visible = st === 'warn'; if (b.visible) { const ph = (t * 1.8 + k / 5) % 1; b.position.set(Math.cos(k * 1.3) * v.j.r * 0.4, 0.2 + ph * 0.9, Math.sin(k * 1.3) * v.j.r * 0.4); b.material.opacity = 0.9 - ph * 0.8; } }); });
+        embers.forEach(m => { m.h += m.v * dt; if (m.h > 3.5) m.h = 0; put(m.e, m.p, null, m.h); });
         spots.forEach(v => {
             const on = K.dist(c.p, v.sp.p) < 0.8, done = !!s.open[v.sp.gate];
             v.ring.scale.setScalar(0.75 + 0.06 * Math.sin(t * (on ? 9 : 4))); v.g.visible = !done;

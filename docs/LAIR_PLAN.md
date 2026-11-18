@@ -228,3 +228,15 @@ falls `CRUMBLE_S` later and is back `TILE_BACK_S` after that; off the tiles in t
 lost), and a corridor of **steam jets** (`jets: [{ p, r, period, on, phase, boss? }]`: each bubbles for `JET_WARN` s, then fires and
 scalds a crab back to its flag; `boss` jets only work while he's awake). Then the arena: a boss can be tuned per chamber
 (`boss: { hits: 4, speed: 0.8, arena: 5.5 }`): four hits, faster slams, and steam jets round the arena while he's up.
+
+## World 3: the volcano (started)
+Plan: **9 Obsidian Slide** (sliding), **10 Heavy Stone** (carry a heavy rock; it presses heavy plates and cools into a stepping stone
+in lava), **11 Cannon Ridge** (load and aim cannons to hit far targets), **12 The Hermit King** (a new villain, Old Ink's ally: a giant
+hermit crab in a volcanic shell, with the lava rising during the fight). World 3's look (`theme: 'volcano'`): a dark red sky, black
+sand, glowing lava, obsidian, embers drifting up.
+
+**9. Obsidian Slide** (built): an obsidian lake (`lake: { r0, r1, dd, lon0, lon1, dl, exit, lava, pillars }`, a grid of cells) in a
+sea of lava. On it you can't walk: a push picks one of four ways (toward the pearl, away, east, west) and you slide until a pillar
+stops you (`lakeSlide`). Off the sides, or off the far edge anywhere but the bridge, is lava (back to the flag); off the near edge is
+the beach. The layout was found by a search for one whose shortest way across is seven slides (`qa/lair-world1.mjs` runs the search
+over the game's own slide rule and plays the answer with the stick).

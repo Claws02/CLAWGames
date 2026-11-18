@@ -339,6 +339,33 @@ const deep = () => {
     const r = K.create(DEEP); r.cp = 1; for (let i = 0; i < 4 / DT && K.jetState(r, j) !== 'fire'; i++) K.step(r, DT); r.crab.p = j.p.slice(); const e = run(r, 0.1); ok(e.some(x => x.type === 'scald'), '   standing in one as it fires: scalded, back to the flag'); }
   { const q = K.create(DEEP); ok(DEEP.jets.filter(j => j.boss).every(j => K.jetState(q, j) === 'quiet'), '   the jets round the arena are quiet until Old Ink wakes'); } }
 
-ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink,pool,tide,deep' && CHAMBERS[7].boss && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, Gull Yard, then the Drowned Stair with Old Ink; World 2: Sinkhole Reef, Moon Pool, Low Tide, then Ink\'s Deep with Old Ink; all open while testing');
+// ── World 3, chamber 9: Obsidian Slide ──────────────────────────────────────
+const { SLIDE } = K;
+const lakeSolve = z => {        // the shortest way across the lake, by search over the game's own slide rule
+  const rows = Math.round((z.r1 - z.r0) / z.dd) + 1, cols = Math.round((z.lon1 - z.lon0) / z.dl) + 1, key = (r, c) => r * 100 + c, seen = new Map(), q = [];
+  for (let c = 0; c < cols; c++) { const s = K.lakeSlide(z, rows, c, -1, 0); if (s === 'win') return [[c, 'N']]; if (Array.isArray(s) && s[0] < rows && !seen.has(key(...s))) { seen.set(key(...s), [[c, 'N']]); q.push(s); } }
+  while (q.length) { const [r, c] = q.shift(), path = seen.get(key(r, c));
+    for (const [dr, dc, nm] of [[-1, 0, 'N'], [1, 0, 'S'], [0, 1, 'E'], [0, -1, 'W']]) { const s = K.lakeSlide(z, r, c, dr, dc); if (s === 'win') return [...path, nm]; if (Array.isArray(s) && !seen.has(key(...s))) { seen.set(key(...s), [...path, nm]); q.push(s); } } }
+  return null;
+};
+const slideRun = () => {
+  const s = K.create(SLIDE), ev = [], z = SLIDE.lake, plan = lakeSolve(z), note = { moves: plan.length };
+  const dirPt = nm => { const d = K.dist(s.crab.p, TOP), lon = K.lonOf(s.crab.p); return nm === 'N' ? at(d - 1, lon) : nm === 'S' ? at(d + 1, lon) : nm === 'E' ? at(d, lon + 10) : at(d, lon - 10); };
+  go(s, at(15.2, z.lon0 + plan[0][0] * z.dl), ev, 0.1, 10);
+  for (const m of plan) { const nm = Array.isArray(m) ? m[1] : m; for (let i = 0; i < 3 / DT && !s.crab.slide; i++) ev.push(...K.step(s, DT, stickTo(s, dirPt(nm)))); for (let i = 0; i < 4 / DT && s.crab.slide; i++) ev.push(...K.step(s, DT)); }
+  go(s, at(5, z.lon0 + z.exit * z.dl), ev, 0.3, 5); go(s, TOP, ev, 0.3, 6);
+  return { s, ev, note };
+};
+{ const { s, ev, note } = slideRun();
+  ok(note.moves === 7, `9. OBSIDIAN SLIDE: a search over the lake's own rules finds the shortest way across is ${note.moves} slides`);
+  ok(s.won && s.falls === 0 && ev.filter(e => e.type === 'lake-stop').length >= 5, `   played with the stick: slide, stop at a pillar, choose again, off the bridge; the pearl (${s.t.toFixed(0)} s, no falls)`);
+  { const q = K.create(SLIDE), z = SLIDE.lake; q.crab.p = K.lakeAt(z, 6, 0).slice(); q.crab.f = P.tangent(q.crab.p, TOP); const e = []; for (let i = 0; i < 10; i++) e.push(...K.step(q, DT, stickTo(q, at(14, -55)))); for (let i = 0; i < 3 / DT && q.crab.slide; i++) e.push(...K.step(q, DT));
+    ok(e.some(x => x.type === 'burn') && q.falls === 1, '   sliding off the side of the lake: into the lava, back to the flag'); }
+  { const q = K.create(SLIDE), z = SLIDE.lake; q.crab.p = K.lakeAt(z, 5, 1).slice(); const p0 = q.crab.p.slice(); for (let i = 0; i < 60; i++) K.step(q, DT, { x: 0, y: 0 }); ok(K.dist(q.crab.p, p0) < 0.05, '   on the obsidian, without a push, you stay put; with one you slide until something stops you'); }
+  { const q = K.create(SLIDE), z = SLIDE.lake; q.crab.p = K.lakeAt(z, 0, 1).slice(); q.crab.f = P.tangent(q.crab.p, TOP); const e = []; for (let i = 0; i < 10; i++) e.push(...K.step(q, DT, stickTo(q, TOP))); for (let i = 0; i < 2 / DT && q.crab.slide; i++) e.push(...K.step(q, DT)); for (let i = 0; i < 30; i++) e.push(...K.step(q, DT));
+    ok(e.some(x => x.type === 'burn'), '   off the far edge anywhere but the bridge: lava'); }
+  { const q = K.create(SLIDE); q.crab.p = at(12, 90).slice(); const e = run(q, 0.3); ok(e.some(x => x.type === 'burn'), '   the lava round the lake burns'); } }
+
+ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink,pool,tide,deep,slide' && CHAMBERS[7].boss && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, Gull Yard, then the Drowned Stair with Old Ink; World 2: Sinkhole Reef, Moon Pool, Low Tide, then Ink\'s Deep with Old Ink; all open while testing');
 console.log(fails ? `\nWORLD 1 FAIL (${fails})` : '\nWORLD 1 PASS');
 process.exit(fails ? 1 : 0);
