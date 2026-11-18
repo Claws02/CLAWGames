@@ -234,6 +234,34 @@ const sink = () => {
   { const q = K.create(SINK); q.open.lid = 99; q.crab.p = at(15.65, 0).slice(); q.crab.h = 2; q.crab.f = P.tangent(q.crab.p, at(20, 0)); q.crab.face = q.crab.f; K.jump(q); const e = []; for (let i = 0; i < 120; i++) e.push(...K.step(q, DT, q.crab.holeCd > 0 ? { x: 0, y: 0 } : stickTo(q, SINK.holes[0].p, 0.7)));
     ok(e.some(x => x.type === 'hole') && q.gold.includes(0), '   jump into the sinkhole from the coral shelf and you fly out high on the far side: a golden shell'); } }
 
-ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink' && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, Gull Yard, then the Drowned Stair with Old Ink; World 2 starts with Sinkhole Reef; all open while testing');
+// ── World 2, chamber 6: Moon Pool ───────────────────────────────────────────
+const { MOONPOOL } = K;
+const moonPool = () => {
+  const s = K.create(MOONPOOL), ev = [], note = {};
+  gather(s, ev);
+  go(s, MOONPOOL.launch[0].p, ev, 0.2, 10); note.launched = ev.some(e => e.type === 'launch'); ev.push(...run(s, K.TRAVEL_S + 0.3));
+  note.moon = s.w === 1 && s.crab.nuts === 3;
+  go(s, at(6.8, 10), ev, 0.2, 10); K.jump(s); let top = 0; for (let i = 0; i < 200 && s.crab.air; i++) { ev.push(...K.step(s, DT, stickTo(s, at(4.6, 5)))); top = Math.max(top, s.crab.h); }
+  note.hop = top; note.inCrater = K.dist(s.crab.p, TOP) < 6;
+  const pl = MOONPOOL.moon.plates[0]; go(s, at(5.2, 0), ev, 0.2, 5); face(s, pl.p); K.throwNut(s, chargeFor(s, pl.p)); ev.push(...run(s, 2)); note.gold = !!s.held.gold;
+  K.jump(s); for (let i = 0; i < 200 && s.crab.air; i++) ev.push(...K.step(s, DT, stickTo(s, at(8, 0))));
+  go(s, MOONPOOL.moon.launch[0].p, ev, 0.2, 12); ev.push(...run(s, K.TRAVEL_S + 0.3)); note.home = s.w === 0 && !!s.held.gold;
+  go(s, at(6, 180), ev, 0.3, 12); go(s, TOP, ev, 0.3, 8);
+  return { s, ev, note };
+};
+{ const { s, ev, note } = moonPool();
+  ok(note.launched && note.moon, '6. MOON POOL: step on the launch pad and fly to the moon, coconuts and all');
+  ok(note.inCrater && note.hop > 2.2, `   the moon's gravity is half: a jump goes ${note.hop.toFixed(1)} up, over the crater's 2.2 rim`);
+  ok(note.gold, '   a coconut on the plate in the crater holds the gold fence open, back on the planet (gates are shared between the worlds)');
+  ok(note.home && s.won && s.falls === 0, `   the pad on the moon flies you home; the pearl (${s.t.toFixed(0)} s, no falls)`);
+  { const q = K.create(MOONPOOL); q.crab.p = at(6, 180).slice(); for (let i = 0; i < 200; i++) K.step(q, DT, stickTo(q, TOP)); ok(!q.won && K.dist(q.crab.p, TOP) > 1.7, '   before that the gold fence is shut'); }
+  { const q = K.create(MOONPOOL); q.crab.p = at(8, 0).slice(); let top = 0; K.jump(q); for (let i = 0; i < 90; i++) { K.step(q, DT); top = Math.max(top, q.crab.h); } ok(top < 1.4, `   on the planet the same jump only goes ${top.toFixed(1)} up`); }
+  { const q = K.create(MOONPOOL); q.crab.nuts = 1; q.crab.p = at(17.2, 0).slice(); face(q, MOONPOOL.launch[0].p); K.throwNut(q, chargeFor(q, MOONPOOL.launch[0].p)); const e = run(q, 2);
+    ok(e.some(x => x.type === 'nut-launch') && q.nuts.some(n => n.w === 1), '   a coconut thrown onto the launch pad flies to the moon on its own'); }
+  { const q = K.create(MOONPOOL); q.w = 1; q.lv = MOONPOOL.moon; q.crab.p = P.walk(at(10.5, 120), P.toward(at(10.5, 120), TOP), 2.5 / K.R); q.crab.nuts = 1; face(q, MOONPOOL.moon.posts[0].p); K.throwNut(q, 0.02); run(q, 1.2); const n = q.nuts.find(x => x.state === 'rest' && x.w === 1);
+    let got = false; if (n) { go(q, P.walk(n.p, P.toward(MOONPOOL.moon.posts[0].p, n.p), 0.9 / K.R), [], 0.1, 3); hop(q, n.p); for (let i = 0; i < 200 && q.crab.air; i++) K.step(q, DT, q.crab.vh < 0 && q.crab.h > 3.6 ? stickTo(q, MOONPOOL.moon.posts[0].p, 0.8) : { x: 0, y: 0 }); got = q.gold.includes(100); }
+    ok(got, '   on the moon a bounce on a coconut reaches the top of the 4.6 pillar: a golden shell'); } }
+
+ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink,pool' && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, Gull Yard, then the Drowned Stair with Old Ink; World 2 so far: Sinkhole Reef, Moon Pool; all open while testing');
 console.log(fails ? `\nWORLD 1 FAIL (${fails})` : '\nWORLD 1 PASS');
 process.exit(fails ? 1 : 0);

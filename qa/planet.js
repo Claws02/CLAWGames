@@ -174,7 +174,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     await M(`(() => { const s = M._game(), th = s.builds.find(b => b.kind === 'trick'); s.trickArmed = true; s.crab.p = L.walk(th.p, L.tangent(th.p, [1, 0, 0]), 0.7 / s.R); return 1; })()`);
     await p.waitForSelector('.tp-lvl');
     const card0 = await p.textContent('#tp-over');
-    check((await M('M._debug().mode')) === 'trick' && /OLD INK/.test(card0) && /Tide Pearl/.test(card0) && /3 coconuts/.test(card0) && (await p.$$('.tp-lvl')).length === 5 && /WORLD 2/.test(card0) && (await p.$$('.tp-lvl:disabled')).length === 0 && /WORLD 1/.test(card0) && !(await p.isVisible('#tp-bar')), `7b. walking into the Trick Hut opens Old Ink's Lair: the story, the rules of the claws, one chamber`);
+    check((await M('M._debug().mode')) === 'trick' && /OLD INK/.test(card0) && /Tide Pearl/.test(card0) && /3 coconuts/.test(card0) && (await p.$$('.tp-lvl')).length === 6 && /WORLD 2/.test(card0) && (await p.$$('.tp-lvl:disabled')).length === 0 && /WORLD 1/.test(card0) && !(await p.isVisible('#tp-bar')), `7b. walking into the Trick Hut opens Old Ink's Lair: the story, the rules of the claws, one chamber`);
     await shot('lair-card');
     await p.click('.tp-lvl[data-arg="3"]');
     await p.waitForTimeout(500);
@@ -182,7 +182,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     const hudStart = await p.textContent('#tp-trial-s'), hintBtn = await p.isVisible('#btn-tp-hint');
     await p.waitForSelector('#tp-sign', { state: 'visible', timeout: 6000 });
     const sign = (await p.isVisible('#tp-sign')) ? await p.textContent('#tp-sign') : '';
-    check(/4\s*\/5/.test(sign) && /THE DROWNED STAIR/.test(sign) && /OLD INK/.test(sign) && /GULL/.test(sign) && /VENTS/.test(sign), `    after a look at the pearl, an arrival card at the door: the chamber number, its name, and what's inside ("${sign.replace(/\s+/g, ' ').trim().slice(0, 70)}…")`);
+    check(/4\s*\/6/.test(sign) && /THE DROWNED STAIR/.test(sign) && /OLD INK/.test(sign) && /GULL/.test(sign) && /VENTS/.test(sign), `    after a look at the pearl, an arrival card at the door: the chamber number, its name, and what's inside ("${sign.replace(/\s+/g, ' ').trim().slice(0, 70)}…")`);
     check(tr.id === 'stair' && tr.held === 0 && tr.count.loose === 3 && /0\/3/.test(hudStart) && hintBtn, `    the Drowned Stair starts with three coconuts under the palm and none in the claws ("${hudStart.trim()}"), and a 💡 button`);
     // no coconut: the throw button says so and throws nothing
     await p.dispatchEvent('#btn-tp-act', 'pointerdown', { bubbles: true, pointerId: 9 }); await p.waitForTimeout(250);
