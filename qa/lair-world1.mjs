@@ -450,6 +450,9 @@ const slideRun = () => {
   ok(SLIDE.signs.length >= 5 && ['slide', 'push', 'crack', 'plate', 'ramp', 'lava'].every(k => SLIDE.signs.some(s => s.kind === k)), '   a picture sign by each new thing: slide, push, cracked glass, the plate, the ramp, the lava');
   { const q = K.create(SLIDE); q.crab.p = at(12, 90).slice(); q.crab.h = 0; const e = run(q, 0.3); ok(e.some(x => x.type === 'burn'), '   the lava round the lake burns'); } }
 
+{ const SG = await import('../src/arcade/Signs.js'), firsts = CHAMBERS.filter((c, i) => i === 0 || CHAMBERS[i - 1].world !== c.world);
+  ok(CHAMBERS.every(c => (c.signs || []).length && c.signs.every(s => SG.SIGN_KINDS.includes(s.kind))) && firsts.every(c => c.signs.some(s => /^story/.test(s.kind) || s.kind === 'note')),
+    `every chamber has picture signs (each one drawn), and each world opens with its part of the story in pictures (${firsts.map(c => c.name).join(', ')})`); }
 ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink,pool,tide,deep,slide' && CHAMBERS[7].boss && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, The Gull\'s Roost, then the Drowned Stair with Old Ink; World 2: Sinkhole Reef, Moon Pool, Low Tide, then Ink\'s Deep with Old Ink; all open while testing');
 console.log(fails ? `\nWORLD 1 FAIL (${fails})` : '\nWORLD 1 PASS');
 process.exit(fails ? 1 : 0);

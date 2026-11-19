@@ -291,7 +291,10 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
     // Stone posts (a pillar is a tall one): a column with rings and a cap.
     for (const k of level.posts || []) {
         const base = K.floorAt({ ...sfl, lv: { ...level, posts: [] } }, k.p), hh = k.h - base;
-        const g = k.kind === 'hut' ? Y.prop([...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([x, z]) => ({ geo: G.cylLow, color: 0x8a5a2e, s: [0.14, hh * 0.45, 0.14], p: [x * k.r * 0.75, hh * 0.22, z * k.r * 0.75] })),
+        const g = k.kind === 'shrine' ? Y.prop([{ geo: G.cylLow, color: 0xd9c3b0, s: [k.r * 2.6, 0.3, k.r * 2.6], p: [0, 0.15, 0] }, { geo: G.cyl, color: 0xeee2d0, s: [k.r * 1.5, hh - 0.4, k.r * 1.5], p: [0, 0.3 + (hh - 0.4) / 2, 0] },
+                { geo: G.cylLow, color: 0xffb3c6, s: [k.r * 2.1, 0.16, k.r * 2.1], p: [0, hh - 0.05, 0] }, { geo: G.sphLow, color: 0xff8aa6, s: [k.r * 1.3, 0.35, k.r * 1.3], p: [0, hh + 0.08, 0] },
+                ...[[0.3, 0.2], [-0.25, 0.35], [0.1, -0.3]].map(([x, z]) => ({ geo: G.sphLow, color: 0x7b3fe4, s: [0.22, 0.05, 0.16], p: [x * k.r * 2, hh + 0.04, z * k.r * 2], ink: false }))], { thick: 0.06 })
+            : k.kind === 'hut' ? Y.prop([...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([x, z]) => ({ geo: G.cylLow, color: 0x8a5a2e, s: [0.14, hh * 0.45, 0.14], p: [x * k.r * 0.75, hh * 0.22, z * k.r * 0.75] })),
                 { geo: G.box, color: 0xe8d2b0, s: [k.r * 1.9, hh * 0.42, k.r * 1.7], p: [0, hh * 0.65, 0] }, { geo: G.box, color: 0x5fb8d8, s: [k.r * 0.5, hh * 0.18, 0.05], p: [0, hh * 0.68, k.r * 0.86] },
                 { geo: G.coneLow, color: 0xd9653f, s: [k.r * 2.9, hh * 0.32, k.r * 2.6], p: [0, hh * 0.95, 0], r: [0, Math.PI / 4, 0] }, { geo: G.box, color: 0xc98f52, s: [k.r * 2.2, 0.12, k.r * 2.0], p: [0, hh - 0.04, 0] }], { thick: 0.06 })
             : k.kind === 'mast' ? Y.prop([{ geo: G.cyl, color: 0xa87440, s: [k.r * 1.6, hh, k.r * 1.6], p: [0, hh / 2, 0] }, { geo: G.box, color: 0x9a6534, s: [2.4, 0.12, 0.12], p: [0, hh * 0.6, 0] },
@@ -437,7 +440,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         grp.add(Y.prop([{ geo: G.cyl, color: C.wood2, s: [0.16, 1.7, 0.16], p: [0, lift + 0.85, -0.05] }, { geo: G.box, color: C.wood, s: [2.1, 1.6, 0.14], p: [0, lift + 2.1, -0.05] }, { geo: G.box, color: C.wood2, s: [2.18, 0.12, 0.18], p: [0, lift + 2.94, -0.05] }], { thick: 0.05 }));
         const face = new T.Mesh(new T.PlaneGeometry(1.92, 1.44), new T.MeshBasicMaterial({ map: tex })); face.position.set(0, lift + 2.1, 0.03); grp.add(face);
         const spark = Y.prop([{ geo: G.crystal, color: 0xffd23a, s: [0.9, 0.5, 0.9], r: [Math.PI, 0, 0], p: [0, 0, 0] }], { thick: 0.04 }); spark.position.set(0, lift + 3.45, 0); grp.add(spark);
-        put(grp, sg.p, toward(sg.p, sg.look || TOP), base); scene.add(grp);
+        put(grp, sg.p, toward(sg.p, sg.look || TOP), base); scene.add(grp); if (rides(sg.p)) riders.push({ obj: grp });
         return { sg, g2, tex, t: 0, drawn: 0, grp, spark, seen: false };
     });
     // On the lake, while you're stopped: where each of the four ways would take you (and the block, if it's a push), marked at the end:
@@ -452,6 +455,9 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         const ghost = new T.Mesh(G.box, basic(0xff8a2a, { transparent: true, opacity: 0.35, depthWrite: false })); ghost.scale.setScalar(0.7); ghost.visible = false; scene.add(ghost);
         lakePrev = { dots, ends, ghost, key: '' };
     }
+    if (level.goal && level.start) { const d0 = K.dist(level.start, level.goal), dir = toward(level.start, level.goal);
+        for (let i = 0; i < 7; i++) { const q = walk(level.start, dir, (1.6 + i * 0.55) / R), side = tangent(q, cross(q, dir)), qq = walk(q, side, ((i % 2 ? 1 : -1) * 0.18) / R); if (K.dist(qq, level.goal) > d0 - 0.5) continue;
+            const sp = new T.Mesh(G.disc, basic(0x6b2fd0, { transparent: true, opacity: 0.55 - i * 0.05, depthWrite: false })); sp.scale.set(0.16 + (i % 3) * 0.04, 1, 0.12 + (i % 2) * 0.05); put(sp, qq, dir, fl(qq) + 0.04); scene.add(sp); if (rides(qq)) riders.push({ obj: sp }); } }
     const embers = []; if (THEME.embers) { const rnd = rngOf(31); for (let i = 0; i < 40; i++) { const e = new T.Mesh(G.sphLow, basic(i % 3 ? 0xff8a2a : 0xffd23a)); e.scale.setScalar(0.06 + rnd() * 0.05); scene.add(e); embers.push({ e, p: K.at(7 + rnd() * 8, rnd() * 360), h: rnd() * 3, v: 0.6 + rnd() * 0.8 }); } }
     // A palm on the mesa with a coconut hanging from its frond on a rope.
     const hangVis = (level.hangs || []).map(hg => {

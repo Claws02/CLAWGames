@@ -309,3 +309,14 @@ Picture signs: Old Ink's note, the bullseye, hitting the gull, bouncing on its b
 Proven in `qa/lair-world1.mjs` (a bot plays it, 37 s, no falls), with tests that a crab or a coconut can't press the heavy plate,
 that the bridge holds 8 s then rises, that a laden gull never dives, and that the deck can't be jumped onto.
 
+**Story and signs across the whole lair** (piece 5, part 1). Each chamber's story line now says why you're there, as one chase:
+World 1 (the island): Old Ink grabs the Tide Pearl from your island's shrine and runs into his sandcastle fort; up the river to the
+mesa; past his gull's roost; cornered at the top of the Drowned Stair. World 2 (the coral caves): beaten, he slips down a sinkhole;
+up to the moon over the reef; across the lagoon at low tide; his deepest lair. World 3 (the volcano): beaten twice, he gives the
+pearl to his ally, the Hermit King. The chamber list shows each world's line under its heading.
+In the world: each world's first chamber has a **story note** (a picture sign: `story1`, `story2`, `story3`; the roost has Old
+Ink's own note); Coconut Beach has the island's **empty shrine** by the start, its cradle splashed with ink; every chamber has a
+short **trail of ink drips** from the start the way he went. **Every chamber now has picture signs** by each new thing (new
+drawings: cracked wall, logs, sand block, plate gate, timed bullseye, sinkholes, launch pad, tide, crumbling tiles, steam jets,
+Old Ink's slam). `qa/lair-world1.mjs` checks every chamber has signs, every sign is drawn, and each world opens with its story.
+

@@ -159,6 +159,112 @@ const DRAW = {
         crab(g, 30, 110, 0.8); const k = seg(t, 0.3, 1.2); if (t > 0.3) nut(g, lerp(40, 60, k), lerp(100, 146, k) - Math.sin(Math.PI * k) * 30);
         if (t > 1.2) { g.strokeStyle = GO; g.lineWidth = 4; g.beginPath(); g.ellipse(60, 150, 26, 13, 0, 0, Math.PI * 2); g.stroke(); }
     },
+    // story1 (World 1): Old Ink grabs the Tide Pearl from the island's shrine and runs into his sandcastle fort; the crab goes after him
+    story1(g, t) {
+        g.fillStyle = '#e9e1ff'; g.fillRect(0, 0, 256, 192); g.fillStyle = SAND; g.fillRect(0, 140, 256, 52);
+        box(g, 20, 110, 40, 30, '#d9c3b0'); box(g, 176, 70, 70, 70, '#f2cf86'); for (let i = 0; i < 4; i++) box(g, 176 + i * 18, 58, 12, 14, '#f2cf86', INK, 2);       // the shrine, the fort
+        const k = seg(t, 0.4, 2.0), ox = lerp(40, 200, k); octo(g, ox, 128 - Math.sin(Math.PI * k) * 20, 0.9); pearl(g, t < 0.4 ? 40 : ox + 14, t < 0.4 ? 104 : 118 - Math.sin(Math.PI * k) * 20, 7);
+        if (t > 1.6) crab(g, lerp(10, 120, seg(t, 1.6, 3.4)), 160, 0.8);
+    },
+    // story2 (World 2): beaten, Old Ink slips down a sinkhole into the coral caves with the pearl; the crab after him
+    story2(g, t) {
+        g.fillStyle = '#bfe9f5'; g.fillRect(0, 0, 256, 192); g.fillStyle = '#ffb3c6'; g.fillRect(0, 120, 256, 72);
+        g.fillStyle = '#0e1a24'; g.beginPath(); g.ellipse(150, 124, 34, 10, 0, 0, Math.PI * 2); g.fill();
+        const k = seg(t, 0.3, 1.6); if (k < 1) { octo(g, lerp(60, 150, k), 110 + seg(t, 1.2, 1.6) * 20, 0.9); pearl(g, lerp(74, 164, k), 102 + seg(t, 1.2, 1.6) * 20, 6); }
+        if (t > 1.8) { crab(g, lerp(20, 150, seg(t, 1.8, 3.3)), 130, 0.8); arrow(g, 150, 70, 150, 100); }
+        for (const [x, y] of [[40, 160], [210, 170], [90, 175]]) { g.fillStyle = '#ff7f9e'; g.beginPath(); g.arc(x, y, 9, 0, Math.PI * 2); g.fill(); }
+    },
+    // story3 (World 3): beaten twice, Old Ink hands the pearl to his ally, the Hermit King, in his volcano
+    story3(g, t) {
+        g.fillStyle = '#3a1a26'; g.fillRect(0, 0, 256, 192); g.fillStyle = '#5a4a5e'; g.beginPath(); g.moveTo(130, 190); g.lineTo(190, 60); g.lineTo(220, 60); g.lineTo(256, 190); g.fill();
+        g.fillStyle = LAVA; g.fillRect(190, 52, 30, 10); for (let i = 0; i < 5; i++) { g.fillStyle = i % 2 ? '#ffd23a' : SEAM; g.beginPath(); g.arc(205 + Math.sin(t * 2 + i) * 12, 40 - ((t * 30 + i * 12) % 40), 2.5, 0, Math.PI * 2); g.fill(); }
+        // the Hermit King: a big crab in a spiky volcanic shell
+        g.fillStyle = '#6b4a3a'; g.strokeStyle = INK; g.lineWidth = 3; g.beginPath(); g.moveTo(150, 150); g.lineTo(168, 96); g.lineTo(186, 150); g.closePath(); g.fill(); g.stroke(); crab(g, 168, 156, 1.1);
+        const k = seg(t, 0.4, 1.8); octo(g, lerp(40, 120, k), 150, 0.9); pearl(g, lerp(56, t > 1.9 ? 160 : 134, t > 1.9 ? 1 : k), t > 1.9 ? 134 : 140, 7);
+        if (t > 2.2) { g.fillStyle = '#ffd23a'; for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(140 + i * 14, 80 - i * 4, 3, 0, Math.PI * 2); g.fill(); } }
+    },
+    // crackwall: a cracked section of wall: two hits with coconuts and it breaks
+    crackwall(g, t) {
+        g.fillStyle = SAND; g.fillRect(0, 150, 256, 42); crab(g, 40, 150);
+        const hits = t > 2.0 ? 2 : t > 1.0 ? 1 : 0; if (hits < 2) { box(g, 170, 50, 50, 100, '#f2cf86'); g.strokeStyle = '#9aa1b6'; g.lineWidth = 3; g.beginPath(); g.moveTo(180, 70); g.lineTo(196, 95); g.lineTo(186, 120); if (hits) { g.moveTo(196, 95); g.lineTo(212, 110); } g.stroke(); }
+        else { for (let i = 0; i < 6; i++) box(g, 168 + (i % 3) * 18, 136 - Math.floor(i / 3) * 12, 14, 12, '#f2cf86', INK, 2); tick(g, 196, 70, true); }
+        for (const [a, b] of [[0.3, 1.0], [1.3, 2.0]]) if (t > a && t < b) { const k = seg(t, a, b); nut(g, lerp(52, 168, k), lerp(140, 90, k) - Math.sin(Math.PI * k) * 30); }
+        g.fillStyle = INK; g.font = 'bold 22px sans-serif'; g.fillText(hits ? String(hits) : '', 120, 40);
+    },
+    // log: deep water carries you off: wait for a log, and jump on as it drifts by
+    log(g, t) {
+        g.fillStyle = SAND; g.fillRect(0, 130, 60, 62); g.fillRect(196, 130, 60, 62); g.fillStyle = SEA; g.fillRect(60, 140, 136, 52);
+        const lx = lerp(-40, 300, (t % LOOP) / LOOP); box(g, lx - 30, 138, 60, 14, '#9a6534');
+        const onLog = t > 1.4 && t < 2.6, x = t < 1.0 ? 40 : t < 1.4 ? lerp(40, lx, seg(t, 1.0, 1.4)) : onLog ? lx : lerp(lx, 220, seg(t, 2.6, 3.0)), y = t < 1.0 ? 124 : onLog ? 128 : 124 - (t < 1.4 ? Math.sin(Math.PI * seg(t, 1.0, 1.4)) * 30 : Math.sin(Math.PI * seg(t, 2.6, 3.0)) * 30);
+        crab(g, x, y, 0.8); if (t > 3.0) tick(g, 220, 80, true);
+    },
+    // pushsand: push the sand block up against the wall, jump on it, and jump again onto the wall
+    pushsand(g, t) {
+        g.fillStyle = SAND; g.fillRect(0, 150, 256, 42); box(g, 200, 70, 56, 80, '#f2cf86');
+        const k = seg(t, 0.2, 1.2), bx = lerp(90, 172, k); box(g, bx - 14, 122, 28, 28, '#e8bf6e');
+        const j1 = seg(t, 1.5, 1.9), j2 = seg(t, 2.1, 2.6); let x = lerp(60, 142, k), y = 140;
+        if (t > 1.5) { x = lerp(142, 172, j1); y = lerp(140, 112, j1) - Math.sin(Math.PI * j1) * 20; } if (t > 2.1) { x = lerp(172, 222, j2); y = lerp(112, 62, j2) - Math.sin(Math.PI * j2) * 20; }
+        crab(g, x, y, 0.8); if (t > 2.7) tick(g, 222, 30, true);
+    },
+    // gate: a coconut on the plate drops the crystal gate (while it rests there)
+    gate(g, t) {
+        g.fillStyle = '#8fd96a'; g.fillRect(0, 0, 256, 192); const drop = seg(t, 1.4, 2.0) * 60;
+        g.save(); g.beginPath(); g.rect(150, 40, 100, 100); g.clip(); for (let i = 0; i < 5; i++) { g.fillStyle = '#ff5f5f'; g.strokeStyle = INK; g.lineWidth = 2; g.beginPath(); g.moveTo(160 + i * 18, 130 + drop); g.lineTo(168 + i * 18, 60 + drop); g.lineTo(176 + i * 18, 130 + drop); g.fill(); g.stroke(); } g.restore();
+        g.fillStyle = '#ff5f5f'; g.strokeStyle = INK; g.lineWidth = 3; g.beginPath(); g.ellipse(70, 150, 24, 10, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+        g.setLineDash([4, 6]); g.strokeStyle = '#ff5f5f'; g.beginPath(); g.moveTo(94, 150); g.lineTo(190, 140); g.stroke(); g.setLineDash([]);
+        crab(g, 30, 110, 0.8); const k = seg(t, 0.3, 1.2); if (t > 0.3) nut(g, lerp(40, 70, k), lerp(100, 146, k) - Math.sin(Math.PI * k) * 30);
+    },
+    // timed: a bullseye with a clock: its gate opens only for a few seconds, so be ready to run
+    timed(g, t) {
+        g.fillStyle = '#8fd96a'; g.fillRect(0, 0, 256, 192); const hit = t > 0.9, left = hit ? Math.max(0, 1 - (t - 0.9) / 2.6) : 1;
+        for (const [r, col] of [[22, '#5f8bff'], [14, '#fff'], [6, '#5f8bff']]) { g.fillStyle = hit && col !== '#fff' ? GO : col; g.strokeStyle = INK; g.lineWidth = 2; g.beginPath(); g.arc(60, 60, r, 0, Math.PI * 2); g.fill(); g.stroke(); }
+        g.strokeStyle = INK; g.lineWidth = 6; g.beginPath(); g.arc(200, 50, 22, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left); g.stroke();
+        if (t < 0.9) nut(g, lerp(30, 60, seg(t, 0.2, 0.9)), lerp(160, 60, seg(t, 0.2, 0.9)));
+        const open = hit && left > 0; for (let i = 0; i < 4; i++) box(g, 150 + i * 16, 110 + (open ? 50 : 0), 10, 50, '#5f8bff', INK, 2);
+        crab(g, hit ? lerp(40, 210, seg(t, 1.0, 3.0)) : 40, 170, 0.8);
+    },
+    // hole: a sinkhole goes right through the little planet: in here, out the far side, still going the same way
+    hole(g, t) {
+        g.fillStyle = '#bfe9f5'; g.fillRect(0, 0, 256, 192); g.fillStyle = '#ffb3c6'; g.strokeStyle = INK; g.lineWidth = 3; g.beginPath(); g.arc(128, 96, 70, 0, Math.PI * 2); g.fill(); g.stroke();
+        g.setLineDash([5, 6]); g.strokeStyle = '#0e1a24'; g.beginPath(); g.moveTo(128, 26); g.lineTo(128, 166); g.stroke(); g.setLineDash([]);
+        const k = seg(t, 0.4, 2.2), y = lerp(10, 186, k); nut(g, 128, y, 8); arrow(g, 160, 40, 160, 80); arrow(g, 160, 120, 160, 160);
+        g.fillStyle = '#0e1a24'; for (const yy of [26, 166]) { g.beginPath(); g.ellipse(128, yy, 14, 5, 0, 0, Math.PI * 2); g.fill(); }
+    },
+    // launch: step on the launch pad and you fly to the moon (and back); what you carry comes too
+    launch(g, t) {
+        g.fillStyle = '#182a52'; g.fillRect(0, 0, 256, 192); g.fillStyle = '#ffb3c6'; g.beginPath(); g.arc(60, 230, 110, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#e8e4ff'; g.beginPath(); g.arc(210, 50, 28, 0, Math.PI * 2); g.fill(); g.fillStyle = '#c9c2f0'; g.beginPath(); g.arc(200, 44, 6, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = '#9be7ff'; g.lineWidth = 4; g.beginPath(); g.ellipse(70, 130, 22, 8, 0, 0, Math.PI * 2); g.stroke();
+        const k = seg(t, 0.6, 2.4), x = lerp(70, 205, k), y = lerp(122, 26, k) - Math.sin(Math.PI * k) * 40; crab(g, t < 0.6 ? 70 : x, t < 0.6 ? 122 : y, 0.7);
+    },
+    // tide: the water comes in and goes out on a clock: what it covers it carries off; a raft rises with it
+    tide(g, t) {
+        g.fillStyle = '#fff4dc'; g.fillRect(0, 0, 256, 192); const w = (Math.sin((t / LOOP) * Math.PI * 2 - Math.PI / 2) + 1) / 2, wy = 170 - w * 70;
+        g.fillStyle = SAND; g.fillRect(0, 170, 256, 22); g.fillStyle = 'rgba(95,199,232,0.85)'; g.fillRect(0, wy, 256, 192 - wy);
+        box(g, 150, wy - 10, 60, 12, '#c98f52'); crab(g, 180, wy - 18, 0.8); g.strokeStyle = INK; g.lineWidth = 4; g.beginPath(); g.arc(50, 50, 22, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.moveTo(50, 50); g.lineTo(50 + Math.sin(t * 1.6) * 16, 50 - Math.cos(t * 1.6) * 16); g.stroke();
+    },
+    // tiles: crumbling tiles: they crack when you step on them and drop away: don't stop
+    tiles(g, t) {
+        g.fillStyle = '#050a16'; g.fillRect(0, 100, 256, 92); g.fillStyle = '#d9c4d8'; g.fillRect(0, 100, 30, 92); g.fillRect(226, 100, 30, 92);
+        const x = lerp(14, 240, seg(t, 0.3, 2.3)); for (let i = 0; i < 5; i++) { const tx = 52 + i * 38, passed = x > tx + 18, fall = passed ? Math.min(60, (x - tx - 18) * 0.8) : 0; if (fall < 60) box(g, tx - 16, 112 + fall, 32, 18, '#b9a6d6'); }
+        crab(g, x, 104, 0.8); if (t > 2.4) tick(g, 230, 60, true);
+    },
+    // jets: a steam jet bubbles first (the warning), then roars: wait for the burst, then dash past
+    jets(g, t) {
+        g.fillStyle = '#d9c4d8'; g.fillRect(0, 150, 256, 42); box(g, 108, 142, 40, 12, '#7d72ab'); const ph = t % 2, warn = ph < 0.6, fire = ph >= 0.6 && ph < 1.4;
+        if (warn) { g.strokeStyle = '#fff'; g.lineWidth = 2; for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(120 + i * 8, 136 - ((t * 40 + i * 6) % 18), 3, 0, Math.PI * 2); g.stroke(); } }
+        if (fire) { g.fillStyle = 'rgba(255,255,255,0.85)'; g.fillRect(112, 20, 32, 124); }
+        const x = t < 1.4 ? 50 : lerp(50, 210, seg(t, 1.4, 2.0)); crab(g, x, 150, 0.8); if (t > 2.1) tick(g, 210, 100, true);
+    },
+    // boss: Old Ink slams an arm down where the red ring is: dodge it, and in the moment after, hit his head with a coconut
+    boss(g, t) {
+        g.fillStyle = '#d9c3b0'; g.fillRect(0, 150, 256, 42); octo(g, 190, 90, 2); const slam = seg(t, 0.4, 0.9);
+        g.strokeStyle = '#ff3b3b'; g.lineWidth = 3; g.beginPath(); g.ellipse(80, 160, 24, 7, 0, 0, Math.PI * 2); g.stroke();
+        g.strokeStyle = '#7b3fe4'; g.lineWidth = 12; g.beginPath(); g.moveTo(170, 100); g.quadraticCurveTo(120, 40 + slam * 60, 80, 70 + slam * 85); g.stroke();
+        const x = t < 0.5 ? 80 : lerp(80, 40, seg(t, 0.5, 0.8)); crab(g, x, 156, 0.8);
+        if (t > 1.1 && t < 1.8) { const k = seg(t, 1.1, 1.8); nut(g, lerp(52, 186, k), lerp(146, 64, k) - Math.sin(Math.PI * k) * 30); }
+        if (t > 1.8) { g.fillStyle = '#ffd23a'; for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(176 + i * 14, 40, 4, 0, Math.PI * 2); g.fill(); } tick(g, 120, 40, true); }
+    },
     // World 1: walk into a coconut to pick it up (up to three)
     pick(g, t) {
         g.fillStyle = SAND; g.fillRect(0, 70, 256, 122); const k = seg(t, 0.3, 1.6), x = lerp(30, 200, k);
