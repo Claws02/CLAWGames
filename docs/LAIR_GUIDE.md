@@ -114,6 +114,9 @@ wasn't checked (a real phone; how it feels to a person).
 | "A broken wall I can't do anything with" | never an invisible wall; draw it as something real (the dam) |
 | "I can just jump and get out of the rules" (Obsidian Slide v1) | a rule-bound floor must hold in the air too: no jumping on it, and landing on it from the air puts you under its rules |
 | "Holding the stick sent me after the block" | grid moves need a fresh push of the stick each time (`lakeHold`) |
+| "If I'm supposed to place coconuts it isn't obvious" | no pop-ups: put a picture sign by each new thing, show what a move would do before it's made, and put what you need where you'll pass it |
+| "I start facing a pillar and bounce back" | walk the start straight ahead in the game and check the first thing a player does works |
+| "I'm stuck down there" | every step down needs a way back up (or a reset that isn't a death) |
 | A puzzle's rules split between the search and the game | keep the rules in one pure module (`LakeGrid.js`) that both the qa search and the game call |
 | "The ramp isn't real" | a thing that looks usable must do something (the slide's ladder, earned at the shelf) |
 | Walking off a rock glided across a gap | gaps bigger than a fall can glide; rocks in a line across a current, not downstream |

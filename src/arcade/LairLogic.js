@@ -373,7 +373,7 @@ export const DEEP = {
 // and up the bridge.
 const LAKE = { rows: 9, cols: 9, r0: 7, dd: 1, lon0: -40, dl: 10, exit: 4, levels: [0, 0, 0, 1, 1, 1, 2, 2, 2], hs: [0.3, 1.2, 2.1], lava: { r0: 5.2, r1: 15.5 },
     pillars: [[0, 5], [0, 2], [0, 1], [2, 4], [8, 4], [3, 6], [2, 0], [3, 0], [8, 7], [5, 3], [4, 1], [6, 7], [3, 3], [5, 1], [6, 0], [1, 6]],
-    blocks: [[7, 5]], cracks: [[3, 2], [7, 3], [6, 8]], ramps: [[3, 1]], plates: [[1, 2]] };
+    blocks: [[7, 5]], cracks: [[3, 2], [7, 3], [6, 8]], ramps: [[3, 1], [6, 6]], plates: [[1, 2]], nuts: [[4, 2]] };      // (the ramp at 6,6 is the way back up to the rim from the middle step)
 const RIM_H = LAKE.hs[2];
 // The lake's steps as ledges (a ramp cell slopes from the step below up to its own), the rim, and the bridge.
 function _lakeLedges(z) {
@@ -392,15 +392,19 @@ function _lakeLedges(z) {
     return out;
 }
 export const SLIDE = {
-    id: 'slide', name: 'OBSIDIAN SLIDE', world: 3, theme: 'volcano', fast: 90, pay: 25, start: at(17, 0), goal: TOP, palm: at(18.4, -55), bank: 7,
+    id: 'slide', name: 'OBSIDIAN SLIDE', world: 3, theme: 'volcano', fast: 90, pay: 25, start: at(17, 10), goal: TOP, palm: at(17.8, 95), bank: 7,
     story: 'The Hermit King keeps the pearl down in his crater. The way down is a lake of glassy obsidian, in steps: once you slide, you can\'t stop.',
     hints: ['On the obsidian you slide in a straight line until something stops you, and you can\'t jump. Push the stick to pick which way.', 'Slide into the block, then push it: it slides too, down the steps, until something stops it. Watch where it ends up.', 'The gate on the bridge needs a coconut on the yellow plate. On the obsidian a throw goes two cells, then slides: hold THROW and push the stick to turn first.', 'Cracked glass takes one stop. The ramp is the only way back up a step. Stuck? Slide off into the lava: the lake sets back as it was.'],
     ground: [[1.8, 'dais'], [5.2, 'stone'], [15.5, 'lava'], [99, 'sand']],
-    checks: [at(17, 0)],
+    checks: [at(17, 10)],
     lake: LAKE,
     ledges: _lakeLedges(LAKE),
     posts: LAKE.pillars.map(([r, c]) => ({ p: lakeAt(LAKE, r, c), r: 0.34, h: lakeH(LAKE, r) + 1.5, kind: 'obsidian' })),      // (too tall to jump onto from the rim)
     gold: [[0, 8], [7, 1], [4, 8]].map(([r, c]) => ({ p: lakeAt(LAKE, r, c), h: lakeH(LAKE, r) })),
+    // Picture signs, each by the first place its rule matters (on the rim, or on a basalt rock in the lava beside the lake).
+    signs: [{ p: at(16.3, 32), kind: 'slide', look: at(18.2, 10) }, { p: at(16.3, -14), kind: 'push', look: at(18.2, 10) },
+        { p: lakeAt(LAKE, 3.5, -1.5), kind: 'crack', look: lakeAt(LAKE, 4, 4), rock: true }, { p: lakeAt(LAKE, 5.5, 9.5), kind: 'ramp', look: lakeAt(LAKE, 4, 4), rock: true },
+        { p: lakeAt(LAKE, 1, -1.5), kind: 'plate', look: lakeAt(LAKE, 2, 4), rock: true }, { p: lakeAt(LAKE, 7.6, 10.4), kind: 'lava', look: lakeAt(LAKE, 6, 4), rock: true }],
 };
 
 export const CHAMBERS = [BEACH, STREAM, YARD, STAIR, SINK, MOONPOOL, TIDE, DEEP, SLIDE];
@@ -416,6 +420,7 @@ export function create(lv) {
         gull: lv.gull ? { p: at(lv.gull.ring, lv.gull.from), h: 0, state: 'walk', t: 0, cool: 1, loot: 0, tx: null, from: null } : null };
     s.crab.h = floorAt(s, lv.start);
     if (lv.palm) for (let i = 0; i < CARRY; i++) _palmNut(s, i);
+    if (lv.lake) _lakeNuts(s);
     for (const hg of lv.hangs || []) s.nuts.push({ id: s.id++, p: hg.p.slice(), d: tangent(hg.p, [1, 0, 0]), v: 0, h: hg.h, vh: 0, state: 'hang', age: 9, still: 0 });
     return s;
 }
@@ -492,6 +497,8 @@ export function jetState(s, j) {
 /** The obsidian lake (a grid of cells, row 0 by the pearl; its rules are in LakeGrid.js): where cell (r, c) is, which cell a place is on. */
 export function lakeAt(z, r, c) { return at(z.r0 + r * z.dd, z.lon0 + c * z.dl); }
 /** Is the lake's gate held open (a coconut resting on its plate)? */
+/** The lake's grid rules (LakeGrid.js), for the screen's previews. */
+export const Lake = LG;
 export const lakeGateOpen = s => !!(s.lv.lake && s.lake && LG.gateOpen(s.lv.lake, s.lake));
 /** How high cell row r stands (rows step down toward the crater in levels). */
 export function lakeH(z, r) { return z.hs[z.levels[Math.max(0, Math.min(z.rows - 1, r))]]; }
@@ -595,16 +602,23 @@ function _lakeStep(s, dt, stick, ev) {
     }
     if (c.lake) {           // stopped on a cell: the stick picks one of four ways (winding up a throw, it only turns you)
         c.p = lakeAt(z, ...c.lake); c.h = floorAt(s, c.p);
-        if (stick.x * stick.x + stick.y * stick.y > 0.25) {
+        const mag2 = stick.x * stick.x + stick.y * stick.y;
+        if (mag2 > 0.12) {         // (a third of the way out is a push; let it back under a fifth to choose again)
             const right = cross(c.f, c.p), dir = norm(mix(right, c.f, stick.x, stick.y)), [dr, dc, , v] = _lakeWay(c.p, dir);
             c.face = tangent(c.p, v);
             if (!c.aiming && !c.lakeHold) { c.lakeHold = true; go(LG.move(z, G, c.lake[0], c.lake[1], dr, dc, canPick), v); }      // (one push of the stick, one move: let go to choose again)
-        } else { c.bumped = false; c.lakeHold = false; }
+        } else if (mag2 < 0.04) { c.bumped = false; c.lakeHold = false; }
         return true;
     }
     // Onto the lake from the rim (walking, or coming down from a jump): you're off, sliding on the way you were going.
     if (onLake(z, c.p)) {
-        const cell = _lakeCell(z, c.p), r = Math.max(0, Math.min(z.rows - 1, cell.r)), cc = Math.max(0, Math.min(z.cols - 1, cell.c));
+        const cell = _lakeCell(z, c.p), r = Math.max(0, Math.min(z.rows - 1, cell.r));
+        let cc = Math.max(0, Math.min(z.cols - 1, cell.c));
+        if (LG.pillarAt(z, r, cc) || LG.blockAt(G, r, cc)) {         // (beside a pillar at the edge: you come on in the free cell next to it)
+            const fx = (lonOf(c.p) - z.lon0) / z.dl - cc, alt = [cc + (fx >= 0 ? 1 : -1), cc + (fx >= 0 ? -1 : 1)].find(x => x >= 0 && x < z.cols && !LG.pillarAt(z, r, x) && !LG.blockAt(G, r, x));
+            if (alt == null) { c.p = at(z.r0 + (z.rows - 0.5) * z.dd + 0.2, lonOf(c.p)); return false; }
+            cc = alt;
+        }
         const [dr, dc, , v] = _lakeWay(c.p, c.face);
         const m = r === z.rows - 1 && dr === -1 ? LG.enter(z, G, cc, canPick) : LG.drop(z, G, r, cc, dr, dc, canPick);
         c.p = r === z.rows - 1 && dr === -1 ? at(z.r0 + (z.rows - 0.5) * z.dd, z.lon0 + cc * z.dl) : lakeAt(z, r, cc);
@@ -617,10 +631,12 @@ function _lakeStep(s, dt, stick, ev) {
 function _lakeReset(s, ev) {
     const z = s.lv.lake; if (!z) return;
     const dirty = s.lake.blocks.join(';') !== (z.blocks || []).join(';') || Object.values(s.lake.cracks).some(x => x) || s.lake.nuts.length;
-    s.lake = LG.fresh(z);
-    for (const n of s.nuts.filter(x => x.lake)) _lose(s, n, ev, 'burn');
+    for (const n of s.nuts.filter(x => x.lake || (x.state === 'slide' && x.lpts))) { if (n.home) s.nuts.splice(s.nuts.indexOf(n), 1); else _lose(s, n, ev, 'burn'); }
+    s.lake = LG.fresh(z); _lakeNuts(s);
     if (dirty) ev.push({ type: 'lake-reset' });
 }
+// The coconuts that lie on the lake at the start (and again whenever it sets back).
+function _lakeNuts(s) { const z = s.lv.lake; for (const [r, c] of z.nuts || []) { const p = lakeAt(z, r, c); s.nuts.push({ id: s.id++, w: 0, p, d: tangent(p, [1, 0, 0]), v: 0, h: lakeH(z, r), vh: 0, state: 'rest', lake: [r, c], home: true, age: 9, still: 0 }); } }
 // A coconut on the lake slides too: from cell (r, c), the way (dr, dc), along the grid.
 function _nutSlide(s, n, r, c, dr, dc, from) {
     const z = s.lv.lake, sl = LG.slide(z, s.lake, r, c, dr, dc, 'nut'), cells = [[r, c], ...sl.path];

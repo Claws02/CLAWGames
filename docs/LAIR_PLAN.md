@@ -253,3 +253,21 @@ what the grid says, so the search that proves a layout and the game can never di
   where taking away the ramp, or making the block a pillar, leaves no way at all. Its 15 moves: in at column 5 and bump the block;
   push it, and it rides down the steps to stop by the bridge; round and down to the cracked cell under the plate (by the ramp); a
   coconut onto the plate; round to the block, and up the bridge. `qa/lair-world1.mjs` plays it with the stick and the throw button.
+
+**Obsidian Slide, play-test 2** ("I can't finish it, and it isn't obvious I'm meant to place a coconut; no pop-ups to tell people
+what to do"). Played through the real joystick, it worked when you knew the answer, so the problems were in reading it:
+- The start faced a pillar at the lake's edge, so walking straight on bounced you back. The start is now in line with the open
+  column, and coming on beside a pillar puts you in the free cell next to it.
+- **Slide previews**: stopped on the glass, a dotted trail shows where each of the four ways would take you, with a mark at the
+  end (white ring: you'd stop; red: lava; gold: up the bridge; blue: back on the rim), and the block's trail and where it would
+  end up if it's a push. On the rim by the edge, the trail shows where coming on here goes.
+- **The coconut**: one now lies on the glass at a cell you stop on (you pick it up), so none needs carrying from the palm. Holding
+  one, a green arc shows any throw from where you are that would end on the plate, and the plate flashes green.
+- **A way back up**: a second ramp, on the middle step, slides you back onto the rim (the lake sets back). No more being stuck
+  low down with only the lava to reset it.
+- **Picture signs** (`signs: [{ p, kind, look, rock? }]`, drawings in `Signs.js`): a signpost by each new thing. The board
+  is a little looping picture of a ghost crab acting the rule out (slide and no jumping, push, cracked glass, the plate and gate,
+  the ramp, the lava setting the lake back). It plays while you're near, and a sparkle hangs over each one you haven't visited.
+  No words, nothing pops up. More kinds are drawn for World 1 (pick up, throw, bounce, vent, current, gull, bullseye, climb).
+- The stick needs less of a push on the glass (a third of the way out), and cracked glass is drawn brighter.
+

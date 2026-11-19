@@ -24,6 +24,7 @@
 import * as K from './LairLogic.js';
 import { cross, mix, norm, tangent, toward, walk } from './PlanetLogic.js';
 import { makeToon } from './Toon.js';
+import * as SG from './Signs.js';
 
 const CHARGE_S = 0.9;                       // how long a full wind-up takes
 const GATE_COLOR = { lid: 0x9be7ff,  eye: 0xff5fa8, plate: 0xffc83a, yard: 0x5fd0ff, red: 0xff5f5f, blue: 0x5f8bff, green: 0x4ade80, gold: 0xffc83a, cage: 0x5fd0ff };
@@ -372,7 +373,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         const blocks = (z.blocks || []).map(() => { const g = Y.prop([{ geo: G.box, color: 0x3a2f4e, s: [0.72, 0.72, 0.72], p: [0, 0.36, 0] }, { geo: G.box, color: 0xff8a2a, s: [0.74, 0.06, 0.74], p: [0, 0.5, 0], ink: false }, { geo: G.box, color: 0x52446c, s: [0.5, 0.06, 0.5], p: [0, 0.74, 0] }], { thick: 0.05 }); scene.add(g); return { g, p: null, h: 0, sink: 0 }; });
         // cracks: a pale web on the glass; cracked, it glows; broken, a hole of lava
         const cracks = (z.cracks || []).map(([r, c]) => { const p = K.lakeAt(z, r, c), g = new T.Group(), web = [], mats = [];
-            for (let k = 0; k < 4; k++) { const mt = basic(0xcfc4ea); mats.push(mt); const ln = new T.Mesh(G.box, mt); ln.scale.set(0.62 - k * 0.08, 0.02, 0.04); ln.rotation.y = k * 0.8 + 0.3; ln.position.y = 0.035; g.add(ln); web.push(ln); }
+            for (let k = 0; k < 4; k++) { const mt = basic(0xf2ecff); mats.push(mt); const ln = new T.Mesh(G.box, mt); ln.scale.set(0.7 - k * 0.08, 0.025, 0.07); ln.rotation.y = k * 0.8 + 0.3; ln.position.y = 0.035; g.add(ln); web.push(ln); }
             const hole = new T.Mesh(G.disc, basic(0xff5a1a)); hole.scale.setScalar(0.4); hole.position.y = 0.04; hole.visible = false; g.add(hole);
             put(g, p, [1, 0, 0], K.lakeH(z, r)); scene.add(g); return { r, c, g, mats, hole, last: -1 }; });
         // the plate (a coconut on it holds the gate open) and the gate across the bridge, joined by a line of dots in the gate's colour
@@ -383,6 +384,31 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             put(g, gp, tangent(gp, cross(TOP, gp)), K.lakeH(z, 0)); scene.add(g); gate = { g, gp, y: 0 };
             for (const [r, c] of z.plates) { const a = K.lakeAt(z, r, c), len = K.dist(a, gp), n = Math.max(2, Math.floor(len / 0.4)); for (let k = 1; k < n; k++) { const f = k / n, q = norm(mix(a, gp, 1 - f, f)), d = new T.Mesh(G.disc, basic(gc, { transparent: true, opacity: 0.55, depthWrite: false })); d.scale.setScalar(0.12); put(d, q, null, fl(q) + 0.05); scene.add(d); } } }
         lakeVis = { z, blocks, cracks, plates, gate };
+    }
+    // Picture signs: a signpost by each new thing, its board a little looping picture (Signs.js) of a ghost crab acting the rule out.
+    // It plays while you're near; a sparkle hangs over each one you haven't been to yet.
+    const signVis = (level.signs || []).map(sg => {
+        const cv = document.createElement('canvas'); cv.width = SG.SIGN_W; cv.height = SG.SIGN_H; const g2 = cv.getContext('2d'); SG.drawSign(g2, sg.kind, 0);
+        const tex = new T.CanvasTexture(cv); if (T.SRGBColorSpace) tex.colorSpace = T.SRGBColorSpace;
+        const grp = new T.Group(), lift = sg.rock ? 0.7 : 0, base = fl(sg.p);
+        if (sg.rock) grp.add(Y.prop([{ geo: G.rockSoft, color: 0x46343f, s: [1.7, 1.1, 1.5], p: [0, 0.15, 0] }, { geo: G.rockSoft, color: 0x5a4a5e, s: [0.9, 0.6, 0.8], p: [0.5, 0.45, 0.2] }], { thick: 0.05 }));
+        grp.add(Y.prop([{ geo: G.cyl, color: C.wood2, s: [0.16, 1.7, 0.16], p: [0, lift + 0.85, -0.05] }, { geo: G.box, color: C.wood, s: [2.1, 1.6, 0.14], p: [0, lift + 2.1, -0.05] }, { geo: G.box, color: C.wood2, s: [2.18, 0.12, 0.18], p: [0, lift + 2.94, -0.05] }], { thick: 0.05 }));
+        const face = new T.Mesh(new T.PlaneGeometry(1.92, 1.44), new T.MeshBasicMaterial({ map: tex })); face.position.set(0, lift + 2.1, 0.03); grp.add(face);
+        const spark = Y.prop([{ geo: G.crystal, color: 0xffd23a, s: [0.9, 0.5, 0.9], r: [Math.PI, 0, 0], p: [0, 0, 0] }], { thick: 0.04 }); spark.position.set(0, lift + 3.45, 0); grp.add(spark);
+        put(grp, sg.p, toward(sg.p, sg.look || TOP), base); scene.add(grp);
+        return { sg, g2, tex, t: 0, drawn: 0, grp, spark, seen: false };
+    });
+    // On the lake, while you're stopped: where each of the four ways would take you (and the block, if it's a push), marked at the end:
+    // a white ring (you'd stop there), red (lava), gold (off up the bridge), blue (back on the rim). With a coconut in your claws, a green
+    // arc shows any throw from here that would end on the plate. On the rim, by the edge: where coming on here would take you.
+    let lakePrev = null;
+    if (lakeVis) {
+        const dot = col => { const d = new T.Mesh(G.disc, basic(col, { transparent: true, opacity: 0.6, depthWrite: false })); d.scale.setScalar(0.09); d.visible = false; scene.add(d); return d; };
+        const dots = Array.from({ length: 140 }, () => dot(0xffffff));
+        const ring = () => { const m = new T.Mesh(G.ring, basic(0xffffff, { transparent: true, opacity: 0.85, depthWrite: false, side: T.DoubleSide })); m.scale.setScalar(0.32); m.visible = false; scene.add(m); return m; };
+        const ends = Array.from({ length: 6 }, ring);
+        const ghost = new T.Mesh(G.box, basic(0xff8a2a, { transparent: true, opacity: 0.35, depthWrite: false })); ghost.scale.setScalar(0.7); ghost.visible = false; scene.add(ghost);
+        lakePrev = { dots, ends, ghost, key: '' };
     }
     const embers = []; if (THEME.embers) { const rnd = rngOf(31); for (let i = 0; i < 40; i++) { const e = new T.Mesh(G.sphLow, basic(i % 3 ? 0xff8a2a : 0xffd23a)); e.scale.setScalar(0.06 + rnd() * 0.05); scene.add(e); embers.push({ e, p: K.at(7 + rnd() * 8, rnd() * 360), h: rnd() * 3, v: 0.6 + rnd() * 0.8 }); } }
     // A palm on the mesa with a coconut hanging from its frond on a rope.
@@ -778,13 +804,36 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         jetVis.forEach((v, i) => { const st = K.jetState(s, v.j);
             v.col.visible = st === 'fire'; if (st === 'fire') { v.col.scale.set(v.j.r * (0.8 + 0.1 * Math.sin(t * 30 + i)), 3.2, v.j.r * (0.8 + 0.1 * Math.sin(t * 25 + i))); v.col.position.y = 1.7; v.col.material.opacity = 0.55 + 0.2 * Math.sin(t * 20); }
             v.bub.forEach((b, k) => { b.visible = st === 'warn'; if (b.visible) { const ph = (t * 1.8 + k / 5) % 1; b.position.set(Math.cos(k * 1.3) * v.j.r * 0.4, 0.2 + ph * 0.9, Math.sin(k * 1.3) * v.j.r * 0.4); b.material.opacity = 0.9 - ph * 0.8; } }); });
+        signVis.forEach(v => { const near = K.dist(c.p, v.sg.p) < (v.sg.rock ? 7 : 4.5);
+            if (near) { v.seen = true; v.t += dt; if (v.t - v.drawn > 0.05) { v.drawn = v.t; SG.drawSign(v.g2, v.sg.kind, v.t); v.tex.needsUpdate = true; } }
+            else if (v.t) { v.t = 0; v.drawn = 0; SG.drawSign(v.g2, v.sg.kind, 0); v.tex.needsUpdate = true; }
+            v.spark.visible = !v.seen; if (!v.seen) { v.spark.rotation.y = t * 2; v.spark.position.y = (v.sg.rock ? 0.7 : 0) + 3.45 + Math.sin(t * 3) * 0.12; } });
+        if (lakePrev && s.lake) { const z = level.lake, P = lakePrev, LG = K.Lake, open = K.lakeGateOpen(s);
+            const edge = z.r0 + (z.rows - 0.5) * z.dd, dC = K.dist(c.p, TOP), colF = (K.lonOf(c.p) - z.lon0) / z.dl, onRim = !c.lake && !c.slide && !c.air && dC > edge && dC < edge + 1.4 && colF > -0.5 && colF < z.cols - 0.5;
+            const key = c.slide ? 'slide' : c.lake ? `L${c.lake}|${c.nuts}|${c.aiming ? 1 : 0}|${JSON.stringify(s.lake)}` : onRim ? `R${Math.round(colF)}|${JSON.stringify(s.lake)}` : '';
+            if (key !== P.key) { P.key = key; P.plateHint = false; let di = 0, ei = 0; P.dots.forEach(d => { d.visible = false; }); P.ends.forEach(e => { e.visible = false; }); P.ghost.visible = false;
+                const H = r => (r >= z.rows ? K.lakeH(z, z.rows - 1) : r < 0 ? K.lakeH(z, 0) : K.lakeH(z, r)) + 0.06;
+                const trail = (from, cells, col, endCol) => { let prev = from;
+                    for (const [r, cc] of cells) { const q = K.lakeAt(z, Math.max(-1, Math.min(z.rows, r)), cc);
+                        for (const f of [0.5, 1]) { if (di >= P.dots.length) break; const pp = norm(mix(prev[0], q, 1 - f, f)), hh = prev[1] + (H(r) - prev[1]) * f, d = P.dots[di++]; d.material.color.setHex(col); d.visible = true; put(d, pp, null, hh); }
+                        prev = [q, H(r)]; }
+                    if (endCol != null && ei < P.ends.length && cells.length) { const e = P.ends[ei++]; e.material.color.setHex(endCol); e.visible = true; put(e, prev[0], null, prev[1] + 0.02); } };
+                const OUT = { stop: 0xffffff, lava: 0xff4d4d, win: 0xffd23a, rim: 0x7ee7ff };
+                if (key.startsWith('L') && !c.aiming) { const [r0, c0] = c.lake, from = [K.lakeAt(z, r0, c0), H(r0)];
+                    for (const [dr, dc] of [[-1, 0], [1, 0], [0, 1], [0, -1]]) { const m = LG.move(z, LG.clone(s.lake), r0, c0, dr, dc, c.nuts < K.CARRY);
+                        if (m.kind === 'push') { const b = m.block, bp = [K.lakeAt(z, ...b.from), H(b.from[0])]; trail(bp, b.path, 0xff8a2a, b.lost ? OUT.lava : null); if (b.to && !b.lost) { P.ghost.visible = true; put(P.ghost, K.lakeAt(z, ...b.to), toward(K.lakeAt(z, ...b.to), TOP), K.lakeH(z, b.to[0]) + 0.36); } }
+                        else if (m.kind === 'slide') trail(from, m.path, m.out === 'stop' ? 0xffffff : OUT[m.out] || 0xff4d4d, m.broke ? OUT.lava : OUT[m.out]); }
+                    if (c.nuts > 0 && !open) for (const [dr, dc] of [[-1, 0], [1, 0], [0, 1], [0, -1]]) { const tt = LG.throwNut(z, LG.clone(s.lake), r0, c0, dr, dc);
+                        if (tt.end && LG.plateAt(z, ...tt.end)) { trail([from[0], from[1] + 0.9], tt.path, 0x4ade80, 0x4ade80); P.plateHint = true; } } }
+                else if (key.startsWith('R')) { const col = Math.round(colF), m = LG.enter(z, LG.clone(s.lake), col, c.nuts < K.CARRY); trail([c.p, c.h + 0.06], m.path, 0xffffff, m.broke ? OUT.lava : OUT[m.out]); } }
+            if (key) { const k = 0.5 + 0.25 * Math.sin(t * 5); P.dots.forEach(d => { if (d.visible) d.material.opacity = k; }); P.ends.forEach(e => { if (e.visible) e.scale.setScalar(0.3 + 0.04 * Math.sin(t * 6)); }); } }
         if (lakeVis && s.lake) { const { z } = lakeVis;
             lakeVis.blocks.forEach((v, i) => { const b = s.lake.blocks[i]; if (!b) return; const lost = b[0] < -50;
                 if (!lost) { const p = K.lakeAt(z, b[0], b[1]), h = K.lakeH(z, b[0]); if (!v.p) { v.p = p.slice(); v.h = h; } const a = K.dist(v.p, p) / R; if (a > 1e-4) v.p = walk(v.p, toward(v.p, p), Math.min(a, (K.SLIDE_V * dt) / R)); v.h += Math.max(-7 * dt, Math.min(5 * dt, h - v.h)); v.sink = 0; }
                 else if (v.p) v.sink = Math.min(1.5, v.sink + dt);
                 v.g.visible = !!v.p && v.sink < 1.4; if (v.p) put(v.g, v.p, toward(v.p, TOP), v.h - v.sink); });
-            lakeVis.cracks.forEach(v => { const st = s.lake.cracks[v.r + ',' + v.c] || 0; if (st === v.last) return; v.last = st; v.mats.forEach(mt => mt.color.setHex(st ? 0xff8a2a : 0xcfc4ea)); v.hole.visible = st >= 2; });
-            const open = K.lakeGateOpen(s); lakeVis.plates.forEach(v => { v.top.material = open ? v.on : v.off; });
+            lakeVis.cracks.forEach(v => { const st = s.lake.cracks[v.r + ',' + v.c] || 0; if (st === v.last) return; v.last = st; v.mats.forEach(mt => mt.color.setHex(st ? 0xff8a2a : 0xf2ecff)); v.hole.visible = st >= 2; });
+            const open = K.lakeGateOpen(s), hint = lakePrev && lakePrev.plateHint && !open && Math.sin(t * 9) > 0; lakeVis.plates.forEach(v => { v.top.material = open || hint ? v.on : v.off; v.top.scale.set(0.7 * (hint ? 1.25 : 1), 0.1, 0.7 * (hint ? 1.25 : 1)); });      // (flashing green: a throw from here would end on it)
             if (lakeVis.gate) { const gt = lakeVis.gate; gt.y += Math.max(-dt * 3, Math.min(dt * 3, (open ? -1.4 : 0) - gt.y)); put(gt.g, gt.gp, tangent(gt.gp, cross(TOP, gt.gp)), K.lakeH(z, 0) + gt.y); }
         }
         embers.forEach(m => { m.h += m.v * dt; if (m.h > 3.5) m.h = 0; put(m.e, m.p, null, m.h); });
