@@ -124,6 +124,11 @@ the first time it matters (`calm` vent, `🪜` ladder).
 Prove a lake with `LakeGrid.solve(z, nuts)` (breadth-first over the grid rules, blocks, cracks and coconuts included), and check
 each piece matters: `solve` with the ramp taken away, or the block made a pillar, must find nothing.
 
+### Built for Low Tide
+| Piece | What it does | In the recipe |
+|---|---|---|
+| **Floating island** | a ledge that rises and falls with the tide; what's on it rides along | `ledges: [{ ..., ride: true }]` |
+
 ### Teaching without pop-ups
 | Piece | What it does | In the recipe |
 |---|---|---|

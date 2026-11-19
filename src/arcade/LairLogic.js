@@ -318,18 +318,18 @@ export const MOONPOOL = {
 // onto the lighthouse rock's plate (the gold fence drops), and jump from the raft onto the mesa: the pearl.
 export const TIDE = {
     id: 'tide', name: 'LOW TIDE', world: 2, theme: 'reef', fast: 90, pay: 25, start: at(18.4, 0), goal: TOP, palm: at(17.6, -40), bank: 7,
-    story: 'Here the sea comes and goes. Watch the waterline: what the tide covers, it carries off.',
-    hints: ['The lagoon floods and drains on a clock. Caught on the sand when the water comes in, you\'re swept back to your flag.', 'Rafts sit on the sand at low tide and float up with the water. Stand on one and let the tide lift you.', 'The plate is on top of the lighthouse rock, too high to throw to from the sand. From a raft at high tide, it isn\'t.', 'The mesa is too high to jump onto from the sand. From a raft at high tide, it isn\'t.', 'Golden shells: on the sand far out (it\'s under water at high tide: be quick), on the tall rock (a jump from a raft at high tide), and on the coral post (the jelly).'],
+    story: 'Here the sea comes and goes, and the beach floats on it: your island rises with the tide. What the water covers, it carries off.',
+    hints: ['The lagoon floods and drains on a clock. Caught on the sand when the water comes in, you\'re swept back to your flag.', 'Rafts sit on the sand at low tide and float up with the water. Stand on one and let the tide lift you.', 'The plate is on top of the lighthouse rock, too high to throw to from the sand. From a raft at high tide, it isn\'t.', 'The mesa is too high to jump onto from the sand. From a raft at high tide, it isn\'t.', 'Golden shells: on the sand far out (it\'s under water at high tide: be quick), on the tall rock (a jump from a raft at high tide), and on the coral post out on the sand (the jelly, at low tide).'],
     ground: [[1.8, 'dais'], [4.4, 'stone'], [15, 'rock'], [99, 'sand']],
     checks: [at(18.4, 0)],
     tide: { r0: 4.4, r1: 15, high: 2.4, out: 9, rise: 4, in: 7, fall: 4 },
-    ledges: [{ r0: 0, r1: 4.4, h: 4, kind: 'mesa' }, { r0: 15, r1: 21, h: 0.3, kind: 'beachShelf' }],
+    ledges: [{ r0: 0, r1: 4.4, h: 4, kind: 'mesa' }, { r0: 15, r1: 21, h: 0.3, kind: 'beachShelf', ride: true }],
     rings: [{ r: 1.8, h: 20, gate: 'gold', kind: 'gate' }],
-    posts: [{ p: at(9, 60), r: 0.8, h: 2.8, kind: 'lighthouse' }, { p: at(11, -110), r: 0.6, h: 3.6 }, { p: at(16.4, 120), r: 0.5, h: 3 }],
-    pads: [{ p: at(17.4, 120), r: 0.7 }],
+    posts: [{ p: at(6.2, 85), r: 0.8, h: 2.8, kind: 'lighthouse' }, { p: at(11, -110), r: 0.6, h: 3.6 }, { p: at(12.6, 125), r: 0.5, h: 3 }],
+    pads: [{ p: at(13.6, 125), r: 0.7 }],
     rafts: [{ p: at(5.4, 20), r: 0.9 }, { p: at(10.6, 50), r: 0.9 }, { p: at(10.4, -95), r: 0.9 }],
-    plates: [{ p: at(9, 60), r: 0.75, gate: 'gold' }],
-    gold: [{ p: at(13.6, 160), h: 0 }, { p: at(11, -110), h: 3.6 }, { p: at(16.4, 120), h: 3 }],
+    plates: [{ p: at(6.2, 85), r: 0.75, gate: 'gold' }],
+    gold: [{ p: at(13.6, 160), h: 0 }, { p: at(11, -110), h: 3.6 }, { p: at(12.6, 125), h: 3 }],
 };
 
 // 8. INK'S DEEP: Old Ink's second lair, World 2's boss. Two timed hazards on the way, then a harder fight.
@@ -452,7 +452,7 @@ export const urchinAt = (s, p, pad = 0) => (s.lv.urchins || []).find(u => dist(u
 /** How high the ground is at place p: the top of a rock, or the sea floor. */
 export function floorAt(s, p) {
     let f = rockUnder(s, p) ? ROCK_H : 0;
-    for (const l of s.lv.ledges || []) { const d = dist(p, l.c || TOP); if (d >= l.r0 && d < l.r1 && covers(l, p)) f = Math.max(f, l.h1 == null ? l.h : l.h + (l.h1 - l.h) * (d - l.r0) / (l.r1 - l.r0)); }
+    for (const l of s.lv.ledges || []) { const d = dist(p, l.c || TOP); if (d >= l.r0 && d < l.r1 && covers(l, p)) f = Math.max(f, (l.h1 == null ? l.h : l.h + (l.h1 - l.h) * (d - l.r0) / (l.r1 - l.r0)) + (l.ride ? s.tideW || 0 : 0)); }     // (ride: an island that floats up and down with the tide)
     for (const k of s.lv.posts || []) if (dist(p, k.p) < k.r) f = Math.max(f, k.h);
     for (const k of s.lv.pads || []) if (dist(p, k.p) < k.r) f = Math.max(f, PAD_H);
     for (const w of s.lv.rings || []) if (w.top && up(s, w) && Math.abs(dist(p, w.c || TOP) - w.r) < TOP_W && covers(w, p)) f = Math.max(f, w.h);
@@ -868,7 +868,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     if (!c.air && !c.climb && (lv.pads || []).some(k => dist(c.p, k.p) < k.r)) { c.h = PAD_H; c.air = true; c.vh = PAD_CRAB_V; ev.push({ type: 'pad', p: c.p }); }      // (a jelly pad throws a crab up as soon as it steps on)
     if (!c.air && !c.climb) {
         const f = floorAt(s, c.p);
-        if (c.h < f && f - c.h <= STEP_UP) c.h = f; else if (c.h > f + 1e-6) { c.air = true; c.vh = 0; }
+        if (c.h < f && f - c.h <= STEP_UP) c.h = f; else if (c.h > f + 0.08) { c.air = true; c.vh = 0; } else if (c.h > f) c.h = f;
         if (!c.air) c.coy = COYOTE_S;
     } else c.coy = Math.max(0, c.coy - dt);
 
@@ -908,6 +908,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     // The tide: up and down on its clock. Caught standing below the water in the lagoon, the crab is swept back to its flag.
     if (lv.tide) {
         const was = s.tideW || 0; s.tideW = tideAt(lv, s.t);
+        for (const n of s.nuts) if (n.state === 'rest' && !inTide(lv, n.p)) n.h = floorAt(s, n.p);
         if ((s.tideW > was) !== (s.tideRise || false)) { s.tideRise = s.tideW > was; ev.push({ type: s.tideRise ? 'tide-in' : 'tide-out' }); }
         if (!c.air && inTide(lv, c.p) && c.h < s.tideW - 0.35) { _reset(s, ev, 'swept'); return ev; }
     }

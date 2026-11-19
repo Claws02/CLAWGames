@@ -271,3 +271,11 @@ what to do"). Played through the real joystick, it worked when you knew the answ
   No words, nothing pops up. More kinds are drawn for World 1 (pick up, throw, bounce, vent, current, gull, bullseye, climb).
 - The stick needs less of a push on the glass (a third of the way out), and cracked glass is drawn brighter.
 
+**Low Tide, play-test** ("the island you spawn on should rise with the water, for the rising water to make sense"). At high tide
+the lagoon stood 2 above the beach and stopped at its edge like a wall. Now the beach is a **floating island** (`ride: true` on
+its ledge): it rises and falls with the tide (always 0.3 over the water), and the crab, its coconuts, the palm, the flag and the
+kelp on it ride with it. The crab follows the ground down as it sinks (no falling in little hops). From the risen island a
+coconut could have reached the lighthouse plate, which would skip the raft, so the lighthouse rock moved in toward the mesa
+(`at(6.2, 85)`): no throw from the island (or from the sand, or from the middle raft at low tide) reaches it; from the raft by the mesa
+at high tide one does. The jelly and its post moved out onto the sand (a low-tide golden shell).
+

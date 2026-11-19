@@ -290,6 +290,11 @@ const lowTide = () => {
   { const q = K.create(TIDE); q.crab.p = at(12, 30).slice(); const e = run(q, 16); ok(e.some(x => x.type === 'swept') && q.falls >= 1, '   caught on the sand when the tide comes in: swept back to the flag'); }
   { let hit = 0; for (let d = 10; d <= 14.5; d += 0.9) for (let lon = 30; lon <= 90; lon += 10) for (let ch = 0; ch <= 1; ch += 0.1) { const q = K.create(TIDE); q.crab.p = at(d, lon).slice(); q.crab.h = K.floorAt(q, q.crab.p); q.crab.nuts = 1; face(q, TIDE.plates[0].p); K.throwNut(q, ch); run(q, 2); if (q.held.gold) hit++; }
     ok(hit === 0, '   from the sand no throw lands on the lighthouse plate (it\'s 2.8 up)'); }
+  { const q = K.create(TIDE); q.crab.p = at(17, 0); q.crab.h = K.floorAt(q, q.crab.p); const e1 = run(q, 16), up = q.crab.h, W = q.tideW, nutUp = q.nuts[0].h; const e2 = run(q, 10);
+    ok(up > W + 0.2 && Math.abs(up - (W + 0.3)) < 0.05 && nutUp > W && q.crab.h < 0.35 && !e1.concat(e2).some(x => x.type === 'swept' || x.type === 'land'),
+      `   the beach is a floating island: it rises with the tide (to ${up.toFixed(1)} over water at ${W.toFixed(1)}) and back down, the crab and its coconuts with it`); }
+  { let hit = 0; for (let lon = 0; lon <= 120; lon += 10) for (const d of [15.1, 16]) for (let ch = 0; ch <= 1.001; ch += 0.1) { const q = K.create(TIDE); q.t = 15; q.tideW = K.tideAt(TIDE, 15); q.crab.p = at(d, lon); q.crab.h = K.floorAt(q, q.crab.p); q.crab.nuts = 1; face(q, TIDE.plates[0].p); K.throwNut(q, ch); run(q, 2.5); if (q.held.gold) hit++; }
+    ok(hit === 0, '   from the risen island at high tide no throw reaches the lighthouse plate either: it still takes the raft'); }
   { const q = K.create(TIDE); q.crab.nuts = 1; q.crab.p = at(5.6, 60).slice(); face(q, TOP); K.throwNut(q, 0.02); run(q, 1); const n = q.nuts.find(x => x.state === 'rest');
     let top = 0; if (n) { go(q, P.walk(n.p, P.toward(TOP, n.p), 0.9 / K.R), [], 0.1, 3); hop(q, n.p); for (let i = 0; i < 120 && q.crab.air; i++) { K.step(q, DT, stickTo(q, TOP)); top = Math.max(top, q.crab.h); } }
     ok(K.floorAt(q, q.crab.p) < 4, `   from the sand a bounce on a coconut (${top.toFixed(1)} up) doesn't reach the mesa (4): it takes the raft at high tide`); }
