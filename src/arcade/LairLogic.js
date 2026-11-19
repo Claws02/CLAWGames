@@ -211,31 +211,45 @@ export const STREAM = {
     signs: [{ p: walk(SPOT, tangent(SPOT, toward(SPOT, BUMP)), -1.3 / R), kind: 'bank', look: walk(SPOT, tangent(SPOT, toward(SPOT, BUMP)), -4 / R) }, { p: at(17.4, 40), kind: 'vent', look: at(18.4, 0) }],
 };
 
-// 3. GULL YARD: Old Ink's gull.
-//   the beach                                                  d > 9.2
-//   the yard gate (crystal), opened by a bullseye on the beach  9.2   (the bullseye at 10.6, lon 30)
-//   the yard, where the gull walks                              5.6 – 9.2
-//   the tall step (no coconut over it; a slide out at the back) 5.6
-//   inside: the plate (inner gate) and the bullseye (outer gate), the pearl      4.3 · 3 · 1.8
-// THE ANSWER. One coconut into the beach bullseye: two left. In the yard the gull dives: step aside, and jump on its back as it lands
-// (or hit it with a coconut and it drops what it stole). Its back bounces you over the step with both coconuts: one on the plate, one
-// into the bullseye. (Over the step on a coconut you are in with one, and that's not enough.)
+// 3. THE GULL'S ROOST: Old Ink paid his gull with the pearl, and it keeps it in its nest on a sea stack behind an old fishing village.
+//   the beach (start, the palm, Old Ink's note)                                        d > 13
+//       · a fishing hut with a bullseye on it: it raises the village's net gate         13
+//   the lower boardwalk, on stilts (1 high), fishing huts (a golden shell on a roof)     8.6 – 12.8   (a ramp up from the beach)
+//   the upper deck (3.2 high: out of a jump's reach): the gull walks it, a stolen coconut in its beak            4.6 – 8.6
+//       · the heavy plate: only the gull is heavy enough. It lowers the drawbridge (and it stays down 8 s after the gull flies off)
+//       · the crow's-nest mast (a golden shell on top)
+//   the moat: deep water (in it: back to the flag)                                        2.6 – 4.6
+//   the drawbridge, from the deck up to the roost, at lon 0
+//   the roost (5 high): the nest of stolen coconuts and the pearl, in a fence a coconut on the plate drops      0 – 2.6
+// THE ANSWER. A coconut into the hut's bullseye: the net gate rises. Up the ramp. The gull won't dive while it holds its stolen coconut:
+// hit it with a coconut (from the boardwalk) and it drops it on the deck. Now it dives at you: step aside as it comes down by the deck,
+// and jump on its back: up onto the deck (a coconut to bounce on works too, but stays behind). Pick up the dropped coconut. Stand on the
+// heavy plate till the gull dives, step aside: it lands on the plate and the drawbridge comes down. Across, up to the roost: a coconut
+// on the nest's plate drops the fence: the pearl.
 export const YARD = {
-    id: 'yard', name: 'GULL YARD', world: 1, fast: 60, pay: 15, start: at(18.4, 0), goal: TOP, palm: at(17.7, -42), bank: 9.2,
-    story: 'Old Ink\'s gull keeps watch. It steals coconuts. But a gull has a back, and backs bounce.',
-    hints: ['A coconut in the bullseye on the beach opens the yard.', 'The gull circles, then dives where you stand: its shadow and a red ring show where. Move!', 'Jump on the gull as it lands, or hit it with a coconut: it is stunned and drops anything it stole.', 'Inside the step are two jobs. Over the step on a coconut, you are in with only one. What else bounces?'],
-    ground: [[1.8, 'dais'], [5.6, 'stone'], [9.2, 'grass'], [99, 'sand']],
-    checks: [at(18.4, 0), at(7.9, 0)], zones: { 1: [5.7, 9.1] },
-    rings: [
-        { r: 9.2, h: 9, gate: 'yard', kind: 'gate' },
-        { r: 5.6, h: 2, nutH: 9, gap: [180, 9], kind: 'step' }, { r: 5.6, h: 2, nutH: 9, only: [180, 9], way: 'out', kind: 'slide', show: 2 },
-        { r: 3, h: 9, gate: 'eye', kind: 'gate' }, { r: 1.8, h: 9, gate: 'plate', kind: 'gate' },
+    id: 'yard', name: 'THE GULL\'S ROOST', world: 1, fast: 90, pay: 15, start: at(18.4, 0), goal: TOP, palm: at(17.7, -42), bank: 13,
+    story: 'Old Ink paid his gull with the pearl. It keeps it in its nest up on the sea stack, past the old fishing village.',
+    hints: ['A coconut in the bullseye on the fishing hut raises the net gate.', 'The gull won\'t dive while it has a stolen coconut in its beak. Hit it with one: it drops it.', 'When it dives, step aside, then jump on its back as it lands: it bounces you up onto the deck.', 'The heavy plate is too heavy for a crab. Stand on it, and step off as the gull dives: it lands on the plate and the drawbridge comes down.', 'Golden shells: on a hut roof (bounce on a coconut), up the crow\'s-nest mast (bounce on the gull), and round the back of the roost.'],
+    ground: [[2.6, 'rock'], [4.6, 'sea'], [12.8, 'sea'], [99, 'sand']],
+    checks: [at(18.4, 0), at(6.4, 30)], zones: { 1: [4.7, 8.5] },
+    ledges: [
+        { r0: 0, r1: 2.6, h: 5, kind: 'stack' },
+        { r0: 4.6, r1: 8.6, h: 3.2, kind: 'boardwalk' }, { r0: 8.6, r1: 12.8, h: 1, kind: 'boardwalk' },
+        { r0: 12.8, r1: 14.4, only: [0, 7], h: 1, h1: 0, kind: 'boardwalkRamp' },
+        { r0: 2.1, r1: 4.8, only: [0, 5], h: 5, h1: 3.2, gate: 'bridge', kind: 'bridge' },
     ],
-    plates: [{ p: at(4.3, 100), r: 0.9, gate: 'plate' }],
-    targets: [{ p: at(10.6, 30), gate: 'yard' }, { p: at(4.2, -100), gate: 'eye' }],
-    gull: { ring: 7.5, from: 60 },
+    rings: [{ r: 13.0, h: 9, gate: 'net', kind: 'gate' }, { r: 1.4, h: 9, gate: 'nest', kind: 'gate' }],
+    currents: [{ r0: 2.6, r1: 4.6, only: [0, 180], speed: 0.8, deep: true }],
+    posts: [{ p: at(10.8, -60), r: 0.75, h: 2.6, kind: 'hut' }, { p: at(10.6, 70), r: 0.75, h: 2.6, kind: 'hut' }, { p: at(14.2, 30), r: 0.7, h: 1.6, kind: 'hut' }, { p: at(7.8, 180), r: 0.32, h: 5.2, kind: 'mast' }],
+    plates: [{ p: at(6.0, 16), r: 0.9, gate: 'bridge', heavy: true, secs: 8 }, { p: at(2.0, 70), r: 0.5, gate: 'nest' }],
+    targets: [{ p: walk(at(14.2, 30), tangent(at(14.2, 30), at(18.4, 0)), 0.85 / R), gate: 'net' }],
+    gull: { ring: 6.6, from: 90, zone: [4.7, 12.7], loot: 1 },
+    nest: true,
+    gold: [{ p: at(10.8, -60), h: 2.6 }, { p: at(7.8, 180), h: 5.2 }, { p: at(2.0, 200), h: 5 }],
+    signs: [{ p: at(17.4, -16), kind: 'note', look: at(18.6, 0) }, { p: at(16.0, 46), kind: 'bullseye', look: at(18.4, 0) },
+        { p: at(11.6, 18), kind: 'stun', look: at(13.6, 0) }, { p: at(9.1, -14), kind: 'gullback', look: at(11, 0) },
+        { p: at(6.4, 30), kind: 'heavy', look: at(7.4, 0) }, { p: at(2.1, 30), kind: 'nest', look: at(2.6, 0) }],
 };
-
 
 // ── World 2: the coral caves ────────────────────────────────────────────────
 // Old Ink fled deeper with the pearl. Each chamber teaches one new thing (holes through the planet, a moon, the tide), then he waits.
@@ -418,7 +432,7 @@ export function create(lv) {
         blocks: (lv.blocks || []).map(b => ({ h: 1, r: 0.55, ...b, p: b.p.slice() })), logs: _logsAt(lv, 0), lake: lv.lake ? LG.fresh(lv.lake) : null,
         crab: { p: lv.start.slice(), f: tangent(lv.start, lv.goal), face: tangent(lv.start, lv.goal), h: 0, vh: 0, moving: false, air: false, coy: COYOTE_S, jbuf: 0, nuts: 0, lifted: false },
         boss: lv.boss ? { hp: (lv.boss.hits || BOSS.hits), state: 'sleep', t: 0, n: 0, round: 0, tx: null, pile: 0, rest: false, touchCd: 0 } : null,
-        gull: lv.gull ? { p: at(lv.gull.ring, lv.gull.from), h: 0, state: 'walk', t: 0, cool: 1, loot: 0, tx: null, from: null } : null };
+        gull: lv.gull ? { p: at(lv.gull.ring, lv.gull.from), h: 0, b: 0, state: 'walk', t: 0, cool: 1, loot: lv.gull.loot || 0, tx: null, from: null } : null };
     s.crab.h = floorAt(s, lv.start);
     if (lv.palm) for (let i = 0; i < CARRY; i++) _palmNut(s, i);
     if (lv.lake) _lakeNuts(s);
@@ -453,7 +467,7 @@ export const urchinAt = (s, p, pad = 0) => (s.lv.urchins || []).find(u => dist(u
 /** How high the ground is at place p: the top of a rock, or the sea floor. */
 export function floorAt(s, p) {
     let f = rockUnder(s, p) ? ROCK_H : 0;
-    for (const l of s.lv.ledges || []) { const d = dist(p, l.c || TOP); if (d >= l.r0 && d < l.r1 && covers(l, p)) f = Math.max(f, (l.h1 == null ? l.h : l.h + (l.h1 - l.h) * (d - l.r0) / (l.r1 - l.r0)) + (l.ride ? s.tideW || 0 : 0)); }     // (ride: an island that floats up and down with the tide)
+    for (const l of s.lv.ledges || []) { const d = dist(p, l.c || TOP); if (l.gate && !(s.open && (s.open[l.gate] || (s.held && s.held[l.gate])))) continue; if (d >= l.r0 && d < l.r1 && covers(l, p)) f = Math.max(f, (l.h1 == null ? l.h : l.h + (l.h1 - l.h) * (d - l.r0) / (l.r1 - l.r0)) + (l.ride ? s.tideW || 0 : 0)); }     // (ride: an island that floats up and down with the tide)
     for (const k of s.lv.posts || []) if (dist(p, k.p) < k.r) f = Math.max(f, k.h);
     for (const k of s.lv.pads || []) if (dist(p, k.p) < k.r) f = Math.max(f, PAD_H);
     for (const w of s.lv.rings || []) if (w.top && up(s, w) && Math.abs(dist(p, w.c || TOP) - w.r) < TOP_W && covers(w, p)) f = Math.max(f, w.h);
@@ -691,7 +705,7 @@ function _nut(s, n, dt, ev) {
             hn.state = 'fly'; hn.v = 0.2; hn.vh = 0; hn.d = tangent(hn.p, n.d); hn.age = 0; n.v *= 0.4; n.vh = Math.min(n.vh, -1); ev.push({ type: 'knock', nut: hn, p: hn.p, h: hn.h });
         }
         const g = s.gull;
-        if (g && g.state !== 'stun' && Math.hypot(dist(n.p, g.p), n.h - (g.h + 0.4)) < GULL.hit + 0.1) { _stun(s, ev, 'nut'); n.vh = Math.min(n.vh, -2); n.v *= 0.3; }
+        if (g && g.state !== 'stun' && Math.hypot(dist(n.p, g.p), n.h - (g.h + (g.b || 0) + 0.4)) < GULL.hit + 0.1) { _stun(s, ev, 'nut'); n.vh = Math.min(n.vh, -2); n.v *= 0.3; }
         const fl = floorAt(s, n.p);
         const hole = n.vh < 0 && n.h <= floorAt(s, n.p) + 0.05 && !n.holeCd && _holeAt(s, n.p, true);
         if (hole) {
@@ -759,7 +773,7 @@ function _reset(s, ev, why) {
 // ── The gull ────────────────────────────────────────────────────────────────
 function _stun(s, ev, by) {
     const g = s.gull;
-    if (g.loot) { const n = { id: s.id++, p: g.p.slice(), d: tangent(g.p, [1, 0, 0]), v: 0, h: 0, vh: 0, state: 'rest', age: 0.4, still: 0 }; s.nuts.push(n); g.loot = 0; ev.push({ type: 'drop', nut: n }); }
+    if (g.loot) { const n = { id: s.id++, p: g.p.slice(), d: tangent(g.p, [1, 0, 0]), v: 0, h: floorAt(s, g.p), vh: 0, state: 'rest', age: 0.4, still: 0 }; s.nuts.push(n); g.loot = 0; ev.push({ type: 'drop', nut: n }); }
     g.state = 'stun'; g.t = 0; g.h = 0;
     ev.push({ type: 'stun', by });
 }
@@ -767,11 +781,12 @@ function _gull(s, dt, ev) {
     const g = s.gull, c = s.crab, lv = s.lv.gull;
     g.t += dt; g.cool = Math.max(0, g.cool - dt);
     const dc = dist(g.p, c.p), cTop = dist(c.p, TOP), zone = lv.zone || [5.7, 9.1], onShelf = cTop < zone[1] && cTop > zone[0];
+    if (g.state === 'walk' || g.state === 'flee' || g.state === 'ground' || g.state === 'stun') g.b = floorAt(s, g.p);
     if (g.state === 'walk' || g.state === 'flee') {
         // round the shelf (fleeing: away from the crab, twice as fast)
         const away = g.state === 'flee' && dot(tangent(g.p, cross(TOP, g.p)), toward(g.p, c.p)) > 0 ? -1 : 1;
         g.p = walk(g.p, tangent(g.p, cross(TOP, g.p)), (away * GULL.speed * (g.state === 'flee' ? 2 : 1) * dt) / R);
-        g.p = at(lv.ring, lonOf(g.p));
+        { const dd = dist(g.p, TOP), back = Math.sign(lv.ring - dd) * Math.min(Math.abs(lv.ring - dd), 3 * dt); g.p = at(dd + back, lonOf(g.p)); }
         if (g.state === 'flee' && g.t > GULL.flee) { g.state = 'walk'; g.t = 0; g.cool = GULL.cool; }
         else if (g.state === 'walk' && !g.loot && g.cool <= 0 && onShelf && dc < GULL.see) { g.state = 'rise'; g.t = 0; ev.push({ type: 'gull-up' }); }
     } else if (g.state === 'rise') {
@@ -786,7 +801,8 @@ function _gull(s, dt, ev) {
         const k = Math.min(1, g.t / GULL.dive); g.p = norm(mix(g.from, g.tx, 1 - k, k)); g.h = GULL.high * (1 - k);
         if (k >= 1) {
             g.h = 0;
-            if (g.state === 'dive' && dist(c.p, g.p) < GULL.hit && c.h < 0.6) {
+            g.b = floorAt(s, g.p);
+            if (g.state === 'dive' && dist(c.p, g.p) < GULL.hit && c.h - g.b < 0.6) {
                 if (c.nuts > 0) { c.nuts--; g.loot = 1; g.state = 'flee'; g.t = 0; ev.push({ type: 'steal' }); }
                 else { g.state = 'ground'; g.t = 0; _reset(s, ev, 'peck'); }
             } else { g.state = g.state === 'land' ? 'walk' : 'ground'; g.t = 0; g.cool = GULL.cool; if (g.state === 'ground') ev.push({ type: 'gull-miss' }); }
@@ -884,8 +900,8 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
         const g = s.gull;
         const fly = s.nuts.find(n => n.state === 'fly' && !n.used && n.age > 0.2 && dist(n.p, c.p) < TRICK_R && c.h >= n.h - 0.15 && c.h - n.h < TRICK_GAP);
         if (fly) { fly.used = true; fly.vh = -5; c.vh = BOUNCE_V; ev.push({ type: 'trick', nut: fly, h: c.h }); }
-        else if (c.vh < 0 && g && g.state !== 'rise' && g.state !== 'circle' && g.h < 3 && dist(g.p, c.p) < GULL.hit + 0.1 && was >= g.h + GULL.top && c.h <= g.h + GULL.top + 0.05) {
-            c.h = g.h + GULL.top; c.vh = BOUNCE_V; ev.push({ type: 'stomp' }); _stun(s, ev, 'stomp');
+        else if (c.vh < 0 && g && g.state !== 'rise' && g.state !== 'circle' && g.h < 3 && dist(g.p, c.p) < GULL.hit + 0.1 && was >= g.h + (g.b || 0) + GULL.top && c.h <= g.h + (g.b || 0) + GULL.top + 0.05) {
+            c.h = g.h + (g.b || 0) + GULL.top; c.vh = BOUNCE_V; ev.push({ type: 'stomp' }); _stun(s, ev, 'stomp');
         } else if (c.vh < 0) {
             const n = nutUnder(s, c.p), nt = n ? floorAt(s, n.p) + NUT_TOP : 0, fl = floorAt(s, c.p);
             if (n && was >= nt && c.h <= nt) { c.h = nt; c.vh = BOUNCE_V; ev.push({ type: 'bounce', nut: n }); }
@@ -954,9 +970,11 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
 
     // Plates: held down by the crab on the ground, or a coconut at rest.
     for (const pl of lv.plates || []) {
-        const ph = floorAt(s, pl.p), on = (!c.air && dist(c.p, pl.p) < pl.r && Math.abs(c.h - ph) < 0.3) || s.nuts.some(n => (n.w || 0) === (s.w || 0) && n.state === 'rest' && dist(n.p, pl.p) < pl.r && Math.abs(n.h - ph) < 0.3);
+        const ph = floorAt(s, pl.p), g0 = s.gull, on = pl.heavy ? !!(g0 && (g0.state === 'ground' || g0.state === 'stun') && g0.h < 0.1 && dist(g0.p, pl.p) < pl.r)
+            : (!c.air && dist(c.p, pl.p) < pl.r && Math.abs(c.h - ph) < 0.3) || s.nuts.some(n => (n.w || 0) === (s.w || 0) && n.state === 'rest' && dist(n.p, pl.p) < pl.r && Math.abs(n.h - ph) < 0.3);
         const gs = gatesOf(pl);
-        if (on !== !!s.held[gs[0]]) { for (const g of gs) s.held[g] = on; ev.push({ type: on ? 'press' : 'release', plate: pl }); }
+        if (on !== !!s.held[gs[0]]) { for (const g of gs) { s.held[g] = on; if (!on && pl.secs) s.open[g] = pl.secs; } ev.push({ type: on ? 'press' : 'release', plate: pl, heavy: !!pl.heavy, secs: pl.secs || 0 }); }
+        if (on && pl.secs && !pl.heavy) for (const g of gs) delete s.open[g];
     }
     (lv.checks || []).forEach((p, i) => { const z = lv.zones && lv.zones[i], dT = dist(c.p, TOP); if (i > s.cp && !c.air && (dist(c.p, p) < CHECK_R || (z && dT > z[0] && dT < z[1]))) { s.cp = i; ev.push({ type: 'check', i, p }); } });
     if (!c.air && lv.goal && dist(c.p, lv.goal) < GOAL_R && (!s.boss || s.boss.state === 'down')) { s.won = true; ev.push({ type: 'won', t: s.t, falls: s.falls }); }

@@ -129,6 +129,14 @@ each piece matters: `solve` with the ramp taken away, or the block made a pillar
 |---|---|---|
 | **Floating island** | a ledge that rises and falls with the tide; what's on it rides along | `ledges: [{ ..., ride: true }]` |
 
+### Built for The Gull's Roost
+| Piece | What it does | In the recipe |
+|---|---|---|
+| **Heavy plate** | only the gull, standing on it, is heavy enough; `secs` holds its gate that long after | `plates: [{ p, r, gate, heavy: true, secs }]` |
+| **Drawbridge** | a ledge that is only there while its gate is open (stands up on its chains when shut) | `ledges: [{ ..., gate }]` |
+| **Boardwalk** | a ledge of planks on stilts (open underneath) | `kind: 'boardwalk'` |
+| **Laden gull** | starts holding a stolen coconut; won't dive until hit (it drops it) | `gull: { ..., loot: 1 }` |
+
 ### Teaching without pop-ups
 | Piece | What it does | In the recipe |
 |---|---|---|

@@ -34,6 +34,21 @@ const C = 40, X0 = 28, Y0 = 108;
 function glassRow(g, n, y = Y0, x0 = X0) { for (let i = 0; i < n; i++) { box(g, x0 + i * C - C / 2 + 1, y - C / 2 + 1, C - 2, C - 2, GLASS, SEAM, 2); } }
 const cx = i => X0 + i * C;
 
+function bird(g, x, y, s = 1, loot = false, dizzy = false) {
+    g.save(); g.translate(x, y); g.scale(s, s); g.fillStyle = '#fff'; g.strokeStyle = INK; g.lineWidth = 3;
+    g.beginPath(); g.ellipse(0, 0, 22, 12, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.beginPath(); g.arc(18, -10, 9, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.fillStyle = '#ff9a1f'; g.beginPath(); g.moveTo(26, -11); g.lineTo(38, -8); g.lineTo(26, -5); g.fill(); g.stroke();
+    g.fillStyle = '#9fb2d6'; g.beginPath(); g.ellipse(-4, -3, 13, 6, -0.3, 0, Math.PI * 2); g.fill(); g.stroke();
+    g.fillStyle = INK; g.beginPath(); g.arc(20, -12, 1.8, 0, Math.PI * 2); g.fill();
+    if (loot) nut(g, 40, -6, 6);
+    if (dizzy) { g.fillStyle = '#ffd23a'; for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(18 + Math.cos(i * 2.1) * 14, -26 + Math.sin(i * 2.1) * 4, 3, 0, Math.PI * 2); g.fill(); } }
+    g.restore();
+}
+function octo(g, x, y, s = 1) { g.save(); g.translate(x, y); g.scale(s, s); g.fillStyle = '#7b3fe4'; g.strokeStyle = INK; g.lineWidth = 3; g.beginPath(); g.arc(0, -8, 16, Math.PI, 0); g.lineTo(16, 6); for (let i = 0; i < 4; i++) g.quadraticCurveTo(12 - i * 9, 16, 8 - i * 9, 6); g.closePath(); g.fill(); g.stroke(); g.fillStyle = '#fff'; for (const sx of [-6, 6]) { g.beginPath(); g.arc(sx, -10, 4, 0, Math.PI * 2); g.fill(); } g.restore(); }
+function pearl(g, x, y, r = 8) { g.fillStyle = '#fff1ff'; g.strokeStyle = INK; g.lineWidth = 3; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.stroke(); g.fillStyle = '#fff'; g.beginPath(); g.arc(x - r * 0.35, y - r * 0.35, r * 0.25, 0, Math.PI * 2); g.fill(); }
+const DECK = '#c98f52';
+
 const DRAW = {
     // slide: across the glass in one go, stop at the pillar; and no jumping
     slide(g, t) {
@@ -103,6 +118,46 @@ const DRAW = {
         if (t > 1.0 && t < 1.4) { g.fillStyle = '#fff'; for (let i = 0; i < 6; i++) { const a = i * 1.05; g.beginPath(); g.arc(128 + Math.cos(a) * 16, 50 + Math.sin(a) * 10, 2.5, 0, Math.PI * 2); g.fill(); } }
         // a straight throw at the bullseye bonks off the glass
         if (t > 2.4) { const k = seg(t, 2.4, 3.2); nut(g, lerp(52, 146, Math.min(1, k * 1.2)) - (k > 0.83 ? (k - 0.83) * 100 : 0), lerp(150, 150, k)); if (t > 3.1) tick(g, 128, 108, false); }
+    },
+    // note (Old Ink's, inky): he hands the gull the pearl, and it flies it up to its nest on the sea stack
+    note(g, t) {
+        g.fillStyle = '#e9e1ff'; g.fillRect(0, 0, 256, 192); g.fillStyle = 'rgba(123,63,228,0.25)'; for (const [x, y, r] of [[30, 160, 14], [220, 30, 10], [200, 170, 8]]) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
+        box(g, 176, 70, 50, 110, '#8f86a8'); g.fillStyle = '#9a6534'; g.fillRect(170, 62, 62, 12);       // the sea stack and its nest
+        octo(g, 46, 140); const k = seg(t, 0.5, 2.2), x = lerp(70, 200, k), y = lerp(126, 50, k) - Math.sin(Math.PI * k) * 40;
+        bird(g, x, y, 0.8); pearl(g, t < 0.5 ? 64 : x + 28, t < 0.5 ? 128 : y + 10, 6);
+        if (t > 2.4) { pearl(g, 201, 56, 7); tick(g, 120, 40, true); }
+    },
+    // stun: the gull won't dive with a coconut in its beak: hit it, and it drops it
+    stun(g, t) {
+        g.fillStyle = DECK; g.fillRect(120, 70, 136, 20); g.fillStyle = SAND; g.fillRect(0, 150, 256, 42);
+        const hit = t > 1.3; bird(g, 190, 52, 0.9, !hit, hit && t < 3.2); crab(g, 40, 150);
+        if (t > 0.4 && t < 1.3) { const k = seg(t, 0.4, 1.3); nut(g, lerp(52, 186, k), lerp(140, 54, k) - Math.sin(Math.PI * k) * 40); }
+        if (hit) nut(g, 214, Math.min(64, lerp(48, 64, seg(t, 1.3, 1.8))));
+    },
+    // gullback: it dives where you stand: step aside, jump on its back as it lands, and it bounces you up high
+    gullback(g, t) {
+        g.fillStyle = SAND; g.fillRect(0, 160, 256, 32); box(g, 170, 60, 86, 100, DECK);
+        const k = seg(t, 0.2, 0.9); bird(g, 90, lerp(20, 146, k), 0.9);
+        const cx2 = t < 0.6 ? 90 : lerp(90, 40, seg(t, 0.6, 0.9)), up = seg(t, 1.0, 1.4), boing = seg(t, 1.5, 2.4);
+        const x = t < 1.0 ? cx2 : t < 1.4 ? lerp(40, 92, up) : lerp(92, 200, boing), y = t < 1.0 ? 156 : t < 1.4 ? 156 - Math.sin(Math.PI * up) * 40 - up * 20 : lerp(136, 52, boing) - Math.sin(Math.PI * boing) * 50;
+        crab(g, x, y, 0.8); if (t > 2.4) tick(g, 212, 30, true);
+    },
+    // heavy: a crab is too light for the heavy plate; the gull is heavy enough: the drawbridge comes down
+    heavy(g, t) {
+        g.fillStyle = DECK; g.fillRect(0, 130, 160, 62); g.fillStyle = SEA; g.fillRect(160, 130, 96, 62);
+        box(g, 40, 122, 70, 12, '#5a6074');
+        if (t < 1.4) { crab(g, 75, 112, 0.8); g.fillStyle = INK; g.font = 'bold 18px sans-serif'; if (t > 0.6) tick(g, 120, 80, false); }
+        else { const k = seg(t, 1.4, 2.0); bird(g, 75, lerp(20, 106, k), 0.8); crab(g, 22, 112, 0.7); }
+        const down = seg(t, 2.1, 2.8), a = -Math.PI / 2 * (1 - down); g.save(); g.translate(160, 130); g.rotate(a); box(g, 0, -8, 96, 12, '#e0aa70'); g.restore();
+        g.setLineDash([4, 6]); g.strokeStyle = '#ffc83a'; g.lineWidth = 3; g.beginPath(); g.moveTo(110, 128); g.lineTo(160, 128); g.stroke(); g.setLineDash([]);
+    },
+    // nest: a coconut on the nest's plate and its fence sinks: the pearl
+    nest(g, t) {
+        g.fillStyle = '#7fcf5c'; g.fillRect(0, 0, 256, 192); g.fillStyle = '#9a6534'; g.beginPath(); g.ellipse(180, 110, 50, 22, 0, 0, Math.PI * 2); g.fill(); pearl(g, 180, 104, 10);
+        const drop = seg(t, 1.5, 2.2) * 50; g.save(); g.beginPath(); g.rect(120, 40, 120, 80); g.clip(); for (let i = 0; i < 6; i++) box(g, 130 + i * 18, 50 + drop, 10, 50, '#ffc83a', INK, 2); g.restore();
+        g.fillStyle = '#ffc83a'; g.strokeStyle = INK; g.lineWidth = 3; g.beginPath(); g.ellipse(60, 150, 22, 10, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+        crab(g, 30, 110, 0.8); const k = seg(t, 0.3, 1.2); if (t > 0.3) nut(g, lerp(40, 60, k), lerp(100, 146, k) - Math.sin(Math.PI * k) * 30);
+        if (t > 1.2) { g.strokeStyle = GO; g.lineWidth = 4; g.beginPath(); g.ellipse(60, 150, 26, 13, 0, 0, Math.PI * 2); g.stroke(); }
     },
     // World 1: walk into a coconut to pick it up (up to three)
     pick(g, t) {

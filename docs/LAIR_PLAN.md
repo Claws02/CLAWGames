@@ -290,3 +290,22 @@ unchanged, so the bot still proves it):
 - A **picture sign** at the spot loops the bounce (and a straight throw bonking off the glass); one by the jelly pad shows the
   two vents (plug one, the other blows).
 
+**Chamber 3 rebuilt: The Gull's Roost** ("needs a big remodel, lacks depth; each world needs its own story, why you're doing things").
+Story, told in the world: Old Ink paid his gull with the pearl, and it keeps it in its nest on a sea stack behind an old fishing
+village. The arrival card has the one line; Old Ink's inky note by the start shows it in pictures; the nest of stolen coconuts and
+the pearl sit high on the stack, in view from the start. Four layers: the beach, a lower boardwalk on stilts (1 high), the gull's
+upper deck (3.2: out of a jump's reach), the moat, and the roost (5). The gull is used three ways:
+- **Hit it**: it starts with a stolen coconut in its beak (`gull.loot`) and won't dive while it holds one; a coconut thrown at it
+  (from back on the boardwalk: closer, the deck's edge blocks the lob) stuns it and it drops it on the deck.
+- **Bounce on it**: it dives where you stand (its zone now takes in the boardwalk); step aside, jump on its back as it lands:
+  up onto the deck. A coconut to bounce on works too, but stays behind.
+- **Bait it**: the **heavy plate** (`plates: [{ heavy: true, secs: 8 }]`) only the gull is heavy enough for. Stand on it till it
+  dives, step off; it lands on the plate and the **drawbridge** (a ledge with a `gate`: there only while open) comes down, and stays
+  down 8 s after the gull flies off. Then a coconut on the nest's plate drops its fence: the pearl.
+The gull's height is now over the ground it's on (`gull.b`), so it walks decks and boardwalks, and it walks home to its ring
+instead of popping back. 3D: boardwalks of planks on stilts (`open` ledge palettes), fishing huts on stilts, a crow's-nest mast,
+an iron heavy plate with a gull's footprint, the drawbridge standing up on its chains when shut, the nest of twigs and coconuts.
+Picture signs: Old Ink's note, the bullseye, hitting the gull, bouncing on its back, the heavy plate, the nest.
+Proven in `qa/lair-world1.mjs` (a bot plays it, 37 s, no falls), with tests that a crab or a coconut can't press the heavy plate,
+that the bridge holds 8 s then rises, that a laden gull never dives, and that the deck can't be jumped onto.
+

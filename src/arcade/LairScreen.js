@@ -27,7 +27,7 @@ import { makeToon } from './Toon.js';
 import * as SG from './Signs.js';
 
 const CHARGE_S = 0.9;                       // how long a full wind-up takes
-const GATE_COLOR = { lid: 0x9be7ff,  eye: 0xff5fa8, plate: 0xffc83a, yard: 0x5fd0ff, red: 0xff5f5f, blue: 0x5f8bff, green: 0x4ade80, gold: 0xffc83a, cage: 0x5fd0ff };
+const GATE_COLOR = { net: 0x5fd0ff, nest: 0xffc83a, bridge: 0xffc83a, lid: 0x9be7ff,  eye: 0xff5fa8, plate: 0xffc83a, yard: 0x5fd0ff, red: 0xff5f5f, blue: 0x5f8bff, green: 0x4ade80, gold: 0xffc83a, cage: 0x5fd0ff };
 const SHOW = { cliff: 2.4, cove: 1.5, step: 2, gate: 2.1 };      // how tall each kind of wall is drawn
 const rngOf = seed => () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
@@ -250,8 +250,9 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
     }
     // Things that ride the tide on a floating island: each frame they go up by the water's height.
     const riders = [], rides = p => !!(level.tide && (level.ledges || []).some(l => l.ride && K.dist(p, l.c || TOP) >= l.r0 && K.dist(p, l.c || TOP) < l.r1 && K.covers(l, p)));
+    const gatedLedges = [];
     // Terraces, ramps and shelves: raised ground with a grassy (or stone) top and rocky cliff sides, darker bands of strata.
-    const LEDGE = { basalt: { top: [0x5a4a5e, 0x514356], side: [0x3a2c3c, 0x46343f, 0x2e2230] }, obsidian: { top: [0x1c1726, 0x231d30], side: [0x120e1a, 0x18131f, 0x0e0b14] },  beachShelf: { top: [0xf2d9cf, 0xe7c7bd], side: [0xd9bfae, 0xccb09e, 0xe2cbbd] },  coralShelf: { top: [0xff9bb3, 0xff8aa6], side: [0xb98be6, 0xa877dc, 0xcaa2ef] },  terrace: { top: [0x8fd96a, 0x7fcf5c], side: [0xc9935a, 0xb98249, 0xd6a46a] }, mesa: { top: [0xe8b46a, 0xdca65c], side: [0xd9893f, 0xc4742f, 0xe69b52] }, ramp: { top: [0xcfae7a, 0xc19f6c], side: [0xa98758, 0x977648, 0xb89668] }, shelf: { top: [0xaab0c4, 0x9aa1b6], side: [0x8890a8, 0x7a8299, 0x969db3] } };
+    const LEDGE = { boardwalk: { top: [0xd9a066, 0xc98f52], side: [0xa87440, 0x8a5a2e, 0xb98249], open: true }, boardwalkRamp: { top: [0xd9a066, 0xc98f52], side: [0xa87440, 0x8a5a2e], open: true }, bridge: { top: [0xe0aa70, 0xc98f52], side: [0x8a5a2e, 0xa87440], open: true }, stack: { top: [0x7fcf5c, 0x6fbf4f], side: [0x8f86a8, 0x7d7496, 0xa29abb] }, basalt: { top: [0x5a4a5e, 0x514356], side: [0x3a2c3c, 0x46343f, 0x2e2230] }, obsidian: { top: [0x1c1726, 0x231d30], side: [0x120e1a, 0x18131f, 0x0e0b14] },  beachShelf: { top: [0xf2d9cf, 0xe7c7bd], side: [0xd9bfae, 0xccb09e, 0xe2cbbd] },  coralShelf: { top: [0xff9bb3, 0xff8aa6], side: [0xb98be6, 0xa877dc, 0xcaa2ef] },  terrace: { top: [0x8fd96a, 0x7fcf5c], side: [0xc9935a, 0xb98249, 0xd6a46a] }, mesa: { top: [0xe8b46a, 0xdca65c], side: [0xd9893f, 0xc4742f, 0xe69b52] }, ramp: { top: [0xcfae7a, 0xc19f6c], side: [0xa98758, 0x977648, 0xb89668] }, shelf: { top: [0xaab0c4, 0x9aa1b6], side: [0x8890a8, 0x7a8299, 0x969db3] } };
     for (const l of level.ledges || []) {
         const pal = LEDGE[l.kind] || LEDGE.terrace, c0 = l.c || TOP, partial = !!(l.only || l.gap), lon0 = l.only ? l.only[0] - l.only[1] : 0, lon1 = l.only ? l.only[0] + l.only[1] : 360;
         const nR = Math.max(2, Math.ceil((l.r1 - l.r0) / 0.4)), circ = 2 * Math.PI * R * Math.sin(Math.max(l.r1, 0.5) / R), nL = Math.max(8, Math.ceil(circ * (lon1 - lon0) / 360 / 0.45));
@@ -266,6 +267,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         }
         const side = (rA, aA, rB, aB) => {                                     // a cliff face down to the ground, in bands
             const hA = hAt(rA), hB = hAt(rB), bands = Math.max(1, Math.ceil(Math.max(hA, hB) / 0.7));
+            if (pal.open) { quad(P3(rA, aA, hA - 0.28), P3(rB, aB, hB - 0.28), P3(rB, aB, hB), P3(rA, aA, hA), pal.side[0], 0.95); return; }
             if (l.ride) quad(P3(rA, aA, -3), P3(rB, aB, -3), P3(rB, aB, -0.05), P3(rA, aA, -0.05), pal.side[2 % pal.side.length], 0.75);      // (a floating island's underside, hidden under the water)
             for (let b = 0; b < bands; b++) { const y0 = b / bands, y1 = (b + 1) / bands; quad(P3(rA, aA, hA * y0 - 0.05), P3(rB, aB, hB * y0 - 0.05), P3(rB, aB, hB * y1), P3(rA, aA, hA * y1), pal.side[b % pal.side.length], 0.9 + hash(rA + aA, b) * 0.15); }
         };
@@ -274,11 +276,27 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new T.Float32BufferAttribute(col, 3)); geo.computeVertexNormals();
         const mesh = new T.Mesh(geo, Y.toon(0xffffff, { vertexColors: true, side: T.DoubleSide })); scene.add(mesh);
         if (l.ride) riders.push({ obj: mesh, island: true });
+        if (pal.open) {          // stilts: wooden posts down to the water, along the edges and across
+            const pts = []; for (const rr of [l.r0 + 0.25, (l.r0 + l.r1) / 2, l.r1 - 0.25]) { const circ2 = 2 * Math.PI * R * Math.sin(Math.max(rr, 0.5) / R), n2 = Math.max(4, Math.round(circ2 * (lon1 - lon0) / 360 / 1.6)); for (let j = 0; j < n2; j++) pts.push(around(c0, rr, lon0 + ((j + 0.5) / n2) * (lon1 - lon0))); }
+            const st = Y.instanced(G.cylLow, pts.length, 0.05); scene.add(st.body); if (st.line) scene.add(st.line);
+            pts.forEach((q, i) => { const hq = hAt(K.dist(q, c0)); st.set(i, stand(q, [1, 0, 0], (hq - 0.28) / 2, 0.22, Math.max(0.05, hq - 0.28), 0.22), i % 2 ? 0x8a5a2e : 0x9a6534); }); st.done();
+        }
+        if (l.gate) {        // closed, the drawbridge stands up at the deck's edge on its chains
+            const lonM = l.only ? l.only[0] : 0, edge = around(c0, l.r1 - 0.15, lonM), wd = 2 * Math.PI * R * Math.sin(l.r1 / R) * ((l.only ? l.only[1] * 2 : 10) / 360);
+            const raised = Y.prop([{ geo: G.box, color: 0xc98f52, s: [wd * 0.95, 2.6, 0.16], p: [0, 1.3, 0] }, ...[0.5, 1.3, 2.1].map(y => ({ geo: G.box, color: 0x8a5a2e, s: [wd, 0.14, 0.2], p: [0, y, 0] })),
+                ...[-1, 1].map(sx => ({ geo: G.cylLow, color: 0x6b7388, s: [0.06, 1.6, 0.06], p: [sx * wd * 0.45, 2.2, -0.5], r: [0.6, 0, 0] }))], { thick: 0.06 });
+            put(raised, edge, toward(edge, c0), l.h1 != null ? l.h1 : l.h); scene.add(raised); gatedLedges.push({ l, mesh, raised });
+        }
     }
     // Stone posts (a pillar is a tall one): a column with rings and a cap.
     for (const k of level.posts || []) {
         const base = K.floorAt({ ...sfl, lv: { ...level, posts: [] } }, k.p), hh = k.h - base;
-        const g = k.kind === 'obsidian' ? Y.prop([{ geo: G.cyl, color: 0x2a2236, s: [k.r * 2, hh, k.r * 2], p: [0, hh / 2, 0] }, { geo: G.coneLow, color: 0x3e3352, s: [k.r * 1.9, 0.6, k.r * 1.9], p: [0, hh + 0.3, 0] }, { geo: G.box, color: 0x8a74c4, s: [0.08, hh * 0.7, 0.04], p: [k.r * 0.6, hh * 0.5, k.r * 0.75], ink: false }], { thick: 0.06 }) : k.kind === 'lighthouse' ? Y.prop([...[0, 1, 2, 3].map(j => ({ geo: G.cyl, color: j % 2 ? 0xffffff : 0xff4d4d, s: [k.r * 2 * (1 - j * 0.06), hh / 4, k.r * 2 * (1 - j * 0.06)], p: [0, hh / 8 + (j * hh) / 4, 0] })), { geo: G.cylLow, color: 0xffe45a, s: [k.r * 1.3, 0.12, k.r * 1.3], p: [0, hh + 0.06, 0], ink: false }], { thick: 0.07 }) : Y.prop([{ geo: G.cyl, color: 0xb7aec8, s: [k.r * 2, hh, k.r * 2], p: [0, hh / 2, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.3, 0.18, k.r * 2.3], p: [0, 0.09, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.25, 0.12, k.r * 2.25], p: [0, hh * 0.55, 0] }, { geo: G.cylLow, color: 0xd0c8de, s: [k.r * 2.4, 0.2, k.r * 2.4], p: [0, hh - 0.1, 0] }], { thick: 0.07 });
+        const g = k.kind === 'hut' ? Y.prop([...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([x, z]) => ({ geo: G.cylLow, color: 0x8a5a2e, s: [0.14, hh * 0.45, 0.14], p: [x * k.r * 0.75, hh * 0.22, z * k.r * 0.75] })),
+                { geo: G.box, color: 0xe8d2b0, s: [k.r * 1.9, hh * 0.42, k.r * 1.7], p: [0, hh * 0.65, 0] }, { geo: G.box, color: 0x5fb8d8, s: [k.r * 0.5, hh * 0.18, 0.05], p: [0, hh * 0.68, k.r * 0.86] },
+                { geo: G.coneLow, color: 0xd9653f, s: [k.r * 2.9, hh * 0.32, k.r * 2.6], p: [0, hh * 0.95, 0], r: [0, Math.PI / 4, 0] }, { geo: G.box, color: 0xc98f52, s: [k.r * 2.2, 0.12, k.r * 2.0], p: [0, hh - 0.04, 0] }], { thick: 0.06 })
+            : k.kind === 'mast' ? Y.prop([{ geo: G.cyl, color: 0xa87440, s: [k.r * 1.6, hh, k.r * 1.6], p: [0, hh / 2, 0] }, { geo: G.box, color: 0x9a6534, s: [2.4, 0.12, 0.12], p: [0, hh * 0.6, 0] },
+                { geo: G.cylLow, color: 0xc98f52, s: [1.3, 0.5, 1.3], p: [0, hh - 0.15, 0] }, { geo: G.box, color: 0xff5f5f, s: [0.7, 0.4, 0.04], p: [0.4, hh + 0.75, 0] }, { geo: G.cylLow, color: 0x8a5a2e, s: [0.06, 1.0, 0.06], p: [0, hh + 0.5, 0] }], { thick: 0.06 })
+            : k.kind === 'obsidian' ? Y.prop([{ geo: G.cyl, color: 0x2a2236, s: [k.r * 2, hh, k.r * 2], p: [0, hh / 2, 0] }, { geo: G.coneLow, color: 0x3e3352, s: [k.r * 1.9, 0.6, k.r * 1.9], p: [0, hh + 0.3, 0] }, { geo: G.box, color: 0x8a74c4, s: [0.08, hh * 0.7, 0.04], p: [k.r * 0.6, hh * 0.5, k.r * 0.75], ink: false }], { thick: 0.06 }) : k.kind === 'lighthouse' ? Y.prop([...[0, 1, 2, 3].map(j => ({ geo: G.cyl, color: j % 2 ? 0xffffff : 0xff4d4d, s: [k.r * 2 * (1 - j * 0.06), hh / 4, k.r * 2 * (1 - j * 0.06)], p: [0, hh / 8 + (j * hh) / 4, 0] })), { geo: G.cylLow, color: 0xffe45a, s: [k.r * 1.3, 0.12, k.r * 1.3], p: [0, hh + 0.06, 0], ink: false }], { thick: 0.07 }) : Y.prop([{ geo: G.cyl, color: 0xb7aec8, s: [k.r * 2, hh, k.r * 2], p: [0, hh / 2, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.3, 0.18, k.r * 2.3], p: [0, 0.09, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.25, 0.12, k.r * 2.25], p: [0, hh * 0.55, 0] }, { geo: G.cylLow, color: 0xd0c8de, s: [k.r * 2.4, 0.2, k.r * 2.4], p: [0, hh - 0.1, 0] }], { thick: 0.07 });
         put(g, k.p, [1, 0, 0], base); scene.add(g);
     }
     // Jelly pads: a pink wobbly dome.
@@ -533,7 +551,9 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         const crown = Y.prop(leaves, { thick: 0.05 }); top.add(crown); top.position.set(0.2, 2.15, 0); g.add(top); g.scale.setScalar(1.15); scene.add(g); put(g, level.palm, [1, 0, 0], fl(level.palm)); if (rides(level.palm)) riders.push({ obj: g }); return { g, top };
     })();
     const plates = (level.plates || []).map(pl => {
-        const g = new T.Group(), rim = Y.prop([{ geo: G.cylLow, color: 0xb9aed0, s: [2.25, 0.22, 2.25], p: [0, 0.08, 0] }], { thick: 0.06 }); g.add(rim);
+        const g = new T.Group(), rim = Y.prop([{ geo: G.cylLow, color: pl.heavy ? 0x5a6074 : 0xb9aed0, s: [2.25, pl.heavy ? 0.34 : 0.22, 2.25], p: [0, 0.08, 0] }], { thick: 0.06 }); g.add(rim);
+        if (pl.heavy) { for (let k = 0; k < 8; k++) { const b = Y.part(G.sphLow, 0x9aa1b6, 0.02); b.scale.setScalar(0.16); b.position.set(Math.cos(k * Math.PI / 4) * 0.95, 0.27, Math.sin(k * Math.PI / 4) * 0.95); g.add(b); }
+            const foot = new T.Group(); for (const a of [-0.55, 0, 0.55]) { const toe = new T.Mesh(G.box, basic(0x2b1d33)); toe.scale.set(0.09, 0.03, 0.62); toe.rotation.y = a; toe.position.set(Math.sin(a) * 0.3, 0.36, Math.cos(a) * 0.3); foot.add(toe); } g.add(foot); }
         const gc = GATE_COLOR[[].concat(pl.gate)[0]] || 0xffc83a, off = Y.toon(gc), on = Y.toon(C.green), top = Y.part(G.cylLow, off, 0.04); top.scale.set(1.6, 0.12, 1.6); top.position.y = 0.22; g.add(top);
         g.scale.setScalar(pl.r / 1.125); const halo = new T.Mesh(G.ring, basic(gc, { transparent: true, opacity: 0.9, depthWrite: false, side: T.DoubleSide })); halo.scale.setScalar(pl.r + 0.15); scene.add(halo); scene.add(g);
         return { pl, g, top, off, on, halo };
@@ -622,6 +642,10 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
     const shade = basic(0x000000, { transparent: true, opacity: 0.26, depthWrite: false });
     const shadow = new T.Mesh(new T.CircleGeometry(0.5, 16), shade); shadow.geometry.rotateX(-Math.PI / 2); scene.add(shadow);
     const coconut = () => Y.prop([{ geo: G.sph, color: C.nut, s: 0.62 }, { geo: G.sph, color: C.nutDark, p: [0, 0.2, 0], s: [0.4, 0.28, 0.4], ink: false }, { geo: G.sphLow, color: 0x2a190c, p: [0.12, 0.05, 0.28], s: 0.07, ink: false }, { geo: G.sphLow, color: 0x2a190c, p: [-0.12, 0.05, 0.28], s: 0.07, ink: false }, { geo: G.sphLow, color: 0x2a190c, p: [0, -0.08, 0.3], s: 0.07, ink: false }], { thick: 0.05 });
+    // The gull's nest round the pearl: a ring of twigs and a heap of the coconuts it stole.
+    if (level.nest) { const twigs = Y.instanced(G.cylLow, 36, 0.04); scene.add(twigs.body); if (twigs.line) scene.add(twigs.line);
+        for (let i = 0; i < 36; i++) { const a = (i / 36) * 360, q = around(TOP, 1.0 + (i % 3) * 0.12, a), f = tangent(q, cross(TOP, q)); twigs.set(i, stand(q, f, fl(TOP) + 0.18 + (i % 3) * 0.12, 0.1, 1.1, 0.1, 1.4 + (i % 5) * 0.2), i % 2 ? 0x9a6534 : 0xb98249); }
+        twigs.done(); const rnd = rngOf(77); for (let i = 0; i < 9; i++) { const n = coconut(); n.scale.setScalar(0.8); const q = around(TOP, 0.6 + rnd() * 0.35, i * 40 + rnd() * 20); scene.add(n); put(n, q, [1, 0, 0], fl(TOP) + 0.2 + (i % 3) * 0.12); } }       // (a drawbridge: there only while its gate is open)
     const held = coconut(); held.visible = false; scene.add(held);
     const aimRing = new T.Mesh(G.ring, basic(0xffe45a, { transparent: true, opacity: 0.95, depthWrite: false, side: T.DoubleSide })); aimRing.visible = false; scene.add(aimRing);
     const dots = Array.from({ length: 30 }, () => { const d = new T.Mesh(G.dot, basic(0xffffff, { transparent: true, opacity: 0.85 })); d.visible = false; scene.add(d); return d; });
@@ -764,6 +788,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         });
         checks.forEach(v => { put(v.g, v.p, [1, 0, 0], K.floorAt(s, v.p)); v.cloth.material = s.cp >= v.i ? v.on : v.off; v.cloth.rotation.y = Math.sin(t * 4 + v.i) * 0.25; });
         palm.top.rotation.z = Math.sin(t * 1.3) * 0.05; palm.top.rotation.x = Math.cos(t * 1.1) * 0.04;
+        gatedLedges.forEach(v => { v.mesh.visible = !!(s.open[v.l.gate] || s.held[v.l.gate]); if (v.raised) v.raised.visible = !v.mesh.visible; });
         plates.forEach(v => { const on = !!s.held[[].concat(v.pl.gate)[0]]; v.top.material = on ? v.on : v.off; const ph = fl(v.pl.p); put(v.g, v.pl.p, null, ph + (on ? -0.02 : 0.02)); put(v.halo, v.pl.p, null, ph + 0.12); });
         targets.forEach(v => { v.hit = Math.max(0, v.hit - dt * 1.5); const ta = K.targetAt(s, v.tg); put(v.g, ta.p, toward(ta.p, c.p), ta.h - 1.1 - (v.tg.h ? v.tg.h - 1.1 : 0)); v.face.rotation.z = v.hit * 8; v.face.scale.setScalar(1 + v.hit * 0.4); const op = s.open[[].concat(v.tg.gate)[0]]; const hex = op ? (typeof op === 'number' && op < 2 && Math.sin(t * 20) > 0 ? 0xffe45a : 0x4ade80) : 0xff4d4d; v.mats[0].color.setHex(hex); v.mats[2].color.setHex(hex); });
         // The pearl and Old Ink: he watches the crab, blinks, narrows his eyes when it comes close, and rears up when the pearl is taken.
@@ -916,7 +941,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         if (g) {
             const flying = g.h > 0.05 || g.state === 'circle' || g.state === 'rise', stunned = g.state === 'stun', diving = g.state === 'dive' || g.state === 'land';
             const face = diving ? toward(g.p, g.tx || c.p) : g.state === 'circle' ? toward(g.p, c.p) : tangent(g.p, cross(TOP, g.p));
-            put(gull.g, g.p, face, g.h + 0.78 + (flying ? 0 : Math.abs(Math.sin(t * 5)) * (g.state === 'walk' || g.state === 'flee' ? 0.1 : 0)));
+            put(gull.g, g.p, face, g.h + (g.b || 0) + 0.78 + (flying ? 0 : Math.abs(Math.sin(t * 5)) * (g.state === 'walk' || g.state === 'flee' ? 0.1 : 0)));
             gull.body.rotation.x = diving ? 0.9 : g.state === 'rise' ? -0.35 : 0; gull.body.rotation.z = stunned ? Math.PI * 0.5 * Math.min(1, g.t * 4) : 0;
             const flap = flying ? Math.sin(t * 22) : stunned ? -0.9 : Math.sin(t * 2.5) * 0.08;
             gull.wings.forEach(({ w, tipG, k }) => { w.rotation.z = k * (0.15 + flap * 0.85); tipG.rotation.z = k * (flap * 0.55 - (flying ? 0 : 0.5)); });
@@ -927,7 +952,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             const squawk = diving ? 0.2 + 0.1 * Math.sin(t * 30) : g.state === 'flee' ? 0.12 : 0.02; gull.beakDn.rotation.x = Math.PI / 2 + squawk * 2.2; gull.beakDn.position.y = -0.08 - squawk * 0.6;
             gull.head.rotation.y = flying ? 0 : Math.sin(t * 2.2) * 0.35; gull.head.position.y = 0.34 + (flying ? 0 : Math.sin(t * 5) * 0.03);
             gull.loot.visible = g.loot > 0; gull.star.visible = stunned; gull.star.rotation.y = t * 6; gull.star.children.forEach((sp, i) => sp.position.set(Math.cos(t * 5 + i * 2.1) * 0.5, 0, Math.sin(t * 5 + i * 2.1) * 0.5));
-            gullShade.visible = g.h > 0.1; put(gullShade, g.p, null, 0.05); gullShade.scale.setScalar(Math.max(0.3, 0.75 - g.h * 0.06));
+            gullShade.visible = g.h > 0.1; put(gullShade, g.p, null, K.floorAt(s, g.p) + 0.05); gullShade.scale.setScalar(Math.max(0.3, 0.75 - g.h * 0.06));
             const tell = g.state === 'circle' ? c.p : (g.state === 'dive' || g.state === 'land') && g.tx ? g.tx : null;
             if (tell) { gullRing.visible = true; put(gullRing, tell, null, 0.1); const k = g.state === 'dive' ? 1 - Math.min(1, g.t / K.GULL.dive) : 1; gullRing.scale.setScalar(K.GULL.hit * (1.1 + k * 0.7)); gullRing.material.opacity = 0.45 + 0.4 * Math.abs(Math.sin(t * (g.state === 'dive' ? 22 : 8))); }
         }

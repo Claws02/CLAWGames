@@ -382,6 +382,7 @@ export function lairPieces(lv) {
         add((z.cracks || []).length, '💔', 'CRACKED GLASS (ONE STOP ONLY)'); add((z.plates || []).length, '⏺️', 'PLATE + GATE'); add(z.lava, '🌋', 'LAVA'); }
     else { add((lv.ledges || []).some(l => l.h1 == null && l.r1 - l.r0 > 1.6), '⛰️', 'TERRACES'); add((lv.ledges || []).some(l => l.h1 != null), '↗️', 'RAMP'); add((lv.posts || []).length, '🗿', 'STONE POSTS'); }
     add((lv.pads || []).length, '🟣', 'JELLY PADS');
+    add((lv.plates || []).some(x => x.heavy), '🏋️', 'HEAVY PLATE (ONLY THE GULL)'); add((lv.ledges || []).some(l => l.gate), '🌉', 'DRAWBRIDGE'); add(lv.gull && lv.gull.loot, '🥥🐦', 'THE GULL HAS A STOLEN COCONUT');
     add((lv.hangs || []).length, '🌴', 'HANGING COCONUT'); add((lv.targets || []).some(x => x.log != null), '🎯', 'MOVING BULLSEYE'); add((lv.bars || []).some(b => b.kind === 'bumper'), '↩️', 'BANK SHOT');
     add(lv.chasm, '🕳️', 'A BOTTOMLESS CHASM'); add((lv.crumbles || []).length, '🧱', 'CRUMBLING TILES'); add((lv.jets || []).length, '♨️', 'STEAM JETS');
     add(lv.tide, '🌊', 'THE TIDE'); add((lv.rafts || []).length, '🛟', 'RAFTS');
