@@ -687,6 +687,17 @@ function _put(obj, p, fwd, lift = 0) {
     obj.position.copy(up.multiplyScalar(_visR * _h(p) + lift));
 }
 const _lam = (color, o = {}) => new T.MeshLambertMaterial({ color, flatShading: true, ...o });
+// The city in the game's cartoon style (Toon.js): each plain material gets a toon twin (made once, so a swap or a recolour of the
+// plain one can be passed on to it), and each mesh an ink outline (one outline shape per geometry, shared).
+const _twins = new Map(), _hulls = new Map();
+const _tw = m => { if (!Y || !m || !m.isMeshLambertMaterial) return m; let w = _twins.get(m); if (!w) { const em = m.emissive && m.emissive.getHex(); w = Y.toon(m.color.getHex(), em ? { emissive: m.emissive.clone() } : {}); _twins.set(m, w); } return w; };
+function _inkify(root, thick = 0.045) {
+    if (!Y) return root; const list = []; root.traverse(o => { if (o.isMesh && o.material && o.material.isMeshLambertMaterial && !o.userData.noInk && !o.userData.inked) list.push(o); });
+    for (const o of list) { o.material = _tw(o.material); o.userData.inked = true;
+        if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere(); const sc = Math.max(o.scale.x, o.scale.y, o.scale.z); if (o.geometry.boundingSphere.radius * sc < 0.22) continue;      // (small bits: toon, but no outline: phones draw every outline)
+        const key = o.geometry.uuid + ':' + thick; let h = _hulls.get(key); if (!h) { h = Y.hull(o.geometry, thick); _hulls.set(key, h); } const line = new T.Mesh(h, Y.ink); line.renderOrder = -1; o.add(line); }
+    return root;
+}
 const _mesh = (geo, mat, x = 0, y = 0, z = 0) => { const m = new T.Mesh(geo, mat); m.position.set(x, y, z); return m; };
 
 function _buildScene(canvas) {
@@ -807,7 +818,7 @@ function _applyLook() {
         for (let k = 0; k < 3; k++) col.setXYZ(i + k, c.r, c.g, c.b);
     }
     col.needsUpdate = true;
-    _gl.rim.material.color.setHex(th.rim); _gl.M.leaf.color.setHex(th.leaf); _gl.tm.color.setHex(th.leaf);
+    _gl.rim.material.color.setHex(th.rim); _gl.M.leaf.color.setHex(th.leaf); _tw(_gl.M.leaf).color.setHex(th.leaf); _gl.tm.color.setHex(th.leaf);
     const k = skin().color; _gl.crab.shell.color.setHex(k); _gl.crab.dark.color.copy(new T.Color(k).multiplyScalar(0.72));
 }
 
@@ -876,7 +887,7 @@ function _buildVis(b) {
         v.sign = _mesh(G.coin, M.coin, 0, 1.5, 0); v.sign.scale.setScalar(1.5); g.add(v.sign);
     }
     if (b.kind !== 'palm' && b.kind !== 'trick') { v.fix = _mesh(G.fix, M.fix, 0, 2.5, 0); v.fix.visible = false; g.add(v.fix); }
-    _gl.scene.add(g);
+    _inkify(g); _gl.scene.add(g);
     return v;
 }
 
@@ -885,7 +896,7 @@ function _buildVis(b) {
 // spring pad, a checkpoint flag; a coin over each plank still to come and a
 // chest at the end.
 function _buildCourse(co) {
-    const { G, M } = _gl, parts = [], add = (m, p, f, lift, more = {}) => { _gl.scene.add(m); const q = { m, p, f, lift, ...more }; parts.push(q); return q; };
+    const { G, M } = _gl, parts = [], add = (m, p, f, lift, more = {}) => { _inkify(m, 0.04); _gl.scene.add(m); const q = { m, p, f, lift, ...more }; parts.push(q); return q; };
     const n = co.pts.length, mid = (a, b) => L.norm(L.mix(a, b, 0.5, 0.5)), hole = k => k === 'gap' || k === 'void';
     co.pts.forEach((p, i) => {
         const f = i < n - 1 ? L.toward(p, co.pts[i + 1]) : L.toward(co.pts[i - 1], p), before = co.segs[i - 1], after = co.segs[i];
@@ -942,7 +953,7 @@ function _draw(dt) {
         if (q.tilt) q.m.rotateX(q.tilt);
         if (q.coin) { q.m.visible = q.coin > co.got; q.m.rotateY(_t * 3); }
         if (q.sweep != null) { const kind = co.segs[q.sweep], ph = (co.t / L.SWEEP.period + co.off[q.sweep]) % 1; q.arm.rotation.y = -Math.PI * 2 * (ph - L.SWEEP[kind] / 2); }
-        if (q.check != null) q.cloth.material = co.cp >= q.check ? _gl.M.flagOn : _gl.M.flagOff;
+        if (q.check != null) q.cloth.material = _tw(co.cp >= q.check ? _gl.M.flagOn : _gl.M.flagOff);
     }
     // A tower's reach, on the ground round the crab, while one can be afforded.
     const tc = L.unlocked(s, 'tower') && _mode === 'play' ? L.costOf(s, 'tower') : null, reach = !!tc && s.shells >= tc.shells && s.nuts >= tc.nuts;
@@ -989,7 +1000,7 @@ function _draw(dt) {
             v.fix.visible = hurt; if (hurt) v.fix.position.y = (b.kind === 'hut' && b.lvl === 3 ? 2.9 : 2.2) + Math.sin(_t * 5) * 0.08;
             if (b.kind === 'hut') {
                 v.two.visible = b.lvl >= 2; v.three.visible = b.lvl >= 3;
-                v.roof.visible = b.lvl < 3; v.roof.rotation.z = hurt ? 0.22 : 0; v.wall.material = hurt ? M.hurt : M.wall;
+                v.roof.visible = b.lvl < 3; v.roof.rotation.z = hurt ? 0.22 : 0; v.wall.material = _tw(hurt ? M.hurt : M.wall);
                 // Its crabs potter round it, one for each it holds.
                 while (v.vils.length < b.lvl) { const cr = _crab(HATS[(b.id + v.vils.length * 2) % 6], 0.3, HATS[(b.id * 3 + v.vils.length + 1) % 6]); g.scene.add(cr.g); v.vils.push(cr); }
                 const e1 = L.tangent(b.p, [0, 0, 1]), e2 = L.cross(b.p, e1);
@@ -998,7 +1009,7 @@ function _draw(dt) {
                     _put(cr.g, L.walk(b.p, dir, (1.05 + i * 0.28) / _visR), L.mix(e1, e2, -Math.sin(a) * sgn, Math.cos(a) * sgn)); _crabPose(cr, dt, true, 0);
                 });
             } else if (b.kind === 'tower') {
-                v.orb.material = b.charges > 0 ? M.gem : M.gemOff; v.orb.rotation.y = _t * 2; v.orb.position.y = 1.75 + Math.sin(_t * 2.4 + b.id) * 0.08;
+                v.orb.material = _tw(b.charges > 0 ? M.gem : M.gemOff); v.orb.rotation.y = _t * 2; v.orb.position.y = 1.75 + Math.sin(_t * 2.4 + b.id) * 0.08;
                 v.orb.scale.setScalar((0.7 + 0.3 * Math.min(1, b.charges / L.towerCharges(_s, b))) * (1 + 0.18 * ((b.lvl || 1) - 1)));
                 v.dome.scale.setScalar(L.towerR(b) / L.TOWER_R);
                 v.dome.material.opacity = (b.charges > 0 ? 0.05 + 0.05 * _nightK + Math.min(3, b.charges) * 0.02 : 0) + v.flash * 0.35;
@@ -1017,7 +1028,7 @@ function _draw(dt) {
             if (it.kind === 'nut') { m.add(new T.Mesh(G.nut, M.nut)); m.add(_mesh(G.nutCap, M.nutCap, 0, 0.11, 0)); }
             else if (it.kind === 'rock') m.add(new T.Mesh(G.rock, M.rock));
             else { const gold = it.kind === 'gold', cone = new T.Mesh(G.shell, gold ? M.gold : M.shell); cone.rotation.z = 1.1; m.add(cone); m.add(_mesh(G.shellTip, gold ? M.gold : M.shellTip, -0.17, 0.08, 0)); if (gold) m.scale.setScalar(1.35); }
-            g.scene.add(grp); v = { g: grp, m, born: 0 }; _vis.items.set(it.id, v);
+            _inkify(grp, 0.03); g.scene.add(grp); v = { g: grp, m, born: 0 }; _vis.items.set(it.id, v);
         }
         v.born = Math.min(1, v.born + dt * 4);
         const rock = it.kind === 'rock';

@@ -320,3 +320,10 @@ short **trail of ink drips** from the start the way he went. **Every chamber now
 drawings: cracked wall, logs, sand block, plate gate, timed bullseye, sinkholes, launch pad, tide, crumbling tiles, steam jets,
 Old Ink's slam). `qa/lair-world1.mjs` checks every chamber has signs, every sign is drawn, and each world opens with its story.
 
+**Piece 5, part 2: the oldest looks.** Beach-themed chambers' open sand now has starfish, shells, driftwood, pebbles and dune grass
+(kept clear of the start, the palm, posts, pads, signs and flags; sand only). Old Ink's arenas have puddles of ink and his broken
+pots (kept clear of plates, bullseyes and signs). The city (Tiny Planet) is in the cartoon style too: buildings, palms, the
+boardwalk courses and the shells and coconuts lying about get toon shading, and their bigger parts an ink outline (small bits like
+windows are left without, and villagers stay plain, since phones draw every outline). Plain materials get a toon twin
+(`_tw` in Planet.js) so the city's runtime swaps (a hurt home, a tower's orb, the theme's leaf colour) still work.
+
