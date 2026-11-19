@@ -279,3 +279,14 @@ coconut could have reached the lighthouse plate, which would skip the raft, so t
 (`at(6.2, 85)`): no throw from the island (or from the sand, or from the middle raft at low tide) reaches it; from the raft by the mesa
 at high tide one does. The jelly and its post moved out onto the sand (a low-tide golden shell).
 
+**Bubble Stream bank shot, play-test** ("still terrible, needs a big update on the 3D"). The bullseye hid behind a wall of grey
+boulders, so from the spot you couldn't see what you were aiming at, and the bumper was a flat yellow board. Now (the rules are
+unchanged, so the bot still proves it):
+- The alcove and the chute are **glass** (`look: 'glass'` on the ring and the bars): clear crystal panels in a frame. You see the
+  bullseye through them, and a coconut bounces off them, so it reads as "you can see it, but not hit it straight".
+- The bumper is a **pinball bumper**: a fat pink rubber cushion between two white posts with springs, a white star where to hit it.
+- The bullseye you bank into is bigger, raised, with a glow behind it.
+- The spot's path is two colours: yellow to the bumper, green on to the bullseye.
+- A **picture sign** at the spot loops the bounce (and a straight throw bonking off the glass); one by the jelly pad shows the
+  two vents (plug one, the other blows).
+

@@ -114,6 +114,15 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         const wall = { w, k: 0, last: -1, rebuild, inst };
         rebuild(1); inst.forEach(i => i.done()); walls.push(wall); return wall;
     }
+    // A glass wall: clear crystal panels in a frame (you can see what's behind it, but a coconut bounces off). For a target you
+    // must hit some other way than straight at it.
+    function glassWall(w, hh) {
+        const items = arcPoints(w, 0.5), pane = Y.instanced(G.box, items.length, 0, { transparent: true, opacity: 0.45, depthWrite: false }), post = Y.instanced(G.box, items.length, 0.05);
+        for (const i of [pane, post]) { scene.add(i.body); if (i.line) scene.add(i.line); }
+        items.forEach((it, i) => { const base = fl(it.p); pane.set(i, stand(it.p, it.f, base + hh / 2, it.len * 1.02, hh, 0.08), 0x9be7ff); post.set(i, stand(walk(it.p, tangent(it.p, cross(it.p, it.f)), (it.len / 2) / R), it.f, base + hh / 2, 0.1, hh + 0.1, 0.14), i % 2 ? 0x6fb8d8 : 0x8fd0ea); });
+        pane.done(); post.done();
+        const top = Y.instanced(G.box, items.length, 0.04); scene.add(top.body); if (top.line) scene.add(top.line); items.forEach((it, i) => top.set(i, stand(it.p, it.f, fl(it.p) + hh + 0.05, it.len * 1.05, 0.1, 0.18), 0xdff6ff)); top.done();
+    }
     // A fence of glowing crystals: a gate. It sinks into its stones when it opens.
     function crystalFence(w, hex) {
         const rnd = rngOf(23 + Math.round(w.r * 7)), items = arcPoints(w, 0.8);
@@ -141,6 +150,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             { y0: 0, h: 1.5, thick: 0.1, color: [0xff7f9e, 0xf06a8c, 0xff9bb3], depth: 1.4, wide: 1.4 },
             { y0: 1.1, h: 1.3, thick: 0.1, color: [0xb98be6, 0xa877dc, 0xcaa2ef], depth: 1.1, inset: 0.15, wide: 1.3 },
             { y0: 2.1, h: 0.9, thick: 0.09, color: [0xffb35c, 0xff9f45, 0x6fe0c5], depth: 0.9, inset: 0.3, wide: 1.2 }], w.r < 1.5 ? 0.45 : 0.6);
+        else if (kind === 'cove' && w.look === 'glass') glassWall(w, 3.4);
         else if (kind === 'cove') {
             // low boulders round the cove, and two tall standing stones either side of its mouth
             const gap = w.gap, a0 = gap[0] - gap[1], a1 = gap[0] + gap[1];
@@ -276,7 +286,13 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         if (k.to) { const ar = Y.prop([{ geo: G.box, color: 0xfff3a0, s: [0.22, 0.06, 0.6], p: [0, 0.3, -0.1] }, { geo: G.coneLow, color: 0xfff3a0, s: [0.5, 0.45, 0.08], p: [0, 0.3, 0.38], r: [Math.PI / 2, 0, 0] }], { thick: 0.04 }); g.add(ar); }
         return { k, g, wob: 0 }; });
     // Stone walls (the bank-shot lane, the ramp's rails): a low run of blocks along each bar.
-    for (const b of (level.bars || []).filter(x => x.kind === 'lane' || x.kind === 'rail' || x.kind === 'chute')) {
+    for (const b of (level.bars || []).filter(x => x.kind === 'chute' && x.look === 'glass')) {         // glass rails: see the bullseye down the chute
+        const len = K.dist(b.a, b.b), n = Math.max(2, Math.round(len / 0.5)), pane = Y.instanced(G.box, n, 0, { transparent: true, opacity: 0.45, depthWrite: false }), rail = Y.instanced(G.box, n, 0.04), nrm = norm(cross(b.a, b.b));
+        for (const i of [pane, rail]) { scene.add(i.body); if (i.line) scene.add(i.line); }
+        for (let i = 0; i < n; i++) { const tt = (i + 0.5) / n, p = norm(mix(b.a, b.b, 1 - tt, tt)), base = fl(p); pane.set(i, stand(p, tangent(p, nrm), base + 0.75, 0.08, 1.5, len / n * 1.02), 0x9be7ff); rail.set(i, stand(p, tangent(p, nrm), base + 1.52, 0.16, 0.1, len / n * 1.05), 0xdff6ff); }
+        pane.done(); rail.done();
+    }
+    for (const b of (level.bars || []).filter(x => x.kind === 'lane' || x.kind === 'rail' || (x.kind === 'chute' && x.look !== 'glass'))) {
         const len = K.dist(b.a, b.b), n = Math.max(2, Math.round(len / 0.5)), m = Y.instanced(G.rockSoft, n, 0.08), nrm = norm(cross(b.a, b.b)); scene.add(m.body); scene.add(m.line);
         for (let i = 0; i < n; i++) { const tt = (i + 0.5) / n, p = norm(mix(b.a, b.b, 1 - tt, tt)), base = fl(p), hh = b.kind === 'rail' ? 1.0 : b.kind === 'chute' ? 1.3 : Math.max(0.8, b.h - base); m.set(i, stand(p, tangent(p, nrm), base + hh / 2, 0.62, hh, 0.7, hash(i, 2) * 2), [0x9aa1b6, 0x8890a8, 0xaab0c4][i % 3]); }
         m.done();
@@ -287,11 +303,15 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
     const bumpers = (level.bars || []).filter(x => x.kind === 'bumper').map(b => {
         const mid = norm(mix(b.a, b.b, 0.5, 0.5)), len = K.dist(b.a, b.b), base = fl(mid), along = toward(mid, b.b), nrm = tangent(mid, cross(mid, along)), g = new T.Group();
         const sp = (level.spots || []).find(x => x.via && K.dist(x.via, mid) < 0.5), face = sp ? (K.dist(walk(mid, nrm, 0.3 / R), sp.p) < K.dist(walk(mid, nrm, -0.3 / R), sp.p) ? 1 : -1) : 1;
-        g.add(Y.prop([{ geo: G.box, color: 0x8890a8, s: [len + 0.3, 0.5, 0.7], p: [0, 0.25, 0] }, { geo: G.box, color: 0xffd23a, s: [len, 2.3, 0.3], p: [0, 1.6, 0] }, { geo: G.box, color: 0xff9a1f, s: [len + 0.1, 0.18, 0.34], p: [0, 2.8, 0] }], { thick: 0.08 }));
+        g.add(Y.prop([{ geo: G.box, color: 0x8890a8, s: [len + 0.6, 0.45, 0.9], p: [0, 0.22, 0] },
+            { geo: G.box, color: 0xff5fa8, s: [len - 0.2, 1.9, 0.5], p: [0, 1.5, 0] }, { geo: G.cyl, color: 0xff8ac4, s: [0.6, len - 0.2, 0.6], p: [0, 2.45, 0], r: [0, 0, Math.PI / 2] }, { geo: G.cyl, color: 0xff8ac4, s: [0.6, len - 0.2, 0.6], p: [0, 0.6, 0], r: [0, 0, Math.PI / 2] },
+            ...[-1, 1].flatMap(sx => [{ geo: G.cyl, color: 0xf5f5f5, s: [0.34, 2.9, 0.34], p: [sx * (len / 2), 1.45, 0] }, { geo: G.sph, color: 0xffd23a, s: [0.46, 0.46, 0.46], p: [sx * (len / 2), 3.0, 0] },
+                ...[0, 1, 2].map(k => ({ geo: G.cylLow, color: 0xc9d2e6, s: [0.5, 0.1, 0.5], p: [sx * (len / 2), 0.9 + k * 0.5, 0] }))])], { thick: 0.08 }));
+        const star = new T.Group(); for (let k = 0; k < 4; k++) { const bar = new T.Mesh(G.box, basic(0xffffff)); bar.scale.set(0.9, 0.12, 0.05); bar.rotation.z = k * Math.PI / 4; star.add(bar); } star.position.set(0, 1.5, face * 0.27); g.add(star);
         if (sp) for (let k = 0; k < 3; k++) {    // chevrons: from where the coconut comes in, to where it goes out
             const ch = new T.Group(); for (const sgn of [1, -1]) { const bar = new T.Mesh(G.box, basic(0x2b1240)); bar.scale.set(0.5, 0.11, 0.05); bar.position.set(0, sgn * 0.14, 0); bar.rotation.z = sgn * 0.6; ch.add(bar); }
             const outDir = K.dist(walk(mid, along, 0.5 / R), sp.to) < K.dist(walk(mid, along, -0.5 / R), sp.to) ? 1 : -1;
-            ch.position.set((k - 1) * 0.7, 1.6, face * 0.17); ch.rotation.y = face > 0 ? 0 : Math.PI; ch.scale.x = outDir * face; g.add(ch);
+            ch.position.set((k - 1) * 0.7 + (k - 1) * 0.15, 1.5, face * 0.27); if (k === 1) ch.visible = false; ch.rotation.y = face > 0 ? 0 : Math.PI; ch.scale.x = outDir * face; g.add(ch);
         }
         put(g, mid, along, base); g.rotateY(Math.PI / 2); scene.add(g); return g;
     });
@@ -301,8 +321,8 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         const fill = new T.Mesh(G.disc, basic(0xffd23a, { transparent: true, opacity: 0.25, depthWrite: false })); fill.scale.setScalar(0.62); g.add(fill);
         for (const [x, z] of [[-0.18, -0.1], [0.18, -0.1], [-0.25, 0.15], [0.25, 0.15]]) { const f2 = new T.Mesh(G.disc, basic(0xb07a2e)); f2.scale.setScalar(0.07); f2.position.set(x, 0.01, z); g.add(f2); }
         put(g, sp.p, toward(sp.p, sp.via), base + 0.08); scene.add(g);
-        const dots = [], col = 0xffd23a;
-        for (const [a, b, st, en] of [[sp.p, sp.via, 0.85, 0.5], ...(sp.to ? [[sp.via, sp.to, 0.5, 0.9]] : [])]) { const len = K.dist(a, b), n = Math.max(2, Math.floor((len - st - en) / 0.4)); for (let k = 0; k <= n; k++) { const f = (st + k * (len - st - en) / n) / len, p = norm(mix(a, b, 1 - f, f)), d = new T.Mesh(G.disc, basic(col, { transparent: true, opacity: 0.6, depthWrite: false })); d.scale.setScalar(0.15); put(d, p, null, fl(p) + 0.1); scene.add(d); dots.push(d); } }
+        const dots = [];
+        for (const [a, b, st, en, col] of [[sp.p, sp.via, 0.85, 0.5, 0xffd23a], ...(sp.to ? [[sp.via, sp.to, 0.5, 0.9, 0x4ade80]] : [])]) { const len = K.dist(a, b), n = Math.max(2, Math.floor((len - st - en) / 0.4)); for (let k = 0; k <= n; k++) { const f = (st + k * (len - st - en) / n) / len, p = norm(mix(a, b, 1 - f, f)), d = new T.Mesh(G.disc, basic(col, { transparent: true, opacity: 0.6, depthWrite: false })); d.scale.setScalar(0.15); put(d, p, null, fl(p) + 0.1); scene.add(d); dots.push(d); } }
         return { sp, g, ring, dots, said: false };
     });
     // Holes through the planet: a dark mouth with a sandy rim; a blowhole has a grate over it (coconuts only); a lid is a crystal
@@ -522,6 +542,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         const g = new T.Group(), post = Y.part(G.cylLow, C.wood2, 0.04); post.scale.set(0.16, 1.1, 0.16); post.position.y = 0.55; g.add(post);
         const face = new T.Group(); face.position.y = 1.15; const mats = [];
         [[0.62, 0xff4d4d], [0.44, 0xffffff], [0.26, 0xff4d4d]].forEach(([r, hex], i) => { const m = Y.toon(hex); mats.push(m); const d = Y.part(G.cyl, m, i ? 0 : 0.05); d.scale.set(r * 2, 0.1 + i * 0.03, r * 2); d.rotation.x = Math.PI / 2; face.add(d); });
+        if (tg.tall) { face.scale.setScalar(1.45); face.position.y = 1.5; post.scale.set(0.2, 1.5, 0.2); post.position.y = 0.75; const glow = new T.Mesh(G.disc, basic(0xffe45a, { transparent: true, opacity: 0.35, depthWrite: false, side: T.DoubleSide })); glow.scale.setScalar(1.25); glow.rotation.x = Math.PI / 2; glow.position.set(0, 1.5, -0.12); g.add(glow); }      // (a bullseye you bank into: big, raised, with a glow behind it)
         g.add(face); scene.add(g); return { tg, g, face, hit: 0, mats };
     });
     // Signal lines: a dotted line on the ground from each plate and bullseye to every gate it works, in that gate's colour.
@@ -846,7 +867,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             const on = K.dist(c.p, v.sp.p) < 0.8, done = !!s.open[v.sp.gate];
             v.ring.scale.setScalar(0.75 + 0.06 * Math.sin(t * (on ? 9 : 4))); v.g.visible = !done;
             v.dots.forEach((d, k) => { d.visible = !done; d.material.opacity = on ? 0.55 + 0.45 * Math.max(0, Math.sin(t * 6 - k * 0.6)) : 0.45; d.scale.setScalar(on ? 0.2 : 0.15); });
-            if (on && !v.said && !done) { v.said = true; hooks.hint(v.sp.say || ((level.holes || []).some(h => K.dist(h.p, v.sp.via) < 0.3) ? '🎯 THE THROW SPOT: THROW INTO THE BLOWHOLE. THE AIM TURNS GREEN WHEN IT WILL HIT' : '🎯 THE THROW SPOT: AIM AT THE YELLOW BUMPER. THE AIM TURNS GREEN WHEN IT WILL HIT'), 4); }
+            if (on && !v.said && !done) { v.said = true; hooks.hint(v.sp.say || ((level.holes || []).some(h => K.dist(h.p, v.sp.via) < 0.3) ? '🎯 THE THROW SPOT: THROW INTO THE BLOWHOLE. THE AIM TURNS GREEN WHEN IT WILL HIT' : '🎯 THE THROW SPOT: AIM AT THE PINK BUMPER. THE AIM TURNS GREEN WHEN IT WILL HIT'), 4); }
         });
         poolMeshes.forEach((v, i) => { v.rim.scale.setScalar(v.q.r * (1 + 0.02 * Math.sin(t * 2 + i))); });
         signals.forEach(v => {
