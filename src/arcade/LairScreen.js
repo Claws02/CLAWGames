@@ -24,9 +24,10 @@
 import * as K from './LairLogic.js';
 import { cross, mix, norm, tangent, toward, walk } from './PlanetLogic.js';
 import { makeToon } from './Toon.js';
+import * as SG from './Signs.js';
 
 const CHARGE_S = 0.9;                       // how long a full wind-up takes
-const GATE_COLOR = { lid: 0x9be7ff,  eye: 0xff5fa8, plate: 0xffc83a, yard: 0x5fd0ff, red: 0xff5f5f, blue: 0x5f8bff, green: 0x4ade80, gold: 0xffc83a, cage: 0x5fd0ff };
+const GATE_COLOR = { net: 0x5fd0ff, nest: 0xffc83a, bridge: 0xffc83a, lid: 0x9be7ff,  eye: 0xff5fa8, plate: 0xffc83a, yard: 0x5fd0ff, red: 0xff5f5f, blue: 0x5f8bff, green: 0x4ade80, gold: 0xffc83a, cage: 0x5fd0ff };
 const SHOW = { cliff: 2.4, cove: 1.5, step: 2, gate: 2.1 };      // how tall each kind of wall is drawn
 const rngOf = seed => () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
@@ -113,6 +114,15 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         const wall = { w, k: 0, last: -1, rebuild, inst };
         rebuild(1); inst.forEach(i => i.done()); walls.push(wall); return wall;
     }
+    // A glass wall: clear crystal panels in a frame (you can see what's behind it, but a coconut bounces off). For a target you
+    // must hit some other way than straight at it.
+    function glassWall(w, hh) {
+        const items = arcPoints(w, 0.5), pane = Y.instanced(G.box, items.length, 0, { transparent: true, opacity: 0.45, depthWrite: false }), post = Y.instanced(G.box, items.length, 0.05);
+        for (const i of [pane, post]) { scene.add(i.body); if (i.line) scene.add(i.line); }
+        items.forEach((it, i) => { const base = fl(it.p); pane.set(i, stand(it.p, it.f, base + hh / 2, it.len * 1.02, hh, 0.08), 0x9be7ff); post.set(i, stand(walk(it.p, tangent(it.p, cross(it.p, it.f)), (it.len / 2) / R), it.f, base + hh / 2, 0.1, hh + 0.1, 0.14), i % 2 ? 0x6fb8d8 : 0x8fd0ea); });
+        pane.done(); post.done();
+        const top = Y.instanced(G.box, items.length, 0.04); scene.add(top.body); if (top.line) scene.add(top.line); items.forEach((it, i) => top.set(i, stand(it.p, it.f, fl(it.p) + hh + 0.05, it.len * 1.05, 0.1, 0.18), 0xdff6ff)); top.done();
+    }
     // A fence of glowing crystals: a gate. It sinks into its stones when it opens.
     function crystalFence(w, hex) {
         const rnd = rngOf(23 + Math.round(w.r * 7)), items = arcPoints(w, 0.8);
@@ -140,6 +150,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             { y0: 0, h: 1.5, thick: 0.1, color: [0xff7f9e, 0xf06a8c, 0xff9bb3], depth: 1.4, wide: 1.4 },
             { y0: 1.1, h: 1.3, thick: 0.1, color: [0xb98be6, 0xa877dc, 0xcaa2ef], depth: 1.1, inset: 0.15, wide: 1.3 },
             { y0: 2.1, h: 0.9, thick: 0.09, color: [0xffb35c, 0xff9f45, 0x6fe0c5], depth: 0.9, inset: 0.3, wide: 1.2 }], w.r < 1.5 ? 0.45 : 0.6);
+        else if (kind === 'cove' && w.look === 'glass') glassWall(w, 3.4);
         else if (kind === 'cove') {
             // low boulders round the cove, and two tall standing stones either side of its mouth
             const gap = w.gap, a0 = gap[0] - gap[1], a1 = gap[0] + gap[1];
@@ -237,8 +248,11 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             }
         }
     }
+    // Things that ride the tide on a floating island: each frame they go up by the water's height.
+    const riders = [], rides = p => !!(level.tide && (level.ledges || []).some(l => l.ride && K.dist(p, l.c || TOP) >= l.r0 && K.dist(p, l.c || TOP) < l.r1 && K.covers(l, p)));
+    const gatedLedges = [];
     // Terraces, ramps and shelves: raised ground with a grassy (or stone) top and rocky cliff sides, darker bands of strata.
-    const LEDGE = { basalt: { top: [0x5a4a5e, 0x514356], side: [0x3a2c3c, 0x46343f, 0x2e2230] }, obsidian: { top: [0x1c1726, 0x231d30], side: [0x120e1a, 0x18131f, 0x0e0b14] },  beachShelf: { top: [0xf2d9cf, 0xe7c7bd], side: [0xd9bfae, 0xccb09e, 0xe2cbbd] },  coralShelf: { top: [0xff9bb3, 0xff8aa6], side: [0xb98be6, 0xa877dc, 0xcaa2ef] },  terrace: { top: [0x8fd96a, 0x7fcf5c], side: [0xc9935a, 0xb98249, 0xd6a46a] }, mesa: { top: [0xe8b46a, 0xdca65c], side: [0xd9893f, 0xc4742f, 0xe69b52] }, ramp: { top: [0xcfae7a, 0xc19f6c], side: [0xa98758, 0x977648, 0xb89668] }, shelf: { top: [0xaab0c4, 0x9aa1b6], side: [0x8890a8, 0x7a8299, 0x969db3] } };
+    const LEDGE = { boardwalk: { top: [0xd9a066, 0xc98f52], side: [0xa87440, 0x8a5a2e, 0xb98249], open: true }, boardwalkRamp: { top: [0xd9a066, 0xc98f52], side: [0xa87440, 0x8a5a2e], open: true }, bridge: { top: [0xe0aa70, 0xc98f52], side: [0x8a5a2e, 0xa87440], open: true }, stack: { top: [0x7fcf5c, 0x6fbf4f], side: [0x8f86a8, 0x7d7496, 0xa29abb] }, basalt: { top: [0x5a4a5e, 0x514356], side: [0x3a2c3c, 0x46343f, 0x2e2230] }, obsidian: { top: [0x1c1726, 0x231d30], side: [0x120e1a, 0x18131f, 0x0e0b14] },  beachShelf: { top: [0xf2d9cf, 0xe7c7bd], side: [0xd9bfae, 0xccb09e, 0xe2cbbd] },  coralShelf: { top: [0xff9bb3, 0xff8aa6], side: [0xb98be6, 0xa877dc, 0xcaa2ef] },  terrace: { top: [0x8fd96a, 0x7fcf5c], side: [0xc9935a, 0xb98249, 0xd6a46a] }, mesa: { top: [0xe8b46a, 0xdca65c], side: [0xd9893f, 0xc4742f, 0xe69b52] }, ramp: { top: [0xcfae7a, 0xc19f6c], side: [0xa98758, 0x977648, 0xb89668] }, shelf: { top: [0xaab0c4, 0x9aa1b6], side: [0x8890a8, 0x7a8299, 0x969db3] } };
     for (const l of level.ledges || []) {
         const pal = LEDGE[l.kind] || LEDGE.terrace, c0 = l.c || TOP, partial = !!(l.only || l.gap), lon0 = l.only ? l.only[0] - l.only[1] : 0, lon1 = l.only ? l.only[0] + l.only[1] : 360;
         const nR = Math.max(2, Math.ceil((l.r1 - l.r0) / 0.4)), circ = 2 * Math.PI * R * Math.sin(Math.max(l.r1, 0.5) / R), nL = Math.max(8, Math.ceil(circ * (lon1 - lon0) / 360 / 0.45));
@@ -253,17 +267,39 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         }
         const side = (rA, aA, rB, aB) => {                                     // a cliff face down to the ground, in bands
             const hA = hAt(rA), hB = hAt(rB), bands = Math.max(1, Math.ceil(Math.max(hA, hB) / 0.7));
+            if (pal.open) { quad(P3(rA, aA, hA - 0.28), P3(rB, aB, hB - 0.28), P3(rB, aB, hB), P3(rA, aA, hA), pal.side[0], 0.95); return; }
+            if (l.ride) quad(P3(rA, aA, -3), P3(rB, aB, -3), P3(rB, aB, -0.05), P3(rA, aA, -0.05), pal.side[2 % pal.side.length], 0.75);      // (a floating island's underside, hidden under the water)
             for (let b = 0; b < bands; b++) { const y0 = b / bands, y1 = (b + 1) / bands; quad(P3(rA, aA, hA * y0 - 0.05), P3(rB, aB, hB * y0 - 0.05), P3(rB, aB, hB * y1), P3(rA, aA, hA * y1), pal.side[b % pal.side.length], 0.9 + hash(rA + aA, b) * 0.15); }
         };
         for (let j = 0; j < nL; j++) { const a0 = lon0 + (j / nL) * (lon1 - lon0), a1 = lon0 + ((j + 1) / nL) * (lon1 - lon0); side(l.r1, a1, l.r1, a0); if (l.r0 > 0.01) side(l.r0, a0, l.r0, a1); }
         if (partial) for (let i = 0; i < nR; i++) { const r0 = l.r0 + (i / nR) * (l.r1 - l.r0), r1 = l.r0 + ((i + 1) / nR) * (l.r1 - l.r0); side(r0, lon0, r1, lon0); side(r1, lon1, r0, lon1); }
         const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new T.Float32BufferAttribute(col, 3)); geo.computeVertexNormals();
         const mesh = new T.Mesh(geo, Y.toon(0xffffff, { vertexColors: true, side: T.DoubleSide })); scene.add(mesh);
+        if (l.ride) riders.push({ obj: mesh, island: true });
+        if (pal.open) {          // stilts: wooden posts down to the water, along the edges and across
+            const pts = []; for (const rr of [l.r0 + 0.25, (l.r0 + l.r1) / 2, l.r1 - 0.25]) { const circ2 = 2 * Math.PI * R * Math.sin(Math.max(rr, 0.5) / R), n2 = Math.max(4, Math.round(circ2 * (lon1 - lon0) / 360 / 1.6)); for (let j = 0; j < n2; j++) pts.push(around(c0, rr, lon0 + ((j + 0.5) / n2) * (lon1 - lon0))); }
+            const st = Y.instanced(G.cylLow, pts.length, 0.05); scene.add(st.body); if (st.line) scene.add(st.line);
+            pts.forEach((q, i) => { const hq = hAt(K.dist(q, c0)); st.set(i, stand(q, [1, 0, 0], (hq - 0.28) / 2, 0.22, Math.max(0.05, hq - 0.28), 0.22), i % 2 ? 0x8a5a2e : 0x9a6534); }); st.done();
+        }
+        if (l.gate) {        // closed, the drawbridge stands up at the deck's edge on its chains
+            const lonM = l.only ? l.only[0] : 0, edge = around(c0, l.r1 - 0.15, lonM), wd = 2 * Math.PI * R * Math.sin(l.r1 / R) * ((l.only ? l.only[1] * 2 : 10) / 360);
+            const raised = Y.prop([{ geo: G.box, color: 0xc98f52, s: [wd * 0.95, 2.6, 0.16], p: [0, 1.3, 0] }, ...[0.5, 1.3, 2.1].map(y => ({ geo: G.box, color: 0x8a5a2e, s: [wd, 0.14, 0.2], p: [0, y, 0] })),
+                ...[-1, 1].map(sx => ({ geo: G.cylLow, color: 0x6b7388, s: [0.06, 1.6, 0.06], p: [sx * wd * 0.45, 2.2, -0.5], r: [0.6, 0, 0] }))], { thick: 0.06 });
+            put(raised, edge, toward(edge, c0), l.h1 != null ? l.h1 : l.h); scene.add(raised); gatedLedges.push({ l, mesh, raised });
+        }
     }
     // Stone posts (a pillar is a tall one): a column with rings and a cap.
     for (const k of level.posts || []) {
         const base = K.floorAt({ ...sfl, lv: { ...level, posts: [] } }, k.p), hh = k.h - base;
-        const g = k.kind === 'obsidian' ? Y.prop([{ geo: G.cyl, color: 0x2a2236, s: [k.r * 2, hh, k.r * 2], p: [0, hh / 2, 0] }, { geo: G.coneLow, color: 0x3e3352, s: [k.r * 1.9, 0.6, k.r * 1.9], p: [0, hh + 0.3, 0] }, { geo: G.box, color: 0x8a74c4, s: [0.08, hh * 0.7, 0.04], p: [k.r * 0.6, hh * 0.5, k.r * 0.75], ink: false }], { thick: 0.06 }) : k.kind === 'lighthouse' ? Y.prop([...[0, 1, 2, 3].map(j => ({ geo: G.cyl, color: j % 2 ? 0xffffff : 0xff4d4d, s: [k.r * 2 * (1 - j * 0.06), hh / 4, k.r * 2 * (1 - j * 0.06)], p: [0, hh / 8 + (j * hh) / 4, 0] })), { geo: G.cylLow, color: 0xffe45a, s: [k.r * 1.3, 0.12, k.r * 1.3], p: [0, hh + 0.06, 0], ink: false }], { thick: 0.07 }) : Y.prop([{ geo: G.cyl, color: 0xb7aec8, s: [k.r * 2, hh, k.r * 2], p: [0, hh / 2, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.3, 0.18, k.r * 2.3], p: [0, 0.09, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.25, 0.12, k.r * 2.25], p: [0, hh * 0.55, 0] }, { geo: G.cylLow, color: 0xd0c8de, s: [k.r * 2.4, 0.2, k.r * 2.4], p: [0, hh - 0.1, 0] }], { thick: 0.07 });
+        const g = k.kind === 'shrine' ? Y.prop([{ geo: G.cylLow, color: 0xd9c3b0, s: [k.r * 2.6, 0.3, k.r * 2.6], p: [0, 0.15, 0] }, { geo: G.cyl, color: 0xeee2d0, s: [k.r * 1.5, hh - 0.4, k.r * 1.5], p: [0, 0.3 + (hh - 0.4) / 2, 0] },
+                { geo: G.cylLow, color: 0xffb3c6, s: [k.r * 2.1, 0.16, k.r * 2.1], p: [0, hh - 0.05, 0] }, { geo: G.sphLow, color: 0xff8aa6, s: [k.r * 1.3, 0.35, k.r * 1.3], p: [0, hh + 0.08, 0] },
+                ...[[0.3, 0.2], [-0.25, 0.35], [0.1, -0.3]].map(([x, z]) => ({ geo: G.sphLow, color: 0x7b3fe4, s: [0.22, 0.05, 0.16], p: [x * k.r * 2, hh + 0.04, z * k.r * 2], ink: false }))], { thick: 0.06 })
+            : k.kind === 'hut' ? Y.prop([...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([x, z]) => ({ geo: G.cylLow, color: 0x8a5a2e, s: [0.14, hh * 0.45, 0.14], p: [x * k.r * 0.75, hh * 0.22, z * k.r * 0.75] })),
+                { geo: G.box, color: 0xe8d2b0, s: [k.r * 1.9, hh * 0.42, k.r * 1.7], p: [0, hh * 0.65, 0] }, { geo: G.box, color: 0x5fb8d8, s: [k.r * 0.5, hh * 0.18, 0.05], p: [0, hh * 0.68, k.r * 0.86] },
+                { geo: G.coneLow, color: 0xd9653f, s: [k.r * 2.9, hh * 0.32, k.r * 2.6], p: [0, hh * 0.95, 0], r: [0, Math.PI / 4, 0] }, { geo: G.box, color: 0xc98f52, s: [k.r * 2.2, 0.12, k.r * 2.0], p: [0, hh - 0.04, 0] }], { thick: 0.06 })
+            : k.kind === 'mast' ? Y.prop([{ geo: G.cyl, color: 0xa87440, s: [k.r * 1.6, hh, k.r * 1.6], p: [0, hh / 2, 0] }, { geo: G.box, color: 0x9a6534, s: [2.4, 0.12, 0.12], p: [0, hh * 0.6, 0] },
+                { geo: G.cylLow, color: 0xc98f52, s: [1.3, 0.5, 1.3], p: [0, hh - 0.15, 0] }, { geo: G.box, color: 0xff5f5f, s: [0.7, 0.4, 0.04], p: [0.4, hh + 0.75, 0] }, { geo: G.cylLow, color: 0x8a5a2e, s: [0.06, 1.0, 0.06], p: [0, hh + 0.5, 0] }], { thick: 0.06 })
+            : k.kind === 'obsidian' ? Y.prop([{ geo: G.cyl, color: 0x2a2236, s: [k.r * 2, hh, k.r * 2], p: [0, hh / 2, 0] }, { geo: G.coneLow, color: 0x3e3352, s: [k.r * 1.9, 0.6, k.r * 1.9], p: [0, hh + 0.3, 0] }, { geo: G.box, color: 0x8a74c4, s: [0.08, hh * 0.7, 0.04], p: [k.r * 0.6, hh * 0.5, k.r * 0.75], ink: false }], { thick: 0.06 }) : k.kind === 'lighthouse' ? Y.prop([...[0, 1, 2, 3].map(j => ({ geo: G.cyl, color: j % 2 ? 0xffffff : 0xff4d4d, s: [k.r * 2 * (1 - j * 0.06), hh / 4, k.r * 2 * (1 - j * 0.06)], p: [0, hh / 8 + (j * hh) / 4, 0] })), { geo: G.cylLow, color: 0xffe45a, s: [k.r * 1.3, 0.12, k.r * 1.3], p: [0, hh + 0.06, 0], ink: false }], { thick: 0.07 }) : Y.prop([{ geo: G.cyl, color: 0xb7aec8, s: [k.r * 2, hh, k.r * 2], p: [0, hh / 2, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.3, 0.18, k.r * 2.3], p: [0, 0.09, 0] }, { geo: G.cylLow, color: 0x9a90ae, s: [k.r * 2.25, 0.12, k.r * 2.25], p: [0, hh * 0.55, 0] }, { geo: G.cylLow, color: 0xd0c8de, s: [k.r * 2.4, 0.2, k.r * 2.4], p: [0, hh - 0.1, 0] }], { thick: 0.07 });
         put(g, k.p, [1, 0, 0], base); scene.add(g);
     }
     // Jelly pads: a pink wobbly dome.
@@ -271,7 +307,13 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         if (k.to) { const ar = Y.prop([{ geo: G.box, color: 0xfff3a0, s: [0.22, 0.06, 0.6], p: [0, 0.3, -0.1] }, { geo: G.coneLow, color: 0xfff3a0, s: [0.5, 0.45, 0.08], p: [0, 0.3, 0.38], r: [Math.PI / 2, 0, 0] }], { thick: 0.04 }); g.add(ar); }
         return { k, g, wob: 0 }; });
     // Stone walls (the bank-shot lane, the ramp's rails): a low run of blocks along each bar.
-    for (const b of (level.bars || []).filter(x => x.kind === 'lane' || x.kind === 'rail' || x.kind === 'chute')) {
+    for (const b of (level.bars || []).filter(x => x.kind === 'chute' && x.look === 'glass')) {         // glass rails: see the bullseye down the chute
+        const len = K.dist(b.a, b.b), n = Math.max(2, Math.round(len / 0.5)), pane = Y.instanced(G.box, n, 0, { transparent: true, opacity: 0.45, depthWrite: false }), rail = Y.instanced(G.box, n, 0.04), nrm = norm(cross(b.a, b.b));
+        for (const i of [pane, rail]) { scene.add(i.body); if (i.line) scene.add(i.line); }
+        for (let i = 0; i < n; i++) { const tt = (i + 0.5) / n, p = norm(mix(b.a, b.b, 1 - tt, tt)), base = fl(p); pane.set(i, stand(p, tangent(p, nrm), base + 0.75, 0.08, 1.5, len / n * 1.02), 0x9be7ff); rail.set(i, stand(p, tangent(p, nrm), base + 1.52, 0.16, 0.1, len / n * 1.05), 0xdff6ff); }
+        pane.done(); rail.done();
+    }
+    for (const b of (level.bars || []).filter(x => x.kind === 'lane' || x.kind === 'rail' || (x.kind === 'chute' && x.look !== 'glass'))) {
         const len = K.dist(b.a, b.b), n = Math.max(2, Math.round(len / 0.5)), m = Y.instanced(G.rockSoft, n, 0.08), nrm = norm(cross(b.a, b.b)); scene.add(m.body); scene.add(m.line);
         for (let i = 0; i < n; i++) { const tt = (i + 0.5) / n, p = norm(mix(b.a, b.b, 1 - tt, tt)), base = fl(p), hh = b.kind === 'rail' ? 1.0 : b.kind === 'chute' ? 1.3 : Math.max(0.8, b.h - base); m.set(i, stand(p, tangent(p, nrm), base + hh / 2, 0.62, hh, 0.7, hash(i, 2) * 2), [0x9aa1b6, 0x8890a8, 0xaab0c4][i % 3]); }
         m.done();
@@ -282,11 +324,15 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
     const bumpers = (level.bars || []).filter(x => x.kind === 'bumper').map(b => {
         const mid = norm(mix(b.a, b.b, 0.5, 0.5)), len = K.dist(b.a, b.b), base = fl(mid), along = toward(mid, b.b), nrm = tangent(mid, cross(mid, along)), g = new T.Group();
         const sp = (level.spots || []).find(x => x.via && K.dist(x.via, mid) < 0.5), face = sp ? (K.dist(walk(mid, nrm, 0.3 / R), sp.p) < K.dist(walk(mid, nrm, -0.3 / R), sp.p) ? 1 : -1) : 1;
-        g.add(Y.prop([{ geo: G.box, color: 0x8890a8, s: [len + 0.3, 0.5, 0.7], p: [0, 0.25, 0] }, { geo: G.box, color: 0xffd23a, s: [len, 2.3, 0.3], p: [0, 1.6, 0] }, { geo: G.box, color: 0xff9a1f, s: [len + 0.1, 0.18, 0.34], p: [0, 2.8, 0] }], { thick: 0.08 }));
+        g.add(Y.prop([{ geo: G.box, color: 0x8890a8, s: [len + 0.6, 0.45, 0.9], p: [0, 0.22, 0] },
+            { geo: G.box, color: 0xff5fa8, s: [len - 0.2, 1.9, 0.5], p: [0, 1.5, 0] }, { geo: G.cyl, color: 0xff8ac4, s: [0.6, len - 0.2, 0.6], p: [0, 2.45, 0], r: [0, 0, Math.PI / 2] }, { geo: G.cyl, color: 0xff8ac4, s: [0.6, len - 0.2, 0.6], p: [0, 0.6, 0], r: [0, 0, Math.PI / 2] },
+            ...[-1, 1].flatMap(sx => [{ geo: G.cyl, color: 0xf5f5f5, s: [0.34, 2.9, 0.34], p: [sx * (len / 2), 1.45, 0] }, { geo: G.sph, color: 0xffd23a, s: [0.46, 0.46, 0.46], p: [sx * (len / 2), 3.0, 0] },
+                ...[0, 1, 2].map(k => ({ geo: G.cylLow, color: 0xc9d2e6, s: [0.5, 0.1, 0.5], p: [sx * (len / 2), 0.9 + k * 0.5, 0] }))])], { thick: 0.08 }));
+        const star = new T.Group(); for (let k = 0; k < 4; k++) { const bar = new T.Mesh(G.box, basic(0xffffff)); bar.scale.set(0.9, 0.12, 0.05); bar.rotation.z = k * Math.PI / 4; star.add(bar); } star.position.set(0, 1.5, face * 0.27); g.add(star);
         if (sp) for (let k = 0; k < 3; k++) {    // chevrons: from where the coconut comes in, to where it goes out
             const ch = new T.Group(); for (const sgn of [1, -1]) { const bar = new T.Mesh(G.box, basic(0x2b1240)); bar.scale.set(0.5, 0.11, 0.05); bar.position.set(0, sgn * 0.14, 0); bar.rotation.z = sgn * 0.6; ch.add(bar); }
             const outDir = K.dist(walk(mid, along, 0.5 / R), sp.to) < K.dist(walk(mid, along, -0.5 / R), sp.to) ? 1 : -1;
-            ch.position.set((k - 1) * 0.7, 1.6, face * 0.17); ch.rotation.y = face > 0 ? 0 : Math.PI; ch.scale.x = outDir * face; g.add(ch);
+            ch.position.set((k - 1) * 0.7 + (k - 1) * 0.15, 1.5, face * 0.27); if (k === 1) ch.visible = false; ch.rotation.y = face > 0 ? 0 : Math.PI; ch.scale.x = outDir * face; g.add(ch);
         }
         put(g, mid, along, base); g.rotateY(Math.PI / 2); scene.add(g); return g;
     });
@@ -296,8 +342,8 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         const fill = new T.Mesh(G.disc, basic(0xffd23a, { transparent: true, opacity: 0.25, depthWrite: false })); fill.scale.setScalar(0.62); g.add(fill);
         for (const [x, z] of [[-0.18, -0.1], [0.18, -0.1], [-0.25, 0.15], [0.25, 0.15]]) { const f2 = new T.Mesh(G.disc, basic(0xb07a2e)); f2.scale.setScalar(0.07); f2.position.set(x, 0.01, z); g.add(f2); }
         put(g, sp.p, toward(sp.p, sp.via), base + 0.08); scene.add(g);
-        const dots = [], col = 0xffd23a;
-        for (const [a, b, st, en] of [[sp.p, sp.via, 0.85, 0.5], ...(sp.to ? [[sp.via, sp.to, 0.5, 0.9]] : [])]) { const len = K.dist(a, b), n = Math.max(2, Math.floor((len - st - en) / 0.4)); for (let k = 0; k <= n; k++) { const f = (st + k * (len - st - en) / n) / len, p = norm(mix(a, b, 1 - f, f)), d = new T.Mesh(G.disc, basic(col, { transparent: true, opacity: 0.6, depthWrite: false })); d.scale.setScalar(0.15); put(d, p, null, fl(p) + 0.1); scene.add(d); dots.push(d); } }
+        const dots = [];
+        for (const [a, b, st, en, col] of [[sp.p, sp.via, 0.85, 0.5, 0xffd23a], ...(sp.to ? [[sp.via, sp.to, 0.5, 0.9, 0x4ade80]] : [])]) { const len = K.dist(a, b), n = Math.max(2, Math.floor((len - st - en) / 0.4)); for (let k = 0; k <= n; k++) { const f = (st + k * (len - st - en) / n) / len, p = norm(mix(a, b, 1 - f, f)), d = new T.Mesh(G.disc, basic(col, { transparent: true, opacity: 0.6, depthWrite: false })); d.scale.setScalar(0.15); put(d, p, null, fl(p) + 0.1); scene.add(d); dots.push(d); } }
         return { sp, g, ring, dots, said: false };
     });
     // Holes through the planet: a dark mouth with a sandy rim; a blowhole has a grate over it (coconuts only); a lid is a crystal
@@ -318,7 +364,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             const p = K.at((level.bank || 7) + 1.2 + rnd() * (19.6 - (level.bank || 7) - 1.2), rnd() * 360); if (avoid.some(a => a && K.dist(a, p) < 1.8)) continue; made++;
             const kelp = rnd() > 0.5, g = kelp ? Y.prop([0, 1, 2].map(k => ({ geo: G.cyl, color: k % 2 ? 0x2fae8c : 0x45c79f, s: [0.12, 1.3 + k * 0.4, 0.12], p: [(k - 1) * 0.18, (1.3 + k * 0.4) / 2, (k % 2) * 0.12], r: [0, 0, (k - 1) * 0.15] })), { thick: 0.04 })
                 : Y.prop([{ geo: G.sphLow, color: [0xff7f9e, 0xffb35c, 0xb98be6][i % 3], s: [0.7, 0.5, 0.7], p: [0, 0.25, 0] }, { geo: G.coneLow, color: [0xff9bb3, 0xffc77f, 0xcaa2ef][i % 3], s: [0.2, 0.6, 0.2], p: [0.15, 0.6, 0] }, { geo: G.coneLow, color: [0xff9bb3, 0xffc77f, 0xcaa2ef][i % 3], s: [0.16, 0.5, 0.16], p: [-0.2, 0.5, 0.1] }], { thick: 0.05 });
-            put(g, p, [rnd(), 0.2, rnd()], fl(p)); scene.add(g);
+            put(g, p, [rnd(), 0.2, rnd()], fl(p)); scene.add(g); if (rides(p)) riders.push({ obj: g });
         }
     }
     // Launch pads: a glowing ring with a chevron pointing up; where it flies you, the other world hangs in the sky.
@@ -372,7 +418,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         const blocks = (z.blocks || []).map(() => { const g = Y.prop([{ geo: G.box, color: 0x3a2f4e, s: [0.72, 0.72, 0.72], p: [0, 0.36, 0] }, { geo: G.box, color: 0xff8a2a, s: [0.74, 0.06, 0.74], p: [0, 0.5, 0], ink: false }, { geo: G.box, color: 0x52446c, s: [0.5, 0.06, 0.5], p: [0, 0.74, 0] }], { thick: 0.05 }); scene.add(g); return { g, p: null, h: 0, sink: 0 }; });
         // cracks: a pale web on the glass; cracked, it glows; broken, a hole of lava
         const cracks = (z.cracks || []).map(([r, c]) => { const p = K.lakeAt(z, r, c), g = new T.Group(), web = [], mats = [];
-            for (let k = 0; k < 4; k++) { const mt = basic(0xcfc4ea); mats.push(mt); const ln = new T.Mesh(G.box, mt); ln.scale.set(0.62 - k * 0.08, 0.02, 0.04); ln.rotation.y = k * 0.8 + 0.3; ln.position.y = 0.035; g.add(ln); web.push(ln); }
+            for (let k = 0; k < 4; k++) { const mt = basic(0xf2ecff); mats.push(mt); const ln = new T.Mesh(G.box, mt); ln.scale.set(0.7 - k * 0.08, 0.025, 0.07); ln.rotation.y = k * 0.8 + 0.3; ln.position.y = 0.035; g.add(ln); web.push(ln); }
             const hole = new T.Mesh(G.disc, basic(0xff5a1a)); hole.scale.setScalar(0.4); hole.position.y = 0.04; hole.visible = false; g.add(hole);
             put(g, p, [1, 0, 0], K.lakeH(z, r)); scene.add(g); return { r, c, g, mats, hole, last: -1 }; });
         // the plate (a coconut on it holds the gate open) and the gate across the bridge, joined by a line of dots in the gate's colour
@@ -384,6 +430,34 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             for (const [r, c] of z.plates) { const a = K.lakeAt(z, r, c), len = K.dist(a, gp), n = Math.max(2, Math.floor(len / 0.4)); for (let k = 1; k < n; k++) { const f = k / n, q = norm(mix(a, gp, 1 - f, f)), d = new T.Mesh(G.disc, basic(gc, { transparent: true, opacity: 0.55, depthWrite: false })); d.scale.setScalar(0.12); put(d, q, null, fl(q) + 0.05); scene.add(d); } } }
         lakeVis = { z, blocks, cracks, plates, gate };
     }
+    // Picture signs: a signpost by each new thing, its board a little looping picture (Signs.js) of a ghost crab acting the rule out.
+    // It plays while you're near; a sparkle hangs over each one you haven't been to yet.
+    const signVis = (level.signs || []).map(sg => {
+        const cv = document.createElement('canvas'); cv.width = SG.SIGN_W; cv.height = SG.SIGN_H; const g2 = cv.getContext('2d'); SG.drawSign(g2, sg.kind, 0);
+        const tex = new T.CanvasTexture(cv); if (T.SRGBColorSpace) tex.colorSpace = T.SRGBColorSpace;
+        const grp = new T.Group(), lift = sg.rock ? 0.7 : 0, base = fl(sg.p);
+        if (sg.rock) grp.add(Y.prop([{ geo: G.rockSoft, color: 0x46343f, s: [1.7, 1.1, 1.5], p: [0, 0.15, 0] }, { geo: G.rockSoft, color: 0x5a4a5e, s: [0.9, 0.6, 0.8], p: [0.5, 0.45, 0.2] }], { thick: 0.05 }));
+        grp.add(Y.prop([{ geo: G.cyl, color: C.wood2, s: [0.16, 1.7, 0.16], p: [0, lift + 0.85, -0.05] }, { geo: G.box, color: C.wood, s: [2.1, 1.6, 0.14], p: [0, lift + 2.1, -0.05] }, { geo: G.box, color: C.wood2, s: [2.18, 0.12, 0.18], p: [0, lift + 2.94, -0.05] }], { thick: 0.05 }));
+        const face = new T.Mesh(new T.PlaneGeometry(1.92, 1.44), new T.MeshBasicMaterial({ map: tex })); face.position.set(0, lift + 2.1, 0.03); grp.add(face);
+        const spark = Y.prop([{ geo: G.crystal, color: 0xffd23a, s: [0.9, 0.5, 0.9], r: [Math.PI, 0, 0], p: [0, 0, 0] }], { thick: 0.04 }); spark.position.set(0, lift + 3.45, 0); grp.add(spark);
+        put(grp, sg.p, toward(sg.p, sg.look || TOP), base); scene.add(grp); if (rides(sg.p)) riders.push({ obj: grp });
+        return { sg, g2, tex, t: 0, drawn: 0, grp, spark, seen: false };
+    });
+    // On the lake, while you're stopped: where each of the four ways would take you (and the block, if it's a push), marked at the end:
+    // a white ring (you'd stop there), red (lava), gold (off up the bridge), blue (back on the rim). With a coconut in your claws, a green
+    // arc shows any throw from here that would end on the plate. On the rim, by the edge: where coming on here would take you.
+    let lakePrev = null;
+    if (lakeVis) {
+        const dot = col => { const d = new T.Mesh(G.disc, basic(col, { transparent: true, opacity: 0.6, depthWrite: false })); d.scale.setScalar(0.09); d.visible = false; scene.add(d); return d; };
+        const dots = Array.from({ length: 140 }, () => dot(0xffffff));
+        const ring = () => { const m = new T.Mesh(G.ring, basic(0xffffff, { transparent: true, opacity: 0.85, depthWrite: false, side: T.DoubleSide })); m.scale.setScalar(0.32); m.visible = false; scene.add(m); return m; };
+        const ends = Array.from({ length: 6 }, ring);
+        const ghost = new T.Mesh(G.box, basic(0xff8a2a, { transparent: true, opacity: 0.35, depthWrite: false })); ghost.scale.setScalar(0.7); ghost.visible = false; scene.add(ghost);
+        lakePrev = { dots, ends, ghost, key: '' };
+    }
+    if (level.goal && level.start) { const d0 = K.dist(level.start, level.goal), dir = toward(level.start, level.goal);
+        for (let i = 0; i < 7; i++) { const q = walk(level.start, dir, (1.6 + i * 0.55) / R), side = tangent(q, cross(q, dir)), qq = walk(q, side, ((i % 2 ? 1 : -1) * 0.18) / R); if (K.dist(qq, level.goal) > d0 - 0.5) continue;
+            const sp = new T.Mesh(G.disc, basic(0x6b2fd0, { transparent: true, opacity: 0.55 - i * 0.05, depthWrite: false })); sp.scale.set(0.16 + (i % 3) * 0.04, 1, 0.12 + (i % 2) * 0.05); put(sp, qq, dir, fl(qq) + 0.04); scene.add(sp); if (rides(qq)) riders.push({ obj: sp }); } }
     const embers = []; if (THEME.embers) { const rnd = rngOf(31); for (let i = 0; i < 40; i++) { const e = new T.Mesh(G.sphLow, basic(i % 3 ? 0xff8a2a : 0xffd23a)); e.scale.setScalar(0.06 + rnd() * 0.05); scene.add(e); embers.push({ e, p: K.at(7 + rnd() * 8, rnd() * 360), h: rnd() * 3, v: 0.6 + rnd() * 0.8 }); } }
     // A palm on the mesa with a coconut hanging from its frond on a rope.
     const hangVis = (level.hangs || []).map(hg => {
@@ -480,10 +554,12 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         g.add(Y.prop(trunk, { thick: 0.045 }));
         for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; leaves.push({ geo: G.sph, color: i % 2 ? 0x4cc064 : 0x37a655, p: [Math.cos(a) * 0.62, -0.02 - 0.12 * (i % 2), Math.sin(a) * 0.62], r: [Math.sin(a) * 0.5, -a, -Math.cos(a) * 0.5], s: [0.42, 0.1, 1.5] }); }
         for (let i = 0; i < 3; i++) leaves.push({ geo: G.sph, color: C.nut, p: [Math.cos(i * 2.1) * 0.22, -0.15, Math.sin(i * 2.1) * 0.22], s: 0.3 });
-        const crown = Y.prop(leaves, { thick: 0.05 }); top.add(crown); top.position.set(0.2, 2.15, 0); g.add(top); g.scale.setScalar(1.15); scene.add(g); put(g, level.palm, [1, 0, 0]); return { g, top };
+        const crown = Y.prop(leaves, { thick: 0.05 }); top.add(crown); top.position.set(0.2, 2.15, 0); g.add(top); g.scale.setScalar(1.15); scene.add(g); put(g, level.palm, [1, 0, 0], fl(level.palm)); if (rides(level.palm)) riders.push({ obj: g }); return { g, top };
     })();
     const plates = (level.plates || []).map(pl => {
-        const g = new T.Group(), rim = Y.prop([{ geo: G.cylLow, color: 0xb9aed0, s: [2.25, 0.22, 2.25], p: [0, 0.08, 0] }], { thick: 0.06 }); g.add(rim);
+        const g = new T.Group(), rim = Y.prop([{ geo: G.cylLow, color: pl.heavy ? 0x5a6074 : 0xb9aed0, s: [2.25, pl.heavy ? 0.34 : 0.22, 2.25], p: [0, 0.08, 0] }], { thick: 0.06 }); g.add(rim);
+        if (pl.heavy) { for (let k = 0; k < 8; k++) { const b = Y.part(G.sphLow, 0x9aa1b6, 0.02); b.scale.setScalar(0.16); b.position.set(Math.cos(k * Math.PI / 4) * 0.95, 0.27, Math.sin(k * Math.PI / 4) * 0.95); g.add(b); }
+            const foot = new T.Group(); for (const a of [-0.55, 0, 0.55]) { const toe = new T.Mesh(G.box, basic(0x2b1d33)); toe.scale.set(0.09, 0.03, 0.62); toe.rotation.y = a; toe.position.set(Math.sin(a) * 0.3, 0.36, Math.cos(a) * 0.3); foot.add(toe); } g.add(foot); }
         const gc = GATE_COLOR[[].concat(pl.gate)[0]] || 0xffc83a, off = Y.toon(gc), on = Y.toon(C.green), top = Y.part(G.cylLow, off, 0.04); top.scale.set(1.6, 0.12, 1.6); top.position.y = 0.22; g.add(top);
         g.scale.setScalar(pl.r / 1.125); const halo = new T.Mesh(G.ring, basic(gc, { transparent: true, opacity: 0.9, depthWrite: false, side: T.DoubleSide })); halo.scale.setScalar(pl.r + 0.15); scene.add(halo); scene.add(g);
         return { pl, g, top, off, on, halo };
@@ -492,6 +568,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         const g = new T.Group(), post = Y.part(G.cylLow, C.wood2, 0.04); post.scale.set(0.16, 1.1, 0.16); post.position.y = 0.55; g.add(post);
         const face = new T.Group(); face.position.y = 1.15; const mats = [];
         [[0.62, 0xff4d4d], [0.44, 0xffffff], [0.26, 0xff4d4d]].forEach(([r, hex], i) => { const m = Y.toon(hex); mats.push(m); const d = Y.part(G.cyl, m, i ? 0 : 0.05); d.scale.set(r * 2, 0.1 + i * 0.03, r * 2); d.rotation.x = Math.PI / 2; face.add(d); });
+        if (tg.tall) { face.scale.setScalar(1.45); face.position.y = 1.5; post.scale.set(0.2, 1.5, 0.2); post.position.y = 0.75; const glow = new T.Mesh(G.disc, basic(0xffe45a, { transparent: true, opacity: 0.35, depthWrite: false, side: T.DoubleSide })); glow.scale.setScalar(1.25); glow.rotation.x = Math.PI / 2; glow.position.set(0, 1.5, -0.12); g.add(glow); }      // (a bullseye you bank into: big, raised, with a glow behind it)
         g.add(face); scene.add(g); return { tg, g, face, hit: 0, mats };
     });
     // Signal lines: a dotted line on the ground from each plate and bullseye to every gate it works, in that gate's colour.
@@ -571,6 +648,10 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
     const shade = basic(0x000000, { transparent: true, opacity: 0.26, depthWrite: false });
     const shadow = new T.Mesh(new T.CircleGeometry(0.5, 16), shade); shadow.geometry.rotateX(-Math.PI / 2); scene.add(shadow);
     const coconut = () => Y.prop([{ geo: G.sph, color: C.nut, s: 0.62 }, { geo: G.sph, color: C.nutDark, p: [0, 0.2, 0], s: [0.4, 0.28, 0.4], ink: false }, { geo: G.sphLow, color: 0x2a190c, p: [0.12, 0.05, 0.28], s: 0.07, ink: false }, { geo: G.sphLow, color: 0x2a190c, p: [-0.12, 0.05, 0.28], s: 0.07, ink: false }, { geo: G.sphLow, color: 0x2a190c, p: [0, -0.08, 0.3], s: 0.07, ink: false }], { thick: 0.05 });
+    // The gull's nest round the pearl: a ring of twigs and a heap of the coconuts it stole.
+    if (level.nest) { const twigs = Y.instanced(G.cylLow, 36, 0.04); scene.add(twigs.body); if (twigs.line) scene.add(twigs.line);
+        for (let i = 0; i < 36; i++) { const a = (i / 36) * 360, q = around(TOP, 1.0 + (i % 3) * 0.12, a), f = tangent(q, cross(TOP, q)); twigs.set(i, stand(q, f, fl(TOP) + 0.18 + (i % 3) * 0.12, 0.1, 1.1, 0.1, 1.4 + (i % 5) * 0.2), i % 2 ? 0x9a6534 : 0xb98249); }
+        twigs.done(); const rnd = rngOf(77); for (let i = 0; i < 9; i++) { const n = coconut(); n.scale.setScalar(0.8); const q = around(TOP, 0.6 + rnd() * 0.35, i * 40 + rnd() * 20); scene.add(n); put(n, q, [1, 0, 0], fl(TOP) + 0.2 + (i % 3) * 0.12); } }       // (a drawbridge: there only while its gate is open)
     const held = coconut(); held.visible = false; scene.add(held);
     const aimRing = new T.Mesh(G.ring, basic(0xffe45a, { transparent: true, opacity: 0.95, depthWrite: false, side: T.DoubleSide })); aimRing.visible = false; scene.add(aimRing);
     const dots = Array.from({ length: 30 }, () => { const d = new T.Mesh(G.dot, basic(0xffffff, { transparent: true, opacity: 0.85 })); d.visible = false; scene.add(d); return d; });
@@ -711,8 +792,9 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             vn.bands.forEach(b => { b.t = (b.t + dt * 0.4) % 1; b.b.visible = active; if (active) { put(b.b, vn.v.p, null, vn.base + 0.2 + b.t * vn.lift); b.b.scale.setScalar(vn.v.r * (0.9 + 0.3 * b.t)); b.b.material.opacity = 0.55 * (1 - b.t); } });
             vn.bubbles.forEach(b => { b.t = (b.t + dt * (active ? 0.5 : 0.18)) % 1; const rise = b.t * (active ? (vn.lift ? 3.4 : 1.8) : 0.5); b.b.visible = active || (!plugged && !vn.lift); b.b.position.copy(at3(vn.v.p, vn.base + 0.3 + rise)); tmp.copy(V(cross(vn.v.p, [0, 1, 0]))).normalize(); b.b.position.addScaledVector(tmp, Math.sin(t * 5 + b.t * 9) * 0.14 * vn.v.r); b.b.scale.setScalar((0.1 + b.t * 0.16) * (active ? 1.4 : 1)); });
         });
-        checks.forEach(v => { put(v.g, v.p, [1, 0, 0], fl(v.p)); v.cloth.material = s.cp >= v.i ? v.on : v.off; v.cloth.rotation.y = Math.sin(t * 4 + v.i) * 0.25; });
+        checks.forEach(v => { put(v.g, v.p, [1, 0, 0], K.floorAt(s, v.p)); v.cloth.material = s.cp >= v.i ? v.on : v.off; v.cloth.rotation.y = Math.sin(t * 4 + v.i) * 0.25; });
         palm.top.rotation.z = Math.sin(t * 1.3) * 0.05; palm.top.rotation.x = Math.cos(t * 1.1) * 0.04;
+        gatedLedges.forEach(v => { v.mesh.visible = !!(s.open[v.l.gate] || s.held[v.l.gate]); if (v.raised) v.raised.visible = !v.mesh.visible; });
         plates.forEach(v => { const on = !!s.held[[].concat(v.pl.gate)[0]]; v.top.material = on ? v.on : v.off; const ph = fl(v.pl.p); put(v.g, v.pl.p, null, ph + (on ? -0.02 : 0.02)); put(v.halo, v.pl.p, null, ph + 0.12); });
         targets.forEach(v => { v.hit = Math.max(0, v.hit - dt * 1.5); const ta = K.targetAt(s, v.tg); put(v.g, ta.p, toward(ta.p, c.p), ta.h - 1.1 - (v.tg.h ? v.tg.h - 1.1 : 0)); v.face.rotation.z = v.hit * 8; v.face.scale.setScalar(1 + v.hit * 0.4); const op = s.open[[].concat(v.tg.gate)[0]]; const hex = op ? (typeof op === 'number' && op < 2 && Math.sin(t * 20) > 0 ? 0xffe45a : 0x4ade80) : 0xff4d4d; v.mats[0].color.setHex(hex); v.mats[2].color.setHex(hex); });
         // The pearl and Old Ink: he watches the crab, blinks, narrows his eyes when it comes close, and rears up when the pearl is taken.
@@ -770,7 +852,8 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             const shut = K.up(s, v.w); (v.dots || []).forEach((d, k) => { d.visible = shut; d.material.opacity = 0.4 + 0.4 * Math.max(0, Math.sin(t * 5 - k * 0.6)); });
             if (shut && !v.said && Math.abs(K.dist(c.p, v.w.c || TOP) - v.w.r) < 1.6) { v.said = true; hooks.hint(v.w.remote === 'moon' ? '🌙 THIS FENCE\'S SWITCH IS ON THE MOON: FOLLOW THE DOTS TO THE LAUNCH PAD' : '🔒 THIS GATE\'S SWITCH IS SOMEWHERE ELSE', 4); }
         });
-        if (tideMesh) { const W = s.tideW || 0; tideMesh.visible = W > 0.02; tideMesh.scale.setScalar((R + W) / R); }
+        if (tideMesh) { const W = s.tideW || 0; tideMesh.visible = W > 0.02; tideMesh.scale.setScalar((R + W) / R);
+            riders.forEach(v => { if (!v.base) v.base = v.obj.position.clone(); if (v.island) v.obj.scale.setScalar((R + W) / R); else v.obj.position.copy(v.base).multiplyScalar((v.base.length() + W) / v.base.length()); }); }
         raftVis.forEach((v, i) => put(v.g, v.k.p, [1, 0, 0], (s.tideW || 0) + 0.02 + Math.sin(t * 2 + i) * ((s.tideW || 0) > 0.1 ? 0.04 : 0)));
         tileVis.forEach((v, i) => { const st = s.tiles && s.tiles[i], down = st && st.down > 0, cracking = st && st.k >= 0;
             v.drop = down ? Math.min(6, v.drop + dt * 12) : Math.max(0, v.drop - dt * 6); v.crack.visible = !!cracking || v.drop > 0;
@@ -778,13 +861,36 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         jetVis.forEach((v, i) => { const st = K.jetState(s, v.j);
             v.col.visible = st === 'fire'; if (st === 'fire') { v.col.scale.set(v.j.r * (0.8 + 0.1 * Math.sin(t * 30 + i)), 3.2, v.j.r * (0.8 + 0.1 * Math.sin(t * 25 + i))); v.col.position.y = 1.7; v.col.material.opacity = 0.55 + 0.2 * Math.sin(t * 20); }
             v.bub.forEach((b, k) => { b.visible = st === 'warn'; if (b.visible) { const ph = (t * 1.8 + k / 5) % 1; b.position.set(Math.cos(k * 1.3) * v.j.r * 0.4, 0.2 + ph * 0.9, Math.sin(k * 1.3) * v.j.r * 0.4); b.material.opacity = 0.9 - ph * 0.8; } }); });
+        signVis.forEach(v => { const near = K.dist(c.p, v.sg.p) < (v.sg.rock ? 7 : 4.5);
+            if (near) { v.seen = true; v.t += dt; if (v.t - v.drawn > 0.05) { v.drawn = v.t; SG.drawSign(v.g2, v.sg.kind, v.t); v.tex.needsUpdate = true; } }
+            else if (v.t) { v.t = 0; v.drawn = 0; SG.drawSign(v.g2, v.sg.kind, 0); v.tex.needsUpdate = true; }
+            v.spark.visible = !v.seen; if (!v.seen) { v.spark.rotation.y = t * 2; v.spark.position.y = (v.sg.rock ? 0.7 : 0) + 3.45 + Math.sin(t * 3) * 0.12; } });
+        if (lakePrev && s.lake) { const z = level.lake, P = lakePrev, LG = K.Lake, open = K.lakeGateOpen(s);
+            const edge = z.r0 + (z.rows - 0.5) * z.dd, dC = K.dist(c.p, TOP), colF = (K.lonOf(c.p) - z.lon0) / z.dl, onRim = !c.lake && !c.slide && !c.air && dC > edge && dC < edge + 1.4 && colF > -0.5 && colF < z.cols - 0.5;
+            const key = c.slide ? 'slide' : c.lake ? `L${c.lake}|${c.nuts}|${c.aiming ? 1 : 0}|${JSON.stringify(s.lake)}` : onRim ? `R${Math.round(colF)}|${JSON.stringify(s.lake)}` : '';
+            if (key !== P.key) { P.key = key; P.plateHint = false; let di = 0, ei = 0; P.dots.forEach(d => { d.visible = false; }); P.ends.forEach(e => { e.visible = false; }); P.ghost.visible = false;
+                const H = r => (r >= z.rows ? K.lakeH(z, z.rows - 1) : r < 0 ? K.lakeH(z, 0) : K.lakeH(z, r)) + 0.06;
+                const trail = (from, cells, col, endCol) => { let prev = from;
+                    for (const [r, cc] of cells) { const q = K.lakeAt(z, Math.max(-1, Math.min(z.rows, r)), cc);
+                        for (const f of [0.5, 1]) { if (di >= P.dots.length) break; const pp = norm(mix(prev[0], q, 1 - f, f)), hh = prev[1] + (H(r) - prev[1]) * f, d = P.dots[di++]; d.material.color.setHex(col); d.visible = true; put(d, pp, null, hh); }
+                        prev = [q, H(r)]; }
+                    if (endCol != null && ei < P.ends.length && cells.length) { const e = P.ends[ei++]; e.material.color.setHex(endCol); e.visible = true; put(e, prev[0], null, prev[1] + 0.02); } };
+                const OUT = { stop: 0xffffff, lava: 0xff4d4d, win: 0xffd23a, rim: 0x7ee7ff };
+                if (key.startsWith('L') && !c.aiming) { const [r0, c0] = c.lake, from = [K.lakeAt(z, r0, c0), H(r0)];
+                    for (const [dr, dc] of [[-1, 0], [1, 0], [0, 1], [0, -1]]) { const m = LG.move(z, LG.clone(s.lake), r0, c0, dr, dc, c.nuts < K.CARRY);
+                        if (m.kind === 'push') { const b = m.block, bp = [K.lakeAt(z, ...b.from), H(b.from[0])]; trail(bp, b.path, 0xff8a2a, b.lost ? OUT.lava : null); if (b.to && !b.lost) { P.ghost.visible = true; put(P.ghost, K.lakeAt(z, ...b.to), toward(K.lakeAt(z, ...b.to), TOP), K.lakeH(z, b.to[0]) + 0.36); } }
+                        else if (m.kind === 'slide') trail(from, m.path, m.out === 'stop' ? 0xffffff : OUT[m.out] || 0xff4d4d, m.broke ? OUT.lava : OUT[m.out]); }
+                    if (c.nuts > 0 && !open) for (const [dr, dc] of [[-1, 0], [1, 0], [0, 1], [0, -1]]) { const tt = LG.throwNut(z, LG.clone(s.lake), r0, c0, dr, dc);
+                        if (tt.end && LG.plateAt(z, ...tt.end)) { trail([from[0], from[1] + 0.9], tt.path, 0x4ade80, 0x4ade80); P.plateHint = true; } } }
+                else if (key.startsWith('R')) { const col = Math.round(colF), m = LG.enter(z, LG.clone(s.lake), col, c.nuts < K.CARRY); trail([c.p, c.h + 0.06], m.path, 0xffffff, m.broke ? OUT.lava : OUT[m.out]); } }
+            if (key) { const k = 0.5 + 0.25 * Math.sin(t * 5); P.dots.forEach(d => { if (d.visible) d.material.opacity = k; }); P.ends.forEach(e => { if (e.visible) e.scale.setScalar(0.3 + 0.04 * Math.sin(t * 6)); }); } }
         if (lakeVis && s.lake) { const { z } = lakeVis;
             lakeVis.blocks.forEach((v, i) => { const b = s.lake.blocks[i]; if (!b) return; const lost = b[0] < -50;
                 if (!lost) { const p = K.lakeAt(z, b[0], b[1]), h = K.lakeH(z, b[0]); if (!v.p) { v.p = p.slice(); v.h = h; } const a = K.dist(v.p, p) / R; if (a > 1e-4) v.p = walk(v.p, toward(v.p, p), Math.min(a, (K.SLIDE_V * dt) / R)); v.h += Math.max(-7 * dt, Math.min(5 * dt, h - v.h)); v.sink = 0; }
                 else if (v.p) v.sink = Math.min(1.5, v.sink + dt);
                 v.g.visible = !!v.p && v.sink < 1.4; if (v.p) put(v.g, v.p, toward(v.p, TOP), v.h - v.sink); });
-            lakeVis.cracks.forEach(v => { const st = s.lake.cracks[v.r + ',' + v.c] || 0; if (st === v.last) return; v.last = st; v.mats.forEach(mt => mt.color.setHex(st ? 0xff8a2a : 0xcfc4ea)); v.hole.visible = st >= 2; });
-            const open = K.lakeGateOpen(s); lakeVis.plates.forEach(v => { v.top.material = open ? v.on : v.off; });
+            lakeVis.cracks.forEach(v => { const st = s.lake.cracks[v.r + ',' + v.c] || 0; if (st === v.last) return; v.last = st; v.mats.forEach(mt => mt.color.setHex(st ? 0xff8a2a : 0xf2ecff)); v.hole.visible = st >= 2; });
+            const open = K.lakeGateOpen(s), hint = lakePrev && lakePrev.plateHint && !open && Math.sin(t * 9) > 0; lakeVis.plates.forEach(v => { v.top.material = open || hint ? v.on : v.off; v.top.scale.set(0.7 * (hint ? 1.25 : 1), 0.1, 0.7 * (hint ? 1.25 : 1)); });      // (flashing green: a throw from here would end on it)
             if (lakeVis.gate) { const gt = lakeVis.gate; gt.y += Math.max(-dt * 3, Math.min(dt * 3, (open ? -1.4 : 0) - gt.y)); put(gt.g, gt.gp, tangent(gt.gp, cross(TOP, gt.gp)), K.lakeH(z, 0) + gt.y); }
         }
         embers.forEach(m => { m.h += m.v * dt; if (m.h > 3.5) m.h = 0; put(m.e, m.p, null, m.h); });
@@ -792,7 +898,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             const on = K.dist(c.p, v.sp.p) < 0.8, done = !!s.open[v.sp.gate];
             v.ring.scale.setScalar(0.75 + 0.06 * Math.sin(t * (on ? 9 : 4))); v.g.visible = !done;
             v.dots.forEach((d, k) => { d.visible = !done; d.material.opacity = on ? 0.55 + 0.45 * Math.max(0, Math.sin(t * 6 - k * 0.6)) : 0.45; d.scale.setScalar(on ? 0.2 : 0.15); });
-            if (on && !v.said && !done) { v.said = true; hooks.hint(v.sp.say || ((level.holes || []).some(h => K.dist(h.p, v.sp.via) < 0.3) ? '🎯 THE THROW SPOT: THROW INTO THE BLOWHOLE. THE AIM TURNS GREEN WHEN IT WILL HIT' : '🎯 THE THROW SPOT: AIM AT THE YELLOW BUMPER. THE AIM TURNS GREEN WHEN IT WILL HIT'), 4); }
+            if (on && !v.said && !done) { v.said = true; hooks.hint(v.sp.say || ((level.holes || []).some(h => K.dist(h.p, v.sp.via) < 0.3) ? '🎯 THE THROW SPOT: THROW INTO THE BLOWHOLE. THE AIM TURNS GREEN WHEN IT WILL HIT' : '🎯 THE THROW SPOT: AIM AT THE PINK BUMPER. THE AIM TURNS GREEN WHEN IT WILL HIT'), 4); }
         });
         poolMeshes.forEach((v, i) => { v.rim.scale.setScalar(v.q.r * (1 + 0.02 * Math.sin(t * 2 + i))); });
         signals.forEach(v => {
@@ -841,7 +947,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         if (g) {
             const flying = g.h > 0.05 || g.state === 'circle' || g.state === 'rise', stunned = g.state === 'stun', diving = g.state === 'dive' || g.state === 'land';
             const face = diving ? toward(g.p, g.tx || c.p) : g.state === 'circle' ? toward(g.p, c.p) : tangent(g.p, cross(TOP, g.p));
-            put(gull.g, g.p, face, g.h + 0.78 + (flying ? 0 : Math.abs(Math.sin(t * 5)) * (g.state === 'walk' || g.state === 'flee' ? 0.1 : 0)));
+            put(gull.g, g.p, face, g.h + (g.b || 0) + 0.78 + (flying ? 0 : Math.abs(Math.sin(t * 5)) * (g.state === 'walk' || g.state === 'flee' ? 0.1 : 0)));
             gull.body.rotation.x = diving ? 0.9 : g.state === 'rise' ? -0.35 : 0; gull.body.rotation.z = stunned ? Math.PI * 0.5 * Math.min(1, g.t * 4) : 0;
             const flap = flying ? Math.sin(t * 22) : stunned ? -0.9 : Math.sin(t * 2.5) * 0.08;
             gull.wings.forEach(({ w, tipG, k }) => { w.rotation.z = k * (0.15 + flap * 0.85); tipG.rotation.z = k * (flap * 0.55 - (flying ? 0 : 0.5)); });
@@ -852,7 +958,7 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
             const squawk = diving ? 0.2 + 0.1 * Math.sin(t * 30) : g.state === 'flee' ? 0.12 : 0.02; gull.beakDn.rotation.x = Math.PI / 2 + squawk * 2.2; gull.beakDn.position.y = -0.08 - squawk * 0.6;
             gull.head.rotation.y = flying ? 0 : Math.sin(t * 2.2) * 0.35; gull.head.position.y = 0.34 + (flying ? 0 : Math.sin(t * 5) * 0.03);
             gull.loot.visible = g.loot > 0; gull.star.visible = stunned; gull.star.rotation.y = t * 6; gull.star.children.forEach((sp, i) => sp.position.set(Math.cos(t * 5 + i * 2.1) * 0.5, 0, Math.sin(t * 5 + i * 2.1) * 0.5));
-            gullShade.visible = g.h > 0.1; put(gullShade, g.p, null, 0.05); gullShade.scale.setScalar(Math.max(0.3, 0.75 - g.h * 0.06));
+            gullShade.visible = g.h > 0.1; put(gullShade, g.p, null, K.floorAt(s, g.p) + 0.05); gullShade.scale.setScalar(Math.max(0.3, 0.75 - g.h * 0.06));
             const tell = g.state === 'circle' ? c.p : (g.state === 'dive' || g.state === 'land') && g.tx ? g.tx : null;
             if (tell) { gullRing.visible = true; put(gullRing, tell, null, 0.1); const k = g.state === 'dive' ? 1 - Math.min(1, g.t / K.GULL.dive) : 1; gullRing.scale.setScalar(K.GULL.hit * (1.1 + k * 0.7)); gullRing.material.opacity = 0.45 + 0.4 * Math.abs(Math.sin(t * (g.state === 'dive' ? 22 : 8))); }
         }

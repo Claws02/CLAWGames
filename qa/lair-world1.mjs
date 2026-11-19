@@ -137,7 +137,8 @@ const stream = (opt = {}) => {
 { const { s, ev, note } = stream();
   ok(note.b0 === 'A' && note.plug && note.viaPad && note.b1 === 'B', '2. BUBBLE STREAM: a coconut off the jelly pad bounces up onto the shelf and plugs vent A; now vent B blows');
   ok(note.terrace && note.tN === 2, '   vent B lifts the crab over the deep river; steering, it lands on the terrace (3.8 up) with two coconuts');
-  ok(note.green && note.banked, '   from the painted spot, a coconut thrown at the yellow bumper glances down the chute into the bullseye: the green fence round the mesa drops');
+  ok(note.green && note.banked, '   from the painted spot, a coconut thrown at the pink bumper glances down the chute into the bullseye: the green fence round the mesa drops');
+  ok(K.STREAM.rings.some(w => w.look === 'glass') && K.STREAM.bars.filter(b => b.kind === 'chute').every(b => b.look === 'glass') && K.STREAM.signs.some(s => s.kind === 'bank'), '   the bullseye sits behind glass (you see it, but can\'t throw straight at it), and a picture sign at the spot shows the bounce');
   ok(note.mesa, '   up the ramp onto the mesa (7.5 up)');
   ok(note.gold && note.knock, '   a coconut knocks the hanging one loose; it drops onto the pillar\'s plate and the gold fence drops');
   ok(s.won && s.falls === 0, `   the pearl (${s.t.toFixed(0)} s, no falls)`);
@@ -178,29 +179,74 @@ const stream = (opt = {}) => {
   { const q = K.create(STREAM); const e = []; q.plug.A = 99; q.crab.p = SB().p.slice(); for (let i = 0; i < 4 / DT && q.crab.h < SB().lift - 0.2; i++) e.push(...K.step(q, DT)); for (let i = 0; i < 4 / DT && q.crab.air; i++) e.push(...K.step(q, DT, stickTo(q, at(11.6, 6))));
     ok(q.gold.includes(2), '   riding vent B, steer through the golden shell over the river'); } }
 // taking a coconut back out of a bullseye: walk into it, and its gate shuts again
-{ const q = K.create(YARD); q.crab.nuts = 1; const tg = YARD.targets[0]; q.crab.p = at(11.9, 8).slice(); face(q, tg.p); K.throwNut(q, chargeFor(q, tg.p, 1.1)); run(q, 1.2); const was = !!q.open.yard;
+{ const q = K.create(YARD); q.crab.nuts = 1; const tg = YARD.targets[0]; q.crab.p = at(17.4, 22).slice(); face(q, tg.p); K.throwNut(q, chargeFor(q, tg.p, 1.1)); run(q, 1.5); const was = !!q.open.net;
   go(q, tg.p, [], 0.3, 6); const e = run(q, 0.3);
-  ok(was && !q.open.yard && q.crab.nuts === 1, '   (any chamber) walk into a bullseye and you take its coconut back: its gate shuts again'); }
+  ok(was && !q.open.net && q.crab.nuts === 1, '   (any chamber) walk into a bullseye and you take its coconut back: its gate shuts again'); }
 
-// ── 3. Gull Yard ────────────────────────────────────────────────────────────
-const yard = () => {
-  const s = K.create(YARD), ev = [], note = {};
-  gather(s, ev);
-  const tg = YARD.targets[0]; go(s, at(11.9, 8), ev); face(s, tg.p); K.throwNut(s, chargeFor(s, tg.p, 1.1)); ev.push(...run(s, 1.2)); note.gate = !!s.open.yard;
-  go(s, at(8.4, 0), ev, 0.2, 8); note.inYard = s.cp === 1 && s.crab.nuts === 2;
-  const r = solve({ s, from: 'shelf', stopAtBoss: true }); ev.push(...r.ev); note.over = r.note.over;
-  go(s, at(2.5, -100), ev, 0.2, 6); go(s, TOP, ev, 0.3, 8);
+// ── 3. The Gull's Roost ────────────────────────────────────────────────────────────
+// ── Chamber 3: The Gull's Roost ─────────────────────────────────────────────
+const roost = (log = () => {}) => {
+  const Y = YARD, s = K.create(Y), ev = [], note = {}, has = t => ev.some(e => e.type === t);
+  for (let k = 0; k < 6 && s.crab.nuts < 3; k++) { const n = s.nuts.find(x => x.state === 'rest' && K.dist(x.p, Y.palm) < 2); if (!n) break; go(s, n.p, ev, 0.3); }
+  note.got = s.crab.nuts;
+  // 1. the hut's bullseye: the net gate
+  const tg = Y.targets[0]; go(s, at(17.4, 22), ev, 0.2); face(s, tg.p); K.throwNut(s, chargeFor(s, tg.p, 1.1)); ev.push(...run(s, 1.5)); note.net = !!s.open.net;
+  // 2. up the ramp onto the lower boardwalk, by the deck's edge
+  go(s, at(14.6, 0), ev, 0.2, 8); go(s, at(10.4, 0), ev, 0.15, 10); note.board = Math.abs(s.crab.h - 1) < 0.05;      // (a lob from back here clears the deck's edge)
+  log('board', note, s.crab.nuts, s.gull.state, s.gull.loot);
+  // 3. hit the gull (its stolen coconut drops): search throws on copies of the game for one that stuns it
+  for (let tries = 0; tries < 40 && s.gull.loot; tries++) {
+    let best = null;
+    for (let da = -40; da <= 40 && !best; da += 4) for (let ch = 0.3; ch <= 1.001 && !best; ch += 0.05) {
+      const q = structuredClone(s); q.crab.face = P.tangent(q.crab.p, P.walk(q.gull.p, P.tangent(q.gull.p, P.cross(TOP, q.gull.p)), 0)); 
+      const f0 = P.toward(q.crab.p, q.gull.p), rt = P.cross(f0, q.crab.p), a = da * Math.PI / 180; q.crab.face = P.norm(P.mix(f0, rt, Math.cos(a), Math.sin(a)));
+      K.throwNut(q, ch); const e = run(q, 1.6); if (e.some(x => x.type === 'stun' && x.by === 'nut')) best = { da, ch };
+    }
+    if (best) { const f0 = P.toward(s.crab.p, s.gull.p), rt = P.cross(f0, s.crab.p), a = best.da * Math.PI / 180; s.crab.face = P.norm(P.mix(f0, rt, Math.cos(a), Math.sin(a))); K.throwNut(s, best.ch); ev.push(...run(s, 1.6)); }
+    else ev.push(...run(s, 0.3));
+  }
+  note.stunned = has('stun') && !s.gull.loot; note.dropped = s.nuts.some(n => n.state === 'rest' && K.dist(n.p, TOP) < 8.6 && n.h > 2);
+  log('stun', note, s.crab.nuts);
+  // 4. wait for the dive; step aside; jump on its back as it lands; bounce up onto the deck
+  go(s, at(9.3, K.lonOf(s.crab.p)), ev, 0.15, 6); const spot = s.crab.p.slice();
+  for (let i = 0; i < 25 / DT && s.gull.state !== 'dive'; i++) ev.push(...K.step(s, DT, stickTo(s, spot, Math.min(1, K.dist(s.crab.p, spot) / 0.4))));
+  const aside = at(K.dist(s.crab.p, TOP) + 0.2, K.lonOf(s.crab.p) + 14);
+  for (let i = 0; i < 2 / DT && s.gull.state === 'dive'; i++) ev.push(...K.step(s, DT, stickTo(s, aside)));
+  log('dive done', s.gull.state, K.dist(s.crab.p, s.gull.p).toFixed(2), s.crab.nuts);
+  if (s.gull.state === 'ground') { const gp = s.gull.p.slice(); hop(s, gp, ev); for (let i = 0; i < 3 / DT && s.crab.air; i++) ev.push(...K.step(s, DT, stickTo(s, at(7.6, K.lonOf(gp))))); }
+  note.deck = Math.abs(s.crab.h - 3.2) < 0.05 && K.dist(s.crab.p, TOP) < 8.6; note.stomp = has('stomp');
+  log('deck', note, s.crab.nuts);
+  // 5. the dropped coconut
+  const dn = s.nuts.find(n => n.state === 'rest' && K.dist(n.p, TOP) < 8.6 && n.h > 2); if (dn) go(s, dn.p, ev, 0.3, 12);
+  note.nuts = s.crab.nuts;
+  // 6. the heavy plate: stand on it till the gull dives, step off toward the bridge; it lands on the plate; across
+  const pl = Y.plates[0]; go(s, pl.p, ev, 0.2, 12);
+  for (let i = 0; i < 30 / DT && s.gull.state !== 'dive'; i++) ev.push(...K.step(s, DT, stickTo(s, pl.p, Math.min(1, K.dist(s.crab.p, pl.p) / 0.3))));
+  for (let i = 0; i < 2 / DT && s.gull.state === 'dive'; i++) ev.push(...K.step(s, DT, stickTo(s, at(5.4, 2))));
+  note.heavy = !!s.held.bridge; log('heavy', note, s.gull.state);
+  go(s, at(4.9, 0), ev, 0.15, 6); go(s, at(2.3, 0), ev, 0.15, 6); note.roost = Math.abs(s.crab.h - 5) < 0.05;
+  // 7. a coconut onto the nest's plate; the pearl
+  const np = Y.plates[1]; go(s, at(2.2, 0), ev, 0.15, 6); face(s, np.p); K.throwNut(s, chargeFor(s, np.p)); ev.push(...run(s, 1.5)); note.nest = !!s.held.nest;
+  go(s, TOP, ev, 0.3, 8);
   return { s, ev, note };
 };
-{ const { s, ev, note } = yard();
-  ok(note.gate && note.inYard, '3. GULL YARD: a coconut into the beach bullseye opens the yard: in with two');
-  ok(note.over && has(ev, 'stomp'), '   the gull dives, the crab steps aside and jumps on its back: bounced over the step with both coconuts');
-  ok(has(ev, 'press') && has(ev, 'target') && s.won && s.falls === 0, `   one on the plate, one in the bullseye: the pearl (${s.t.toFixed(0)} s, no falls)`);
-  // the gull is the answer: over the step on a coconut, the crab is inside with one, and two jobs need two
-  const a = K.create(YARD); a.open.yard = true; a.cp = 1; a.gull = null; a.crab.nuts = 2; a.nuts = []; a.crab.p = at(8, 40).slice(); bounceIn(a, 5.6, 40);
-  ok(K.dist(a.crab.p, TOP) < 5.6 && a.crab.nuts === 1, '   over the step on a coconut you are in with one coconut: not enough for the plate and the bullseye');
-  const b = K.create(YARD); b.open.yard = true; b.cp = 1; b.crab.p = at(7.2, 60).slice(); b.crab.nuts = 1; b.gull.cool = 0; const e = run(b, 12);
-  ok(has(e, 'steal') || has(e, 'gull-dive'), '   stand in the yard and the gull comes for you'); }
+{ const { s, ev, note } = roost();
+  ok(note.net && note.board, "3. THE GULL'S ROOST: a coconut into the fishing hut's bullseye raises the net gate; up the ramp onto the boardwalk");
+  ok(note.stunned && note.dropped, '   the gull holds a stolen coconut (and won\'t dive while it does): hit it with one and it drops it on the deck');
+  ok(note.deck && note.stomp, '   it dives; step aside, jump on its back as it lands: bounced up onto the deck');
+  ok(note.heavy && note.roost, '   stand on the heavy plate till it dives, step off: it lands on the plate, the drawbridge comes down; across to the roost');
+  ok(note.nest && s.won && s.falls === 0, `   a coconut on the nest's plate drops the fence: the pearl (${s.t.toFixed(0)} s, no falls)`);
+  { const q = K.create(YARD); q.open.net = true; q.crab.p = YARD.plates[0].p.slice(); q.crab.h = 3.2; q.cp = 1; q.gull.state = 'stun'; q.gull.t = -99; q.gull.p = at(6.6, 200); run(q, 1);
+    const q2 = K.create(YARD); q2.nuts.push({ id: 99, p: YARD.plates[0].p.slice(), d: [1, 0, 0], v: 0, h: 3.2, vh: 0, state: 'rest', age: 9, still: 0 }); q2.gull.state = 'stun'; q2.gull.t = -99; q2.gull.p = at(6.6, 200); run(q2, 1);
+    ok(!q.held.bridge && !q2.held.bridge, '   the heavy plate: a crab, or a coconut, is too light for it'); }
+  { const q = K.create(YARD); q.gull.state = 'ground'; q.gull.t = 0; q.gull.h = 0; q.gull.p = YARD.plates[0].p.slice(); q.crab.p = at(2.2, 0); q.crab.h = 5; q.crab.f = P.tangent(q.crab.p, TOP); run(q, 0.2); const down = !!q.held.bridge && K.floorAt(q, at(3.5, 0)) > 3;
+    run(q, 2.9); const after = !q.held.bridge && !!q.open.bridge; run(q, 8.5);
+    ok(down && after && !q.open.bridge && K.floorAt(q, at(3.5, 0)) < 0.1, '   the gull on it holds the drawbridge down; it stays down 8 s after the gull flies off, then rises'); }
+  { const q = K.create(YARD); q.open.net = true; q.crab.p = at(10.4, 40); q.crab.h = 1; q.cp = 1; q.gull.cool = 0; const e = run(q, 10);
+    ok(!e.some(x => x.type === 'gull-dive') && q.gull.loot, '   while the gull holds its stolen coconut, it never dives'); }
+  { const q = K.create(YARD); q.open.net = true; q.gull = null; q.crab.p = at(9.0, 60); q.crab.h = 1; q.crab.f = P.tangent(q.crab.p, TOP); hop(q, at(8.2, 60));
+    ok(q.crab.h < 1.1 && K.dist(q.crab.p, TOP) > 8.6, '   the deck (3.2) is too high to jump onto from the boardwalk (1): it takes a bounce'); }
+  ok(YARD.signs.length >= 5 && ['note', 'stun', 'gullback', 'heavy', 'nest'].every(k => YARD.signs.some(s => s.kind === k)), '   picture signs: Old Ink\'s note, the bullseye, hitting the gull, bouncing on its back, the heavy plate, the nest'); }
 
 // ── World 2, chamber 5: Sinkhole Reef ───────────────────────────────────────
 const { SINK } = K;
@@ -290,6 +336,11 @@ const lowTide = () => {
   { const q = K.create(TIDE); q.crab.p = at(12, 30).slice(); const e = run(q, 16); ok(e.some(x => x.type === 'swept') && q.falls >= 1, '   caught on the sand when the tide comes in: swept back to the flag'); }
   { let hit = 0; for (let d = 10; d <= 14.5; d += 0.9) for (let lon = 30; lon <= 90; lon += 10) for (let ch = 0; ch <= 1; ch += 0.1) { const q = K.create(TIDE); q.crab.p = at(d, lon).slice(); q.crab.h = K.floorAt(q, q.crab.p); q.crab.nuts = 1; face(q, TIDE.plates[0].p); K.throwNut(q, ch); run(q, 2); if (q.held.gold) hit++; }
     ok(hit === 0, '   from the sand no throw lands on the lighthouse plate (it\'s 2.8 up)'); }
+  { const q = K.create(TIDE); q.crab.p = at(17, 0); q.crab.h = K.floorAt(q, q.crab.p); const e1 = run(q, 16), up = q.crab.h, W = q.tideW, nutUp = q.nuts[0].h; const e2 = run(q, 10);
+    ok(up > W + 0.2 && Math.abs(up - (W + 0.3)) < 0.05 && nutUp > W && q.crab.h < 0.35 && !e1.concat(e2).some(x => x.type === 'swept' || x.type === 'land'),
+      `   the beach is a floating island: it rises with the tide (to ${up.toFixed(1)} over water at ${W.toFixed(1)}) and back down, the crab and its coconuts with it`); }
+  { let hit = 0; for (let lon = 0; lon <= 120; lon += 10) for (const d of [15.1, 16]) for (let ch = 0; ch <= 1.001; ch += 0.1) { const q = K.create(TIDE); q.t = 15; q.tideW = K.tideAt(TIDE, 15); q.crab.p = at(d, lon); q.crab.h = K.floorAt(q, q.crab.p); q.crab.nuts = 1; face(q, TIDE.plates[0].p); K.throwNut(q, ch); run(q, 2.5); if (q.held.gold) hit++; }
+    ok(hit === 0, '   from the risen island at high tide no throw reaches the lighthouse plate either: it still takes the raft'); }
   { const q = K.create(TIDE); q.crab.nuts = 1; q.crab.p = at(5.6, 60).slice(); face(q, TOP); K.throwNut(q, 0.02); run(q, 1); const n = q.nuts.find(x => x.state === 'rest');
     let top = 0; if (n) { go(q, P.walk(n.p, P.toward(TOP, n.p), 0.9 / K.R), [], 0.1, 3); hop(q, n.p); for (let i = 0; i < 120 && q.crab.air; i++) { K.step(q, DT, stickTo(q, TOP)); top = Math.max(top, q.crab.h); } }
     ok(K.floorAt(q, q.crab.p) < 4, `   from the sand a bounce on a coconut (${top.toFixed(1)} up) doesn't reach the mesa (4): it takes the raft at high tide`); }
@@ -347,10 +398,9 @@ const DIRS = { N: [-1, 0], S: [1, 0], E: [0, 1], W: [0, -1] };
 const lakePt = (s, nm) => { const z = SLIDE.lake, [r, c] = s.crab.lake || [z.rows, 0], [dr, dc] = DIRS[nm]; return K.lakeAt(z, r + dr, c + dc); };
 const settle = (s, ev, secs = 6) => { for (let i = 0; i < secs / DT && (s.crab.slide || s.nuts.some(n => n.state === 'slide')); i++) ev.push(...K.step(s, DT)); for (let i = 0; i < 3; i++) ev.push(...K.step(s, DT)); };     // (and let go of the stick)
 const slideRun = () => {
-  const s = K.create(SLIDE), ev = [], z = SLIDE.lake, plan = LG.solve(z, 1), note = { moves: plan.length, plan: plan.join(' ') };
-  for (let k = 0; k < 6 && s.crab.nuts < 1; k++) { const n = s.nuts.find(x => x.state === 'rest' && !x.lake); if (!n) break; go(s, n.p, ev, 0.3); }
+  const s = K.create(SLIDE), ev = [], z = SLIDE.lake, plan = LG.solve(z, 0), note = { moves: plan.length, plan: plan.join(' ') };      // (straight on, no coconut from the palm: the lake's own is picked up on the way)
   for (const m of plan) {
-    if (Array.isArray(m)) { for (const lon of [-20, 0, z.lon0 + m[1] * z.dl]) go(s, at(17.2, lon), ev, 0.2, 12); go(s, at(z.r0 + (z.rows - 0.4) * z.dd + 0.3, z.lon0 + m[1] * z.dl), ev, 0.12, 12); s.crab.face = P.toward(s.crab.p, TOP); for (let i = 0; i < 2 / DT && !s.crab.slide && !s.crab.lake; i++) ev.push(...K.step(s, DT, stickTo(s, TOP))); settle(s, ev); continue; }
+    if (Array.isArray(m)) { for (const lon of [z.lon0 + m[1] * z.dl]) go(s, at(17.2, lon), ev, 0.2, 12); go(s, at(z.r0 + (z.rows - 0.4) * z.dd + 0.3, z.lon0 + m[1] * z.dl), ev, 0.12, 12); s.crab.face = P.toward(s.crab.p, TOP); for (let i = 0; i < 2 / DT && !s.crab.slide && !s.crab.lake; i++) ev.push(...K.step(s, DT, stickTo(s, TOP))); settle(s, ev); continue; }
     const [kind, nm] = m.includes(' ') ? m.split(' ') : ['go', m];
     if (kind === 'throw') {         // hold THROW, turn with the stick (it doesn't slide you while winding up), let go
       s.crab.aiming = true; for (let i = 0; i < 8; i++) ev.push(...K.step(s, DT, stickTo(s, lakePt(s, nm))));
@@ -368,12 +418,12 @@ const slideRun = () => {
 };
 { const { s, ev, note } = slideRun();
   ok(note.moves === 15 && /push/.test(note.plan) && /throw/.test(note.plan), `9. OBSIDIAN SLIDE: a search over the lake's own rules (LakeGrid.js) finds the shortest way is ${note.moves} moves: ${note.plan}`);
-  ok(s.won && s.falls === 0 && note.aimHit && !note.bad && ev.some(e => e.type === 'lake-push') && ev.some(e => e.type === 'lake-crack') && ev.some(e => e.type === 'lake-plate'),
-    `   played with the stick and the throw button: bump the block, push it down the steps, crack the glass once, a coconut onto the plate (the aim said so), round, up the bridge; the pearl (${s.t.toFixed(0)} s, no falls)`);
+  ok(s.won && s.falls === 0 && note.aimHit && !note.bad && ev.some(e => e.type === 'lake-push') && ev.some(e => e.type === 'lake-crack') && ev.some(e => e.type === 'lake-plate') && ev.some(e => e.type === 'pick'),
+    `   played with the stick and the throw button: bump the block, push it down the steps, pick up the coconut lying on the glass, crack the glass once, throw it onto the plate (the aim said so), round, up the bridge; the pearl (${s.t.toFixed(0)} s, no falls)`);
   { const z = SLIDE.lake;
     ok(!LG.solve({ ...z, ramps: [] }, 1), '   without the ramp there is no way: it is the one way back up a step');
     ok(!LG.solve({ ...z, pillars: [...z.pillars, ...z.blocks], blocks: [] }, 1), '   if the block could not be pushed there would be no way: it has to end up by the bridge');
-    ok(!LG.solve({ ...z, plates: [[1, 2]] }, 0), '   with no coconut, the gate stays shut');
+    ok(!LG.solve({ ...z, nuts: [] }, 0) && (LG.solve(z, 0) || []).length === 15, '   with no coconut the gate stays shut; the one lying on the lake (at a cell you stop on) is enough, none needed from the palm');
     const ls = LG.fresh(z); LG.move(z, ls, 4, 2, 1, 0); const ls2 = LG.fresh(z); ls2.cracks['3,2'] = 1; const m2 = LG.move(z, ls2, 4, 2, -1, 0);
     ok(LG.move(z, LG.fresh(z), 2, 1, 1, 0).end + '' === '3,1' && LG.move(z, LG.fresh(z), 2, 2, 1, 0).end + '' === '2,2', '   up a step only at the ramp; anywhere else the step is a wall');
     ok(LG.move(z, LG.fresh(z), 3, 1, 0, 1).cracked + '' === '3,2' && m2.kind === 'slide' && m2.out === 'stop' && !m2.broke, '   stopping on cracked glass cracks it; sliding over it does nothing');
@@ -391,8 +441,18 @@ const slideRun = () => {
   { const q = K.create(SLIDE), z = SLIDE.lake, e = []; q.crab.lake = [8, 3]; q.crab.p = K.lakeAt(z, 8, 3); q.crab.h = K.lakeH(z, 8); for (let i = 0; i < 4; i++) e.push(...K.step(q, DT, stickTo(q, K.lakeAt(z, 8, 4)))); settle(q, e);
     q.lake.cracks['7,3'] = 1; for (let i = 0; i < 4; i++) e.push(...K.step(q, DT, stickTo(q, K.lakeAt(z, 9, 3)))); settle(q, e);
     ok(!q.crab.lake && K.floorAt(q, q.crab.p) > 1.9 && q.lake.cracks['7,3'] === 0, '   off the near edge, back onto the rim: the lake sets back as it was'); }
+  { const q = K.create(SLIDE), z = SLIDE.lake, e = []; for (let i = 0; i < 3 / DT && !q.crab.lake; i++) e.push(...K.step(q, DT, stickTo(q, TOP)));
+    ok(q.crab.lake && q.crab.lake + '' === '8,5' && e.some(x => x.type === 'lake-push') === false, '   from the flag, straight ahead onto the lake: you slide in and stop at the block (no pillar in the way at the start)'); }
+  { const q = K.create(SLIDE), z = SLIDE.lake, e = []; q.crab.p = at(15.75, -3); q.crab.h = K.floorAt(q, q.crab.p); q.crab.f = P.tangent(q.crab.p, TOP); for (let i = 0; i < 2 / DT && !q.crab.lake && !q.crab.slide; i++) e.push(...K.step(q, DT, stickTo(q, at(14, -3))));
+    ok(e.some(x => x.type === 'lake-on') && q.crab.slide && q.crab.slide.path[0][1] !== 4, '   walking on beside a pillar at the edge: you come on in the free cell next to it (not bounced back)'); }
+  { const q = K.create(SLIDE), z = SLIDE.lake, e = []; q.crab.lake = [5, 6]; q.crab.p = K.lakeAt(z, 5, 6); q.crab.h = K.lakeH(z, 5); q.lake.cracks['7,3'] = 1; for (let i = 0; i < 4; i++) e.push(...K.step(q, DT, stickTo(q, K.lakeAt(z, 6, 6)))); settle(q, e);
+    ok(!q.crab.lake && q.falls === 0 && K.floorAt(q, q.crab.p) > 1.9 && e.some(x => x.type === 'lake-reset'), '   stuck on the middle step? the ramp at the side slides you back up onto the rim, and the lake sets back'); }
+  ok(SLIDE.signs.length >= 5 && ['slide', 'push', 'crack', 'plate', 'ramp', 'lava'].every(k => SLIDE.signs.some(s => s.kind === k)), '   a picture sign by each new thing: slide, push, cracked glass, the plate, the ramp, the lava');
   { const q = K.create(SLIDE); q.crab.p = at(12, 90).slice(); q.crab.h = 0; const e = run(q, 0.3); ok(e.some(x => x.type === 'burn'), '   the lava round the lake burns'); } }
 
-ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink,pool,tide,deep,slide' && CHAMBERS[7].boss && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, Gull Yard, then the Drowned Stair with Old Ink; World 2: Sinkhole Reef, Moon Pool, Low Tide, then Ink\'s Deep with Old Ink; all open while testing');
+{ const SG = await import('../src/arcade/Signs.js'), firsts = CHAMBERS.filter((c, i) => i === 0 || CHAMBERS[i - 1].world !== c.world);
+  ok(CHAMBERS.every(c => (c.signs || []).length && c.signs.every(s => SG.SIGN_KINDS.includes(s.kind))) && firsts.every(c => c.signs.some(s => /^story/.test(s.kind) || s.kind === 'note')),
+    `every chamber has picture signs (each one drawn), and each world opens with its part of the story in pictures (${firsts.map(c => c.name).join(', ')})`); }
+ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink,pool,tide,deep,slide' && CHAMBERS[7].boss && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, The Gull\'s Roost, then the Drowned Stair with Old Ink; World 2: Sinkhole Reef, Moon Pool, Low Tide, then Ink\'s Deep with Old Ink; all open while testing');
 console.log(fails ? `\nWORLD 1 FAIL (${fails})` : '\nWORLD 1 PASS');
 process.exit(fails ? 1 : 0);

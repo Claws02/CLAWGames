@@ -15,10 +15,12 @@
 //   off the south edge: back onto the rim · off the north edge at the exit (gate open): win · anywhere else off an edge: lava
 //
 // State: { blocks: [[r, c]...], cracks: { 'r,c': 0 | 1 | 2 }, nuts: [[r, c]...] }   — `fresh(z)` makes it.
+//   nut         a coconut lying on the lake (some start there: z.nuts): it stops sliding coconuts and blocks, not the crab;
+//               stop on its cell and you pick it up
 // ============================================================
 
 const k = (r, c) => `${r},${c}`;
-export const fresh = z => ({ blocks: (z.blocks || []).map(b => b.slice()), cracks: Object.fromEntries((z.cracks || []).map(([r, c]) => [k(r, c), 0])), nuts: [] });
+export const fresh = z => ({ blocks: (z.blocks || []).map(b => b.slice()), cracks: Object.fromEntries((z.cracks || []).map(([r, c]) => [k(r, c), 0])), nuts: (z.nuts || []).map(n => n.slice()) });     // (z.nuts: coconuts lying on the lake at the start)
 export const clone = ls => ({ blocks: ls.blocks.map(b => b.slice()), cracks: { ...ls.cracks }, nuts: ls.nuts.map(n => n.slice()) });
 const has = (list, r, c) => (list || []).some(([a, b]) => a === r && b === c);
 export const pillarAt = (z, r, c) => has(z.pillars, r, c);

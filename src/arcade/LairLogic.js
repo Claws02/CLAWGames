@@ -94,7 +94,7 @@ export const covers = (o, p) => { const a = lonOf(p, o.c || TOP); return o.only 
 const A = at(10.05, 70), B = at(9.95, 30), SHELF = at(7.9, 26), BANK = 15.4;
 export const STAIR = {
     id: 'stair', name: 'THE DROWNED STAIR', world: 1, pay: 40, start: at(18.4, 0), goal: TOP, palm: at(17.7, -42), bank: BANK,
-    story: 'Old Ink has the Tide Pearl. His lair starts here: a rip current, a cliff, and a gull on watch. Three coconuts are all you have.',
+    story: 'Cornered at last: Old Ink waits at the top of the Drowned Stair, behind a rip current, a cliff and his gull. Three coconuts are all you have.',
     hints: ['Vent A is bubbling in its cove. Only one vent blows at a time.', 'A coconut floats. The current goes past the cove.', 'Drop one in the water above the cove, on the far side of the current.', 'Up on the shelf there are three jobs and only two coconuts. What else bounces?', 'Old Ink slams where you stand: a red ring fills, then it lands. Step out or jump. For a moment after a slam his arm is stuck and his head is open: that is when a coconut hurts him (any other time an arm swats it away). Three hits win. Touching him hurts. More piles keep turning up.', 'The plate holds the pearl\'s fence open while a coconut is on it. Only Old Ink down lets you take the pearl.'],
     checks: [at(18.4, 0), SHELF], zones: { 1: [5.7, 9.1] },          // (anywhere on the shelf counts as reaching its flag)
     rings: [
@@ -116,6 +116,7 @@ export const STAIR = {
     targets: [{ p: at(4.2, -100), gate: 'eye' }],
     gull: { ring: 7.5, from: 60 },
     boss: true,
+    signs: [{ p: at(16.6, 18), kind: 'current', look: at(18.4, 0) }, { p: at(16.6, -18), kind: 'vent', look: at(18.4, 0) }, { p: at(8.2, 6), kind: 'gull', look: SHELF }, { p: at(6.4, 40), kind: 'boss', look: SHELF }],
 };
 
 // ── World 1: learning the claws ─────────────────────────────────────────────
@@ -137,7 +138,7 @@ export const STAIR = {
 // a coconut into the bullseye inside drops the blue one for six seconds: run in, take the pearl.
 export const BEACH = {
     id: 'beach', name: 'COCONUT BEACH', world: 1, fast: 75, pay: 15, start: at(18.4, 0), goal: TOP, palm: at(17.7, -42), bank: 14,
-    story: 'Old Ink has the Tide Pearl, deep in his lair. First, his sandcastle fort: break in, cross the moat, climb the walls.',
+    story: 'Old Ink grabbed the Tide Pearl from your island\'s shrine and ran into his sandcastle fort. Break in after him: through the wall, over the moat, up the walls.',
     hints: ['Walk into the coconuts to pick them up. Hold 🥥 and let go to throw. The cracked wall breaks after two hits.', 'The moat is deep: ride the logs across (wait for one, then jump).', 'Push the sand block against the court wall, jump on it, and jump again onto the wall.', 'A coconut on the plate drops the red gate. The bullseye inside it drops the blue one, but only for six seconds.', 'Golden shells: one over the palm (bounce on a coconut), one on top of the outer wall (the vines, with empty claws), one over the moat (jump from a log).'],
     ground: [[1.8, 'dais'], [2.2, 'stone'], [3.2, 'stone'], [8, 'grass'], [10, 'grass'], [14, 'sea'], [99, 'sand']],
     checks: [at(18.4, 0), at(9.2, 0)], zones: { 1: [8.1, 9.9] },
@@ -152,7 +153,11 @@ export const BEACH = {
     blocks: [{ p: at(9.2, 40) }],
     plates: [{ p: at(5.4, 60), r: 0.9, gate: 'red' }],
     targets: [{ p: at(2.7, -60), gate: 'blue', secs: 6 }],
+    posts: [{ p: at(18.9, -150), r: 0.55, h: 1.1, kind: 'shrine' }],
     gold: [{ p: at(17.7, -42), h: 2.8 }, { p: at(15, 130), h: 3 }, { p: at(12, 200), h: 1.3 }],
+    signs: [{ p: at(19.2, 40), kind: 'story1', look: at(18.6, 0) }, { p: at(16.9, -54), kind: 'pick', look: at(18.6, -20) }, { p: at(16.2, -18), kind: 'crackwall', look: at(18.2, 0) },
+        { p: at(16.4, 76), kind: 'climb', look: at(18.2, 50) }, { p: at(14.4, -16), kind: 'log', look: at(16, 0) }, { p: at(9.4, 22), kind: 'pushsand', look: at(9.8, 0) },
+        { p: at(6.6, 48), kind: 'gate', look: at(7.4, 20) }, { p: at(5.0, -36), kind: 'timed', look: at(6.4, 0) }],
 };
 
 // 2. BUBBLE STREAM: a river valley on three levels.
@@ -162,14 +167,14 @@ export const BEACH = {
 //       · a stone post with a golden shell on top, a jelly pad by it; a crystal cage with another (opened by the log's bullseye)
 //   the river: deep, all the way round; logs drift on it (one carries a bullseye)            10 – 12.5
 //   the middle terrace (3.8 high)                                  4.6 – 9.6
-//       · the bank shot: a painted spot, a yellow bumper in a deep pool, a bullseye in an alcove that faces only the bumper
+//       · the bank shot: a painted spot, a pink bumper in a deep pool, a bullseye in an alcove that faces only the bumper
 //       · a ramp up to the mesa; the green fence round the mesa (the bullseye holds it open)
 //       · a pillar (9 high) with a plate on top, a coconut hanging over it from the mesa's palm
 //   the mesa (7.5 high), the pearl inside the gold fence (the plate holds it open)               0 – 4.6
 // THE ANSWER. Throw a coconut onto the jelly pad: it bounces up onto the shelf and into vent A, so B blows. Ride B over the river
-// onto the terrace. From the painted spot, bank a coconut off the yellow bumper into the bullseye: the green fence drops. Up the
+// onto the terrace. From the painted spot, bank a coconut off the pink bumper into the bullseye: the green fence drops. Up the
 // ramp to the mesa; put a coconut on the pillar's plate (lob one, or knock the hanging one down onto it): the gold fence drops.
-// The bank shot: stand on the painted spot (SPOT), throw at the yellow bumper (BUMP) standing in a deep pool, and it glances off into
+// The bank shot: stand on the painted spot (SPOT), throw at the pink bumper (BUMP) standing in a deep pool, and it glances off into
 // the bullseye in its alcove (ALCOVE), which faces only the bumper. The bumper is set at the angle that sends a coconut from the spot
 // to the bullseye; a coconut that falls in the pool washes back up at the spot.
 const SPOT = at(8.0, 82), BUMP = at(5.5, 94), ALCOVE = at(8.3, 106), PILLAR = at(5.3, -60);
@@ -181,8 +186,8 @@ const _cw = (k, off) => walk(walk(ALCOVE, _ax, k / R), _px, off / R);
 const CHUTE = [[_cw(0.55, 0.5), _cw(_len - 0.4, 0.5)], [_cw(0.55, -0.5), _cw(_len - 0.4, -0.5)]];
 export const STREAM = {
     id: 'stream', name: 'BUBBLE STREAM', world: 1, fast: 120, pay: 20, start: at(18.4, 0), goal: TOP, palm: at(17.7, -42), bank: 12.5,
-    story: 'A river valley on three levels. Vents to ride, a bank shot to make, and a pearl up on the mesa.',
-    hints: ['Vent A is up on the rock shelf, too high to throw to. The jelly pad in front has an arrow: whatever lands on it is thrown that way.', 'With A plugged, vent B blows: ride it over the river and steer onto the terrace.', 'The bank shot: stand on the painted spot, and throw at the yellow bumper in the pool. It bounces the coconut into the bullseye (follow the green dots). The aim turns green when it will hit.', 'Up on the mesa, the plate is on top of the pillar. Lob a coconut onto it, or knock the hanging coconut down.', 'Golden shells: on the post by the beach (bounce on the jelly), in the cage (hit the bullseye on the log), over the river (steer through it riding vent B).'],
+    story: 'He fled up the river to the old mesa. The river is too deep to swim: ride the vents up, and bank a shot past his gate.',
+    hints: ['Vent A is up on the rock shelf, too high to throw to. The jelly pad in front has an arrow: whatever lands on it is thrown that way.', 'With A plugged, vent B blows: ride it over the river and steer onto the terrace.', 'The bank shot: stand on the painted spot, and throw at the pink bumper in the pool. It bounces the coconut into the bullseye (follow the green dots). The aim turns green when it will hit.', 'Up on the mesa, the plate is on top of the pillar. Lob a coconut onto it, or knock the hanging coconut down.', 'Golden shells: on the post by the beach (bounce on the jelly), in the cage (hit the bullseye on the log), over the river (steer through it riding vent B).'],
     ground: [[4.6, 'stone'], [9.6, 'grass'], [10, 'sand'], [12.5, 'sea'], [99, 'sand']],
     checks: [at(18.4, 0), at(8.6, 0)], zones: { 1: [4.7, 9.5] },
     ledges: [
@@ -192,10 +197,10 @@ export const STREAM = {
     ],
     rings: [
         { r: 4.4, h: 20, gate: 'green', kind: 'gate' }, { r: 1.8, h: 20, gate: 'gold', kind: 'gate' },       // (the green fence runs round the whole mesa)
-        { c: ALCOVE, r: 0.9, h: 7, gap: [lonOf(BUMP, ALCOVE), 26], kind: 'cove' },
+        { c: ALCOVE, r: 0.9, h: 7, gap: [lonOf(BUMP, ALCOVE), 26], kind: 'cove', look: 'glass' },      // (glass: you see the bullseye, but can't throw through)
         { c: at(16, -100), r: 0.9, h: 9, gate: 'cage', kind: 'gate' },
     ],
-    bars: [{ a: BUMP_A, b: BUMP_B, h: 7, kind: 'bumper' }, ...CHUTE.map(([a, b]) => ({ a, b, h: 7, kind: 'chute' }))],
+    bars: [{ a: BUMP_A, b: BUMP_B, h: 7, kind: 'bumper' }, ...CHUTE.map(([a, b]) => ({ a, b, h: 7, kind: 'chute', look: 'glass' }))],
     posts: [{ p: PILLAR, r: 0.55, h: 9 }, { p: at(16.6, 110), r: 0.5, h: 3 }],
     pads: [{ p: at(16.5, 60), r: 1.0, to: at(14.3, 60) }, { p: at(17.6, 110), r: 0.7 }],
     pools: [{ p: POOL, r: dist(BUMP, ALCOVE) / 2 + 0.6, to: SPOT }, { p: ALCOVE, r: 1.9, to: SPOT }, { p: BUMP, r: 1.5, to: SPOT }],
@@ -208,33 +213,48 @@ export const STREAM = {
     targets: [{ p: ALCOVE, gate: 'green', tall: 1.4 }, { p: at(11.25, 0), log: 0, gate: 'cage' }],
     hangs: [{ p: PILLAR, h: 9.9 }],
     gold: [{ p: at(16.6, 110), h: 3 }, { p: at(16, -100), h: 0 }, { p: at(11.6, 6), h: 4.4 }],
+    signs: [{ p: walk(SPOT, tangent(SPOT, toward(SPOT, BUMP)), -1.3 / R), kind: 'bank', look: walk(SPOT, tangent(SPOT, toward(SPOT, BUMP)), -4 / R) }, { p: at(17.4, 40), kind: 'vent', look: at(18.4, 0) }, { p: at(9.0, -20), kind: 'gate', look: at(8.6, 0) }],
 };
 
-// 3. GULL YARD: Old Ink's gull.
-//   the beach                                                  d > 9.2
-//   the yard gate (crystal), opened by a bullseye on the beach  9.2   (the bullseye at 10.6, lon 30)
-//   the yard, where the gull walks                              5.6 – 9.2
-//   the tall step (no coconut over it; a slide out at the back) 5.6
-//   inside: the plate (inner gate) and the bullseye (outer gate), the pearl      4.3 · 3 · 1.8
-// THE ANSWER. One coconut into the beach bullseye: two left. In the yard the gull dives: step aside, and jump on its back as it lands
-// (or hit it with a coconut and it drops what it stole). Its back bounces you over the step with both coconuts: one on the plate, one
-// into the bullseye. (Over the step on a coconut you are in with one, and that's not enough.)
+// 3. THE GULL'S ROOST: Old Ink paid his gull with the pearl, and it keeps it in its nest on a sea stack behind an old fishing village.
+//   the beach (start, the palm, Old Ink's note)                                        d > 13
+//       · a fishing hut with a bullseye on it: it raises the village's net gate         13
+//   the lower boardwalk, on stilts (1 high), fishing huts (a golden shell on a roof)     8.6 – 12.8   (a ramp up from the beach)
+//   the upper deck (3.2 high: out of a jump's reach): the gull walks it, a stolen coconut in its beak            4.6 – 8.6
+//       · the heavy plate: only the gull is heavy enough. It lowers the drawbridge (and it stays down 8 s after the gull flies off)
+//       · the crow's-nest mast (a golden shell on top)
+//   the moat: deep water (in it: back to the flag)                                        2.6 – 4.6
+//   the drawbridge, from the deck up to the roost, at lon 0
+//   the roost (5 high): the nest of stolen coconuts and the pearl, in a fence a coconut on the plate drops      0 – 2.6
+// THE ANSWER. A coconut into the hut's bullseye: the net gate rises. Up the ramp. The gull won't dive while it holds its stolen coconut:
+// hit it with a coconut (from the boardwalk) and it drops it on the deck. Now it dives at you: step aside as it comes down by the deck,
+// and jump on its back: up onto the deck (a coconut to bounce on works too, but stays behind). Pick up the dropped coconut. Stand on the
+// heavy plate till the gull dives, step aside: it lands on the plate and the drawbridge comes down. Across, up to the roost: a coconut
+// on the nest's plate drops the fence: the pearl.
 export const YARD = {
-    id: 'yard', name: 'GULL YARD', world: 1, fast: 60, pay: 15, start: at(18.4, 0), goal: TOP, palm: at(17.7, -42), bank: 9.2,
-    story: 'Old Ink\'s gull keeps watch. It steals coconuts. But a gull has a back, and backs bounce.',
-    hints: ['A coconut in the bullseye on the beach opens the yard.', 'The gull circles, then dives where you stand: its shadow and a red ring show where. Move!', 'Jump on the gull as it lands, or hit it with a coconut: it is stunned and drops anything it stole.', 'Inside the step are two jobs. Over the step on a coconut, you are in with only one. What else bounces?'],
-    ground: [[1.8, 'dais'], [5.6, 'stone'], [9.2, 'grass'], [99, 'sand']],
-    checks: [at(18.4, 0), at(7.9, 0)], zones: { 1: [5.7, 9.1] },
-    rings: [
-        { r: 9.2, h: 9, gate: 'yard', kind: 'gate' },
-        { r: 5.6, h: 2, nutH: 9, gap: [180, 9], kind: 'step' }, { r: 5.6, h: 2, nutH: 9, only: [180, 9], way: 'out', kind: 'slide', show: 2 },
-        { r: 3, h: 9, gate: 'eye', kind: 'gate' }, { r: 1.8, h: 9, gate: 'plate', kind: 'gate' },
+    id: 'yard', name: 'THE GULL\'S ROOST', world: 1, fast: 90, pay: 15, start: at(18.4, 0), goal: TOP, palm: at(17.7, -42), bank: 13,
+    story: 'Old Ink paid his gull with the pearl. It keeps it in its nest up on the sea stack, past the old fishing village.',
+    hints: ['A coconut in the bullseye on the fishing hut raises the net gate.', 'The gull won\'t dive while it has a stolen coconut in its beak. Hit it with one: it drops it.', 'When it dives, step aside, then jump on its back as it lands: it bounces you up onto the deck.', 'The heavy plate is too heavy for a crab. Stand on it, and step off as the gull dives: it lands on the plate and the drawbridge comes down.', 'Golden shells: on a hut roof (bounce on a coconut), up the crow\'s-nest mast (bounce on the gull), and round the back of the roost.'],
+    ground: [[2.6, 'rock'], [4.6, 'sea'], [12.8, 'sea'], [99, 'sand']],
+    checks: [at(18.4, 0), at(6.4, 30)], zones: { 1: [4.7, 8.5] },
+    ledges: [
+        { r0: 0, r1: 2.6, h: 5, kind: 'stack' },
+        { r0: 4.6, r1: 8.6, h: 3.2, kind: 'boardwalk' }, { r0: 8.6, r1: 12.8, h: 1, kind: 'boardwalk' },
+        { r0: 12.8, r1: 14.4, only: [0, 7], h: 1, h1: 0, kind: 'boardwalkRamp' },
+        { r0: 2.1, r1: 4.8, only: [0, 5], h: 5, h1: 3.2, gate: 'bridge', kind: 'bridge' },
     ],
-    plates: [{ p: at(4.3, 100), r: 0.9, gate: 'plate' }],
-    targets: [{ p: at(10.6, 30), gate: 'yard' }, { p: at(4.2, -100), gate: 'eye' }],
-    gull: { ring: 7.5, from: 60 },
+    rings: [{ r: 13.0, h: 9, gate: 'net', kind: 'gate' }, { r: 1.4, h: 9, gate: 'nest', kind: 'gate' }],
+    currents: [{ r0: 2.6, r1: 4.6, only: [0, 180], speed: 0.8, deep: true }],
+    posts: [{ p: at(10.8, -60), r: 0.75, h: 2.6, kind: 'hut' }, { p: at(10.6, 70), r: 0.75, h: 2.6, kind: 'hut' }, { p: at(14.2, 30), r: 0.7, h: 1.6, kind: 'hut' }, { p: at(7.8, 180), r: 0.32, h: 5.2, kind: 'mast' }],
+    plates: [{ p: at(6.0, 16), r: 0.9, gate: 'bridge', heavy: true, secs: 8 }, { p: at(2.0, 70), r: 0.5, gate: 'nest' }],
+    targets: [{ p: walk(at(14.2, 30), tangent(at(14.2, 30), at(18.4, 0)), 0.85 / R), gate: 'net' }],
+    gull: { ring: 6.6, from: 90, zone: [4.7, 12.7], loot: 1 },
+    nest: true,
+    gold: [{ p: at(10.8, -60), h: 2.6 }, { p: at(7.8, 180), h: 5.2 }, { p: at(2.0, 200), h: 5 }],
+    signs: [{ p: at(17.4, -16), kind: 'note', look: at(18.6, 0) }, { p: at(16.0, 46), kind: 'bullseye', look: at(18.4, 0) },
+        { p: at(11.6, 18), kind: 'stun', look: at(13.6, 0) }, { p: at(9.1, -14), kind: 'gullback', look: at(11, 0) },
+        { p: at(6.4, 30), kind: 'heavy', look: at(7.4, 0) }, { p: at(2.1, 30), kind: 'nest', look: at(2.6, 0) }],
 };
-
 
 // ── World 2: the coral caves ────────────────────────────────────────────────
 // Old Ink fled deeper with the pearl. Each chamber teaches one new thing (holes through the planet, a moon, the tide), then he waits.
@@ -254,7 +274,7 @@ const PIR = Math.PI * R, anti = (d, lon) => at(PIR - d, lon + 180);
 const PITC = at(4.2, 90), H_MAIN = at(16.8, 0), H_THROW = at(15.4, 60), LIDT = at(6.0, -120), THROWSPOT = at(18.4, 60);
 export const SINK = {
     id: 'sink', name: 'SINKHOLE REEF', world: 2, theme: 'reef', fast: 90, pay: 25, start: at(18.6, -20), goal: TOP, palm: at(17.4, -60), bank: 7,
-    story: 'Old Ink fled deep into the coral caves. Here the pearl is right under your feet: through the planet.',
+    story: 'Beaten, Old Ink slipped down a sinkhole into the coral caves. Holes here go right through the little planet: the pearl is under your feet.',
     hints: ['A sinkhole goes straight through the planet and comes up on the far side, by the pearl. This one is shut by a crystal lid.', 'Blowholes (the grates) only take coconuts. A coconut thrown in comes out of the far side still flying the same way.', 'Stand on the painted spot and throw into the blowhole: it flies up into the bullseye on the far side. The aim turns green when it will.', 'The plate in the walled pit holds the gold fence open: lob a coconut over the pit\'s low wall (the aim turns green), or throw one into the other blowhole on the beach: it comes up right on the plate.', 'Golden shells: over the far end of the sinkhole (jump in from up high and you fly out higher), on the coral post (bounce off the jelly), and over the pit\'s blowhole.'],
     ground: [[1.8, 'dais'], [6.8, 'stone'], [99, 'sand']],
     checks: [at(18.6, -20), at(3.4, 175)], zones: { 1: [1.9, 6.7] },
@@ -275,6 +295,7 @@ export const SINK = {
     spots: [{ p: THROWSPOT, via: H_THROW, gate: 'lid' }],
     drains: [{ p: PITC, r: 0.9, to: PITC }, { p: TOP, r: 6.8, to: THROWSPOT, unless: 'lid' }],
     gold: [{ p: anti(16.8, 0), h: 2.8 }, { p: at(12.5, -100), h: 3 }, { p: anti(4.2, 90), h: 2.2 }],
+    signs: [{ p: at(18.0, -2), kind: 'story2', look: at(18.6, -20) }, { p: at(17.6, -38), kind: 'hole', look: at(18.6, -20) }, { p: at(17.4, 72), kind: 'bank', look: THROWSPOT }],
 };
 
 // 6. MOON POOL: a little moon, and a launch pad to it. Gates are shared between the two worlds, and the moon's gravity is half
@@ -295,7 +316,7 @@ const MOON = {
 };
 export const MOONPOOL = {
     id: 'pool', name: 'MOON POOL', world: 2, theme: 'reef', fast: 75, pay: 25, start: at(18.4, 0), goal: TOP, palm: at(17.6, -40), bank: 7, arriveCp: 1,
-    story: 'A little moon hangs over this reef. A launch pad flies you there, and what you do up there changes things down here.',
+    story: 'His trail leads up to the little moon over the reef. A launch pad flies you there, and what you do up there changes things down here.',
     hints: ['Step on the launch pad to fly to the moon. Whatever is in your claws comes too.', 'The moon\'s gravity is weak: you jump twice as high there.', 'Inside the moon\'s crater, a coconut on the plate holds the gold fence open, back on the planet.', 'Take the pad on the moon to come home. A coconut thrown onto a launch pad flies over on its own.', 'Golden shells: on the moon\'s pillar (bounce on a coconut up there), floating over the far rim of the crater (a moon jump), and on the coral post here (bounce off the jelly).'],
     ground: [[1.8, 'dais'], [5, 'stone'], [99, 'sand']],
     checks: [at(18.4, 0), at(15.2, 30)],
@@ -305,6 +326,7 @@ export const MOONPOOL = {
     pads: [{ p: at(14.2, 110), r: 0.7 }],
     gold: [{ p: at(13.2, 110), h: 3 }],
     moon: MOON,
+    signs: [{ p: at(16.6, 20), kind: 'launch', look: at(18.4, 0) }],
 };
 
 // 7. LOW TIDE: a lagoon that floods and drains on a clock.
@@ -318,18 +340,19 @@ export const MOONPOOL = {
 // onto the lighthouse rock's plate (the gold fence drops), and jump from the raft onto the mesa: the pearl.
 export const TIDE = {
     id: 'tide', name: 'LOW TIDE', world: 2, theme: 'reef', fast: 90, pay: 25, start: at(18.4, 0), goal: TOP, palm: at(17.6, -40), bank: 7,
-    story: 'Here the sea comes and goes. Watch the waterline: what the tide covers, it carries off.',
-    hints: ['The lagoon floods and drains on a clock. Caught on the sand when the water comes in, you\'re swept back to your flag.', 'Rafts sit on the sand at low tide and float up with the water. Stand on one and let the tide lift you.', 'The plate is on top of the lighthouse rock, too high to throw to from the sand. From a raft at high tide, it isn\'t.', 'The mesa is too high to jump onto from the sand. From a raft at high tide, it isn\'t.', 'Golden shells: on the sand far out (it\'s under water at high tide: be quick), on the tall rock (a jump from a raft at high tide), and on the coral post (the jelly).'],
+    story: 'Old Ink crossed the lagoon at low tide. Here the sea comes and goes, and your beach floats on it. What the water covers, it carries off.',
+    hints: ['The lagoon floods and drains on a clock. Caught on the sand when the water comes in, you\'re swept back to your flag.', 'Rafts sit on the sand at low tide and float up with the water. Stand on one and let the tide lift you.', 'The plate is on top of the lighthouse rock, too high to throw to from the sand. From a raft at high tide, it isn\'t.', 'The mesa is too high to jump onto from the sand. From a raft at high tide, it isn\'t.', 'Golden shells: on the sand far out (it\'s under water at high tide: be quick), on the tall rock (a jump from a raft at high tide), and on the coral post out on the sand (the jelly, at low tide).'],
     ground: [[1.8, 'dais'], [4.4, 'stone'], [15, 'rock'], [99, 'sand']],
     checks: [at(18.4, 0)],
     tide: { r0: 4.4, r1: 15, high: 2.4, out: 9, rise: 4, in: 7, fall: 4 },
-    ledges: [{ r0: 0, r1: 4.4, h: 4, kind: 'mesa' }, { r0: 15, r1: 21, h: 0.3, kind: 'beachShelf' }],
+    ledges: [{ r0: 0, r1: 4.4, h: 4, kind: 'mesa' }, { r0: 15, r1: 21, h: 0.3, kind: 'beachShelf', ride: true }],
     rings: [{ r: 1.8, h: 20, gate: 'gold', kind: 'gate' }],
-    posts: [{ p: at(9, 60), r: 0.8, h: 2.8, kind: 'lighthouse' }, { p: at(11, -110), r: 0.6, h: 3.6 }, { p: at(16.4, 120), r: 0.5, h: 3 }],
-    pads: [{ p: at(17.4, 120), r: 0.7 }],
+    posts: [{ p: at(6.2, 85), r: 0.8, h: 2.8, kind: 'lighthouse' }, { p: at(11, -110), r: 0.6, h: 3.6 }, { p: at(12.6, 125), r: 0.5, h: 3 }],
+    pads: [{ p: at(13.6, 125), r: 0.7 }],
     rafts: [{ p: at(5.4, 20), r: 0.9 }, { p: at(10.6, 50), r: 0.9 }, { p: at(10.4, -95), r: 0.9 }],
-    plates: [{ p: at(9, 60), r: 0.75, gate: 'gold' }],
-    gold: [{ p: at(13.6, 160), h: 0 }, { p: at(11, -110), h: 3.6 }, { p: at(16.4, 120), h: 3 }],
+    plates: [{ p: at(6.2, 85), r: 0.75, gate: 'gold' }],
+    gold: [{ p: at(13.6, 160), h: 0 }, { p: at(11, -110), h: 3.6 }, { p: at(12.6, 125), h: 3 }],
+    signs: [{ p: at(16.4, 22), kind: 'tide', look: at(18.4, 0) }],
 };
 
 // 8. INK'S DEEP: Old Ink's second lair, World 2's boss. Two timed hazards on the way, then a harder fight.
@@ -342,7 +365,7 @@ export const TIDE = {
 const CORR = (lon, d = 9) => at(d, lon);
 export const DEEP = {
     id: 'deep', name: "INK'S DEEP", world: 2, theme: 'deep', boss: { hits: 4, speed: 0.8, arena: 5.5 }, fast: 150, pay: 50, start: at(18.4, 0), goal: TOP, palm: at(17.6, -40), bank: 7,
-    story: 'Old Ink is down here with the pearl. The way in crumbles under you, and the deep breathes steam.',
+    story: 'Old Ink\'s deepest lair. The way in crumbles under you, the deep breathes steam, and he is waiting, angrier than before.',
     hints: ['The tiles over the chasm crack the moment you step on them and fall away a moment later. Don\'t stop.', 'Each steam jet bubbles before it fires. Wait for the burst, then dash past.', 'Old Ink slams where you stand: step out of the red ring or jump. Just after a slam, his head is open: throw!', 'Four hits this time, and he slams faster. Watch the jets round the arena while he\'s up.', 'Golden shells: by the inner wall of the corridor, on the side tile in the chasm, and over the arena (a bounce on a coconut).'],
     ground: [[1.8, 'dais'], [7.3, 'stone'], [10.5, 'rock'], [15, 'sea'], [99, 'sand']],
     checks: [at(18.4, 0), at(9.0, 0), at(7.0, 180)], zones: { 1: [7.4, 10.4] },
@@ -352,6 +375,7 @@ export const DEEP = {
     jets: [...[25, 50, 75, 100, 125, 150].map((lon, i) => ({ p: CORR(lon), r: 0.8, period: 3, on: 1.0, phase: i * 0.9 })), ...[-25, -50, -75, -100, -125, -150].map((lon, i) => ({ p: CORR(lon), r: 0.8, period: 2.6, on: 1.0, phase: i * 0.7 })),
         ...[0, 60, 120, 180, 240, 300].map((lon, i) => ({ p: at(4.6, lon), r: 0.75, period: 3.4, on: 0.9, phase: i * 0.55, boss: true }))],
     gold: [{ p: CORR(90, 8.0), h: 0 }, { p: at(12.9, 25), h: 0 }, { p: at(3.4, 90), h: 2.6 }],
+    signs: [{ p: at(16.2, 14), kind: 'tiles', look: at(18.4, 0) }, { p: at(9.2, 16), kind: 'jets', look: at(9.0, 0) }, { p: at(6.6, 196), kind: 'boss', look: at(7.0, 180) }],
 };
 
 // ── World 3: the volcano ────────────────────────────────────────────────────
@@ -373,7 +397,7 @@ export const DEEP = {
 // and up the bridge.
 const LAKE = { rows: 9, cols: 9, r0: 7, dd: 1, lon0: -40, dl: 10, exit: 4, levels: [0, 0, 0, 1, 1, 1, 2, 2, 2], hs: [0.3, 1.2, 2.1], lava: { r0: 5.2, r1: 15.5 },
     pillars: [[0, 5], [0, 2], [0, 1], [2, 4], [8, 4], [3, 6], [2, 0], [3, 0], [8, 7], [5, 3], [4, 1], [6, 7], [3, 3], [5, 1], [6, 0], [1, 6]],
-    blocks: [[7, 5]], cracks: [[3, 2], [7, 3], [6, 8]], ramps: [[3, 1]], plates: [[1, 2]] };
+    blocks: [[7, 5]], cracks: [[3, 2], [7, 3], [6, 8]], ramps: [[3, 1], [6, 6]], plates: [[1, 2]], nuts: [[4, 2]] };      // (the ramp at 6,6 is the way back up to the rim from the middle step)
 const RIM_H = LAKE.hs[2];
 // The lake's steps as ledges (a ramp cell slopes from the step below up to its own), the rim, and the bridge.
 function _lakeLedges(z) {
@@ -392,15 +416,19 @@ function _lakeLedges(z) {
     return out;
 }
 export const SLIDE = {
-    id: 'slide', name: 'OBSIDIAN SLIDE', world: 3, theme: 'volcano', fast: 90, pay: 25, start: at(17, 0), goal: TOP, palm: at(18.4, -55), bank: 7,
-    story: 'The Hermit King keeps the pearl down in his crater. The way down is a lake of glassy obsidian, in steps: once you slide, you can\'t stop.',
+    id: 'slide', name: 'OBSIDIAN SLIDE', world: 3, theme: 'volcano', fast: 90, pay: 25, start: at(17, 10), goal: TOP, palm: at(17.8, 95), bank: 7,
+    story: 'Beaten twice, Old Ink gave the pearl to his ally, the Hermit King, who keeps it down in his crater. The way down is a lake of glassy obsidian, in steps: once you slide, you can\'t stop.',
     hints: ['On the obsidian you slide in a straight line until something stops you, and you can\'t jump. Push the stick to pick which way.', 'Slide into the block, then push it: it slides too, down the steps, until something stops it. Watch where it ends up.', 'The gate on the bridge needs a coconut on the yellow plate. On the obsidian a throw goes two cells, then slides: hold THROW and push the stick to turn first.', 'Cracked glass takes one stop. The ramp is the only way back up a step. Stuck? Slide off into the lava: the lake sets back as it was.'],
     ground: [[1.8, 'dais'], [5.2, 'stone'], [15.5, 'lava'], [99, 'sand']],
-    checks: [at(17, 0)],
+    checks: [at(17, 10)],
     lake: LAKE,
     ledges: _lakeLedges(LAKE),
     posts: LAKE.pillars.map(([r, c]) => ({ p: lakeAt(LAKE, r, c), r: 0.34, h: lakeH(LAKE, r) + 1.5, kind: 'obsidian' })),      // (too tall to jump onto from the rim)
     gold: [[0, 8], [7, 1], [4, 8]].map(([r, c]) => ({ p: lakeAt(LAKE, r, c), h: lakeH(LAKE, r) })),
+    // Picture signs, each by the first place its rule matters (on the rim, or on a basalt rock in the lava beside the lake).
+    signs: [{ p: at(18.6, 34), kind: 'story3', look: at(18.6, 10) }, { p: at(16.3, 32), kind: 'slide', look: at(18.2, 10) }, { p: at(16.3, -14), kind: 'push', look: at(18.2, 10) },
+        { p: lakeAt(LAKE, 3.5, -1.5), kind: 'crack', look: lakeAt(LAKE, 4, 4), rock: true }, { p: lakeAt(LAKE, 5.5, 9.5), kind: 'ramp', look: lakeAt(LAKE, 4, 4), rock: true },
+        { p: lakeAt(LAKE, 1, -1.5), kind: 'plate', look: lakeAt(LAKE, 2, 4), rock: true }, { p: lakeAt(LAKE, 7.6, 10.4), kind: 'lava', look: lakeAt(LAKE, 6, 4), rock: true }],
 };
 
 export const CHAMBERS = [BEACH, STREAM, YARD, STAIR, SINK, MOONPOOL, TIDE, DEEP, SLIDE];
@@ -413,9 +441,10 @@ export function create(lv) {
         blocks: (lv.blocks || []).map(b => ({ h: 1, r: 0.55, ...b, p: b.p.slice() })), logs: _logsAt(lv, 0), lake: lv.lake ? LG.fresh(lv.lake) : null,
         crab: { p: lv.start.slice(), f: tangent(lv.start, lv.goal), face: tangent(lv.start, lv.goal), h: 0, vh: 0, moving: false, air: false, coy: COYOTE_S, jbuf: 0, nuts: 0, lifted: false },
         boss: lv.boss ? { hp: (lv.boss.hits || BOSS.hits), state: 'sleep', t: 0, n: 0, round: 0, tx: null, pile: 0, rest: false, touchCd: 0 } : null,
-        gull: lv.gull ? { p: at(lv.gull.ring, lv.gull.from), h: 0, state: 'walk', t: 0, cool: 1, loot: 0, tx: null, from: null } : null };
+        gull: lv.gull ? { p: at(lv.gull.ring, lv.gull.from), h: 0, b: 0, state: 'walk', t: 0, cool: 1, loot: lv.gull.loot || 0, tx: null, from: null } : null };
     s.crab.h = floorAt(s, lv.start);
     if (lv.palm) for (let i = 0; i < CARRY; i++) _palmNut(s, i);
+    if (lv.lake) _lakeNuts(s);
     for (const hg of lv.hangs || []) s.nuts.push({ id: s.id++, p: hg.p.slice(), d: tangent(hg.p, [1, 0, 0]), v: 0, h: hg.h, vh: 0, state: 'hang', age: 9, still: 0 });
     return s;
 }
@@ -447,7 +476,7 @@ export const urchinAt = (s, p, pad = 0) => (s.lv.urchins || []).find(u => dist(u
 /** How high the ground is at place p: the top of a rock, or the sea floor. */
 export function floorAt(s, p) {
     let f = rockUnder(s, p) ? ROCK_H : 0;
-    for (const l of s.lv.ledges || []) { const d = dist(p, l.c || TOP); if (d >= l.r0 && d < l.r1 && covers(l, p)) f = Math.max(f, l.h1 == null ? l.h : l.h + (l.h1 - l.h) * (d - l.r0) / (l.r1 - l.r0)); }
+    for (const l of s.lv.ledges || []) { const d = dist(p, l.c || TOP); if (l.gate && !(s.open && (s.open[l.gate] || (s.held && s.held[l.gate])))) continue; if (d >= l.r0 && d < l.r1 && covers(l, p)) f = Math.max(f, (l.h1 == null ? l.h : l.h + (l.h1 - l.h) * (d - l.r0) / (l.r1 - l.r0)) + (l.ride ? s.tideW || 0 : 0)); }     // (ride: an island that floats up and down with the tide)
     for (const k of s.lv.posts || []) if (dist(p, k.p) < k.r) f = Math.max(f, k.h);
     for (const k of s.lv.pads || []) if (dist(p, k.p) < k.r) f = Math.max(f, PAD_H);
     for (const w of s.lv.rings || []) if (w.top && up(s, w) && Math.abs(dist(p, w.c || TOP) - w.r) < TOP_W && covers(w, p)) f = Math.max(f, w.h);
@@ -492,6 +521,8 @@ export function jetState(s, j) {
 /** The obsidian lake (a grid of cells, row 0 by the pearl; its rules are in LakeGrid.js): where cell (r, c) is, which cell a place is on. */
 export function lakeAt(z, r, c) { return at(z.r0 + r * z.dd, z.lon0 + c * z.dl); }
 /** Is the lake's gate held open (a coconut resting on its plate)? */
+/** The lake's grid rules (LakeGrid.js), for the screen's previews. */
+export const Lake = LG;
 export const lakeGateOpen = s => !!(s.lv.lake && s.lake && LG.gateOpen(s.lv.lake, s.lake));
 /** How high cell row r stands (rows step down toward the crater in levels). */
 export function lakeH(z, r) { return z.hs[z.levels[Math.max(0, Math.min(z.rows - 1, r))]]; }
@@ -595,16 +626,23 @@ function _lakeStep(s, dt, stick, ev) {
     }
     if (c.lake) {           // stopped on a cell: the stick picks one of four ways (winding up a throw, it only turns you)
         c.p = lakeAt(z, ...c.lake); c.h = floorAt(s, c.p);
-        if (stick.x * stick.x + stick.y * stick.y > 0.25) {
+        const mag2 = stick.x * stick.x + stick.y * stick.y;
+        if (mag2 > 0.12) {         // (a third of the way out is a push; let it back under a fifth to choose again)
             const right = cross(c.f, c.p), dir = norm(mix(right, c.f, stick.x, stick.y)), [dr, dc, , v] = _lakeWay(c.p, dir);
             c.face = tangent(c.p, v);
             if (!c.aiming && !c.lakeHold) { c.lakeHold = true; go(LG.move(z, G, c.lake[0], c.lake[1], dr, dc, canPick), v); }      // (one push of the stick, one move: let go to choose again)
-        } else { c.bumped = false; c.lakeHold = false; }
+        } else if (mag2 < 0.04) { c.bumped = false; c.lakeHold = false; }
         return true;
     }
     // Onto the lake from the rim (walking, or coming down from a jump): you're off, sliding on the way you were going.
     if (onLake(z, c.p)) {
-        const cell = _lakeCell(z, c.p), r = Math.max(0, Math.min(z.rows - 1, cell.r)), cc = Math.max(0, Math.min(z.cols - 1, cell.c));
+        const cell = _lakeCell(z, c.p), r = Math.max(0, Math.min(z.rows - 1, cell.r));
+        let cc = Math.max(0, Math.min(z.cols - 1, cell.c));
+        if (LG.pillarAt(z, r, cc) || LG.blockAt(G, r, cc)) {         // (beside a pillar at the edge: you come on in the free cell next to it)
+            const fx = (lonOf(c.p) - z.lon0) / z.dl - cc, alt = [cc + (fx >= 0 ? 1 : -1), cc + (fx >= 0 ? -1 : 1)].find(x => x >= 0 && x < z.cols && !LG.pillarAt(z, r, x) && !LG.blockAt(G, r, x));
+            if (alt == null) { c.p = at(z.r0 + (z.rows - 0.5) * z.dd + 0.2, lonOf(c.p)); return false; }
+            cc = alt;
+        }
         const [dr, dc, , v] = _lakeWay(c.p, c.face);
         const m = r === z.rows - 1 && dr === -1 ? LG.enter(z, G, cc, canPick) : LG.drop(z, G, r, cc, dr, dc, canPick);
         c.p = r === z.rows - 1 && dr === -1 ? at(z.r0 + (z.rows - 0.5) * z.dd, z.lon0 + cc * z.dl) : lakeAt(z, r, cc);
@@ -617,10 +655,12 @@ function _lakeStep(s, dt, stick, ev) {
 function _lakeReset(s, ev) {
     const z = s.lv.lake; if (!z) return;
     const dirty = s.lake.blocks.join(';') !== (z.blocks || []).join(';') || Object.values(s.lake.cracks).some(x => x) || s.lake.nuts.length;
-    s.lake = LG.fresh(z);
-    for (const n of s.nuts.filter(x => x.lake)) _lose(s, n, ev, 'burn');
+    for (const n of s.nuts.filter(x => x.lake || (x.state === 'slide' && x.lpts))) { if (n.home) s.nuts.splice(s.nuts.indexOf(n), 1); else _lose(s, n, ev, 'burn'); }
+    s.lake = LG.fresh(z); _lakeNuts(s);
     if (dirty) ev.push({ type: 'lake-reset' });
 }
+// The coconuts that lie on the lake at the start (and again whenever it sets back).
+function _lakeNuts(s) { const z = s.lv.lake; for (const [r, c] of z.nuts || []) { const p = lakeAt(z, r, c); s.nuts.push({ id: s.id++, w: 0, p, d: tangent(p, [1, 0, 0]), v: 0, h: lakeH(z, r), vh: 0, state: 'rest', lake: [r, c], home: true, age: 9, still: 0 }); } }
 // A coconut on the lake slides too: from cell (r, c), the way (dr, dc), along the grid.
 function _nutSlide(s, n, r, c, dr, dc, from) {
     const z = s.lv.lake, sl = LG.slide(z, s.lake, r, c, dr, dc, 'nut'), cells = [[r, c], ...sl.path];
@@ -674,7 +714,7 @@ function _nut(s, n, dt, ev) {
             hn.state = 'fly'; hn.v = 0.2; hn.vh = 0; hn.d = tangent(hn.p, n.d); hn.age = 0; n.v *= 0.4; n.vh = Math.min(n.vh, -1); ev.push({ type: 'knock', nut: hn, p: hn.p, h: hn.h });
         }
         const g = s.gull;
-        if (g && g.state !== 'stun' && Math.hypot(dist(n.p, g.p), n.h - (g.h + 0.4)) < GULL.hit + 0.1) { _stun(s, ev, 'nut'); n.vh = Math.min(n.vh, -2); n.v *= 0.3; }
+        if (g && g.state !== 'stun' && Math.hypot(dist(n.p, g.p), n.h - (g.h + (g.b || 0) + 0.4)) < GULL.hit + 0.1) { _stun(s, ev, 'nut'); n.vh = Math.min(n.vh, -2); n.v *= 0.3; }
         const fl = floorAt(s, n.p);
         const hole = n.vh < 0 && n.h <= floorAt(s, n.p) + 0.05 && !n.holeCd && _holeAt(s, n.p, true);
         if (hole) {
@@ -742,7 +782,7 @@ function _reset(s, ev, why) {
 // ── The gull ────────────────────────────────────────────────────────────────
 function _stun(s, ev, by) {
     const g = s.gull;
-    if (g.loot) { const n = { id: s.id++, p: g.p.slice(), d: tangent(g.p, [1, 0, 0]), v: 0, h: 0, vh: 0, state: 'rest', age: 0.4, still: 0 }; s.nuts.push(n); g.loot = 0; ev.push({ type: 'drop', nut: n }); }
+    if (g.loot) { const n = { id: s.id++, p: g.p.slice(), d: tangent(g.p, [1, 0, 0]), v: 0, h: floorAt(s, g.p), vh: 0, state: 'rest', age: 0.4, still: 0 }; s.nuts.push(n); g.loot = 0; ev.push({ type: 'drop', nut: n }); }
     g.state = 'stun'; g.t = 0; g.h = 0;
     ev.push({ type: 'stun', by });
 }
@@ -750,11 +790,12 @@ function _gull(s, dt, ev) {
     const g = s.gull, c = s.crab, lv = s.lv.gull;
     g.t += dt; g.cool = Math.max(0, g.cool - dt);
     const dc = dist(g.p, c.p), cTop = dist(c.p, TOP), zone = lv.zone || [5.7, 9.1], onShelf = cTop < zone[1] && cTop > zone[0];
+    if (g.state === 'walk' || g.state === 'flee' || g.state === 'ground' || g.state === 'stun') g.b = floorAt(s, g.p);
     if (g.state === 'walk' || g.state === 'flee') {
         // round the shelf (fleeing: away from the crab, twice as fast)
         const away = g.state === 'flee' && dot(tangent(g.p, cross(TOP, g.p)), toward(g.p, c.p)) > 0 ? -1 : 1;
         g.p = walk(g.p, tangent(g.p, cross(TOP, g.p)), (away * GULL.speed * (g.state === 'flee' ? 2 : 1) * dt) / R);
-        g.p = at(lv.ring, lonOf(g.p));
+        { const dd = dist(g.p, TOP), back = Math.sign(lv.ring - dd) * Math.min(Math.abs(lv.ring - dd), 3 * dt); g.p = at(dd + back, lonOf(g.p)); }
         if (g.state === 'flee' && g.t > GULL.flee) { g.state = 'walk'; g.t = 0; g.cool = GULL.cool; }
         else if (g.state === 'walk' && !g.loot && g.cool <= 0 && onShelf && dc < GULL.see) { g.state = 'rise'; g.t = 0; ev.push({ type: 'gull-up' }); }
     } else if (g.state === 'rise') {
@@ -769,7 +810,8 @@ function _gull(s, dt, ev) {
         const k = Math.min(1, g.t / GULL.dive); g.p = norm(mix(g.from, g.tx, 1 - k, k)); g.h = GULL.high * (1 - k);
         if (k >= 1) {
             g.h = 0;
-            if (g.state === 'dive' && dist(c.p, g.p) < GULL.hit && c.h < 0.6) {
+            g.b = floorAt(s, g.p);
+            if (g.state === 'dive' && dist(c.p, g.p) < GULL.hit && c.h - g.b < 0.6) {
                 if (c.nuts > 0) { c.nuts--; g.loot = 1; g.state = 'flee'; g.t = 0; ev.push({ type: 'steal' }); }
                 else { g.state = 'ground'; g.t = 0; _reset(s, ev, 'peck'); }
             } else { g.state = g.state === 'land' ? 'walk' : 'ground'; g.t = 0; g.cool = GULL.cool; if (g.state === 'ground') ev.push({ type: 'gull-miss' }); }
@@ -852,7 +894,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     if (!c.air && !c.climb && (lv.pads || []).some(k => dist(c.p, k.p) < k.r)) { c.h = PAD_H; c.air = true; c.vh = PAD_CRAB_V; ev.push({ type: 'pad', p: c.p }); }      // (a jelly pad throws a crab up as soon as it steps on)
     if (!c.air && !c.climb) {
         const f = floorAt(s, c.p);
-        if (c.h < f && f - c.h <= STEP_UP) c.h = f; else if (c.h > f + 1e-6) { c.air = true; c.vh = 0; }
+        if (c.h < f && f - c.h <= STEP_UP) c.h = f; else if (c.h > f + 0.08) { c.air = true; c.vh = 0; } else if (c.h > f) c.h = f;
         if (!c.air) c.coy = COYOTE_S;
     } else c.coy = Math.max(0, c.coy - dt);
 
@@ -867,8 +909,8 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
         const g = s.gull;
         const fly = s.nuts.find(n => n.state === 'fly' && !n.used && n.age > 0.2 && dist(n.p, c.p) < TRICK_R && c.h >= n.h - 0.15 && c.h - n.h < TRICK_GAP);
         if (fly) { fly.used = true; fly.vh = -5; c.vh = BOUNCE_V; ev.push({ type: 'trick', nut: fly, h: c.h }); }
-        else if (c.vh < 0 && g && g.state !== 'rise' && g.state !== 'circle' && g.h < 3 && dist(g.p, c.p) < GULL.hit + 0.1 && was >= g.h + GULL.top && c.h <= g.h + GULL.top + 0.05) {
-            c.h = g.h + GULL.top; c.vh = BOUNCE_V; ev.push({ type: 'stomp' }); _stun(s, ev, 'stomp');
+        else if (c.vh < 0 && g && g.state !== 'rise' && g.state !== 'circle' && g.h < 3 && dist(g.p, c.p) < GULL.hit + 0.1 && was >= g.h + (g.b || 0) + GULL.top && c.h <= g.h + (g.b || 0) + GULL.top + 0.05) {
+            c.h = g.h + (g.b || 0) + GULL.top; c.vh = BOUNCE_V; ev.push({ type: 'stomp' }); _stun(s, ev, 'stomp');
         } else if (c.vh < 0) {
             const n = nutUnder(s, c.p), nt = n ? floorAt(s, n.p) + NUT_TOP : 0, fl = floorAt(s, c.p);
             if (n && was >= nt && c.h <= nt) { c.h = nt; c.vh = BOUNCE_V; ev.push({ type: 'bounce', nut: n }); }
@@ -892,6 +934,7 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
     // The tide: up and down on its clock. Caught standing below the water in the lagoon, the crab is swept back to its flag.
     if (lv.tide) {
         const was = s.tideW || 0; s.tideW = tideAt(lv, s.t);
+        for (const n of s.nuts) if (n.state === 'rest' && !inTide(lv, n.p)) n.h = floorAt(s, n.p);
         if ((s.tideW > was) !== (s.tideRise || false)) { s.tideRise = s.tideW > was; ev.push({ type: s.tideRise ? 'tide-in' : 'tide-out' }); }
         if (!c.air && inTide(lv, c.p) && c.h < s.tideW - 0.35) { _reset(s, ev, 'swept'); return ev; }
     }
@@ -936,9 +979,11 @@ export function step(s, dt, stick = { x: 0, y: 0 }) {
 
     // Plates: held down by the crab on the ground, or a coconut at rest.
     for (const pl of lv.plates || []) {
-        const ph = floorAt(s, pl.p), on = (!c.air && dist(c.p, pl.p) < pl.r && Math.abs(c.h - ph) < 0.3) || s.nuts.some(n => (n.w || 0) === (s.w || 0) && n.state === 'rest' && dist(n.p, pl.p) < pl.r && Math.abs(n.h - ph) < 0.3);
+        const ph = floorAt(s, pl.p), g0 = s.gull, on = pl.heavy ? !!(g0 && (g0.state === 'ground' || g0.state === 'stun') && g0.h < 0.1 && dist(g0.p, pl.p) < pl.r)
+            : (!c.air && dist(c.p, pl.p) < pl.r && Math.abs(c.h - ph) < 0.3) || s.nuts.some(n => (n.w || 0) === (s.w || 0) && n.state === 'rest' && dist(n.p, pl.p) < pl.r && Math.abs(n.h - ph) < 0.3);
         const gs = gatesOf(pl);
-        if (on !== !!s.held[gs[0]]) { for (const g of gs) s.held[g] = on; ev.push({ type: on ? 'press' : 'release', plate: pl }); }
+        if (on !== !!s.held[gs[0]]) { for (const g of gs) { s.held[g] = on; if (!on && pl.secs) s.open[g] = pl.secs; } ev.push({ type: on ? 'press' : 'release', plate: pl, heavy: !!pl.heavy, secs: pl.secs || 0 }); }
+        if (on && pl.secs && !pl.heavy) for (const g of gs) delete s.open[g];
     }
     (lv.checks || []).forEach((p, i) => { const z = lv.zones && lv.zones[i], dT = dist(c.p, TOP); if (i > s.cp && !c.air && (dist(c.p, p) < CHECK_R || (z && dT > z[0] && dT < z[1]))) { s.cp = i; ev.push({ type: 'check', i, p }); } });
     if (!c.air && lv.goal && dist(c.p, lv.goal) < GOAL_R && (!s.boss || s.boss.state === 'down')) { s.won = true; ev.push({ type: 'won', t: s.t, falls: s.falls }); }

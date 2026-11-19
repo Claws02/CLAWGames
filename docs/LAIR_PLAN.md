@@ -253,3 +253,70 @@ what the grid says, so the search that proves a layout and the game can never di
   where taking away the ramp, or making the block a pillar, leaves no way at all. Its 15 moves: in at column 5 and bump the block;
   push it, and it rides down the steps to stop by the bridge; round and down to the cracked cell under the plate (by the ramp); a
   coconut onto the plate; round to the block, and up the bridge. `qa/lair-world1.mjs` plays it with the stick and the throw button.
+
+**Obsidian Slide, play-test 2** ("I can't finish it, and it isn't obvious I'm meant to place a coconut; no pop-ups to tell people
+what to do"). Played through the real joystick, it worked when you knew the answer, so the problems were in reading it:
+- The start faced a pillar at the lake's edge, so walking straight on bounced you back. The start is now in line with the open
+  column, and coming on beside a pillar puts you in the free cell next to it.
+- **Slide previews**: stopped on the glass, a dotted trail shows where each of the four ways would take you, with a mark at the
+  end (white ring: you'd stop; red: lava; gold: up the bridge; blue: back on the rim), and the block's trail and where it would
+  end up if it's a push. On the rim by the edge, the trail shows where coming on here goes.
+- **The coconut**: one now lies on the glass at a cell you stop on (you pick it up), so none needs carrying from the palm. Holding
+  one, a green arc shows any throw from where you are that would end on the plate, and the plate flashes green.
+- **A way back up**: a second ramp, on the middle step, slides you back onto the rim (the lake sets back). No more being stuck
+  low down with only the lava to reset it.
+- **Picture signs** (`signs: [{ p, kind, look, rock? }]`, drawings in `Signs.js`): a signpost by each new thing. The board
+  is a little looping picture of a ghost crab acting the rule out (slide and no jumping, push, cracked glass, the plate and gate,
+  the ramp, the lava setting the lake back). It plays while you're near, and a sparkle hangs over each one you haven't visited.
+  No words, nothing pops up. More kinds are drawn for World 1 (pick up, throw, bounce, vent, current, gull, bullseye, climb).
+- The stick needs less of a push on the glass (a third of the way out), and cracked glass is drawn brighter.
+
+**Low Tide, play-test** ("the island you spawn on should rise with the water, for the rising water to make sense"). At high tide
+the lagoon stood 2 above the beach and stopped at its edge like a wall. Now the beach is a **floating island** (`ride: true` on
+its ledge): it rises and falls with the tide (always 0.3 over the water), and the crab, its coconuts, the palm, the flag and the
+kelp on it ride with it. The crab follows the ground down as it sinks (no falling in little hops). From the risen island a
+coconut could have reached the lighthouse plate, which would skip the raft, so the lighthouse rock moved in toward the mesa
+(`at(6.2, 85)`): no throw from the island (or from the sand, or from the middle raft at low tide) reaches it; from the raft by the mesa
+at high tide one does. The jelly and its post moved out onto the sand (a low-tide golden shell).
+
+**Bubble Stream bank shot, play-test** ("still terrible, needs a big update on the 3D"). The bullseye hid behind a wall of grey
+boulders, so from the spot you couldn't see what you were aiming at, and the bumper was a flat yellow board. Now (the rules are
+unchanged, so the bot still proves it):
+- The alcove and the chute are **glass** (`look: 'glass'` on the ring and the bars): clear crystal panels in a frame. You see the
+  bullseye through them, and a coconut bounces off them, so it reads as "you can see it, but not hit it straight".
+- The bumper is a **pinball bumper**: a fat pink rubber cushion between two white posts with springs, a white star where to hit it.
+- The bullseye you bank into is bigger, raised, with a glow behind it.
+- The spot's path is two colours: yellow to the bumper, green on to the bullseye.
+- A **picture sign** at the spot loops the bounce (and a straight throw bonking off the glass); one by the jelly pad shows the
+  two vents (plug one, the other blows).
+
+**Chamber 3 rebuilt: The Gull's Roost** ("needs a big remodel, lacks depth; each world needs its own story, why you're doing things").
+Story, told in the world: Old Ink paid his gull with the pearl, and it keeps it in its nest on a sea stack behind an old fishing
+village. The arrival card has the one line; Old Ink's inky note by the start shows it in pictures; the nest of stolen coconuts and
+the pearl sit high on the stack, in view from the start. Four layers: the beach, a lower boardwalk on stilts (1 high), the gull's
+upper deck (3.2: out of a jump's reach), the moat, and the roost (5). The gull is used three ways:
+- **Hit it**: it starts with a stolen coconut in its beak (`gull.loot`) and won't dive while it holds one; a coconut thrown at it
+  (from back on the boardwalk: closer, the deck's edge blocks the lob) stuns it and it drops it on the deck.
+- **Bounce on it**: it dives where you stand (its zone now takes in the boardwalk); step aside, jump on its back as it lands:
+  up onto the deck. A coconut to bounce on works too, but stays behind.
+- **Bait it**: the **heavy plate** (`plates: [{ heavy: true, secs: 8 }]`) only the gull is heavy enough for. Stand on it till it
+  dives, step off; it lands on the plate and the **drawbridge** (a ledge with a `gate`: there only while open) comes down, and stays
+  down 8 s after the gull flies off. Then a coconut on the nest's plate drops its fence: the pearl.
+The gull's height is now over the ground it's on (`gull.b`), so it walks decks and boardwalks, and it walks home to its ring
+instead of popping back. 3D: boardwalks of planks on stilts (`open` ledge palettes), fishing huts on stilts, a crow's-nest mast,
+an iron heavy plate with a gull's footprint, the drawbridge standing up on its chains when shut, the nest of twigs and coconuts.
+Picture signs: Old Ink's note, the bullseye, hitting the gull, bouncing on its back, the heavy plate, the nest.
+Proven in `qa/lair-world1.mjs` (a bot plays it, 37 s, no falls), with tests that a crab or a coconut can't press the heavy plate,
+that the bridge holds 8 s then rises, that a laden gull never dives, and that the deck can't be jumped onto.
+
+**Story and signs across the whole lair** (piece 5, part 1). Each chamber's story line now says why you're there, as one chase:
+World 1 (the island): Old Ink grabs the Tide Pearl from your island's shrine and runs into his sandcastle fort; up the river to the
+mesa; past his gull's roost; cornered at the top of the Drowned Stair. World 2 (the coral caves): beaten, he slips down a sinkhole;
+up to the moon over the reef; across the lagoon at low tide; his deepest lair. World 3 (the volcano): beaten twice, he gives the
+pearl to his ally, the Hermit King. The chamber list shows each world's line under its heading.
+In the world: each world's first chamber has a **story note** (a picture sign: `story1`, `story2`, `story3`; the roost has Old
+Ink's own note); Coconut Beach has the island's **empty shrine** by the start, its cradle splashed with ink; every chamber has a
+short **trail of ink drips** from the start the way he went. **Every chamber now has picture signs** by each new thing (new
+drawings: cracked wall, logs, sand block, plate gate, timed bullseye, sinkholes, launch pad, tide, crumbling tiles, steam jets,
+Old Ink's slam). `qa/lair-world1.mjs` checks every chamber has signs, every sign is drawn, and each world opens with its story.
+

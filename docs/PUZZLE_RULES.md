@@ -119,8 +119,29 @@ the first time it matters (`calm` vent, `🪜` ladder).
 | **Plate + gate** | a coconut resting on the plate opens the gate on the bridge (exit) | `plates: [[r, c]]` |
 | **Sliding coconut** | thrown on the lake: two cells out, then slides; stop on one to pick it up | (always) |
 
+| **Coconut on the glass** | lies on a cell from the start; stop there to pick it up | `nuts: [[r, c]]` |
+
 Prove a lake with `LakeGrid.solve(z, nuts)` (breadth-first over the grid rules, blocks, cracks and coconuts included), and check
 each piece matters: `solve` with the ramp taken away, or the block made a pillar, must find nothing.
+
+### Built for Low Tide
+| Piece | What it does | In the recipe |
+|---|---|---|
+| **Floating island** | a ledge that rises and falls with the tide; what's on it rides along | `ledges: [{ ..., ride: true }]` |
+
+### Built for The Gull's Roost
+| Piece | What it does | In the recipe |
+|---|---|---|
+| **Heavy plate** | only the gull, standing on it, is heavy enough; `secs` holds its gate that long after | `plates: [{ p, r, gate, heavy: true, secs }]` |
+| **Drawbridge** | a ledge that is only there while its gate is open (stands up on its chains when shut) | `ledges: [{ ..., gate }]` |
+| **Boardwalk** | a ledge of planks on stilts (open underneath) | `kind: 'boardwalk'` |
+| **Laden gull** | starts holding a stolen coconut; won't dive until hit (it drops it) | `gull: { ..., loot: 1 }` |
+
+### Teaching without pop-ups
+| Piece | What it does | In the recipe |
+|---|---|---|
+| **Picture sign** | a signpost whose board loops a little picture of a ghost crab doing the rule; plays when you're near; a sparkle until visited | `signs: [{ p, kind, look, rock? }]`, kinds in `Signs.js` |
+| **Previews** | show what a move would do before you make it (the lake's four trails, the green throw arc) | built in where a move is on a grid |
 
 ### Planned (each is one new rule)
 
