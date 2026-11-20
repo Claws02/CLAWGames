@@ -357,6 +357,26 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         const out = K.holeExit(h), sw = new T.Mesh(G.ring, basic(0x0e1a24, { transparent: true, opacity: 0.35, depthWrite: false, side: T.DoubleSide })); sw.scale.setScalar(0.6); put(sw, out, null, fl(out) + 0.07); scene.add(sw);
         return { h, g, lid, sw, k: 0 };
     });
+    if (!level.theme || level.theme === 'beach') {      // a beach that looks lived on: starfish, shells, driftwood, pebbles, tufts of dune grass (on the open sand only)
+        const avoid = [level.start, level.palm, ...(level.posts || []).map(k => k.p), ...(level.pads || []).map(k => k.p), ...(level.signs || []).map(k => k.p), ...(level.checks || [])];
+        const rnd = rngOf(4242); let made = 0;
+        for (let i = 0; i < 160 && made < 30; i++) {
+            const p = K.at((level.bank || 12) + 0.9 + rnd() * (19.8 - (level.bank || 12) - 0.9), rnd() * 360); if (avoid.some(a => a && K.dist(a, p) < 1.5) || fl(p) > 0.05) continue; made++;
+            const kind = i % 5, c = [0xff7a5c, 0xffb35c, 0xff8ad8][i % 3];
+            const g = kind === 0 ? Y.prop([0, 1, 2, 3, 4].map(k => ({ geo: G.coneLow, color: c, s: [0.16, 0.42, 0.06], p: [Math.sin(k * 1.257) * 0.17, 0.04, Math.cos(k * 1.257) * 0.17], r: [Math.PI / 2, k * 1.257, 0] })).concat([{ geo: G.sphLow, color: c, s: [0.22, 0.08, 0.22], p: [0, 0.04, 0] }]), { thick: 0.03 })      // a starfish
+                : kind === 1 ? Y.prop([{ geo: G.coneLow, color: 0xffe0ec, s: [0.26, 0.34, 0.26], p: [0, 0.12, 0], r: [0, 0, 1.3] }, { geo: G.sphLow, color: 0xff9ec4, s: [0.14, 0.14, 0.14], p: [-0.14, 0.06, 0] }], { thick: 0.03 })      // a shell
+                : kind === 2 ? Y.prop([{ geo: G.cylLow, color: 0xc9a27a, s: [0.18, 1.3, 0.18], p: [0, 0.09, 0], r: [0, 0, Math.PI / 2] }, { geo: G.cylLow, color: 0xb08a62, s: [0.1, 0.5, 0.1], p: [0.3, 0.2, 0.08], r: [0.5, 0, 0.9] }], { thick: 0.04 })      // driftwood
+                : kind === 3 ? Y.prop([0, 1, 2].map(k => ({ geo: G.rockSoft, color: [0xb7aec8, 0x9a90ae, 0xd0c8de][k], s: [0.28 - k * 0.06, 0.18 - k * 0.03, 0.24 - k * 0.05], p: [k * 0.22 - 0.2, 0.06, (k % 2) * 0.16] })), { thick: 0.03 })      // pebbles
+                : Y.prop([0, 1, 2, 3].map(k => ({ geo: G.coneLow, color: k % 2 ? 0x8fbf5a : 0x6fa64a, s: [0.07, 0.5 + k * 0.08, 0.07], p: [(k - 1.5) * 0.08, 0.25, (k % 2) * 0.06], r: [0, 0, (k - 1.5) * 0.2] })), { thick: 0.025 });      // dune grass
+            put(g, p, [rnd() - 0.5, 0.1, rnd() - 0.5], fl(p)); scene.add(g);
+        }
+    }
+    if (level.boss) {      // Old Ink's arena: puddles of ink, and his pots, broken
+        const keep = [...(level.plates || []).map(x => x.p), ...(level.targets || []).map(x => x.p), ...(level.signs || []).map(x => x.p)], rnd = rngOf(909);
+        for (let i = 0; i < 9; i++) { const p = K.at(3.4 + rnd() * 1.9, i * 40 + rnd() * 20); if (keep.some(k => K.dist(k, p) < 1.3)) continue;
+            if (i % 3) { const pu = new T.Mesh(G.disc, basic(0x3a1a6a, { transparent: true, opacity: 0.7, depthWrite: false })); pu.scale.set(0.5 + rnd() * 0.5, 1, 0.35 + rnd() * 0.4); put(pu, p, [rnd() - 0.5, 0, rnd() - 0.5], fl(p) + 0.03); scene.add(pu); }
+            else { const pot = Y.prop([{ geo: G.cylLow, color: 0xc98a5a, s: [0.5, 0.35, 0.5], p: [0, 0.17, 0] }, { geo: G.coneLow, color: 0xb0764a, s: [0.3, 0.3, 0.12], p: [0.3, 0.08, 0.1], r: [1.2, 0.4, 0] }, { geo: G.coneLow, color: 0xd99a6a, s: [0.22, 0.24, 0.1], p: [-0.28, 0.06, -0.12], r: [1.4, -0.6, 0] }], { thick: 0.04 }); put(pot, p, [rnd() - 0.5, 0, rnd() - 0.5], fl(p)); scene.add(pot); } }
+    }
     if (THEME.decor) {      // kelp and coral bushes on the open sand, away from anything you need to use
         const avoid = [level.start, level.palm, ...(level.holes || []).map(h => h.p), ...(level.posts || []).map(k => k.p), ...(level.pads || []).map(k => k.p), ...(level.spots || []).map(k => k.p)];
         const rnd = rngOf(907); let made = 0;
