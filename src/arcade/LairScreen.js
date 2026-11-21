@@ -114,6 +114,49 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
         const wall = { w, k: 0, last: -1, rebuild, inst };
         rebuild(1); inst.forEach(i => i.done()); walls.push(wall); return wall;
     }
+    // A rock wall in layers (strata): one solid mesh along the ring, banded in colour, bulging and stepping in and out a little band by
+    // band (small ledges), its top ragged; ink-outlined. Overgrown (moss on top, vines hanging down both faces, flowers in the seams)
+    // when o.moss.
+    function coralTops(w) {         // sea fans, tube corals and anemones along the top of a coral wall
+        const items = arcPoints(w, 1.1), rnd = rngOf(55 + Math.round(w.r * 3));
+        items.forEach((it, i) => { const base = fl(it.p) + 2.9, kind = i % 3;
+            const g = kind === 0 ? Y.prop([{ geo: G.coneLow, color: 0xb98be6, s: [0.8, 1.1, 0.1], p: [0, 0.55, 0] }, { geo: G.coneLow, color: 0xcaa2ef, s: [0.55, 0.8, 0.09], p: [0.2, 0.45, 0.02], r: [0, 0, -0.4] }], { thick: 0.04 })
+                : kind === 1 ? Y.prop([0, 1, 2].map(k => ({ geo: G.cylLow, color: [0xffb35c, 0xff9f45, 0xffc77f][k], s: [0.18, 0.5 + k * 0.25, 0.18], p: [(k - 1) * 0.2, 0.25 + k * 0.12, (k % 2) * 0.12] })), { thick: 0.04 })
+                : Y.prop([{ geo: G.sph, color: 0xff7ab8, s: [0.5, 0.3, 0.5], p: [0, 0.12, 0] }, ...[0, 1, 2, 3, 4].map(k => ({ geo: G.cylLow, color: 0xffb3d6, s: [0.06, 0.3, 0.06], p: [Math.cos(k * 1.26) * 0.16, 0.36, Math.sin(k * 1.26) * 0.16] }))], { thick: 0.03 });
+            put(g, it.p, [rnd() - 0.5, 0, rnd() - 0.5], base); scene.add(g); });
+    }
+    function strataWall(w, o) {
+        const items = arcPoints(w, 0.32), n = items.length; if (n < 2) return;
+        const rnd = rngOf(33 + Math.round(w.r * 7)), bands = o.bands, H = o.h, D = o.depth || 1.1, pos = [], col = [], cc = new T.Color();
+        const stepDeg = items.length > 1 ? Math.abs(items[1].deg - items[0].deg) : 1;
+        const top = items.map((_, i) => H * (0.88 + 0.12 * Math.sin(i * 0.9) + rnd() * 0.08));
+        const bulge = Array.from({ length: bands + 1 }, (_, b) => items.map((_, i) => (b % 3 === 2 ? 0.12 : 0) + 0.08 * Math.sin(i * 0.55 + b * 1.7) + rnd() * 0.04));
+        const V3 = (it, side, b, i) => { const hb = (b / bands) * top[i], off = side * (D / 2 + bulge[b][i]); return V(walk(it.p, it.f, -off / R)).multiplyScalar(R + fl(it.p) + hb); };
+        const push = (v, hex, k = 1) => { pos.push(v.x, v.y, v.z); cc.setHex(hex).multiplyScalar(k); col.push(cc.r, cc.g, cc.b); };
+        const quad = (a, b2, c2, d, hex, k) => { push(a, hex, k); push(b2, hex, k); push(c2, hex, k); push(a, hex, k); push(c2, hex, k); push(d, hex, k); };
+        const band = b => o.colors[b % o.colors.length];
+        for (let i = 0; i < n; i++) {
+            const j = (i + 1) % n; if (Math.abs(((items[j].deg - items[i].deg + 540) % 360) - 180) > stepDeg * 1.6) continue;        // (across a gap)
+            const a = items[i], b2 = items[j], k = 0.92 + ((Math.sin(i * 127.1 + 931.3) * 43758.5453) % 1 + 1) % 1 * 0.12;
+            for (const side of [1, -1]) for (let b = 0; b < bands; b++) quad(V3(a, side, b, i), V3(b2, side, b, j), V3(b2, side, b + 1, j), V3(a, side, b + 1, i), band(b), k * (side > 0 ? 1 : 0.94));
+            quad(V3(a, 1, bands, i), V3(b2, 1, bands, j), V3(b2, -1, bands, j), V3(a, -1, bands, i), o.moss ? C.moss : band(bands), 1);       // the top
+        }
+        // the ends of a wall with a gap: a face across each
+        const ends = []; for (let i = 0; i < n; i++) { const j = (i + 1) % n; const jump = Math.abs(((items[j].deg - items[i].deg + 540) % 360) - 180) > stepDeg * 1.6; if (jump) ends.push(i, j); }
+        for (const i of ends) for (let b = 0; b < bands; b++) quad(V3(items[i], 1, b, i), V3(items[i], -1, b, i), V3(items[i], -1, b + 1, i), V3(items[i], 1, b + 1, i), band(b), 0.85);
+        const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new T.Float32BufferAttribute(col, 3)); geo.computeVertexNormals();
+        const mesh = new T.Mesh(geo, Y.toon(0xffffff, { vertexColors: true, side: T.DoubleSide })); scene.add(mesh);
+        const line = new T.Mesh(Y.hull(geo, 0.06), Y.ink); line.renderOrder = -1; mesh.add(line);
+        if (!o.moss) return;
+        // moss along the top, vines hanging down both faces, flowers in the seams
+        const tops = items.filter((_, i) => i % 2 === 0), moss = Y.instanced(G.sphLow, tops.length, 0.05); scene.add(moss.body); if (moss.line) scene.add(moss.line);
+        tops.forEach((it, k) => { const i = items.indexOf(it); moss.set(k, stand(it.p, it.f, fl(it.p) + top[i] + 0.05, 0.6 + rnd() * 0.3, 0.32, D + 0.25, rnd() * 3), k % 2 ? C.moss : C.mossDark); }); moss.done();
+        const vines = []; items.forEach((it, i) => { if (i % 4 === 1) vines.push([it, i, 1]); if (i % 5 === 3) vines.push([it, i, -1]); });
+        const vm = Y.instanced(G.cylLow, vines.length, 0.03); scene.add(vm.body); if (vm.line) scene.add(vm.line);
+        vines.forEach(([it, i, side], k) => { const len = 0.6 + rnd() * 1.3, q = walk(it.p, it.f, -side * (D / 2 + 0.06) / R); vm.set(k, stand(q, it.f, fl(it.p) + top[i] - len / 2, 0.07, len, 0.07, 0), k % 2 ? C.vine : 0x55b84c); }); vm.done();
+        const fls = items.filter((_, i) => i % 6 === 2), fm = Y.instanced(G.sphLow, fls.length, 0.03); scene.add(fm.body); if (fm.line) scene.add(fm.line);
+        fls.forEach((it, k) => { const i = items.indexOf(it), side = k % 2 ? 1 : -1, q = walk(it.p, it.f, -side * (D / 2 + 0.14) / R); fm.set(k, stand(q, it.f, fl(it.p) + top[i] * (0.35 + (k % 3) * 0.18), 0.16, 0.16, 0.16, 0), [0xff7ab8, 0xffe45a, 0xffffff][k % 3]); }); fm.done();
+    }
     // A glass wall: clear crystal panels in a frame (you can see what's behind it, but a coconut bounces off). For a target you
     // must hit some other way than straight at it.
     function glassWall(w, hh) {
@@ -151,13 +194,10 @@ export function createLair(kit, level, hooks, shared = null) {      // (shared: 
     for (const w of level.rings || []) {
         const kind = w.kind || 'gate';
         if (kind === 'slide') continue;
-        if (kind === 'cliff') boulderWall(w, kind, [
-            { y0: 0, h: 1.3, thick: 0.13, color: C.cliff, depth: 1.5, inset: 0.4, wide: 1.3 },
-            { y0: 0.95, h: 1.15, thick: 0.12, color: C.cliff, depth: 1.25, inset: 0.58, wide: 1.25 },
-            { y0: 1.9, h: 0.8, thick: 0.11, color: [C.moss, C.mossDark], depth: 1.3, inset: 0.7, wide: 1.5 }], 0.7);
-        else if (kind === 'crater') boulderWall(w, kind, [{ y0: 0, h: 1.4, thick: 0.1, color: [0x9d94c2, 0x8a81b2, 0xb2aad4], depth: 1.6, wide: 1.4 }, { y0: 1.0, h: 1.0, thick: 0.09, color: [0xc2bbdc, 0xb0a8d0], depth: 1.1, inset: 0.2, wide: 1.3 }], 0.6);
+        if (kind === 'cliff') strataWall(w, { h: 3.2, bands: 7, depth: 1.5, colors: [0xc4742f, 0xd9893f, 0xe69b52, 0xb5652a, 0xd98a52, 0xf0b070, 0xc97a3a], moss: true });
+        else if (kind === 'crater') strataWall(w, { h: 2.3, bands: 5, depth: 1.5, colors: [0x8a81b2, 0x9d94c2, 0xb2aad4, 0x7a7298, 0xc2bbdc] });
         else if (kind === 'coralLow') boulderWall(w, kind, [{ y0: 0, h: 1.2, thick: 0.08, color: [0xff7f9e, 0xf06a8c, 0xffb35c], depth: 0.8, wide: 1.3 }, { y0: 0.9, h: 0.6, thick: 0.07, color: [0xb98be6, 0x6fe0c5], depth: 0.6, inset: 0.05, wide: 1.2 }], 0.42);
-        else if (kind === 'coral') boulderWall(w, kind, [
+        else if (kind === 'coral') { coralTops(w); } if (kind === 'coral') boulderWall(w, kind, [
             { y0: 0, h: 1.5, thick: 0.1, color: [0xff7f9e, 0xf06a8c, 0xff9bb3], depth: 1.4, wide: 1.4 },
             { y0: 1.1, h: 1.3, thick: 0.1, color: [0xb98be6, 0xa877dc, 0xcaa2ef], depth: 1.1, inset: 0.15, wide: 1.3 },
             { y0: 2.1, h: 0.9, thick: 0.09, color: [0xffb35c, 0xff9f45, 0x6fe0c5], depth: 0.9, inset: 0.3, wide: 1.2 }], w.r < 1.5 ? 0.45 : 0.6);
