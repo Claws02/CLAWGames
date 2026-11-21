@@ -137,8 +137,8 @@ const stream = (opt = {}) => {
 { const { s, ev, note } = stream();
   ok(note.b0 === 'A' && note.plug && note.viaPad && note.b1 === 'B', '2. BUBBLE STREAM: a coconut off the jelly pad bounces up onto the shelf and plugs vent A; now vent B blows');
   ok(note.terrace && note.tN === 2, '   vent B lifts the crab over the deep river; steering, it lands on the terrace (3.8 up) with two coconuts');
-  ok(note.green && note.banked, '   from the painted spot, a coconut thrown at the pink bumper glances down the chute into the bullseye: the green fence round the mesa drops');
-  ok(K.STREAM.rings.some(w => w.look === 'glass') && K.STREAM.bars.filter(b => b.kind === 'chute').every(b => b.look === 'glass') && K.STREAM.signs.some(s => s.kind === 'bank'), '   the bullseye sits behind glass (you see it, but can\'t throw straight at it), and a picture sign at the spot shows the bounce');
+  ok(note.green && note.banked, '   from the painted spot, a coconut thrown at the smooth rock face glances down the chute into the bullseye: the green fence round the mesa drops');
+  ok(K.STREAM.rings.some(w => w.look === 'coralcave') && K.STREAM.bars.some(b => b.kind === 'bumper' && b.look === 'rock') && K.STREAM.signs.some(s => s.kind === 'bank'), '   the bullseye sits in a coral cave whose mouth faces only the rock-face bumper; a picture sign at the spot shows the bounce');
   ok(note.mesa, '   up the ramp onto the mesa (7.5 up)');
   ok(note.gold && note.knock, '   a coconut knocks the hanging one loose; it drops onto the pillar\'s plate and the gold fence drops');
   ok(s.won && s.falls === 0, `   the pearl (${s.t.toFixed(0)} s, no falls)`);

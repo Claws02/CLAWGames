@@ -168,14 +168,14 @@ export const BEACH = {
 //       · a stone post with a golden shell on top, a jelly pad by it; a crystal cage with another (opened by the log's bullseye)
 //   the river: deep, all the way round; logs drift on it (one carries a bullseye)            10 – 12.5
 //   the middle terrace (3.8 high)                                  4.6 – 9.6
-//       · the bank shot: a painted spot, a pink bumper in a deep pool, a bullseye in an alcove that faces only the bumper
+//       · the bank shot: a painted spot, a smooth rock face in a deep pool, a bullseye in an alcove that faces only the bumper
 //       · a ramp up to the mesa; the green fence round the mesa (the bullseye holds it open)
 //       · a pillar (9 high) with a plate on top, a coconut hanging over it from the mesa's palm
 //   the mesa (7.5 high), the pearl inside the gold fence (the plate holds it open)               0 – 4.6
 // THE ANSWER. Throw a coconut onto the jelly pad: it bounces up onto the shelf and into vent A, so B blows. Ride B over the river
-// onto the terrace. From the painted spot, bank a coconut off the pink bumper into the bullseye: the green fence drops. Up the
+// onto the terrace. From the painted spot, bank a coconut off the smooth rock face into the bullseye: the green fence drops. Up the
 // ramp to the mesa; put a coconut on the pillar's plate (lob one, or knock the hanging one down onto it): the gold fence drops.
-// The bank shot: stand on the painted spot (SPOT), throw at the pink bumper (BUMP) standing in a deep pool, and it glances off into
+// The bank shot: stand on the painted spot (SPOT), throw at the smooth rock face (BUMP) standing in a deep pool, and it glances off into
 // the bullseye in its alcove (ALCOVE), which faces only the bumper. The bumper is set at the angle that sends a coconut from the spot
 // to the bullseye; a coconut that falls in the pool washes back up at the spot.
 const SPOT = at(8.0, 82), BUMP = at(5.5, 94), ALCOVE = at(8.3, 106), PILLAR = at(5.3, -60);
@@ -188,7 +188,7 @@ const CHUTE = [[_cw(0.55, 0.5), _cw(_len - 0.4, 0.5)], [_cw(0.55, -0.5), _cw(_le
 export const STREAM = {
     id: 'stream', name: 'BUBBLE STREAM', world: 1, fast: 120, pay: 20, start: at(18.4, 0), goal: TOP, palm: at(17.7, -42), bank: 12.5,
     story: 'He fled up the river to the old mesa. The river is too deep to swim: ride the vents up, and bank a shot past his gate.',
-    hints: ['Vent A is up on the rock shelf, too high to throw to. The jelly pad in front has an arrow: whatever lands on it is thrown that way.', 'With A plugged, vent B blows: ride it over the river and steer onto the terrace.', 'The bank shot: stand on the painted spot, and throw at the pink bumper in the pool. It bounces the coconut into the bullseye (follow the green dots). The aim turns green when it will hit.', 'Up on the mesa, the plate is on top of the pillar. Lob a coconut onto it, or knock the hanging coconut down.', 'Golden shells: on the post by the beach (bounce on the jelly), in the cage (hit the bullseye on the log), over the river (steer through it riding vent B).'],
+    hints: ['Vent A is up on the rock shelf, too high to throw to. The jelly pad in front has an arrow: whatever lands on it is thrown that way.', 'With A plugged, vent B blows: ride it over the river and steer onto the terrace.', 'The bank shot: stand on the painted spot, and throw at the smooth rock face in the pool. It bounces the coconut into the bullseye (follow the green dots). The aim turns green when it will hit.', 'Up on the mesa, the plate is on top of the pillar. Lob a coconut onto it, or knock the hanging coconut down.', 'Golden shells: on the post by the beach (bounce on the jelly), in the cage (hit the bullseye on the log), over the river (steer through it riding vent B).'],
     ground: [[4.6, 'stone'], [9.6, 'grass'], [10, 'sand'], [12.5, 'sea'], [99, 'sand']],
     checks: [at(18.4, 0), at(8.6, 0)], zones: { 1: [4.7, 9.5] },
     ledges: [
@@ -198,10 +198,10 @@ export const STREAM = {
     ],
     rings: [
         { r: 4.4, h: 20, gate: 'green', kind: 'gate' }, { r: 1.8, h: 20, gate: 'gold', kind: 'gate' },       // (the green fence runs round the whole mesa)
-        { c: ALCOVE, r: 0.9, h: 7, gap: [lonOf(BUMP, ALCOVE), 26], kind: 'cove', look: 'glass' },      // (glass: you see the bullseye, but can't throw through)
+        { c: ALCOVE, r: 0.9, h: 7, gap: [lonOf(BUMP, ALCOVE), 26], kind: 'cove', look: 'coralcave' },      // (a coral cave: its mouth faces only the bumper)
         { c: at(16, -100), r: 0.9, h: 9, gate: 'cage', kind: 'gate' },
     ],
-    bars: [{ a: BUMP_A, b: BUMP_B, h: 7, kind: 'bumper' }, ...CHUTE.map(([a, b]) => ({ a, b, h: 7, kind: 'chute', look: 'glass' }))],
+    bars: [{ a: BUMP_A, b: BUMP_B, h: 7, kind: 'bumper', look: 'rock' }, ...CHUTE.map(([a, b]) => ({ a, b, h: 7, kind: 'chute', look: 'coral' }))],
     posts: [{ p: PILLAR, r: 0.55, h: 9 }, { p: at(16.6, 110), r: 0.5, h: 3 }],
     pads: [{ p: at(16.5, 60), r: 1.0, to: at(14.3, 60) }, { p: at(17.6, 110), r: 0.7 }],
     pools: [{ p: POOL, r: dist(BUMP, ALCOVE) / 2 + 0.6, to: SPOT }, { p: ALCOVE, r: 1.9, to: SPOT }, { p: BUMP, r: 1.5, to: SPOT }],
@@ -216,7 +216,7 @@ export const STREAM = {
     gold: [{ p: at(16.6, 110), h: 3 }, { p: at(16, -100), h: 0 }, { p: at(11.6, 6), h: 4.4 }],
     signs: [{ p: walk(SPOT, tangent(SPOT, toward(SPOT, BUMP)), -1.3 / R), kind: 'bank', look: walk(SPOT, tangent(SPOT, toward(SPOT, BUMP)), -4 / R) }],
     npcs: [{ p: at(17.4, 24), who: 'turtle', look: at(18.4, 0), say: ['Old Ink fled up the river to the mesa!', 'Vent A is too high to throw to. Toss a coconut on the jelly pad: it throws it up for you.', 'Plug one vent and the other one blows. Ride it over the river.'] },
-        { p: at(8.4, 66), who: 'turtle', look: at(8.6, 30), say: ['Don\'t throw at the bullseye: it\'s behind glass.', 'Throw at the pink bumper from the yellow spot. It bounces round into the bullseye.'] }],
+        { p: at(8.4, 66), who: 'turtle', look: at(8.6, 30), say: ['Don\'t throw at the bullseye: it\'s tucked in a coral cave.', 'Throw at the smooth rock face from the yellow spot. It bounces into the cave.'] }],
 };
 
 // 3. THE GULL'S ROOST: Old Ink paid his gull with the pearl, and it keeps it in its nest on a sea stack behind an old fishing village.
