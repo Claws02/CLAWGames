@@ -116,7 +116,8 @@ export const STAIR = {
     targets: [{ p: at(4.2, -100), gate: 'eye' }],
     gull: { ring: 7.5, from: 60 },
     boss: true,
-    signs: [{ p: at(16.6, 18), kind: 'current', look: at(18.4, 0) }, { p: at(16.6, -18), kind: 'vent', look: at(18.4, 0) }, { p: at(8.2, 6), kind: 'gull', look: SHELF }, { p: at(6.4, 40), kind: 'boss', look: SHELF }],
+    npcs: [{ p: at(16.8, 20), who: 'turtle', look: at(18.4, 0), say: ['Old Ink is at the top of the stair! The current drags you onto his urchins.', 'Drop a coconut in the water: the current carries it into the cove vent. Then the other vent blows.'] },
+        { p: at(8.2, 4), who: 'turtle', look: SHELF, say: ['Old Ink slams an arm down where the red ring is. Dodge it!', 'Right after a slam, hit his head with a coconut.'] }],
 };
 
 // ── World 1: learning the claws ─────────────────────────────────────────────
@@ -155,9 +156,9 @@ export const BEACH = {
     targets: [{ p: at(2.7, -60), gate: 'blue', secs: 6 }],
     posts: [{ p: at(18.9, -150), r: 0.55, h: 1.1, kind: 'shrine' }],
     gold: [{ p: at(17.7, -42), h: 2.8 }, { p: at(15, 130), h: 3 }, { p: at(12, 200), h: 1.3 }],
-    signs: [{ p: at(19.2, 40), kind: 'story1', look: at(18.6, 0) }, { p: at(16.9, -54), kind: 'pick', look: at(18.6, -20) }, { p: at(16.2, -18), kind: 'crackwall', look: at(18.2, 0) },
-        { p: at(16.4, 76), kind: 'climb', look: at(18.2, 50) }, { p: at(14.4, -16), kind: 'log', look: at(16, 0) }, { p: at(9.4, 22), kind: 'pushsand', look: at(9.8, 0) },
-        { p: at(6.6, 48), kind: 'gate', look: at(7.4, 20) }, { p: at(5.0, -36), kind: 'timed', look: at(6.4, 0) }],
+    npcs: [{ p: at(17.6, 22), who: 'turtle', look: at(18.4, 0), say: ['Old Ink took our Tide Pearl and ran into his sandcastle!', 'Grab coconuts from the palm. Hold the coconut button, then let go to throw.', 'That cracked bit of wall? Two good hits knock it down.'] },
+        { p: at(14.6, -14), who: 'turtle', look: at(16, 0), say: ['The moat is too deep to swim. Jump onto a log as it drifts by.', 'Push the sand block against the wall, hop on it, then up onto the wall.'] },
+        { p: at(6.4, 30), who: 'turtle', look: at(7.4, 0), say: ['A coconut on the red plate drops the red gate.', 'The blue bullseye only opens its gate for a few seconds. Be quick!'] }],
 };
 
 // 2. BUBBLE STREAM: a river valley on three levels.
@@ -213,7 +214,9 @@ export const STREAM = {
     targets: [{ p: ALCOVE, gate: 'green', tall: 1.4 }, { p: at(11.25, 0), log: 0, gate: 'cage' }],
     hangs: [{ p: PILLAR, h: 9.9 }],
     gold: [{ p: at(16.6, 110), h: 3 }, { p: at(16, -100), h: 0 }, { p: at(11.6, 6), h: 4.4 }],
-    signs: [{ p: walk(SPOT, tangent(SPOT, toward(SPOT, BUMP)), -1.3 / R), kind: 'bank', look: walk(SPOT, tangent(SPOT, toward(SPOT, BUMP)), -4 / R) }, { p: at(17.4, 40), kind: 'vent', look: at(18.4, 0) }, { p: at(9.0, -20), kind: 'gate', look: at(8.6, 0) }],
+    signs: [{ p: walk(SPOT, tangent(SPOT, toward(SPOT, BUMP)), -1.3 / R), kind: 'bank', look: walk(SPOT, tangent(SPOT, toward(SPOT, BUMP)), -4 / R) }],
+    npcs: [{ p: at(17.4, 24), who: 'turtle', look: at(18.4, 0), say: ['Old Ink fled up the river to the mesa!', 'Vent A is too high to throw to. Toss a coconut on the jelly pad: it throws it up for you.', 'Plug one vent and the other one blows. Ride it over the river.'] },
+        { p: at(8.4, 66), who: 'turtle', look: at(8.6, 30), say: ['Don\'t throw at the bullseye: it\'s behind glass.', 'Throw at the pink bumper from the yellow spot. It bounces round into the bullseye.'] }],
 };
 
 // 3. THE GULL'S ROOST: Old Ink paid his gull with the pearl, and it keeps it in its nest on a sea stack behind an old fishing village.
@@ -251,9 +254,9 @@ export const YARD = {
     gull: { ring: 6.6, from: 90, zone: [4.7, 12.7], loot: 1 },
     nest: true,
     gold: [{ p: at(10.8, -60), h: 2.6 }, { p: at(7.8, 180), h: 5.2 }, { p: at(2.0, 200), h: 5 }],
-    signs: [{ p: at(17.4, -16), kind: 'note', look: at(18.6, 0) }, { p: at(16.0, 46), kind: 'bullseye', look: at(18.4, 0) },
-        { p: at(11.6, 18), kind: 'stun', look: at(13.6, 0) }, { p: at(9.1, -14), kind: 'gullback', look: at(11, 0) },
-        { p: at(6.4, 30), kind: 'heavy', look: at(7.4, 0) }, { p: at(2.1, 30), kind: 'nest', look: at(2.6, 0) }],
+    npcs: [{ p: at(17.2, 16), who: 'turtle', look: at(18.4, 0), say: ['Old Ink paid his gull with our pearl. It keeps it in its nest up on the sea stack.', 'A coconut in the bullseye on the hut opens the net gate.'] },
+        { p: at(11.6, 20), who: 'turtle', look: at(13.6, 0), say: ['The gull has a stolen coconut. It won\'t dive while it holds one: knock it loose!', 'When it dives, step aside, then jump on its back. Boing!'] },
+        { p: at(6.4, 34), who: 'turtle', look: at(7.4, 0), say: ['That big plate is too heavy for a crab. Only the gull is heavy enough.', 'Stand on it till the gull dives, then step off. Down comes the drawbridge!'] }],
 };
 
 // ── World 2: the coral caves ────────────────────────────────────────────────
@@ -295,7 +298,7 @@ export const SINK = {
     spots: [{ p: THROWSPOT, via: H_THROW, gate: 'lid' }],
     drains: [{ p: PITC, r: 0.9, to: PITC }, { p: TOP, r: 6.8, to: THROWSPOT, unless: 'lid' }],
     gold: [{ p: anti(16.8, 0), h: 2.8 }, { p: at(12.5, -100), h: 3 }, { p: anti(4.2, 90), h: 2.2 }],
-    signs: [{ p: at(18.0, -2), kind: 'story2', look: at(18.6, -20) }, { p: at(17.6, -38), kind: 'hole', look: at(18.6, -20) }, { p: at(17.4, 72), kind: 'bank', look: THROWSPOT }],
+    npcs: [{ p: at(18.0, -2), who: 'seahorse', look: at(18.6, -20), say: ['Old Ink got away down a sinkhole!', 'Holes here go right through our little planet, and out the other side.'] }],
 };
 
 // 6. MOON POOL: a little moon, and a launch pad to it. Gates are shared between the two worlds, and the moon's gravity is half
@@ -326,7 +329,7 @@ export const MOONPOOL = {
     pads: [{ p: at(14.2, 110), r: 0.7 }],
     gold: [{ p: at(13.2, 110), h: 3 }],
     moon: MOON,
-    signs: [{ p: at(16.6, 20), kind: 'launch', look: at(18.4, 0) }],
+    npcs: [{ p: at(16.6, 20), who: 'seahorse', look: at(18.4, 0), say: ['His trail goes up to the little moon!', 'Step on the launch pad to fly there. What you do up there opens things down here.'] }],
 };
 
 // 7. LOW TIDE: a lagoon that floods and drains on a clock.
@@ -352,7 +355,7 @@ export const TIDE = {
     rafts: [{ p: at(5.4, 20), r: 0.9 }, { p: at(10.6, 50), r: 0.9 }, { p: at(10.4, -95), r: 0.9 }],
     plates: [{ p: at(6.2, 85), r: 0.75, gate: 'gold' }],
     gold: [{ p: at(13.6, 160), h: 0 }, { p: at(11, -110), h: 3.6 }, { p: at(12.6, 125), h: 3 }],
-    signs: [{ p: at(16.4, 22), kind: 'tide', look: at(18.4, 0) }],
+    npcs: [{ p: at(16.4, 22), who: 'seahorse', look: at(18.4, 0), say: ['The tide comes and goes. Don\'t get caught on the sand!', 'Wait on a raft, and the water lifts you up.'] }],
 };
 
 // 8. INK'S DEEP: Old Ink's second lair, World 2's boss. Two timed hazards on the way, then a harder fight.
@@ -375,7 +378,8 @@ export const DEEP = {
     jets: [...[25, 50, 75, 100, 125, 150].map((lon, i) => ({ p: CORR(lon), r: 0.8, period: 3, on: 1.0, phase: i * 0.9 })), ...[-25, -50, -75, -100, -125, -150].map((lon, i) => ({ p: CORR(lon), r: 0.8, period: 2.6, on: 1.0, phase: i * 0.7 })),
         ...[0, 60, 120, 180, 240, 300].map((lon, i) => ({ p: at(4.6, lon), r: 0.75, period: 3.4, on: 0.9, phase: i * 0.55, boss: true }))],
     gold: [{ p: CORR(90, 8.0), h: 0 }, { p: at(12.9, 25), h: 0 }, { p: at(3.4, 90), h: 2.6 }],
-    signs: [{ p: at(16.2, 14), kind: 'tiles', look: at(18.4, 0) }, { p: at(9.2, 16), kind: 'jets', look: at(9.0, 0) }, { p: at(6.6, 196), kind: 'boss', look: at(7.0, 180) }],
+    npcs: [{ p: at(16.2, 14), who: 'seahorse', look: at(18.4, 0), say: ['This is Old Ink\'s deepest lair. The tiles crumble: don\'t stop on them!'] },
+        { p: at(9.2, 16), who: 'seahorse', look: at(9.0, 0), say: ['Steam jets bubble first, then blast. Wait for the blast, then run past.'] }],
 };
 
 // ── World 3: the volcano ────────────────────────────────────────────────────
@@ -426,9 +430,9 @@ export const SLIDE = {
     posts: LAKE.pillars.map(([r, c]) => ({ p: lakeAt(LAKE, r, c), r: 0.34, h: lakeH(LAKE, r) + 1.5, kind: 'obsidian' })),      // (too tall to jump onto from the rim)
     gold: [[0, 8], [7, 1], [4, 8]].map(([r, c]) => ({ p: lakeAt(LAKE, r, c), h: lakeH(LAKE, r) })),
     // Picture signs, each by the first place its rule matters (on the rim, or on a basalt rock in the lava beside the lake).
-    signs: [{ p: at(18.6, 34), kind: 'story3', look: at(18.6, 10) }, { p: at(16.3, 32), kind: 'slide', look: at(18.2, 10) }, { p: at(16.3, -14), kind: 'push', look: at(18.2, 10) },
-        { p: lakeAt(LAKE, 3.5, -1.5), kind: 'crack', look: lakeAt(LAKE, 4, 4), rock: true }, { p: lakeAt(LAKE, 5.5, 9.5), kind: 'ramp', look: lakeAt(LAKE, 4, 4), rock: true },
-        { p: lakeAt(LAKE, 1, -1.5), kind: 'plate', look: lakeAt(LAKE, 2, 4), rock: true }, { p: lakeAt(LAKE, 7.6, 10.4), kind: 'lava', look: lakeAt(LAKE, 6, 4), rock: true }],
+    signs: [{ p: lakeAt(LAKE, 3.5, -1.5), kind: 'crack', look: lakeAt(LAKE, 4, 4), rock: true }],
+    npcs: [{ p: at(18.4, 30), who: 'hermit', look: at(18.2, 10), say: ['Old Ink gave the pearl to the Hermit King! I only just got away.', 'On the obsidian you can\'t walk or jump: you slide till something stops you. The dots show where.'] },
+        { p: lakeAt(LAKE, 1, -1.6), who: 'hermit', look: lakeAt(LAKE, 2, 4), rock: true, say: ['Coconuts slide too! One on the yellow plate opens the bridge.'] }],
 };
 
 export const CHAMBERS = [BEACH, STREAM, YARD, STAIR, SINK, MOONPOOL, TIDE, DEEP, SLIDE];

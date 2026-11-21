@@ -140,6 +140,7 @@ each piece matters: `solve` with the ramp taken away, or the block made a pillar
 ### Teaching without pop-ups
 | Piece | What it does | In the recipe |
 |---|---|---|
+| **Talking local** | Grandpa Turtle / Pip / Hermie: walk up and a speech bubble gives one short line at a time | `npcs: [{ p, who, look, say: [...] }]` |
 | **Picture sign** | a signpost whose board loops a little picture of a ghost crab doing the rule; plays when you're near; a sparkle until visited | `signs: [{ p, kind, look, rock? }]`, kinds in `Signs.js` |
 | **Previews** | show what a move would do before you make it (the lake's four trails, the green throw arc) | built in where a move is on a grid |
 

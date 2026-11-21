@@ -327,3 +327,12 @@ boardwalk courses and the shells and coconuts lying about get toon shading, and 
 windows are left without, and villagers stay plain, since phones draw every outline). Plain materials get a toon twin
 (`_tw` in Planet.js) so the city's runtime swaps (a hurt home, a tower's orb, the theme's leaf colour) still work.
 
+**Play-test: "the signs are way too large and too many; walking up to one should make it bigger; maybe characters that talk".**
+- **Talking locals** (`npcs: [{ p, who, look, rock?, say: [lines] }]`): Grandpa Turtle in World 1 (he saw Old Ink take the pearl),
+  Pip the seahorse in World 2, Hermie the hermit crab (who fled the Hermit King) in World 3. One to three a chamber, by each new
+  thing. Walk up and a comic speech bubble opens over their head (a sprite: it always faces you and walls never hide it), one short
+  line at a time, the next every few seconds; walk away and it closes. They turn to watch you and bob while they talk.
+- **Signs mostly gone**: only where a picture beats words (the bank shot in Bubble Stream, cracked glass in Obsidian Slide). They
+  start at half size; walk up and they grow to full size and turn to face you.
+- `qa/lair-world1.mjs` checks every chamber has its world's local, lines are short (110 letters at most), and at most one sign.
+
