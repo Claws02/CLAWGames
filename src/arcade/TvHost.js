@@ -21,6 +21,7 @@ import * as DrinkCard from './DrinkCard.js';
 import * as Confirm from './Confirm.js';
 // Namespace, not named: a phone with an older cached Together.js still boots.
 import * as Together from './Together.js';
+import * as Characters from './Characters.js';
 
 const $ = id => document.getElementById(id);
 const MEDALS = ['🥇', '🥈', '🥉', '4️⃣'];
@@ -53,6 +54,7 @@ export function init(show, current) {
     Room.on('stall', (kind, missing) => { if (active()) _force(kind, missing); });
     Room.on('result', r => { if (active()) { _force(null); _paintResult(r); } });
     Room.on('cmd', () => { if (active()) _captain(); });
+    Room.on('react', (seat, e) => { if (active()) _float(seat, e); });
     // A reloaded TV tab reopened its room (Together's REOPEN button).
     Room.on('resumed', () => { if (!active()) return; _played = []; _round = null; Vetoes.reset(); document.body.classList.add('tv'); _show('tvroom'); _paint(); });
     $('btn-tvr-force')?.addEventListener('click', () => { if (_forceKind === 'ready') Room.startNow(); else Room.finishNow(); _force(null); });
@@ -83,6 +85,37 @@ async function start() {
 
 /** Leaving the TV room (back, or the room closing). */
 export function stop() { document.body.classList.remove('tv'); }
+
+// ---- reactions ---------------------------------------------------------------
+// An emoji rises from the sender's row where one is on screen, and otherwise
+// from their slot along the bottom (seat order, left to right).
+function _float(seat, e) {
+    let layer = $('tv-reacts');
+    if (!layer) {
+        layer = document.createElement('div');
+        layer.id = 'tv-reacts';
+        layer.className = 'tv-reacts';
+        layer.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(layer);
+    }
+    const row = [...document.querySelectorAll(`.tv-screen:not([hidden]) .st-row[data-seat="${seat}"]`)][0];
+    const el = document.createElement('span');
+    el.className = 'tv-react';
+    el.textContent = e;
+    el.style.setProperty('--c', NET_COLORS[seat % NET_COLORS.length]);
+    if (row) {
+        const r = row.getBoundingClientRect();
+        el.style.left = `${r.left + 30 + Math.random() * Math.min(160, r.width - 60)}px`;
+        el.style.top = `${r.top + r.height / 2}px`;
+        row.classList.remove('bump'); void row.offsetWidth; row.classList.add('bump');
+    } else {
+        const n = Math.max(1, Room.seats().length);
+        el.style.left = `${((seat + 0.5) / n) * 100}%`;
+        el.style.top = '92%';
+    }
+    layer.appendChild(el);
+    setTimeout(() => el.remove(), 2600);
+}
 
 // The join link: this page, without the TV's own query, plus ?join=CODE.
 function _joinUrl() {
@@ -117,10 +150,18 @@ function _paintQr(href) {
     }).catch(() => { _qrLib = null; _qrFor = ''; });
 }
 
+// A player's face in their seat colour, or the phone emoji for a build or a
+// player that sent no character (and 💤 while away).
+function _dot(i, away) {
+    const char = Room.seats()[i]?.char, hex = NET_COLORS[i % NET_COLORS.length];
+    if (away || !char || !Characters.faceHTML) return away ? '💤' : '📱';
+    try { return Characters.faceHTML(char, parseInt(hex.slice(1), 16)); } catch (e) { return '📱'; }
+}
+
 function _rows(host, names, extra, away = []) {
     host.innerHTML = names.map((name, i) =>
-        `<div class="st-row${away[i] ? ' away' : ''}"><span class="st-place">${extra ? extra.place[i] : ''}</span>` +
-        `<span class="st-dot" style="background:${NET_COLORS[i % NET_COLORS.length]}">${away[i] ? '💤' : '📱'}</span>` +
+        `<div class="st-row${away[i] ? ' away' : ''}" data-seat="${i}"><span class="st-place">${extra ? extra.place[i] : ''}</span>` +
+        `<span class="st-dot" style="background:${NET_COLORS[i % NET_COLORS.length]}">${_dot(i, away[i])}</span>` +
         `<span class="st-name">${esc(name)}${i === 0 ? ' <small>captain</small>' : ''}${away[i] ? ' <small>away</small>' : ''}</span>` +
         `<span class="st-pts bfont">${extra ? extra.pts[i] : (Room.totals()[i] || 0)}</span></div>`).join('')
         || '<p class="hint">Nobody yet…</p>';

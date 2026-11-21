@@ -178,3 +178,48 @@ This is the one feature that changes what the product is: it goes from a static 
 - **Earned is permanent.** The date a trophy was earned is stored, so changing a rule later never takes one away, and nothing is announced twice.
 - **Stats are per phone, in `localStorage`.** Saves from before trophies existed are upgraded when they load. Per-friend stats (the design's "per friend") aren't built yet, because seats have no identities beyond Player 1–4.
 - A toast announces each new trophy after the game's result. The home screen shows `earned / 15` and opens the list, earned trophies first, locked ones with a progress bar.
+
+## 13. TV mode: the TV shows everyone playing (planned 2026-11-21)
+
+**One line:** a spare phone or tablet runs TV mode, is screen-mirrored (AirPlay / Cast) to the TV, hosts the room and never plays. The phones are the controllers, and **the TV shows every player playing every game**, not only the scores around it.
+
+### Decisions taken
+
+| Fork | Decision |
+|---|---|
+| The TV device | **A spare phone or tablet, mirrored.** TV screens are laid out for that first: landscape is two columns at any width, and a phone on its side shrinks the join card so the players stay in view. (The laptop-cast setup from #35 still works; it's no longer the target.) |
+| Who runs the room | As built in #35: the TV hosts with no seat, and the first phone in is the captain. |
+| What runs the games | **The TV runs them**, as one shared device runs them today, one seat per player. Each phone is a controller for its seat. For the parallel games, each player's playfield becomes a tile on the TV. |
+| Phone during a game | **Generic touchpad + mini status**: the phone maps 1:1 onto its seat on the TV, in its seat colour, with a strip for score/place and a buzz when hit. Custom per-game pads come later. |
+| Room size | 12, as built (#36). |
+| Between rounds | Party mode on the TV, bots filling seats, joining between rounds (built), emoji reactions (built here). |
+
+### The 12-player games
+
+On a TV the controls live on the phones, so a game's arena can hold more players than one phone's touch zones allow. These go to **12 seats on the TV**:
+
+| Kind | Games |
+|---|---|
+| Party arena | Musical Chairs, Tag |
+| Brawl | Sumo Spheres, Snowball Fight, Block Party, Turf War |
+| Race / survival | Sack Race, Rooftop Run, Light Cycles |
+| Others | Balloon Pump, Pancake Stack, Shell Game |
+| Parallel, as 12 tiles on the TV | Snap Strike, Odd One Out, Steady Hand, Loot Catch, Tree Climb, Mini Golf |
+
+That's 18 games. A game isn't dealt when there are more players than it seats, the same rule every mode follows.
+
+### Phases
+
+| Phase | Scope | Exit test |
+|---|---|---|
+| **1 · TV room** ✅ | Built in #35, #36 and #39. Added here: emoji reactions from the phones, floated up the TV from the sender's row; character faces on the TV's player rows; TV layout for a mirrored tablet or phone. | `qa/tvreact.js` · the existing online probes still pass |
+| **2 · TV runs a game** | A **live-round message** in Room (phone input → TV, about 30/s, straight to the host). The touchpad page with a status strip and haptics. claw-core: the seat cap goes from 4 to 12 (`MinigameManager.chooseParticipants`), room colours for 5–12, and a "screen" surface that draws every seat upright. **Sumo Spheres** end to end first. | Sumo played headless, TV + 2 phones; latency measured on real hardware |
+| **3 · The 12-player games** | The other 17 games, one at a time, each to 12 seats on the TV (spawns, arrays, colours, camera, bots), with HBD unchanged at 2–4. | A headless round of each at 2, 4 and 12 |
+| **4 · Party on the TV** | Best of 3/5/7 with standings and the podium on the TV; bots fill empty seats in TV-run games. | |
+| **later** | Custom phone pads for the most-played games; more games at 12. | |
+
+### Risks
+- **Latency.** Touch → WebRTC → TV → screen mirror (mirroring alone can add 100–300 ms). Measure it on real hardware in Phase 2 before building on it.
+- **The tablet's GPU.** One device draws a 12-player 3D arena and mirrors it. Frame time on a mid-range tablet is part of Phase 2's exit test.
+- **Twelve-way mesh.** Trystero connects every peer to every peer (78 links at 13 devices). Live input should go to the host only, never be broadcast.
+- **claw-core is shared.** Every seat-cap and game change lands in claw-core first; HundredBlockDash has to keep playing at 2–4.

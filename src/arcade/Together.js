@@ -87,7 +87,7 @@ export function init(show, goHome) {
     paintPlays();
     $('btn-net-host').addEventListener('click', async () => {
         _hint('Opening a room…');
-        try { await Room.host(_names(), { watch: !Store.load('hostPlays', true) }); _show('room'); _paintRoom(); _hint(''); }
+        try { await Room.host(_names(), { watch: !Store.load('hostPlays', true), chars: _chars(_names()) }); _show('room'); _paintRoom(); _hint(''); }
         catch (e) { _hint("Couldn't open a room. Check your connection and try again."); }
     });
     $('btn-net-join').addEventListener('click', async () => {
@@ -95,7 +95,7 @@ export function init(show, goHome) {
         if (!Room.codeOk(code)) return _hint('Room codes are 4 letters.');
         _hint('Joining…');
         try {
-            await Room.join(code, _names());
+            await Room.join(code, _names(), { chars: _chars(_names()) });
             _show('room'); _paintRoom();
             // Nobody answering is the common failure: wrong code, or the host's
             // network can't be reached peer-to-peer.
@@ -180,7 +180,40 @@ function _addName() {
     host.appendChild(row);
     row.querySelector('input').focus();
 }
+// Each player's character, for the TV's faces: a saved player by that name,
+// and for the first name (the phone's owner) the first player saved here.
+function _chars(names) {
+    const profs = Profiles.list();
+    return names.map((n, i) => (profs.find(p => p.name.toLowerCase() === n.toLowerCase()) || (i ? null : profs[0]))?.char || null);
+}
 const _hint = t => { $('net-hint').textContent = t; };
+
+// ---- reactions (TV rooms) ----------------------------------------------------------
+// One row of emoji, moved into whichever room screen is up. Built here rather
+// than in index.html so a phone with a cached page still gets it.
+let _reactBar = null, _reactAt = 0;
+function _paintReacts() {
+    const list = Room.REACTIONS || [];
+    if (!_reactBar && list.length) {
+        _reactBar = document.createElement('div');
+        _reactBar.className = 'net-reacts';
+        _reactBar.id = 'net-reacts';
+        _reactBar.innerHTML = list.map(e => `<button class="react-btn" data-e="${e}" aria-label="Send ${e} to the TV">${e}</button>`).join('');
+        _reactBar.addEventListener('click', ev => {
+            const b = ev.target.closest('.react-btn');
+            if (!b || Date.now() - _reactAt < 700) return;
+            _reactAt = Date.now();
+            Room.react?.(b.dataset.e);
+            b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+            try { navigator.vibrate?.(15); } catch (e) {}
+        });
+    }
+    if (!_reactBar) return;
+    const on = Room.isTv() && !Room.isHost() && Room.mySeats().length > 0;
+    _reactBar.hidden = !on;
+    const scr = ['room', 'netcard', 'netresult'].map(n => $('scr-' + n)).find(el => el && !el.hidden);
+    if (on && scr && _reactBar.parentElement !== scr) scr.appendChild(_reactBar);
+}
 
 // START / FINISH WITHOUT THEM: shown to the host once a round has waited on
 // somebody for a while (Room 'stall'); kind null hides it.
@@ -298,6 +331,7 @@ function _paintRoom() {
         : seats.length < 2
         ? (host ? `Share the code. Friends tap Play Together, then JOIN with ${Room.code()}. Keep this phone on: the room lives here.` : 'Connecting to the host…')
         : (host ? `${seats.length} players in. Pick a game! Keep this phone on: the room lives here.${Room.sharedPhone() ? ' A phone is shared: games marked ⚠ show the answers to whoever plays second, so SURPRISE ME skips them.' : ''} Tap a player to remove them.` : 'Waiting for the host to pick a game…');
+    _paintReacts();
 }
 let _lastRefusal = null;
 Room.on('refused', reason => { _lastRefusal = reason; });
@@ -319,6 +353,7 @@ function _showCard() {
     $('nc-wait').textContent = Room.mySeats().length > 1
         ? 'Everyone plays the same challenge. This phone gets passed round its players. Top score wins.'
         : 'Everyone plays the same challenge at once. Top score wins.';
+    _paintReacts();
 }
 
 // Each player on this phone plays the same seed in turn; one report at the end.
@@ -431,6 +466,7 @@ function _showResult(r) {
     $('btn-nr-next').hidden = !(Room.isHost() || Room.isCaptain());
     $('btn-nr-next').textContent = Room.isCaptain() ? '🎡 SPIN THE NEXT ONE →' : 'NEXT GAME →';
     $('nr-wait').textContent = Room.isHost() || Room.isCaptain() ? '' : Room.isTv() ? 'Watch the TV for the next game…' : 'Waiting for the host to pick the next game…';
+    _paintReacts();
 }
 
 /** One line on the round's drinks: who hands out a sip, and the new rule. */

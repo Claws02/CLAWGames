@@ -140,7 +140,7 @@ for one has them.
 ## Tests
 
 `README.md` lists every probe. The online ones, all on the `?net=local` loopback in
-headless Chromium: `qa/together.js`, `qa/hostwatch.js`, `qa/tv.js`, `qa/drinking.js`
+headless Chromium: `qa/together.js`, `qa/hostwatch.js`, `qa/tv.js`, `qa/tvreact.js`, `qa/drinking.js`
 (12 phones), `qa/ghosts.js`, `qa/phonegames.js`, `qa/shellrace.js`. **None of the online play has been
 tried on real phones over real WiFi yet**: that's the first job of the audit.
 
@@ -157,6 +157,7 @@ tried on real phones over real WiFi yet**: that's the first job of the audit.
    removing a player, score/ghost caps and the privacy note followed (roadmap PRs 5–8); the
    ghost leak fix is claw-core #41.
 3. **Room UX (P1)**: a live score rail.
+   **TV mode** is next: the TV runs the games and shows everyone playing, 18 games at up to 12 (`DESIGN.md` §13). Emoji reactions and faces on the TV are in.
 4. **More online games (P2)**: easy conversions are High Noon, Grid Recall, Rhythm
    Forge, Pinball; medium are Bowling, Block Party, Sack Race, Red Light Green Light,
    Rooftop Run, Yatzy. New modes: **Crab Royale** (bottom third out each round), and
