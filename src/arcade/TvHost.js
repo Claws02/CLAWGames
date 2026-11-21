@@ -22,6 +22,7 @@ import * as Confirm from './Confirm.js';
 // Namespace, not named: a phone with an older cached Together.js still boots.
 import * as Together from './Together.js';
 import * as Characters from './Characters.js';
+import * as TvLive from './TvLive.js';
 
 const $ = id => document.getElementById(id);
 const MEDALS = ['🥇', '🥈', '🥉', '4️⃣'];
@@ -203,7 +204,8 @@ function _paint() {
 // ---- the wheel -------------------------------------------------------------------
 // A shared phone in the room keeps the memorable games off the wheel (Together.fairPool).
 function _pool() {
-    const games = Together.fairPool ? Together.fairPool(GAMES) : GAMES.slice();
+    // Phone games, plus the games the TV runs itself when the room fits them (§13).
+    const games = [...(Together.fairPool ? Together.fairPool(GAMES) : GAMES.slice()), ...(TvLive.pool ? TvLive.pool() : [])];
     const left = games.filter(t => !_played.includes(t));
     return left.length ? left : games;
 }
@@ -216,8 +218,13 @@ function spin(auto = false) {
     if (Room.seats().length < 2) return Toast.show('Need at least 2 players to spin.');
     _show('wheel', false);
     Wheel.open(type => {
-        if (!Room.startRound(type)) { Toast.show('Need at least 2 players.'); _show('tvroom', false); return _paint(); }
         if (_played.length >= GAMES.length) _played = [];
+        // A game the TV runs: on the big screen, the phones are touchpads. Room's RESULT paints the result.
+        if (TvLive.GAMES?.includes(type)) {
+            _played.push(type);
+            return TvLive.play(type, r => { if (!r) { Toast.show('Couldn\'t start that one. Spin again!'); _show('tvroom', false); _paint(); } });
+        }
+        if (!Room.startRound(type)) { Toast.show('Need at least 2 players.'); _show('tvroom', false); return _paint(); }
         _played.push(type);
     }, _pool, () => `📺 ROUND ${_round ? _round.n + 1 : 1}`);
     if (auto === true) requestAnimationFrame(() => $('btn-spin').click());
@@ -281,7 +288,7 @@ function _paintResult(r) {
     const d = r.drinks;
     _rows($('tvx-rows'), r.names, {
         place: _places(r.scores).map(p => MEDALS[p] || p + 1),
-        pts: r.totals.map((t, i) => `${t}<small>${r.scores[i]} pts · +${r.pay[i]}${d ? ` · 🍺 ${d.sips[i]}` : ''}</small>`),
+        pts: r.totals.map((t, i) => `${t}<small>${r.live ? '' : `${r.scores[i]} pts · `}+${r.pay[i]}${d ? ` · 🍺 ${d.sips[i]}` : ''}</small>`),
     });
     const box = $('tvx-drinks');
     box.hidden = !d;

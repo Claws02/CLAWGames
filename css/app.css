@@ -1247,3 +1247,20 @@ body.tv .tv-screen .st-place:empty { display: none; }
     body.tv .tv-side .go-btn { font-size: 26px; padding: 6px 14px; }
     body.tv .tv-side .ghost-btn { font-size: 18px; padding: 4px 12px; }
 }
+
+/* ---------- the phone as a touchpad for a TV-run game (Pad.js) ---------- */
+.pad-wrap { position: fixed; inset: 0; z-index: 2800; display: flex; flex-direction: column; gap: 8px; padding: calc(env(safe-area-inset-top) + 8px) 8px calc(env(safe-area-inset-bottom) + 8px);
+    background: var(--ink); touch-action: none; user-select: none; -webkit-user-select: none; }
+.pad-top { color: #fff; text-align: center; font-size: 22px; }
+.pad-top small { font-family: 'Nunito', sans-serif; font-size: 14px; opacity: .7; }
+.pad { position: relative; flex: 1; border-radius: 22px; border: 4px solid var(--c); overflow: hidden; touch-action: none;
+    background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--c) 35%, transparent), color-mix(in srgb, var(--c) 12%, #140b20)); }
+.pad-name { position: absolute; top: 10px; left: 14px; font-size: 26px; color: var(--c); pointer-events: none; }
+.pad-hint { position: absolute; bottom: 12px; left: 0; right: 0; text-align: center; color: #fff; opacity: .55; font-weight: 800; font-size: 14px; pointer-events: none; }
+.pad-ready { position: absolute; inset: 0; margin: auto; width: min(80%, 320px); height: 96px; border: 4px solid var(--ink); border-radius: 22px;
+    background: var(--c); box-shadow: 0 6px 0 rgba(0,0,0,.4); font-size: 40px; color: var(--ink); }
+.pad.ready .pad-ready { display: none; }
+.pad:not(.ready) .pad-hint { display: none; }
+.pad-dot { position: absolute; left: -40px; top: -40px; width: 80px; height: 80px; border-radius: 50%; background: var(--c); opacity: 0;
+    box-shadow: 0 0 24px var(--c); pointer-events: none; transition: opacity .12s; }
+.pad.down .pad-dot { opacity: .85; }

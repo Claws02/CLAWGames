@@ -23,6 +23,7 @@ import * as Toast from './Toast.js';
 import * as Confirm from './Confirm.js';
 import * as Stats from './Stats.js';
 import * as Trophies from './Trophies.js';
+import * as Pad from './Pad.js';
 
 const $ = id => document.getElementById(id);
 const MEDALS = ['🥇', '🥈', '🥉', '4️⃣'];
@@ -123,8 +124,10 @@ export function init(show, goHome) {
     });
     // The host's way past a phone that never answers.
     Room.on('stall', (kind, missing) => { if (!_tvHere()) _force(kind, missing); });
-    Room.on('result', r => { if (!_tvHere()) { _force(null); _showResult(r); } });
-    Room.on('closed', msg => { _banner(null); Toast.show(msg); _abortGame(); _home(); });
+    Room.on('result', r => { if (!_tvHere()) { Pad.close?.(); _force(null); _showResult(r); } });
+    // The TV runs this one itself: this phone is a touchpad for its players (DESIGN §13).
+    Room.on('live', L => { if (_tvHere()) return; _abortGame(); Pad.open?.(L, Room.seats().map(s => s.name), Room.seats().map((_, i) => color(i))); });
+    Room.on('closed', msg => { Pad.close?.(); _banner(null); Toast.show(msg); _abortGame(); _home(); });
     Room.on('reconnecting', () => _banner('📡 Lost the host. Reconnecting… keep this screen on'));
     Room.on('reconnected', () => { _banner(null); Toast.show('Back in the room!'); if (!_tvHere()) _paintRoom(); });
     Room.on('waiting', () => _paintRoom());
@@ -456,7 +459,7 @@ function _showResult(r) {
     _rows($('nr-rows'), r.names, {
         place: place.map(p => MEDALS[p] || p + 1),
         bar: r.totals.map(t => (t / top) * 100),
-        pts: r.totals.map((t, i) => `${t}<small>${r.scores[i]} pts · +${r.pay[i]}${d ? ` · 🍺 ${d.sips[i]}` : ''}</small>`),
+        pts: r.totals.map((t, i) => `${t}<small>${r.live ? '' : `${r.scores[i]} pts · `}+${r.pay[i]}${d ? ` · 🍺 ${d.sips[i]}` : ''}</small>`),
     });
     if (d) {
         $('nr-game').innerHTML += '<br>' + drinkLine(r);

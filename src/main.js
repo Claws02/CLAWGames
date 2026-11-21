@@ -37,6 +37,7 @@ import { isHost as Room_isHost } from './net/Room.js';
 // Namespace, not named: a phone serving an older cached Room.js still boots.
 import * as RoomNS from './net/Room.js';
 import * as TvHost from './arcade/TvHost.js';
+import * as TvLive from './arcade/TvLive.js';
 import * as Drinks from './arcade/Drinks.js';
 import * as DrinkCard from './arcade/DrinkCard.js';
 import * as WakeLock from './arcade/WakeLock.js';
@@ -317,7 +318,7 @@ $('btn-podium-again').addEventListener('click', () => { Party.start(); showStand
 $('btn-podium-home').addEventListener('click', goHome);
 
 // Test hook for qa/: the shell's state, not the game's.
-window.__claw = { show, play, seats: Seats.seats, state, party: Party.party, openProfile };
+window.__claw = { tvLive: TvLive, show, play, seats: Seats.seats, state, party: Party.party, openProfile };
 
 Seats.init();
 Golf.init();
@@ -326,6 +327,7 @@ Together.init(show, goHome);
 CritterSquare.init();
 SoloHub.init(show, { arcade: playArcadeSolo, arcadeGames: Solo.GAMES });
 TvHost.init(show, () => _current);
+TvLive.init();
 // The Easter egg: five quick taps on the crab flip party mode ⇄ drinking mode.
 document.querySelector('.logo-claw').addEventListener('click', () => {
     if (!Drinks.tap()) return;
