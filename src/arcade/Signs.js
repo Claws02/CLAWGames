@@ -105,11 +105,11 @@ const DRAW = {
         if (!gone) crab(g, x, Y0); else { g.fillStyle = '#ffd23a'; for (let i = 0; i < 6; i++) { g.beginPath(); g.arc(200 + Math.cos(i) * 18 * (t - 1.2), Y0 - 10 - (t - 1.3) * 30 - i * 3, 3, 0, Math.PI * 2); g.fill(); } }
         if (t > 2.0) { crab(g, 40, 40, 0.7); g.strokeStyle = INK; g.lineWidth = 3; g.beginPath(); g.moveTo(62, 26); g.lineTo(62, 56); g.stroke(); g.fillStyle = GO; g.beginPath(); g.moveTo(62, 26); g.lineTo(82, 33); g.lineTo(62, 40); g.fill(); arrow(g, 96, 40, 140, 40); block(g, 166, 40); }
     },
-    // bank: the bullseye is behind glass, so throw at the rubber bumper: the coconut bounces off it, round the glass, into the bullseye
+    // bank: the bullseye is tucked in a coral cave, so throw at the smooth rock face: the coconut bounces off it into the cave
     bank(g, t) {
         g.fillStyle = '#8fd96a'; g.fillRect(0, 0, 256, 192);
-        g.strokeStyle = '#9be7ff'; g.lineWidth = 7; g.beginPath(); g.moveTo(150, 120); g.lineTo(150, 185); g.stroke();          // the glass
-        g.save(); g.translate(128, 34); g.rotate(0); box(g, -46, -10, 92, 20, '#ff5fa8'); g.restore();                            // the bumper
+        for (const [x, y, r, c] of [[150, 128, 11, '#ff7f9e'], [152, 150, 12, '#b98be6'], [150, 174, 11, '#ffb35c'], [176, 182, 10, '#6fe0c5'], [234, 128, 11, '#ff7f9e'], [240, 172, 10, '#b98be6']]) { g.fillStyle = c; g.strokeStyle = INK; g.lineWidth = 2; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.stroke(); }      // the coral cave
+        box(g, 82, 22, 92, 26, '#7d7896'); box(g, 92, 30, 72, 14, '#b8bfd2', INK, 2);                                          // the rock face, worn smooth
         const hit = t > 1.9; for (const [r, col] of [[20, '#ff4d4d'], [13, '#fff'], [6, '#ff4d4d']]) { g.fillStyle = hit && col !== '#fff' ? GO : col; g.strokeStyle = INK; g.lineWidth = 2; g.beginPath(); g.arc(214, 150, r, 0, Math.PI * 2); g.fill(); g.stroke(); }
         crab(g, 42, 152, 0.9);
         g.setLineDash([4, 6]); g.lineWidth = 3; g.strokeStyle = PLATE; g.beginPath(); g.moveTo(52, 140); g.lineTo(128, 46); g.stroke(); g.strokeStyle = GO; g.beginPath(); g.moveTo(128, 46); g.lineTo(206, 140); g.stroke(); g.setLineDash([]);
