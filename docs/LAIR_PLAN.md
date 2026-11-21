@@ -327,3 +327,25 @@ boardwalk courses and the shells and coconuts lying about get toon shading, and 
 windows are left without, and villagers stay plain, since phones draw every outline). Plain materials get a toon twin
 (`_tw` in Planet.js) so the city's runtime swaps (a hurt home, a tower's orb, the theme's leaf colour) still work.
 
+**Play-test: "the signs are way too large and too many; walking up to one should make it bigger; maybe characters that talk".**
+- **Talking locals** (`npcs: [{ p, who, look, rock?, say: [lines] }]`): Grandpa Turtle in World 1 (he saw Old Ink take the pearl),
+  Pip the seahorse in World 2, Hermie the hermit crab (who fled the Hermit King) in World 3. One to three a chamber, by each new
+  thing. Walk up and a comic speech bubble opens over their head (a sprite: it always faces you and walls never hide it), one short
+  line at a time, the next every few seconds; walk away and it closes. They turn to watch you and bob while they talk.
+- **Signs mostly gone**: only where a picture beats words (the bank shot in Bubble Stream, cracked glass in Obsidian Slide). They
+  start at half size; walk up and they grow to full size and turn to face you.
+- `qa/lair-world1.mjs` checks every chamber has its world's local, lines are short (110 letters at most), and at most one sign.
+
+**Play-test: "the bank shot still looks really bad; walls and cliffs look worst; plates and bullseyes are too easy".** Asked
+short questions and got a direction: the bumper a **rock face**, the bullseye in a **coral cave**, keep the dotted path; walls in
+**layered strata, overgrown** where it fits; harder bullseyes (**moving, pop-up, blind, shielded**); plates **at the end of an
+obstacle course** (parkour to get the coconut there); all upgrading the existing chambers. Done so far:
+- **Bank shot**: the bumper is a slab of layered rock with a face worn smooth, a chalk star where to hit it, moss on top and
+  boulders at its foot (`look: 'rock'`); the bullseye is in a coral cave whose mouth faces only the rock face (`look: 'coralcave'`,
+  chinks to peek through, brain coral and sea fans on top); the chute is low coral reef (`look: 'coral'`); pools have a rim of wet
+  stones, a deeper middle and a slow ripple.
+- **Walls**: the cliff and the crater rim are one solid **strata** mesh (`strataWall`): colour bands, small ledges where a band
+  steps out, a ragged top, ink outline; the cliff is overgrown (moss along the top, vines down both faces, flowers in the seams).
+  Coral walls get sea fans, tube corals and anemones along the top.
+Next: the new bullseyes, and plates at the end of obstacle courses.
+

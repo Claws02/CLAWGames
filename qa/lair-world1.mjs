@@ -137,8 +137,8 @@ const stream = (opt = {}) => {
 { const { s, ev, note } = stream();
   ok(note.b0 === 'A' && note.plug && note.viaPad && note.b1 === 'B', '2. BUBBLE STREAM: a coconut off the jelly pad bounces up onto the shelf and plugs vent A; now vent B blows');
   ok(note.terrace && note.tN === 2, '   vent B lifts the crab over the deep river; steering, it lands on the terrace (3.8 up) with two coconuts');
-  ok(note.green && note.banked, '   from the painted spot, a coconut thrown at the pink bumper glances down the chute into the bullseye: the green fence round the mesa drops');
-  ok(K.STREAM.rings.some(w => w.look === 'glass') && K.STREAM.bars.filter(b => b.kind === 'chute').every(b => b.look === 'glass') && K.STREAM.signs.some(s => s.kind === 'bank'), '   the bullseye sits behind glass (you see it, but can\'t throw straight at it), and a picture sign at the spot shows the bounce');
+  ok(note.green && note.banked, '   from the painted spot, a coconut thrown at the smooth rock face glances down the chute into the bullseye: the green fence round the mesa drops');
+  ok(K.STREAM.rings.some(w => w.look === 'coralcave') && K.STREAM.bars.some(b => b.kind === 'bumper' && b.look === 'rock') && K.STREAM.signs.some(s => s.kind === 'bank'), '   the bullseye sits in a coral cave whose mouth faces only the rock-face bumper; a picture sign at the spot shows the bounce');
   ok(note.mesa, '   up the ramp onto the mesa (7.5 up)');
   ok(note.gold && note.knock, '   a coconut knocks the hanging one loose; it drops onto the pillar\'s plate and the gold fence drops');
   ok(s.won && s.falls === 0, `   the pearl (${s.t.toFixed(0)} s, no falls)`);
@@ -246,7 +246,7 @@ const roost = (log = () => {}) => {
     ok(!e.some(x => x.type === 'gull-dive') && q.gull.loot, '   while the gull holds its stolen coconut, it never dives'); }
   { const q = K.create(YARD); q.open.net = true; q.gull = null; q.crab.p = at(9.0, 60); q.crab.h = 1; q.crab.f = P.tangent(q.crab.p, TOP); hop(q, at(8.2, 60));
     ok(q.crab.h < 1.1 && K.dist(q.crab.p, TOP) > 8.6, '   the deck (3.2) is too high to jump onto from the boardwalk (1): it takes a bounce'); }
-  ok(YARD.signs.length >= 5 && ['note', 'stun', 'gullback', 'heavy', 'nest'].every(k => YARD.signs.some(s => s.kind === k)), '   picture signs: Old Ink\'s note, the bullseye, hitting the gull, bouncing on its back, the heavy plate, the nest'); }
+  ok(YARD.npcs.length >= 3 && YARD.npcs.some(n => /gull/i.test(n.say.join(' '))) && YARD.npcs.some(n => /heavy/i.test(n.say.join(' '))), '   Grandpa Turtle, by each new thing: the story, the laden gull and its back, the heavy plate'); }
 
 // ── World 2, chamber 5: Sinkhole Reef ───────────────────────────────────────
 const { SINK } = K;
@@ -447,12 +447,13 @@ const slideRun = () => {
     ok(e.some(x => x.type === 'lake-on') && q.crab.slide && q.crab.slide.path[0][1] !== 4, '   walking on beside a pillar at the edge: you come on in the free cell next to it (not bounced back)'); }
   { const q = K.create(SLIDE), z = SLIDE.lake, e = []; q.crab.lake = [5, 6]; q.crab.p = K.lakeAt(z, 5, 6); q.crab.h = K.lakeH(z, 5); q.lake.cracks['7,3'] = 1; for (let i = 0; i < 4; i++) e.push(...K.step(q, DT, stickTo(q, K.lakeAt(z, 6, 6)))); settle(q, e);
     ok(!q.crab.lake && q.falls === 0 && K.floorAt(q, q.crab.p) > 1.9 && e.some(x => x.type === 'lake-reset'), '   stuck on the middle step? the ramp at the side slides you back up onto the rim, and the lake sets back'); }
-  ok(SLIDE.signs.length >= 5 && ['slide', 'push', 'crack', 'plate', 'ramp', 'lava'].every(k => SLIDE.signs.some(s => s.kind === k)), '   a picture sign by each new thing: slide, push, cracked glass, the plate, the ramp, the lava');
+  ok(SLIDE.npcs.length >= 2 && SLIDE.npcs.every(n => n.who === 'hermit') && SLIDE.signs.some(s => s.kind === 'crack'), '   Hermie the hermit crab tells you about the slide and the plate; one picture sign shows cracked glass');
   { const q = K.create(SLIDE); q.crab.p = at(12, 90).slice(); q.crab.h = 0; const e = run(q, 0.3); ok(e.some(x => x.type === 'burn'), '   the lava round the lake burns'); } }
 
 { const SG = await import('../src/arcade/Signs.js'), firsts = CHAMBERS.filter((c, i) => i === 0 || CHAMBERS[i - 1].world !== c.world);
-  ok(CHAMBERS.every(c => (c.signs || []).length && c.signs.every(s => SG.SIGN_KINDS.includes(s.kind))) && firsts.every(c => c.signs.some(s => /^story/.test(s.kind) || s.kind === 'note')),
-    `every chamber has picture signs (each one drawn), and each world opens with its part of the story in pictures (${firsts.map(c => c.name).join(', ')})`); }
+  const SAY_MAX = 110, cast = { 1: 'turtle', 2: 'seahorse', 3: 'hermit' };
+  ok(CHAMBERS.every(c => (c.npcs || []).length && c.npcs.every(n => n.who === cast[c.world] && n.say.length && n.say.every(l => l.length <= SAY_MAX)) && (c.signs || []).every(s => SG.SIGN_KINDS.includes(s.kind)) && (c.signs || []).length <= 1),
+    `every chamber has its world\'s local to talk to (Grandpa Turtle, Pip the seahorse, Hermie), short lines only; signs only where a picture beats words, at most one a chamber`); }
 ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink,pool,tide,deep,slide' && CHAMBERS[7].boss && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, The Gull\'s Roost, then the Drowned Stair with Old Ink; World 2: Sinkhole Reef, Moon Pool, Low Tide, then Ink\'s Deep with Old Ink; all open while testing');
 console.log(fails ? `\nWORLD 1 FAIL (${fails})` : '\nWORLD 1 PASS');
 process.exit(fails ? 1 : 0);
