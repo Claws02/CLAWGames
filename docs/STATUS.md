@@ -140,7 +140,7 @@ for one has them.
 ## Tests
 
 `README.md` lists every probe. The online ones, all on the `?net=local` loopback in
-headless Chromium: `qa/together.js`, `qa/hostwatch.js`, `qa/tv.js`, `qa/tvreact.js`, `qa/tvlive.js`, `qa/drinking.js`
+headless Chromium: `qa/together.js`, `qa/hostwatch.js`, `qa/tv.js`, `qa/tvreact.js`, `qa/tvlive.js`, `qa/tvlive-12.js`, `qa/drinking.js`
 (12 phones), `qa/ghosts.js`, `qa/phonegames.js`, `qa/shellrace.js`. **None of the online play has been
 tried on real phones over real WiFi yet**: that's the first job of the audit.
 

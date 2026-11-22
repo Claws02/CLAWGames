@@ -19,13 +19,17 @@
 import * as Room from '../net/Room.js';
 import * as MinigameManager from '../claw-core/minigames/MinigameManager.js';
 import { MG_PROFILE, orientationOf } from '../claw-core/config/MinigameRegistry.js';
-import { zonesFor } from '../claw-core/config/MinigameLayout.js';
+import * as Layout from '../claw-core/config/MinigameLayout.js';
+import * as Together from './Together.js';
 import { state, setPlayerCount } from '../host/ArcadeState.js';
 
 const $ = id => document.getElementById(id);
 
-/** The games the TV can run, phase 2: the first one end to end. */
-export const GAMES = ['sumospheres'];
+/** The games the TV can run, and how many each seats on the TV (claw-core's screen mode). */
+export const TV_SEATS = { sumospheres: 12 };
+export const GAMES = Object.keys(TV_SEATS);
+// A claw-core without screen mode (an older pin) seats four, upright or not.
+const _maxOn = type => (Layout.setScreen ? TV_SEATS[type] || 4 : 4);
 const RULES_MS = 4500;           // the rules card, read on the TV
 const PID0 = 7100;               // synthetic pointer ids: one per seat
 
@@ -34,7 +38,7 @@ let _on = null;                  // { type, n, done, targets: Map(seat → eleme
 /** Can the TV run `type` for this room now? */
 export function fits(type, n = Room.seats().length) {
     const seats = MG_PROFILE[type]?.seats || [2, 2];
-    return GAMES.includes(type) && n >= seats[0] && n <= Math.min(4, seats[1]) && !!Room.liveReady?.();
+    return GAMES.includes(type) && n >= seats[0] && n <= _maxOn(type) && !!Room.liveReady?.();
 }
 /** The live games this room could be dealt. */
 export const pool = () => GAMES.filter(t => fits(t));
@@ -47,8 +51,17 @@ export const playing = () => !!_on;
 export function play(type, onDone) {
     if (_on || !Room.startLive?.(type)) { onDone?.(null); return false; }
     const seats = Room.seats(), n = seats.length;
-    setPlayerCount(n);
-    seats.forEach((s, i) => { const p = state.players[i]; p.name = s.name; p.isBot = false; if (s.char) p.charType = s.char; });
+    // Every seat upright, and room for twelve (off again when the game ends).
+    Layout.setScreen?.(true);
+    setPlayerCount(n, _maxOn(type));
+    const colors = Together.NET_COLORS || [];
+    seats.forEach((s, i) => {
+        const p = state.players[i];
+        p.name = s.name; p.isBot = false;
+        if (s.char) p.charType = s.char;
+        // Seats past the table's four take the room's colours, as on the TV's rows.
+        if (i >= 4 && colors[i]) { p.hex = colors[i]; p.color = parseInt(colors[i].slice(1), 16); }
+    });
     _on = { type, n, done: false, targets: new Map(), down: new Map(), onDone, launched: false, early: new Set() };
     $('arcade').hidden = true;
     MinigameManager.triggerStandalone(type, false, n, {
@@ -85,6 +98,7 @@ function _end(winnerId, standings) {
     // Let go of anything still held, so no stale pointer outlives the game.
     on.targets.forEach((el, seat) => _fire(el, 'pointerup', seat, on.down.get(seat) || { x: 0, y: 0 }));
     _on = null;
+    Layout.setScreen?.(false);
     $('arcade').hidden = false;
     const r = Room.endLive?.(winnerId, standings) || null;
     on.onDone?.(r);
@@ -96,6 +110,7 @@ export function abort() {
     _on.done = true;
     _on = null;
     try { MinigameManager.forceEndMinigame(); } catch (e) {}
+    Layout.setScreen?.(false);
     $('arcade').hidden = false;
 }
 
@@ -108,7 +123,7 @@ function _area(seat) {
         const w = L.width / 2;
         return { x: L.left + (seat === 0 ? w : 0), y: L.top, w, h: L.height };
     }
-    const z = zonesFor(_on.n, L.width, L.height)[seat];
+    const z = Layout.zonesFor(_on.n, L.width, L.height)[seat];
     return z ? { x: L.left + z.rect.x, y: L.top + z.rect.y, w: z.rect.w, h: z.rect.h } : { x: L.left, y: L.top, w: L.width, h: L.height };
 }
 
