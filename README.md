@@ -17,6 +17,9 @@ node qa/party-points.mjs   # party scoring rules, no browser
 node qa/together.js   # two phones in one room over the loopback transport
 node qa/hostwatch.js  # a phone host with HOST PLAYS TOO off: runs the room, never plays
 node qa/tv.js         # a TV host, a passed phone with two players and a second phone, drinking mode on
+node qa/tvreact.js    # TV on a tablet: faces on the player rows, emoji reactions from phones, tablet/phone layouts
+node qa/tvlive.js     # the TV runs Sumo Spheres, two phones are touchpads: ready, a drag moves only that ball, result agrees
+node qa/tvlive-12.js  # twelve phones play Sumo on the TV: upright ready board, 12 balls, one drag moves one ball (needs claw-core screen mode)
 node qa/drinks.mjs    # drinking-mode rules (sips by place, house rules, the crab tap), no browser
 node qa/ghosts.js     # time trials (Kart GP, Speed Boat, Rift Dive): a TV and three phones racing with live ghosts
 node qa/phonegames.js # online-only games (Stop the Clock, Higher or Lower, Trivia): lists, same seed same challenge, scores

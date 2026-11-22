@@ -39,8 +39,9 @@ export const state = {
 
 export function playerCount() { return state.players.length; }
 
-export function setPlayerCount(n) {
-    const count = Math.max(MIN_SEATS, Math.min(MAX_SEATS, n | 0));
+// max: the table's limit; a TV room's game passes more (docs/DESIGN.md §13).
+export function setPlayerCount(n, max = MAX_SEATS) {
+    const count = Math.max(MIN_SEATS, Math.min(max, n | 0));
     const kept = state.players.slice(0, count);
     while (kept.length < count) kept.push(makePlayer(kept.length));
     state.players = kept;

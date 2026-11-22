@@ -22,6 +22,18 @@
 //   host   → all    RESULT {type, scores, pay, totals, n, drinks?, rules}
 //   any    → all    BYE    {}                    leaving on purpose (a host's BYE closes the room)
 //   captain → TV    CMD    {}                    "spin / play it / next" from the couch
+//   any    → TV     REACT  {e}                   an emoji, floated up the TV from the sender's row
+//   TV     → all    LIVE   {n, type, seats}      the TV is running this game itself (DESIGN §13):
+//                                                phones whose seats are listed become touchpads;
+//                                                repeated each tick until the RESULT
+//   any    → TV     PAD    {n, s, k, x, y, a}    a touchpad touch for seat s: k down|move|up|ready,
+//                                                x/y 0–1 across the pad, a = the pad's width/height
+// A live round ends with the same RESULT as any other. HELLO's caps say what a
+// build can do: the TV only deals a live game when every seated phone has 'live'.
+//
+// HELLO may carry chars (each player's character, beside names) and ROSTER's
+// seats then carry char: the TV draws faces. Both are optional, so a build
+// without them still joins and is shown with a phone.
 //   any    → host   PICK   {n, round, seat, right, ms}  a race's answer (Shell Game): right or
 //                                                not, ms after that phone's cups stopped (-1: none)
 //   host   → all    CALL   {n, round, winner, name, wins, done}  who answered first (fastest right
@@ -54,11 +66,15 @@ import * as Drinks from '../arcade/Drinks.js';
 
 export const MAX_SEATS = 12;
 const V = 1;                  // the envelope: never change it
-export const PROTO = 3;       // the protocol: bump on any change an older build would get wrong (3: races)
+export const PROTO = 3;
+export const REACTIONS = ['👏', '😂', '😱', '🔥', '😭', '🎉'];
+const REACT_GAP_MS = 600;     // per phone: a held-down thumb can't flood the TV       // the protocol: bump on any change an older build would get wrong (3: races)
 const MSG = {
     HELLO: 'hello', REFUSE: 'refuse', WAIT: 'wait', ROSTER: 'roster', ROUND: 'round', READY: 'ready', GO: 'go',
     SCORE: 'score', SYNC: 'sync', RESULT: 'result', BYE: 'bye', CMD: 'cmd', GHOST: 'ghost', PICK: 'pick', CALL: 'call',
+    REACT: 'react', LIVE: 'live', PAD: 'pad',
 };
+const CAPS = ['live'];
 const SELF = 'self';
 const TICK_MS = 3000;         // how often lagging phones are caught up
 const AWAY_GRACE_MS = 20000;  // how long a round waits for a phone that dropped off mid-game
@@ -68,6 +84,9 @@ const SNAP_KEY = 'claw.room', PID_KEY = 'claw.pid', SNAP_MAX_AGE = 6 * 3600e3;
 
 let _role = null;           // 'host' | 'client' | null
 let _name = ['Player'];
+let _chars = [];            // this phone's players' characters, beside _name
+let _reactAt = new Map();   // host: peer → when it last reacted
+let _tvGame = null;           // host: { type, n, seats: [seat index…] } while the TV runs a game; client: the last LIVE
 let _hostPeer = null;       // client: who the host is
 let _rid = null;            // this room's id: a host that reloads keeps it, another room on the same code doesn't
 let _seats = [];            // host: [{ peer, pid, name, away, awayAt, bye }]; client: [{ peer, name, away }] from ROSTER
@@ -116,7 +135,7 @@ export function setDrinking(on) {
 }
 export const rules = () => _rules.slice();
 const _isMe = s => s.peer === SELF || (!!s.peer && s.peer === T.selfId());
-export const seats = () => _seats.map(s => ({ name: s.name, me: _isMe(s), away: !!s.away }));
+export const seats = () => _seats.map(s => ({ name: s.name, char: s.char || null, me: _isMe(s), away: !!s.away }));
 export const mySeat = () => seats().findIndex(s => s.me);
 export const mySeats = () => seats().map((s, i) => (s.me ? i : -1)).filter(i => i >= 0);
 const _live = () => _seats.filter(s => !s.away);
@@ -166,6 +185,8 @@ function _wire() {
 }
 
 const _list = names => (Array.isArray(names) ? names : [names]).map(n => String(n || '').trim().slice(0, 16)).filter(Boolean);
+const _char = c => (typeof c === 'string' && /^[a-z0-9_-]{1,24}$/i.test(c) ? c : null);
+const _charList = (chars, n) => Array.from({ length: n }, (_, i) => _char(Array.isArray(chars) ? chars[i] : null));
 
 // ---- host / join / leave -------------------------------------------------------
 
@@ -179,12 +200,13 @@ export async function host(names, opts = {}) {
     if (snap) {
         _rid = snap.rid; _mode = snap.mode || 'party'; _rules = snap.rules || []; _n = snap.n || 0;
         // Everyone else is away until their phone says hello again.
-        _seats = snap.seats.map(s => (s.pid === SELF ? { peer: SELF, pid: SELF, name: s.name, away: false }
-            : { peer: null, pid: s.pid, name: s.name, away: true, awayAt: -1e9 }));
+        _seats = snap.seats.map(s => (s.pid === SELF ? { peer: SELF, pid: SELF, name: s.name, char: _char(s.char), away: false }
+            : { peer: null, pid: s.pid, name: s.name, char: _char(s.char), away: true, awayAt: -1e9 }));
         _totals = _seats.map((_, i) => Number(snap.totals[i]) || 0);
     } else {
         _rid = 'r-' + _rand(); _mode = Drinks.isOn() ? 'drinking' : 'party'; _rules = []; _n = 0; _banned = new Set();
-        _seats = !_hostSeated ? [] : (_list(names).length ? _list(names) : ['Host']).slice(0, MAX_SEATS).map(name => ({ peer: SELF, pid: SELF, name, away: false }));
+        const own = _list(names), ch = _charList(opts.chars, own.length);
+        _seats = !_hostSeated ? [] : (own.length ? own : ['Host']).slice(0, MAX_SEATS).map((name, i) => ({ peer: SELF, pid: SELF, name, char: ch[i] || null, away: false }));
         _totals = _seats.map(() => 0);
     }
     _wire();
@@ -196,9 +218,10 @@ export async function host(names, opts = {}) {
     return code();
 }
 
-export async function join(roomCode, names) {
+export async function join(roomCode, names, opts = {}) {
     await _teardown(true);
     _role = 'client'; _name = _list(names).length ? _list(names) : ['Player'];
+    _chars = _charList(opts.chars, _name.length);
     _status = 'seeking';
     _wire();
     await T.connect(T.normaliseCode(roomCode));
@@ -206,7 +229,12 @@ export async function join(roomCode, names) {
     _tick = setInterval(_clientTick, TICK_MS);
 }
 
-function _hello(target) { _send(MSG.HELLO, { names: _name, pid: _pid(), proto: PROTO }, target); }
+function _hello(target) { _send(MSG.HELLO, { names: _name, chars: _chars, caps: CAPS, pid: _pid(), proto: PROTO }, target); }
+
+/** An emoji for the TV (a seated phone in a TV room only). */
+export function react(e) {
+    if (_role === 'client' && _hostPeer && _tv && REACTIONS.includes(e)) _send(MSG.REACT, { e }, _hostPeer);
+}
 
 /** Captain → TV: "do the next thing" (spin, play it, next round). */
 export function command() { if (_role === 'client' && _hostPeer) _send(MSG.CMD, {}, _hostPeer); }
@@ -230,7 +258,7 @@ async function _teardown(forget) {
     if (forget && _role === 'host') forgetResumable();
     _tick = null; _reconnect = null; _kicked = 0;
     _round = null; _last = null; _role = null; _hostPeer = null; _rid = null; _seats = []; _totals = []; _tv = false; _rules = [];
-    _waiting = new Map(); _status = null; _refusal = null; _cur = null; _readyN = _goN = _scoredN = _resN = 0; _sent = []; _collided = false;
+    _waiting = new Map(); _reactAt = new Map(); _tvGame = null; _status = null; _refusal = null; _cur = null; _readyN = _goN = _scoredN = _resN = 0; _sent = []; _collided = false;
     _ghosts.clear(); _ghostN = 0; _raceReset(0);
     _offs.splice(0).forEach(off => { try { off(); } catch (e) {} });
     if (T.isOpen()) await T.disconnect();
@@ -238,10 +266,10 @@ async function _teardown(forget) {
 
 function _broadcastRoster() {
     if (_role !== 'host') return;
-    const list = _seats.map(s => ({ name: s.name, away: !!s.away, peer: s.peer === SELF ? T.selfId() : s.peer }));
+    const list = _seats.map(s => ({ name: s.name, char: s.char || null, away: !!s.away, peer: s.peer === SELF ? T.selfId() : s.peer }));
     _send(MSG.ROSTER, {
         seats: list, totals: _totals, tv: _tv, hostSeated: _hostSeated, mode: _mode, rules: _rules,
-        rid: _rid, proto: PROTO, round: _round ? _round.n : 0, last: _last ? _last.n : 0,
+        rid: _rid, proto: PROTO, round: _round ? _round.n : _tvGame ? _tvGame.n : 0, last: _last ? _last.n : 0,
     });
     _save();
     _emit('roster', seats());
@@ -253,7 +281,7 @@ function _save() {
     try {
         sessionStorage.setItem(SNAP_KEY, JSON.stringify({
             code: T.roomCode(), rid: _rid, tv: _tv, hostSeated: _hostSeated, mode: _mode, rules: _rules, n: _n, at: Date.now(),
-            seats: _seats.map(s => ({ pid: s.pid, name: s.name })), totals: _totals,
+            seats: _seats.map(s => ({ pid: s.pid, name: s.name, char: s.char || null })), totals: _totals,
         }));
     } catch (e) { /* not kept: a reload starts afresh */ }
 }
@@ -278,24 +306,25 @@ function _onHello(m, peer) {
     if (mine.length) {
         // Back again (a reload, a locked screen): the same seats and points.
         const moved = mine.some(s => s.peer !== peer || s.away);
-        mine.forEach(s => { s.peer = peer; s.away = false; s.bye = false; });
+        mine.forEach(s => { s.peer = peer; s.away = false; s.bye = false; if (Array.isArray(m.caps)) s.caps = m.caps.slice(0, 8); });
         _waiting.delete(peer);
         if (moved) { _seatsChanged(); _catchUp(peer); } else _broadcastRoster();
         return;
     }
-    const want = _list(m.names || m.name);
-    if (_round) {
-        _waiting.set(peer, { pid, names: want });
+    const want = _list(m.names || m.name), chars = _charList(m.chars, want.length);
+    const caps = Array.isArray(m.caps) ? m.caps.filter(c => typeof c === 'string').slice(0, 8) : [];
+    if (_round || _tvGame) {
+        _waiting.set(peer, { pid, names: want, chars, caps });
         return _send(MSG.WAIT, { reason: 'round' }, peer);
     }
     if (_seats.length >= MAX_SEATS) return _send(MSG.REFUSE, { reason: 'full', max: MAX_SEATS }, peer);
-    _seatNew(peer, pid, want);
+    _seatNew(peer, pid, want, chars, caps);
     _broadcastRoster();
 }
 
-function _seatNew(peer, pid, want) {
+function _seatNew(peer, pid, want, chars = [], caps = []) {
     const room = MAX_SEATS - _seats.length;
-    (want.length ? want : ['Player']).slice(0, room).forEach(name => { _seats.push({ peer, pid, name, away: false }); _totals.push(0); });
+    (want.length ? want : ['Player']).slice(0, room).forEach((name, i) => { _seats.push({ peer, pid, name, char: chars[i] || null, caps, away: false }); _totals.push(0); });
 }
 
 /** Host: take seat i out of the room, with everyone on the same phone. That
@@ -316,14 +345,14 @@ export function remove(i) {
 // Between rounds only (seat numbers stay put while one is played): drop the
 // seats whose phones left on purpose, then let in whoever asked meanwhile.
 function _settle() {
-    if (_round) return;
+    if (_round || _tvGame) return;
     for (let i = _seats.length - 1; i >= 0; i--) if (_seats[i].bye && _seats[i].away) { _seats.splice(i, 1); _totals.splice(i, 1); }
     const peers = new Set(T.peerIds());
     for (const [peer, w] of _waiting) {
         if (!peers.has(peer)) continue;
         const mine = _seats.filter(s => s.pid === w.pid);
         if (mine.length) mine.forEach(s => { s.peer = peer; s.away = false; s.bye = false; });
-        else if (_seats.length < MAX_SEATS) _seatNew(peer, w.pid, w.names);
+        else if (_seats.length < MAX_SEATS) _seatNew(peer, w.pid, w.names, w.chars, w.caps);
         else _send(MSG.REFUSE, { reason: 'full', max: MAX_SEATS }, peer);
     }
     _waiting.clear();
@@ -340,6 +369,7 @@ function _seatsChanged() {
 
 // A phone that just came back: whatever round is on.
 function _catchUp(peer) {
+    if (_tvGame) _send(MSG.LIVE, _liveMsg(), peer);
     const r = _round;
     if (!r) return;
     _send(MSG.ROUND, _roundMsg(r), peer);
@@ -348,6 +378,7 @@ function _catchUp(peer) {
 
 // Every few seconds: a phone that hasn't answered the round gets it again.
 function _hostTick() {
+    if (_tvGame) _send(MSG.LIVE, _liveMsg());
     const r = _round;
     if (!r) return;
     for (const p of _livePeers()) {
@@ -383,7 +414,7 @@ export const ROUND_CAP_MS = 90000;
 const GRACE_MS = 8000;
 
 export function startRound(type) {
-    if (!isHost() || _seats.length < 2 || _round) return false;
+    if (!isHost() || _seats.length < 2 || _round || _tvGame) return false;
     const seed = (Math.random() * 0xffffffff) >>> 0;
     _n++;
     const race = RACES.includes(type) && raceable();
@@ -494,7 +525,10 @@ function _finishRound() {
     const scores = _seats.map(s => r.scores.get(s) || 0);
     const best = Math.max(...scores);
     const winners = scores.filter(x => x === best).length;
-    const winner = winners === 1 ? scores.indexOf(best) : -1;
+    _result(r, scores, winners === 1 ? scores.indexOf(best) : -1);
+}
+
+function _result(r, scores, winner, extra = {}) {
     const pay = _scorer ? _scorer(winner, scores, scores.length) : scores.map(() => 0);
     pay.forEach((p, i) => { _totals[i] = (_totals[i] || 0) + p; });
     const names = _seats.map(s => s.name);
@@ -504,12 +538,65 @@ function _finishRound() {
         const rule = Drinks.drawRule(scores, _rules.map(x => x.rule));
         if (rule) { drinks.rule = { name: names[rule.seat], rule: rule.rule }; _rules.push(drinks.rule); }
     }
-    const result = { type: r.type, n: r.n, scores, pay, totals: _totals.slice(), winner, names, drinks, rules: _rules.slice(), mode: _mode };
+    const result = { type: r.type, n: r.n, scores, pay, totals: _totals.slice(), winner, names, drinks, rules: _rules.slice(), mode: _mode, ...extra };
     _last = result;
     _send(MSG.RESULT, result);
     _emit('result', result);
     _settle();
     _broadcastRoster();
+}
+
+// ---- live rounds: the TV runs the game, the phones are touchpads ------------------
+const _liveMsg = () => ({ n: _tvGame.n, type: _tvGame.type, seats: _tvGame.seats });
+
+/** Does every seated phone understand live rounds? (An older build would sit there.) */
+export const liveReady = () => _seats.length > 0 && _seats.every(s => s.peer === SELF || (s.caps || []).includes('live'));
+/** Host: the live round on, or null. */
+export const live = () => (_tvGame ? { ..._tvGame, seats: _tvGame.seats.slice() } : null);
+
+/** TV: start a game the TV runs itself, for every seat (the TV checks the game seats this many). */
+export function startLive(type) {
+    if (!isHost() || !_tv || _round || _tvGame || _seats.length < 2 || !liveReady()) return false;
+    _n++;
+    _tvGame = { type, n: _n, seats: _seats.map((_, i) => i) };
+    _send(MSG.LIVE, _liveMsg());
+    _broadcastRoster();
+    return true;
+}
+
+/**
+ * TV: the live game is over. winner is a seat (−1: a draw); standings, if the
+ * game gave them, are a score per seat. Pays out and sends the RESULT.
+ */
+export function endLive(winner, standings) {
+    const L = _tvGame;
+    if (!isHost() || !L) return null;
+    _tvGame = null;
+    const k = _seats.length;
+    const ok = Array.isArray(standings) && standings.length >= k && standings.slice(0, k).every(v => Number.isFinite(Number(v)));
+    // A game's standings can be anything ordered (survival times, a huge
+    // number for "never fell"): keep only the order, as places. The best
+    // standing scores k-1, the worst 0, ties share.
+    const raw = ok ? standings.slice(0, k).map(Number) : _seats.map((_, i) => (i === winner ? 1 : 0));
+    const scores = raw.map(v => raw.filter(x => x < v).length);
+    const w = Number.isInteger(winner) && winner >= 0 && winner < k ? winner : -1;
+    _result(L, scores, w, { live: true });
+    return _last;
+}
+
+/** Phone: a touch on the pad for seat s (one of this phone's). */
+export function sendPad(s, k, x, y, a) {
+    if (_role !== 'client' || !_hostPeer || !_tvGame) return;
+    _send(MSG.PAD, { n: _tvGame.n, s, k, x: +(+x).toFixed(4), y: +(+y).toFixed(4), a: +(+a).toFixed(3) }, _hostPeer);
+}
+
+function _hostPad(peer, m) {
+    const L = _tvGame;
+    if (!L || m.n !== L.n || !L.seats.includes(m.s) || !_seats[m.s] || _seats[m.s].peer !== peer) return;
+    if (!['down', 'move', 'up', 'ready'].includes(m.k)) return;
+    const x = Math.min(1, Math.max(0, Number(m.x) || 0)), y = Math.min(1, Math.max(0, Number(m.y) || 0));
+    const a = Math.min(4, Math.max(0.2, Number(m.a) || 0.5));
+    _emit('pad', m.s, m.k, x, y, a);
 }
 
 // ---- client: keeping up ---------------------------------------------------------
@@ -578,7 +665,7 @@ function _onRoster(m, peer) {
         else { if (!_collided) { _collided = true; _emit('collision'); } return; }
     }
     if (!_hostPeer) { _hostPeer = peer; _rid = m.rid || null; }
-    _seats = (m.seats || []).map(s => ({ peer: s.peer, name: s.name, away: !!s.away }));
+    _seats = (m.seats || []).map(s => ({ peer: s.peer, name: s.name, char: _char(s.char), away: !!s.away }));
     _totals = m.totals || [];
     _tv = !!m.tv; _hostSeated = m.hostSeated ?? !_tv; _mode = m.mode || 'party'; _rules = m.rules || [];
     if (_reconnect) { clearTimeout(_reconnect); _reconnect = null; _emit('reconnected'); }
@@ -702,6 +789,13 @@ function _onMsg(m, peer) {
     if (m.t === MSG.BYE) { _emit('closed', 'The host closed the room.'); _teardown(true); return; }
     if (m.t === MSG.WAIT) { if (_status !== 'seated' && _status !== 'waiting') { _status = 'waiting'; _emit('waiting', m.reason); } return; }
     if (mySeat() < 0) return;   // not playing (yet): only the roster matters
+    if (m.t === MSG.LIVE) {
+        if (m.n <= _resN || (_tvGame && _tvGame.n === m.n)) return;
+        _tvGame = { n: m.n, type: m.type, seats: Array.isArray(m.seats) ? m.seats : [] };
+        const mine = mySeats().filter(i => _tvGame.seats.includes(i));
+        if (mine.length) _emit('live', { n: m.n, type: m.type, seats: mine });
+        return;
+    }
     if (m.t === MSG.ROUND) {
         if (!MG_PARALLEL.includes(m.type)) return;
         if (_cur && _cur.n === m.n) {
@@ -721,6 +815,7 @@ function _onMsg(m, peer) {
     } else if (m.t === MSG.RESULT) {
         if (!(m.n > _resN)) return;
         _resN = m.n;
+        if (_tvGame && _tvGame.n <= m.n) _tvGame = null;
         _totals = m.totals || _totals; _rules = m.rules || _rules;
         _emit('result', m);
     }
@@ -744,4 +839,12 @@ function _hostMsg(m, peer) {
         mine.forEach(s => { s.bye = true; s.away = true; s.awayAt = -1e9; });
         _seatsChanged();
     } else if (m.t === MSG.CMD && _tv && _seats[0] && !_seats[0].away && _seats[0].peer === peer) _emit('cmd');
+    else if (m.t === MSG.PAD) _hostPad(peer, m);
+    else if (m.t === MSG.REACT && _tv && REACTIONS.includes(m.e)) {
+        const seat = _seats.findIndex(s => s.peer === peer && !s.away);
+        const now = _now();
+        if (seat < 0 || now - (_reactAt.get(peer) || -1e9) < REACT_GAP_MS) return;
+        _reactAt.set(peer, now);
+        _emit('react', seat, m.e);
+    }
 }

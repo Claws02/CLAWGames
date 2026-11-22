@@ -21,6 +21,8 @@ import * as DrinkCard from './DrinkCard.js';
 import * as Confirm from './Confirm.js';
 // Namespace, not named: a phone with an older cached Together.js still boots.
 import * as Together from './Together.js';
+import * as Characters from './Characters.js';
+import * as TvLive from './TvLive.js';
 
 const $ = id => document.getElementById(id);
 const MEDALS = ['🥇', '🥈', '🥉', '4️⃣'];
@@ -53,6 +55,7 @@ export function init(show, current) {
     Room.on('stall', (kind, missing) => { if (active()) _force(kind, missing); });
     Room.on('result', r => { if (active()) { _force(null); _paintResult(r); } });
     Room.on('cmd', () => { if (active()) _captain(); });
+    Room.on('react', (seat, e) => { if (active()) _float(seat, e); });
     // A reloaded TV tab reopened its room (Together's REOPEN button).
     Room.on('resumed', () => { if (!active()) return; _played = []; _round = null; Vetoes.reset(); document.body.classList.add('tv'); _show('tvroom'); _paint(); });
     $('btn-tvr-force')?.addEventListener('click', () => { if (_forceKind === 'ready') Room.startNow(); else Room.finishNow(); _force(null); });
@@ -83,6 +86,37 @@ async function start() {
 
 /** Leaving the TV room (back, or the room closing). */
 export function stop() { document.body.classList.remove('tv'); }
+
+// ---- reactions ---------------------------------------------------------------
+// An emoji rises from the sender's row where one is on screen, and otherwise
+// from their slot along the bottom (seat order, left to right).
+function _float(seat, e) {
+    let layer = $('tv-reacts');
+    if (!layer) {
+        layer = document.createElement('div');
+        layer.id = 'tv-reacts';
+        layer.className = 'tv-reacts';
+        layer.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(layer);
+    }
+    const row = [...document.querySelectorAll(`.tv-screen:not([hidden]) .st-row[data-seat="${seat}"]`)][0];
+    const el = document.createElement('span');
+    el.className = 'tv-react';
+    el.textContent = e;
+    el.style.setProperty('--c', NET_COLORS[seat % NET_COLORS.length]);
+    if (row) {
+        const r = row.getBoundingClientRect();
+        el.style.left = `${r.left + 30 + Math.random() * Math.min(160, r.width - 60)}px`;
+        el.style.top = `${r.top + r.height / 2}px`;
+        row.classList.remove('bump'); void row.offsetWidth; row.classList.add('bump');
+    } else {
+        const n = Math.max(1, Room.seats().length);
+        el.style.left = `${((seat + 0.5) / n) * 100}%`;
+        el.style.top = '92%';
+    }
+    layer.appendChild(el);
+    setTimeout(() => el.remove(), 2600);
+}
 
 // The join link: this page, without the TV's own query, plus ?join=CODE.
 function _joinUrl() {
@@ -117,10 +151,18 @@ function _paintQr(href) {
     }).catch(() => { _qrLib = null; _qrFor = ''; });
 }
 
+// A player's face in their seat colour, or the phone emoji for a build or a
+// player that sent no character (and 💤 while away).
+function _dot(i, away) {
+    const char = Room.seats()[i]?.char, hex = NET_COLORS[i % NET_COLORS.length];
+    if (away || !char || !Characters.faceHTML) return away ? '💤' : '📱';
+    try { return Characters.faceHTML(char, parseInt(hex.slice(1), 16)); } catch (e) { return '📱'; }
+}
+
 function _rows(host, names, extra, away = []) {
     host.innerHTML = names.map((name, i) =>
-        `<div class="st-row${away[i] ? ' away' : ''}"><span class="st-place">${extra ? extra.place[i] : ''}</span>` +
-        `<span class="st-dot" style="background:${NET_COLORS[i % NET_COLORS.length]}">${away[i] ? '💤' : '📱'}</span>` +
+        `<div class="st-row${away[i] ? ' away' : ''}" data-seat="${i}"><span class="st-place">${extra ? extra.place[i] : ''}</span>` +
+        `<span class="st-dot" style="background:${NET_COLORS[i % NET_COLORS.length]}">${_dot(i, away[i])}</span>` +
         `<span class="st-name">${esc(name)}${i === 0 ? ' <small>captain</small>' : ''}${away[i] ? ' <small>away</small>' : ''}</span>` +
         `<span class="st-pts bfont">${extra ? extra.pts[i] : (Room.totals()[i] || 0)}</span></div>`).join('')
         || '<p class="hint">Nobody yet…</p>';
@@ -162,7 +204,8 @@ function _paint() {
 // ---- the wheel -------------------------------------------------------------------
 // A shared phone in the room keeps the memorable games off the wheel (Together.fairPool).
 function _pool() {
-    const games = Together.fairPool ? Together.fairPool(GAMES) : GAMES.slice();
+    // Phone games, plus the games the TV runs itself when the room fits them (§13).
+    const games = [...(Together.fairPool ? Together.fairPool(GAMES) : GAMES.slice()), ...(TvLive.pool ? TvLive.pool() : [])];
     const left = games.filter(t => !_played.includes(t));
     return left.length ? left : games;
 }
@@ -175,8 +218,13 @@ function spin(auto = false) {
     if (Room.seats().length < 2) return Toast.show('Need at least 2 players to spin.');
     _show('wheel', false);
     Wheel.open(type => {
-        if (!Room.startRound(type)) { Toast.show('Need at least 2 players.'); _show('tvroom', false); return _paint(); }
         if (_played.length >= GAMES.length) _played = [];
+        // A game the TV runs: on the big screen, the phones are touchpads. Room's RESULT paints the result.
+        if (TvLive.GAMES?.includes(type)) {
+            _played.push(type);
+            return TvLive.play(type, r => { if (!r) { Toast.show('Couldn\'t start that one. Spin again!'); _show('tvroom', false); _paint(); } });
+        }
+        if (!Room.startRound(type)) { Toast.show('Need at least 2 players.'); _show('tvroom', false); return _paint(); }
         _played.push(type);
     }, _pool, () => `📺 ROUND ${_round ? _round.n + 1 : 1}`);
     if (auto === true) requestAnimationFrame(() => $('btn-spin').click());
@@ -240,7 +288,7 @@ function _paintResult(r) {
     const d = r.drinks;
     _rows($('tvx-rows'), r.names, {
         place: _places(r.scores).map(p => MEDALS[p] || p + 1),
-        pts: r.totals.map((t, i) => `${t}<small>${r.scores[i]} pts · +${r.pay[i]}${d ? ` · 🍺 ${d.sips[i]}` : ''}</small>`),
+        pts: r.totals.map((t, i) => `${t}<small>${r.live ? '' : `${r.scores[i]} pts · `}+${r.pay[i]}${d ? ` · 🍺 ${d.sips[i]}` : ''}</small>`),
     });
     const box = $('tvx-drinks');
     box.hidden = !d;
