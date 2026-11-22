@@ -100,7 +100,8 @@ const SHOTS = process.env.QA_SHOTS || '';
     await ann.waitForFunction(() => !document.getElementById('scr-home').hidden, null, { timeout: 8000 }).catch(() => {});
     await ann.click('[data-go="together"]');
     await ann.click('#btn-net-host');
-    await ann.waitForFunction(() => /^[A-Z0-9]{4}$/.test(document.getElementById('room-code').textContent), null, { timeout: 15000 });
+    // Not the TV room's code, still on the screen from a moment ago: Ann's own room's.
+    await ann.waitForFunction(old => { const t = document.getElementById('room-code').textContent; return /^[A-Z0-9]{4}$/.test(t) && t !== old; }, code, { timeout: 15000 });
     const hostCode = await ann.textContent('#room-code');
     await bob.goto(BASE); await bob.waitForFunction(() => !!window.__claw);
     await bob.click('[data-go="together"]');
