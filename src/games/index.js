@@ -52,6 +52,11 @@ const tableHold = (icon, how) => ({
 MG_ORIENTATIONS.pigtable = tableHold('🐷', 'You take it in <b>turns</b>, and it <b>turns round to face you</b>. ROLL as often as you dare (a <b>1</b> loses this turn\'s points), then HOLD to bank them. First to <b>100</b>.');
 MG_ORIENTATIONS.dotstable = tableHold('✏️', 'You take it in <b>turns</b>, and it <b>turns round to face you</b>. Tap between two dots to draw a line; close a box to claim it and <b>go again</b>.');
 MG_ORIENTATIONS.mancalatable = tableHold('🫘', 'Your pits are the <b>near row</b>, your store on your <b>right</b>, and it <b>turns round to face you</b>. Tap a pit to sow its seeds round to the right.');
+MG_ORIENTATIONS.tidetable = tableHold('🐚', 'You take it in <b>turns</b>, and it <b>turns round to face you</b>. Place your three shells, then slide one along a line each go. <b>Three in a row</b> wins.');
+MG_ORIENTATIONS.gridtable = tableHold('#️⃣', 'You take it in <b>turns</b>, and it <b>turns round to face you</b>. Play in the <b>lit</b> board: the square you pick sends the other player to that board.');
+MG_ORIENTATIONS.hotdicetable = tableHold('🔥', 'You take it in <b>turns</b>, and it <b>turns round to face you</b>. ROLL, tap the dice that score, then ROLL the rest or BANK. Nothing scoring loses the turn.');
+MG_ORIENTATIONS.racetable = tableHold('🦀', 'Your <b>nest</b> and start rock are at <b>your end</b>, and it <b>turns round to face you</b>. ROLL, then tap a crab to move it round. Land on a rival to send it home.');
+MG_ORIENTATIONS.mazetable = tableHold('🌿', 'Your crab starts at <b>your end</b>; race it to the far side. It <b>turns round to face you</b>: each go, step one square or plant a kelp wall.');
 MG_ORIENTATIONS.liartable = tableHold('🤥', 'Your dice hide under your cup: on your go, <b>hold the cup to peek</b> while the other player looks away. Bid how many of a face are on the table, or call <b>LIAR!</b>');
 
 // Online only: played alone on every phone for a score (claw-core's
@@ -138,6 +143,51 @@ const GAMES = {
         load: () => import('./LiarsDice.js'),
         info: { icon: '🤥', title: "LIAR'S DICE", desc: 'Five dice each, hidden under your cup. Bid how many of one face are on the whole table (yours and theirs): each bid must go up. Or call LIAR! and the cups come off: whoever was wrong loses a die. Lose all five and you are out.' },
         orientation: 'liartable',
+        watchdogMs: 180000,
+        net: 'local',
+        shape: 'table',
+        profile: { genre: 'brain', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
+    },
+    tidelines: {
+        load: () => import('./TideLines.js'),
+        info: { icon: '🐚', title: 'TIDE LINES', desc: 'Three shells each. Take turns placing them on the points, then slide one along a line to the empty point next to it. Three of yours in a straight row wins. A player who can\'t move loses.' },
+        orientation: 'tidetable',
+        watchdogMs: 180000,
+        net: 'local',
+        shape: 'table',
+        profile: { genre: 'brain', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
+    },
+    biggrid: {
+        load: () => import('./BigGrid.js'),
+        info: { icon: '#️⃣', title: 'BIG GRID', desc: 'Nine tic-tac-toes in one. The square you pick sends the other player to that board (a won or full board means anywhere). Win a small board with three in a row; win three boards in a row to win the game.' },
+        orientation: 'gridtable',
+        watchdogMs: 180000,
+        net: 'local',
+        shape: 'table',
+        profile: { genre: 'brain', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
+    },
+    hotdice: {
+        load: () => import('./HotDice.js'),
+        info: { icon: '🔥', title: 'HOT DICE', desc: 'Roll six dice and keep the ones that score (1s, 5s, three of a kind, a straight, three pairs). Roll the rest for more or BANK; a roll with nothing scoring loses the turn. All six scoring? Roll them all again. First to 3,000.' },
+        orientation: 'hotdicetable',
+        watchdogMs: 180000,
+        net: 'local',
+        shape: 'table',
+        profile: { genre: 'nerve', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
+    },
+    clawrace: {
+        load: () => import('./ClawRace.js'),
+        info: { icon: '🦀', title: 'CLAW RACE', desc: 'Roll and race your three crabs round the rock pool. Any roll brings one out of the nest; a 6 goes again. Land on a rival to send it back to its nest, except on a safe rock. All three home first wins.' },
+        orientation: 'racetable',
+        watchdogMs: 240000,
+        net: 'local',
+        shape: 'table',
+        profile: { genre: 'race', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
+    },
+    kelpmaze: {
+        load: () => import('./KelpMaze.js'),
+        info: { icon: '🌿', title: 'KELP MAZE', desc: 'Race your crab to the far side. Each go, step one square or plant a kelp wall to slow the other crab down (six each). A wall can never close off a crab\'s last way through.' },
+        orientation: 'mazetable',
         watchdogMs: 180000,
         net: 'local',
         shape: 'table',

@@ -1,6 +1,7 @@
 // ============================================================
 // BOARD GAMES — the quick two-player board games on src/games/board/:
-// Pig, Dots and Boxes, Mancala, Liar's Dice (Shut the Box has qa/shutbox.js).
+// Pig, Dots and Boxes, Mancala, Liar's Dice, Tide Lines, Big Grid, Hot Dice,
+// Claw Race, Kelp Maze (Shut the Box has qa/shutbox.js).
 //   1. each game's rules, without a game running
 //   2. each game for real through claw-core, vs a bot and with two people on
 //      one phone: the "human" taps the real buttons (each game's _probeTap
@@ -15,7 +16,8 @@ const fs = require('fs');
 let chromium;
 try { ({ chromium } = require('playwright')); } catch (e) { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); }
 const BASE = process.env.QA_BASE || 'http://127.0.0.1:8140/index.html';
-const GAMES = { pig: 'Pig', dotsboxes: 'DotsBoxes', mancala: 'Mancala', liarsdice: 'LiarsDice' };
+const GAMES = { pig: 'Pig', dotsboxes: 'DotsBoxes', mancala: 'Mancala', liarsdice: 'LiarsDice',
+    tidelines: 'TideLines', biggrid: 'BigGrid', hotdice: 'HotDice', clawrace: 'ClawRace', kelpmaze: 'KelpMaze' };
 const ONLY = (process.argv[2] || Object.keys(GAMES).join(',')).split(',');
 
 let failed = 0;
@@ -80,6 +82,75 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
     ok(R.ldHolds.join() === 'true,false', 'Liar\'s Dice: a bid stands if at least that many are on the table');
     ok(R.ldOdds[0] === 1 && R.ldOdds[1] === 0 && Math.abs(R.ldOdds[2] - 1 / 6) < 1e-9, 'Liar\'s Dice: the odds of unseen dice');
     ok(R.ldBotLiar.liar && R.ldBotRaise.bid, 'Liar\'s Dice bot: calls an impossible bid, raises on a safe one');
+
+    // The five added together (Tide Lines, Big Grid, Hot Dice, Claw Race, Kelp Maze).
+    const R2 = await page.evaluate(async () => {
+        const [TL, BG, HD, CR, KM] = await Promise.all(['TideLines', 'BigGrid', 'HotDice', 'ClawRace', 'KelpMaze'].map(f => import(`/src/games/${f}.js`)));
+        const out = {};
+        // Tide Lines: centre joins all 8, a corner 3; three placed in a row wins; then shells slide; the bot takes a win and blocks one
+        out.tlAdj = [TL.ADJ[4].length, TL.ADJ[0].length, TL.ADJ[1].length];
+        const t = TL.newGame(); TL.play(t, { from: -1, to: 0 }); TL.play(t, { from: -1, to: 3 }); TL.play(t, { from: -1, to: 1 }); TL.play(t, { from: -1, to: 4 });
+        out.tlPlaceWin = TL.play(t, { from: -1, to: 2 });
+        const s = TL.newGame(); s.cells = [0, 0, -1, 1, 1, -1, 0, 1, -1]; s.placed = [3, 3]; s.turn = 0;
+        out.tlSlides = TL.moves(s).every(m => m.from >= 0);
+        const w = TL.newGame(); w.cells = [0, 0, -1, 1, 1, -1, -1, -1, -1]; w.placed = [2, 2]; w.turn = 0;
+        out.tlBotWin = TL.botMove(w, 1).to === 2;
+        w.turn = 1; w.cells = [0, 0, -1, 1, -1, -1, -1, -1, 1]; out.tlBotBlock = TL.botMove(w, 1).to === 2;
+        // Big Grid: a square sends you to its board; a won board frees the next player; three boards in a row win
+        const b = BG.newGame(); BG.play(b, 0 * 9 + 2);
+        out.bgSent = BG.moves(b).every(k => Math.floor(k / 9) === 2);
+        const c = BG.newGame(); [0, 1].forEach(sq => { c.cells[4 * 9 + sq] = 0; }); c.turn = 0; c.next = 4;
+        BG.play(c, 4 * 9 + 2); out.bgBoard = c.won[4];
+        const d = BG.newGame(); d.won = [0, 0, -1, -1, -1, -1, -1, -1, -1]; d.cells[2 * 9 + 0] = 0; d.cells[2 * 9 + 1] = 0; d.turn = 0; d.next = 2;
+        out.bgWin = BG.play(d, 2 * 9 + 2);
+        const f = BG.newGame(); f.won[3] = 1; f.next = 3; out.bgFree = BG.boards(f).length === 8;
+        out.bgBotTake = (() => { const g = BG.newGame(); g.won = [1, 1, -1, -1, -1, -1, -1, -1, -1]; g.cells[2 * 9 + 0] = 1; g.cells[2 * 9 + 1] = 1; g.turn = 1; g.next = 2; return BG.botMove(g, 1) === 2 * 9 + 2; })();
+        // Hot Dice scoring, busts and the bot
+        out.hd = [[1], [5], [2, 2, 2], [1, 1, 1], [2, 2, 2, 2], [1, 2, 3, 4, 5, 6], [2, 2, 3, 3, 4, 4], [2], [1, 2]].map(HD.score);
+        out.hdBust = [HD.bust([2, 3, 4, 6, 6, 2]), HD.bust([2, 3, 4, 6, 6, 5])];
+        const pl = HD.plan([1, 1, 1, 2, 3, 4], 0, 0, 0, 0); out.hdPlan = pl && pl.score >= 1000 && pl.idx.length >= 3;
+        out.hdBankWin = HD.plan([5, 2, 3], 300, 3, 2700, 0).bank;
+        // Claw Race: out of the nest with any roll, capture off a rock, none on a rock, home after a lap
+        out.crOut = CR.dest(-1, 4);
+        const r1 = CR.newGame(); r1.crabs[1][0] = 1; r1.crabs[0][0] = 12; r1.turn = 0;
+        out.crCap = CR.play(r1, { c: 0, from: 12, to: 13 }, 1).caught;
+        const r2 = CR.newGame(); r2.crabs[1][0] = 0; r2.crabs[0][0] = 11; r2.turn = 0;
+        out.crSafe = CR.play(r2, { c: 0, from: 11, to: 12 }, 1).caught;
+        out.crHome = CR.dest(21, 5);
+        const r3 = CR.newGame(); r3.crabs[0] = [24, 24, 22]; r3.turn = 0; out.crWin = CR.play(r3, { c: 2, from: 22, to: 24 }, 2).won;
+        out.crBotCap = (() => { const g = CR.newGame(); g.crabs[1][0] = 1; g.crabs[0] = [12, 2, -1]; g.turn = 0; return CR.botMove(g, 1, 1).c === 0; })();
+        // Kelp Maze: a wall blocks a step, crossing and overlap are refused, a wall that shuts someone in is refused, the hop
+        const k = KM.newGame(); out.kmDist = [KM.dist(k, 0), KM.dist(k, 1)];
+        k.walls.push({ o: 'h', r: 5, c: 2 });
+        out.kmBlock = !KM.steps(k).some(([r, c]) => r === 5 && c === 3);
+        out.kmCross = !KM.canWall(k, { o: 'v', r: 5, c: 2 }) && !KM.canWall(k, { o: 'h', r: 5, c: 3 });
+        const sh = KM.newGame(); sh.walls.push({ o: 'h', r: 0, c: 0 }, { o: 'h', r: 0, c: 2 }, { o: 'h', r: 0, c: 4 });
+        out.kmSeal = !KM.canWall(sh, { o: 'h', r: 0, c: 5 });
+        const hp = KM.newGame(); hp.pawn = [[3, 3], [2, 3]]; hp.turn = 0; out.kmHop = KM.steps(hp).some(([r, c]) => r === 1 && c === 3);
+        out.kmWin = (() => { const g = KM.newGame(); g.pawn[0] = [1, 3]; g.turn = 0; return KM.play(g, { step: [0, 3] }); })();
+        out.kmBotWall = (() => { const g = KM.newGame(); g.pawn = [[6, 3], [5, 3]]; g.turn = 0; g.walls = []; return !!KM.botMove(g, 1).wall; })();
+        return out;
+    });
+    ok(R2.tlAdj.join() === '8,3,5', 'Tide Lines: the centre joins all 8 points, a corner 3, an edge 5');
+    ok(R2.tlPlaceWin === 'win', 'Tide Lines: three in a row while placing wins');
+    ok(R2.tlSlides, 'Tide Lines: with all three down, a go is a slide');
+    ok(R2.tlBotWin && R2.tlBotBlock, 'Tide Lines bot: takes its win, blocks yours');
+    ok(R2.bgSent, 'Big Grid: the square you pick sends the other player to that board');
+    ok(R2.bgBoard === 0, 'Big Grid: three in a row wins the small board');
+    ok(R2.bgWin === 'win', 'Big Grid: three boards in a row wins the game');
+    ok(R2.bgFree, 'Big Grid: sent to a finished board, the player can go anywhere open');
+    ok(R2.bgBotTake, 'Big Grid bot: takes the winning square');
+    ok(R2.hd.join() === '100,50,200,1000,400,1500,750,0,0', `Hot Dice: scoring (${R2.hd})`);
+    ok(R2.hdBust.join() === 'true,false', 'Hot Dice: a roll with nothing scoring is a bust');
+    ok(R2.hdPlan && R2.hdBankWin, 'Hot Dice bot: keeps three 1s; banks when it reaches 3,000');
+    ok(R2.crOut === 3 && R2.crHome === 24, 'Claw Race: any roll brings a crab out; a lap takes it home');
+    ok(R2.crCap === 1 && R2.crSafe === 0, 'Claw Race: landing on a rival sends it to its nest, except on a safe rock');
+    ok(R2.crWin && R2.crBotCap, 'Claw Race: three home wins; the bot takes a capture');
+    ok(R2.kmDist.join() === '6,6', 'Kelp Maze: both crabs 6 steps from home');
+    ok(R2.kmBlock && R2.kmCross, 'Kelp Maze: a wall blocks a step; walls can\'t cross or overlap');
+    ok(R2.kmSeal, 'Kelp Maze: a wall that closes off the last way through is refused');
+    ok(R2.kmHop && R2.kmWin === 'win', 'Kelp Maze: hop over a crab in the way; reaching the far row wins');
+    ok(R2.kmBotWall, 'Kelp Maze bot: walls a rival who is ahead');
 
     // ── 2. Real games ───────────────────────────────────────────────────────
     async function game(type, file, bots, label) {
