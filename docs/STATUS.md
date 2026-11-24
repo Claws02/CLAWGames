@@ -22,6 +22,7 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 | CLAWGames #58 | **Tiny Planet**: the city of crabs (town steps, jump, the action button, boardwalk courses, full screen, pause and save), and **Old Ink's Lair** through the Trick Hut |
 | CLAWGames #57 | **Tiny Planet**: a 3D solo game with a workshop of upgrades kept between runs. **Reef Drop**: 8 more pieces and 36 more reefs (114 in all) |
 | CLAWGames #55 | **Quick board games** on a shared base (`src/games/board/`): Shut the Box, Pig, Dots and Boxes, Mancala, Liar's Dice |
+| CLAWGames #76 | Five more quick board games: Tide Lines, Big Grid, Hot Dice, Claw Race, Kelp Maze |
 | CLAWGames #54 | **Reef Drop**: levels as recipes (`docs/REEF_LEVELS.md`), 8 new pieces and 24 new reefs (78 in all) |
 | claw-core #42, CLAWGames #54 | **Shell Game race**: first right answer takes the round, wrong picks locked out, first to 3, on one screen and across phones (Room `PICK`/`CALL`, protocol 3) |
 
@@ -51,9 +52,14 @@ These are party games (the grid, wheel and parties) built on `src/games/board/` 
 | Dots and Boxes | 4×4 boxes; close a box to claim it and go again; most boxes wins. The bot takes boxes, plays safe lines, then gives away the shortest chain | `DotsBoxes.js` |
 | Mancala | Kalah: 6 pits each, 4 seeds; last seed in your store goes again; last in your empty pit captures the pit opposite. The bot looks ahead (minimax, deeper with skill) | `Mancala.js` |
 | Liar's Dice | 5 dice each under a cup (hold to peek); bid how many of a face are on the table or call LIAR; the loser loses a die; 1s not wild. The bot knows the odds of every bid | `LiarsDice.js` |
+| Tide Lines | 3 shells each on 9 points joined across, down and diagonally: place them, then slide one along a line; three in a row wins (40 slides: a draw; can't move: you lose). The bot searches ahead (perfect play is a draw) | `TideLines.js` |
+| Big Grid | nine tic-tac-toes in one: the square you pick sends the other player to that board (won or full: anywhere); three boards in a row wins, a full grid goes to most boards. The bot searches 2–3 moves over a board/line score | `BigGrid.js` |
+| Hot Dice | six dice: keep scorers (1 = 100, 5 = 50, three of a kind, straight 1500, three pairs 750), roll on or BANK; nothing scoring loses the turn; all six scoring rolls all six again; first to 3,000. The bot's bank target moves with the dice left and the score | `HotDice.js` |
+| Claw Race | 3 crabs each round the 24 squares of a rock pool; any roll comes out of the nest, a 6 goes again, land on a rival to send it home (not on a ⛰ safe rock); all three home wins. The bot weighs captures, getting home and danger | `ClawRace.js` |
+| Kelp Maze | 7×7: race your crab to the far side; each go step or plant a kelp wall (6 each) that may never close off a way through; hop over the other crab. The bot races when ahead and walls when behind | `KelpMaze.js` |
 
-All five are tested by `qa/shutbox.js` and `qa/boardgames.js`. Ideas for more: Farkle, ultimate tic-tac-toe,
-a Ludo-style race.
+All eleven are tested by `qa/shutbox.js` and `qa/boardgames.js` (rules, then each vs a bot and two-player
+through the real buttons). Ideas for more: a checkers-lite, a flip game, a connection game on hexes.
 
 ## Solo games (one player)
 
