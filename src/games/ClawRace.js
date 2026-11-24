@@ -125,11 +125,14 @@ const CSS = `
 .cr-sq.aim{background:#fff6b8}
 `;
 
+// Whose go the screen shows: it changes with the board turning round, not the moment a move is played.
+let _up = 0;
 let T = null, G = null, _roll = 0, _phase = 'roll', _note = '', _skill = 0.55, _opts = [];
 
 export function start(isBot, onWin, botSkill = 0.55) {
     G = newGame(); _roll = 0; _phase = 'roll'; _note = ''; _skill = botSkill; _opts = [];
     G.turn = Math.random() < 0.5 ? 0 : 1;
+    _up = G.turn;
     let sq = '';
     RC.forEach(([r, c], t) => {
         const cls = `cr-sq${SAFE.includes(t) ? ' safe' : ''}${t === START[0] ? ' start0' : t === START[1] ? ' start1' : ''}`;
@@ -194,7 +197,7 @@ function _move(m) {
     if (r.won) { T.wow('ALL HOME!'); return T.after(() => _end(p), 1500); }
     T.after(() => {
         _phase = 'roll'; _roll = 0;
-        if (!r.again) { _note = ''; T.face(G.turn); }
+        if (!r.again) { _note = ''; _up = G.turn; T.face(G.turn); }
         _render();
         if (T.botTurn(G.turn)) T.after(_botStep, 600 + Math.random() * 300);
     }, r.caught ? 1100 : 600);
@@ -218,8 +221,8 @@ function _end(w) {
 
 function _render() {
     if (!T || T.done) return;
-    const p = G.turn, bot = T.botTurn(p);
-    const hint = _note || (bot ? 'THINKING…' : _phase === 'roll' ? 'ROLL THE DIE' : _phase === 'move' ? `MOVE A CRAB ${_roll} · TAP IT${_opts.some(o => o.from < 0) ? ' (OR YOUR NEST)' : ''}` : '');
+    const p = _up, bot = T.botTurn(p);
+    const hint = _note || (_phase === 'moved' ? '' : bot ? 'THINKING…' : _phase === 'roll' ? 'ROLL THE DIE' : _phase === 'move' ? `MOVE A CRAB ${_roll} · TAP IT${_opts.some(o => o.from < 0) ? ' (OR YOUR NEST)' : ''}` : '');
     T.head(p, `${T.name(p)}'S GO`, hint);
     const can = _phase === 'move' && !bot ? _opts : [];
     T.qa('.cr-sq').forEach(el => {
@@ -233,7 +236,7 @@ function _render() {
     T.qa('.cr-nest').forEach(el => {
         const q = +el.dataset.p, n = G.crabs[q].filter(v => v < 0).length;
         el.style.setProperty('--nc', T.hex(q));
-        el.innerHTML = `${T.name(q)}'S NEST ${'<div class="cr-crab" style="--cc:' + T.hex(q) + '">🦀</div>'.repeat(n)}`;
+        el.innerHTML = `${T.name(q)}'S NEST ${`<div class="cr-crab" style="--cc:${T.hex(q)}">🦀</div>`.repeat(n) || '<span style="opacity:.6">EMPTY</span>'}`;
         el.classList.toggle('can', q === p && can.some(o => o.from < 0));
     });
     T.qa('.cr-home').forEach(el => { const q = +el.dataset.home; el.style.color = T.hex(q); el.textContent = `🏠 ${homeCount(G, q)}/${CRABS}`; });

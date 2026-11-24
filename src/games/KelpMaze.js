@@ -140,11 +140,14 @@ const CSS = `
 .bt-btn.on{background:#2f9e44;box-shadow:0 0 0 4px #ffd200}
 `;
 
+// Whose go the screen shows: it changes with the board turning round, not the moment a move is played.
+let _up = 0;
 let T = null, G = null, _skill = 0.55, _busy = false, _note = '', _walling = false, _ghost = null;
 
 export function start(isBot, onWin, botSkill = 0.55) {
     G = newGame(); _skill = botSkill; _busy = false; _note = ''; _walling = false; _ghost = null;
     G.turn = Math.random() < 0.5 ? 0 : 1;
+    _up = G.turn;
     let html = '';
     for (let r = 0; r < N; r++) for (let c = 0; c < N; c++)
         html += `<div class="km-sq${r === 0 ? ' goal0' : r === N - 1 ? ' goal1' : ''}" data-act="sq" data-r="${r}" data-c="${c}" style="left:${c * S + S * 0.06}%;top:${r * S + S * 0.06}%;width:${S * 0.88}%;height:${S * 0.88}%"></div>`;
@@ -196,10 +199,10 @@ function _do(m) {
     const p = G.turn, r = play(G, m);
     haptic([10]); sfx(m.wall ? 'coin_gain' : 'tick');
     _note = m.wall ? `${T.name(p)} PLANTS KELP` : '';
-    _render();
-    if (r === 'win') { _busy = true; T.wow('MADE IT ACROSS!'); return T.after(() => _end(p), 1500); }
     _busy = true;
-    T.after(() => { _busy = false; _note = ''; T.face(G.turn); _render(); if (T.botTurn(G.turn)) T.after(_botStep, 650 + Math.random() * 350); }, m.wall ? 700 : 380);
+    _render();
+    if (r === 'win') { T.wow('MADE IT ACROSS!'); return T.after(() => _end(p), 1500); }
+    T.after(() => { _busy = false; _note = ''; _up = G.turn; T.face(G.turn); _render(); if (T.botTurn(G.turn)) T.after(_botStep, 650 + Math.random() * 350); }, m.wall ? 700 : 380);
 }
 
 function _botStep() {
@@ -221,8 +224,8 @@ const wallBox = w => (w.o === 'h'
 
 function _render() {
     if (!T || T.done) return;
-    const p = G.turn, bot = T.botTurn(p);
-    const hint = _note || (bot ? 'THINKING…' : _walling ? (_ghost ? 'TAP IT AGAIN TO TURN IT · PLACE TO PLANT' : 'TAP A GAP POINT FOR YOUR WALL') : 'STEP (TAP A GLOWING SQUARE) OR PLANT A 🌿 WALL');
+    const p = _up, bot = T.botTurn(p) || _busy;
+    const hint = _note || (_busy ? '' : T.botTurn(p) ? 'THINKING…' : _walling ? (_ghost ? 'TAP IT AGAIN TO TURN IT · PLACE TO PLANT' : 'TAP A GAP POINT FOR YOUR WALL') : 'STEP (TAP A GLOWING SQUARE) OR PLANT A 🌿 WALL');
     T.head(p, `${T.name(p)}'S GO`, hint);
     T.el.classList.toggle('walling', _walling && !bot);
     T.el.style.setProperty('--tc', T.hex(p));

@@ -99,12 +99,15 @@ const CSS = `
 .tl-hand i{width:calc(var(--c)*.5);height:calc(var(--c)*.5);border-radius:50%;background:var(--sc);border:3px solid #3f4652}
 `;
 
+// Whose go the screen shows: it changes with the board turning round, not the moment a move is played.
+let _up = 0;
 let T = null, G = null, _sel = -1, _skill = 0.55, _busy = false, _note = '', _won = null;
 const XY = i => ({ x: 12 + (i % 3) * 38, y: 12 + Math.floor(i / 3) * 38 });   // percent across the board
 
 export function start(isBot, onWin, botSkill = 0.55) {
     G = newGame(); _sel = -1; _skill = botSkill; _busy = false; _note = ''; _won = null;
     G.turn = Math.random() < 0.5 ? 0 : 1;
+    _up = G.turn;
     const seen = new Set(), segs = [];
     ADJ.forEach((js, i) => js.forEach(j => { const k = i < j ? `${i}-${j}` : `${j}-${i}`; if (!seen.has(k)) { seen.add(k); segs.push([i, j]); } }));
     const svg = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">${segs.map(([a, b]) => { const A = XY(a), B = XY(b); return `<line x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}"/>`; }).join('')}</svg>`;
@@ -139,7 +142,7 @@ function _do(m) {
     if (r === 'stuck') { _busy = true; _render(); return T.after(() => _end(p, `${T.name(1 - p)} CAN'T MOVE`), 900); }
     if (r === 'draw') { _busy = true; _render(); return T.after(() => _end(-1, `${MAX_SLIDES} SLIDES, NO LINE`), 900); }
     _busy = true; _render();
-    T.after(() => { _busy = false; T.face(G.turn); _render(); if (T.botTurn(G.turn)) T.after(_botStep, 600 + Math.random() * 300); }, 380);
+    T.after(() => { _busy = false; _up = G.turn; T.face(G.turn); _render(); if (T.botTurn(G.turn)) T.after(_botStep, 600 + Math.random() * 300); }, 380);
 }
 
 function _botStep() {
@@ -157,8 +160,8 @@ function _end(w, why) {
 
 function _render() {
     if (!T || T.done) return;
-    const p = G.turn, bot = T.botTurn(p);
-    const hint = _note || (bot ? 'THINKING…' : placing(G) ? `PLACE A SHELL · ${SHELLS - G.placed[p]} LEFT` : _sel >= 0 ? 'NOW TAP WHERE IT SLIDES' : 'TAP ONE OF YOURS, THEN SLIDE IT');
+    const p = _up, bot = T.botTurn(p) || _busy;
+    const hint = _note || (_busy ? '' : bot ? 'THINKING…' : placing(G) ? `PLACE A SHELL · ${SHELLS - G.placed[p]} LEFT` : _sel >= 0 ? 'NOW TAP WHERE IT SLIDES' : 'TAP ONE OF YOURS, THEN SLIDE IT');
     T.head(p, `${T.name(p)}'S GO`, hint);
     const tc = T.hex(p);
     const to = !bot && !placing(G) && _sel >= 0 ? ADJ[_sel].filter(j => G.cells[j] < 0) : !bot && placing(G) ? G.cells.map((v, i) => (v < 0 ? i : -1)).filter(i => i >= 0) : [];

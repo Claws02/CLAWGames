@@ -109,11 +109,14 @@ const CSS = `
 @keyframes bgpop{from{transform:scale(1.6);opacity:0}}
 `;
 
+// Whose go the screen shows: it changes with the board turning round, not the moment a move is played.
+let _up = 0;
 let T = null, G = null, _skill = 0.55, _busy = false, _last = -1, _note = '';
 
 export function start(isBot, onWin, botSkill = 0.55) {
     G = newGame(); _skill = botSkill; _busy = false; _last = -1; _note = '';
     G.turn = Math.random() < 0.5 ? 0 : 1;
+    _up = G.turn;
     let html = '';
     for (let b = 0; b < 9; b++) {
         html += `<div class="bg-b" data-b="${b}">`;
@@ -139,6 +142,7 @@ function _play(k) {
     extendWatchdog(120000);
     const p = G.turn, b = Math.floor(k / 9), before = G.won[b];
     const r = play(G, k);
+    _busy = true;
     _last = k; haptic([10]);
     _note = '';
     if (G.won[b] !== before && G.won[b] === p) { sfx('coin_gain'); T.wow('BOARD WON!'); } else sfx('tick');
@@ -151,7 +155,7 @@ function _play(k) {
     const free = boards(G).length > 1;
     if (free) _note = `${T.name(G.turn)} CAN GO ANYWHERE`;
     _busy = true;
-    T.after(() => { _busy = false; T.face(G.turn); _render(); if (T.botTurn(G.turn)) T.after(_botStep, 650 + Math.random() * 350); }, 380);
+    T.after(() => { _busy = false; _up = G.turn; T.face(G.turn); _render(); if (T.botTurn(G.turn)) T.after(_botStep, 650 + Math.random() * 350); }, 380);
 }
 
 function _botStep() {
@@ -168,8 +172,8 @@ function _end(w, why) {
 
 function _render() {
     if (!T || T.done) return;
-    const p = G.turn, bot = T.botTurn(p), live = boards(G);
-    T.head(p, `${T.name(p)}'S GO`, _note || (bot ? 'THINKING…' : live.length > 1 ? 'GO ANYWHERE LIT UP' : 'PLAY IN THE LIT BOARD'));
+    const p = _up, bot = T.botTurn(p), live = boards(G);
+    T.head(p, `${T.name(p)}'S GO`, _note || (_busy ? '' : bot ? 'THINKING…' : live.length > 1 ? 'GO ANYWHERE LIT UP' : 'PLAY IN THE LIT BOARD'));
     T.el.style.setProperty('--tc', T.hex(p));
     T.qa('.bg-b').forEach(el => {
         const b = +el.dataset.b, w = G.won[b];
