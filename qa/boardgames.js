@@ -123,8 +123,8 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
         out.crSnap = cr(g => { g.crabs[1][0] = 1; g.crabs[0][0] = 18; }, { c: 0, from: 18 }, 3);           // P2's racer on square 21
         out.crSnap = [out.crSnap.r.caught.length, out.crSnap.g.crabs[1][0]];
         out.crRock = cr(g => { g.crabs[1][0] = 0; g.crabs[0][0] = 17; }, { c: 0, from: 17 }, 3).r.caught.length;
-        const sh = cr(g => { g.crabs[1][0] = 1; g.power[1] = 'shield'; g.crabs[0][0] = 18; }, { c: 0, from: 18 }, 3);
-        out.crShield = [sh.r.caught.length, sh.g.crabs[1][0], sh.g.power[1]];
+        const shd = cr(g => { g.crabs[1][0] = 1; g.power[1] = 'shield'; g.crabs[0][0] = 18; }, { c: 0, from: 18 }, 3);
+        out.crShield = [shd.r.caught.length, shd.g.crabs[1][0], shd.g.power[1]];
         out.crGift = cr(g => { g.crabs[0][0] = 0; }, { c: 0, from: 0 }, 2, { rng: () => 0 }).g.power[0];
         out.crHome = cr(g => { g.crabs[0][0] = 37; }, { c: 0, from: 37 }, 5).r.home;
         out.crSix = cr(() => {}, { c: 0, from: -1 }, 6).r.again;
