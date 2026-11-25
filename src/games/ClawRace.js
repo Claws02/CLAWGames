@@ -230,13 +230,14 @@ const CSS = `
 .cr-mid{position:absolute;left:${P * 3}%;top:${P * 3}%;width:${P * 3}%;height:${P * 3}%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(var(--c)*.06)}
 .cr-mid .bd-die{width:calc(var(--c)*1.3);height:calc(var(--c)*1.3)}
 .cr-mid .tag{font:calc(var(--c)*.26) 'Bebas Neue',Impact,sans-serif;color:#3f4652;letter-spacing:1px;background:rgba(255,255,255,.85);border-radius:999px;padding:0 8px}
-.cr-crab{position:absolute;width:${P * 0.66}%;height:${P * 0.66}%;transform:translate(-50%,-50%);z-index:4;pointer-events:none;transition:left .13s ease-out,top .13s ease-out}
+.cr-crab{position:absolute;width:${P * 0.66}%;height:${P * 0.66}%;transform:translate(-50%,-50%);z-index:4;pointer-events:none;transition:left .1s ease-out,top .1s ease-out}
 .cr-crab.slow{transition:left .45s cubic-bezier(.3,1.2,.5,1),top .45s cubic-bezier(.3,1.2,.5,1)}
 .cr-crab .ring{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 40% 30%,#fff,var(--cc) 70%);border:calc(var(--c)*.06) solid #3f4652;box-shadow:0 calc(var(--c)*.07) 0 rgba(0,0,0,.35);overflow:hidden}
 .cr-crab .pc-face{position:absolute;inset:4%;width:92%;height:92%;border-radius:50%;object-fit:cover}
 .cr-crab .pc-face.emoji{display:flex;align-items:center;justify-content:center;font-size:calc(var(--c)*.3)}
 .cr-crab.hop .ring{animation:crhop .13s ease-out}
 @keyframes crhop{50%{transform:translateY(-30%)}}
+.cr-crab.hop .ring{animation-duration:.1s}
 .cr-crab.spin .ring{animation:crwhirl .45s linear}
 @keyframes crwhirl{to{transform:rotate(-720deg) scale(.7)}}
 .cr-crab.home{opacity:0;transform:translate(-50%,-50%) scale(.2);transition:all .4s}
@@ -317,7 +318,7 @@ async function _doRoll() {
     _opts = moves(G, f + _turbo);
     _phase = 'move';
     _render();
-    if (_bot(G.turn)) return T.after(_botStep, 650 + Math.random() * 300);
+    if (_bot(G.turn)) return T.after(_botStep, 420 + Math.random() * 200);
     if (_opts.length === 1 && G.power[G.turn] !== 'turbo') T.after(() => _phase === 'move' && _move(_opts[0]), 700);
 }
 
@@ -370,16 +371,16 @@ async function _move(m) {
         _disp[p][m.c] = t; _layout();
         el.classList.remove('hop'); void el.offsetWidth; el.classList.add('hop');
         sfx('tick');
-        await wait(140);
+        await wait(110);
     }
     if (r.effect) {
         T.wow(r.effect.kind === 'whirl' ? 'WHIRLPOOL!' : r.effect.kind === 'current' ? 'CURRENT!' : 'KELP TUNNEL!');
         sfx(r.effect.kind === 'whirl' ? 'land_bad' : 'coin_gain');
-        await wait(350);
+        await wait(250);
         el.classList.add(r.effect.kind === 'whirl' ? 'spin' : 'slow');
         _disp[p][m.c] = r.effect.to >= 0 ? r.effect.to : null;
         _layout();
-        await wait(480);
+        await wait(450);
         el.classList.remove('spin', 'slow');
     }
     _disp[p][m.c] = null;
@@ -402,8 +403,8 @@ async function _move(m) {
         _phase = 'roll'; _roll = 0;
         if (!r.again) { _note = ''; _up = G.turn; _face(false); }
         _render();
-        if (_bot(G.turn)) T.after(_botStep, 600 + Math.random() * 300);
-    }, r.caught.length || r.gift || r.effect ? 1100 : 550);
+        if (_bot(G.turn)) T.after(_botStep, 400 + Math.random() * 200);
+    }, r.caught.length || r.gift ? 900 : r.effect ? 600 : 380);
 }
 
 function _splash(t) {
@@ -422,7 +423,7 @@ function _botStep() {
     if (_phase !== 'move') return;
     const m = botMove(G, _roll + _turbo, _skill);
     if (!m) return;
-    T.after(() => _move(m), 380);
+    T.after(() => _move(m), 260);
 }
 
 function _end(w) {

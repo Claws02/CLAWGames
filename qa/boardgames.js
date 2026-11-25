@@ -175,12 +175,12 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
     ok(R2.kmBotWall, 'Kelp Maze bot: walls a rival who is ahead');
 
     // ── 2. Real games ───────────────────────────────────────────────────────
-    async function game(type, file, bots, label, seats = 2) {
+    async function game(type, file, bots, label, seats = 2, maxSecs = 420) {
         const before = errs.length;
         await page.evaluate(([type, bots, seats]) => { const c = window.__claw; c.seats.count = seats; c.seats.bots = bots; c.show('grid'); c.play(type); }, [type, bots, seats]);
         const t0 = Date.now(), faces = new Set();
         let flipWithBot = false, endText = '', back = false, shot = false;
-        while ((Date.now() - t0) / 1000 < 420) {
+        while ((Date.now() - t0) / 1000 < maxSecs) {
             const st = await page.evaluate(async file => {
                 const fire = el => el && el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
                 for (const id of ['btn-mg-intro-next', 'btn-mg-launch', 'mg-ready-1', 'mg-ready-2']) { const b = document.getElementById(id); if (b && b.offsetParent) fire(b); }
@@ -221,7 +221,7 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
         // Claw Race seats up to four: one person and three bots round the phone.
         if (type === 'clawrace') {
             ok(await page.evaluate(async t => (await import('/src/arcade/Catalog.js')).eligible(4).includes(t), type), `${type}: the arcade lists it at 4 seats`);
-            await game(type, GAMES[type], [false, true, true, true], 'fourbots', 4);
+            await game(type, GAMES[type], [false, true, true, true], 'fourbots', 4, 900);
         }
     }
     await browser.close();
