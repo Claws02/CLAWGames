@@ -150,6 +150,13 @@ This is the one feature that changes what the product is: it goes from a static 
 - No game repeats within a party until the eligible pool runs out. A 7-game party at 4 seats can run out, since only 9 games seat 4.
 - The final ranking goes by points, then game wins. Seats that are equal on both share the place, and the podium says "SHARED CROWN!".
 
+### Party mixes (as built)
+- **Every game has a genre and a length** (`src/arcade/Mix.js`): ⚡ QUICK under about a minute, ⏱ MEDIUM 1–3 minutes, 🐢 LONG 3 minutes and up. Lengths come from an estimate in minutes per game (a table of the known ones, else board games 3.5, a watchdog of 90 s or less 1, else 2), which also gives a party its running time.
+- **A party deals from a mix:** 🎉 Everything, ⚡ Quick Fire, 🎲 Board Game Night (the table games, not the stacking ones), 🧠 Brain Teasers, 💥 Action Packed (no board games, nothing long), or ✏️ Custom (any genres × any lengths). Presets show how many games they'd deal at this table, empty ones are hidden, and an empty custom mix can't start. The setup hint gives the count and about how many minutes the party will take.
+- **Rotation within the mix:** the mix filters first, then the table's rotation, so nothing repeats until every game in the mix has come round.
+- **Balanced mixing:** after a long game, the next comes from the shorter ones when the mix has any.
+- The mix is saved per phone. Quick Play's grid gets the same length chips under its genre tabs, and the TV room keeps a mix of its own for its wheel.
+
 ## 10. Play Together (as built)
 - **Mechanism:** every phone plays the **same seeded challenge at the same moment, alone**, and scores are compared. These are claw-core's *parallel* games: **Snap Strike, Odd One Out, Steady Hand, Loot Catch, Tree Climb, Mini Golf, Balloon Pump, Pancake Stack, Shell Game**, and the time trials **Kart GP, Speed Boat, Rift Dive** (12). In a time trial every phone also broadcasts its racer (Room GHOST, ~9 a second, peer to peer) and draws the others as see-through ghosts on a bigger course; the TV shows the running order. That's all the library supports across phones today. Because nobody shares a screen, a room seats up to **12 players** (`Room.MAX_SEATS`); past four, the points ladder pays the top five (6-4-3-2-1). Sumo, Tank Clash and the other shared-arena games have no real-time cross-phone sync in either app.
 - **Transport:** claw-core's `NetTransport` (Trystero WebRTC, Nostr then torrent signaling), namespace `claw-games`. `?net=local` uses a BroadcastChannel loopback for testing.
