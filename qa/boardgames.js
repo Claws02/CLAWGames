@@ -110,15 +110,30 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
         out.hdBust = [HD.bust([2, 3, 4, 6, 6, 2]), HD.bust([2, 3, 4, 6, 6, 5])];
         const pl = HD.plan([1, 1, 1, 2, 3, 4], 0, 0, 0, 0); out.hdPlan = pl && pl.score >= 1000 && pl.idx.length >= 3;
         out.hdBankWin = HD.plan([5, 2, 3], 300, 3, 2700, 0).bank;
-        // Claw Race: out of the nest with any roll, capture off a rock, none on a rock, home after a lap
-        out.crOut = CR.dest(-1, 4);
-        const r1 = CR.newGame(); r1.crabs[1][0] = 1; r1.crabs[0][0] = 12; r1.turn = 0;
-        out.crCap = CR.play(r1, { c: 0, from: 12, to: 13 }, 1).caught;
-        const r2 = CR.newGame(); r2.crabs[1][0] = 0; r2.crabs[0][0] = 11; r2.turn = 0;
-        out.crSafe = CR.play(r2, { c: 0, from: 11, to: 12 }, 1).caught;
-        out.crHome = CR.dest(21, 5);
-        const r3 = CR.newGame(); r3.crabs[0] = [24, 24, 22]; r3.turn = 0; out.crWin = CR.play(r3, { c: 2, from: 22, to: 24 }, 2).won;
-        out.crBotCap = (() => { const g = CR.newGame(); g.crabs[1][0] = 1; g.crabs[0] = [12, 2, -1]; g.turn = 0; return CR.botMove(g, 1, 1).c === 0; })();
+        // Claw Race: the reef (a closed 40-square loop), out of the nest with any roll, the reef's
+        // squares, snaps (not on a rock, not through a shield), gifts, swap, home, 2–4 seats
+        out.crLoop = CR.TRACK.length === 40 && new Set(CR.TRACK.map(t => t.join())).size === 40
+            && CR.TRACK.every((a, i) => { const b = CR.TRACK[(i + 1) % 40]; return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1; });
+        out.crSeats = [CR.newGame(2).per, CR.newGame(3).per, CR.newGame(4).per, CR.newGame(4).quarter.join()];
+        const cr = (setup, m, steps, opts = {}) => { const g = CR.newGame(2); g.turn = 0; setup(g); return { r: CR.play(g, m, steps, { roll: steps, ...opts }), g }; };
+        out.crOut = cr(() => {}, { c: 0, from: -1 }, 2).g.crabs[0][0];                                     // a 2 brings it to square 1
+        out.crCurrent = cr(g => { g.crabs[0][0] = 2; }, { c: 0, from: 2 }, 2).g.crabs[0][0];              // lands on 4: on to 7
+        out.crWhirl = cr(g => { g.crabs[0][0] = 3; }, { c: 0, from: 3 }, 3).g.crabs[0][0];                // lands on 6: back to 3
+        out.crTunnel = cr(g => { g.crabs[0][0] = 5; }, { c: 0, from: 5 }, 3).g.crabs[0][0];               // lands on 8: on to 13
+        out.crSnap = cr(g => { g.crabs[1][0] = 1; g.crabs[0][0] = 18; }, { c: 0, from: 18 }, 3);           // P2's racer on square 21
+        out.crSnap = [out.crSnap.r.caught.length, out.crSnap.g.crabs[1][0]];
+        out.crRock = cr(g => { g.crabs[1][0] = 0; g.crabs[0][0] = 17; }, { c: 0, from: 17 }, 3).r.caught.length;
+        const sh = cr(g => { g.crabs[1][0] = 1; g.power[1] = 'shield'; g.crabs[0][0] = 18; }, { c: 0, from: 18 }, 3);
+        out.crShield = [sh.r.caught.length, sh.g.crabs[1][0], sh.g.power[1]];
+        out.crGift = cr(g => { g.crabs[0][0] = 0; }, { c: 0, from: 0 }, 2, { rng: () => 0 }).g.power[0];
+        out.crHome = cr(g => { g.crabs[0][0] = 37; }, { c: 0, from: 37 }, 5).r.home;
+        out.crSix = cr(() => {}, { c: 0, from: -1 }, 6).r.again;
+        out.crWin = cr(g => { g.crabs[0] = [40, 40, 36]; }, { c: 2, from: 36 }, 4).r.won;
+        const sw = CR.newGame(2); sw.turn = 0; sw.crabs[0][0] = 11; sw.crabs[1][0] = 33; sw.power[0] = 'swap';
+        const plan = CR.swapPlan(sw); CR.swap(sw, plan); out.crSwap = [sw.crabs[0][0], sw.crabs[1][0], sw.power[0]];
+        out.crBotSnap = (() => { const g = CR.newGame(2); g.turn = 0; g.crabs[1][0] = 1; g.crabs[0] = [18, 2, -1]; return CR.botMove(g, 3, 1).c === 0; })();
+        // Hot Dice: the sets on the table, named
+        out.hdSets = [[1, 4, 4, 4, 5, 2], [1, 2, 3, 4, 5, 6], [2, 3, 4, 6, 6, 2]].map(v => HD.combos(v).map(c => `${c.label}:${c.score}`).join('|'));
         // Kelp Maze: a wall blocks a step, crossing and overlap are refused, a wall that shuts someone in is refused, the hop
         const k = KM.newGame(); out.kmDist = [KM.dist(k, 0), KM.dist(k, 1)];
         k.walls.push({ o: 'h', r: 5, c: 2 });
@@ -143,9 +158,16 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
     ok(R2.hd.join() === '100,50,200,1000,400,1500,750,0,0', `Hot Dice: scoring (${R2.hd})`);
     ok(R2.hdBust.join() === 'true,false', 'Hot Dice: a roll with nothing scoring is a bust');
     ok(R2.hdPlan && R2.hdBankWin, 'Hot Dice bot: keeps three 1s; banks when it reaches 3,000');
-    ok(R2.crOut === 3 && R2.crHome === 24, 'Claw Race: any roll brings a crab out; a lap takes it home');
-    ok(R2.crCap === 1 && R2.crSafe === 0, 'Claw Race: landing on a rival sends it to its nest, except on a safe rock');
-    ok(R2.crWin && R2.crBotCap, 'Claw Race: three home wins; the bot takes a capture');
+    ok(R2.crLoop, 'Claw Race: the reef is one closed loop of 40 squares');
+    ok(R2.crSeats.join() === '3,2,2,0,1,2,3', `Claw Race: 3 racers each at two players, 2 at three or four, a quarter each (${R2.crSeats})`);
+    ok(R2.crOut === 1, 'Claw Race: any roll brings a racer out');
+    ok(R2.crCurrent === 7 && R2.crWhirl === 3 && R2.crTunnel === 13, `Claw Race: currents +3, whirlpools -3, kelp tunnels +5 (${R2.crCurrent}, ${R2.crWhirl}, ${R2.crTunnel})`);
+    ok(R2.crSnap.join() === '1,-1' && R2.crRock === 0, 'Claw Race: landing on a rival splashes it home, except on a rock');
+    ok(R2.crShield.join() === '0,1,', 'Claw Race: a shield saves the racer once, then it\'s gone');
+    ok(R2.crGift === 'extra' && R2.crHome && R2.crSix && R2.crWin, 'Claw Race: a gift shell gives a power; a lap takes a racer home; a 6 rolls again; all home wins');
+    ok(R2.crSwap.join() === '13,31,', `Claw Race: swap trades your front racer with the next rival ahead (${R2.crSwap})`);
+    ok(R2.crBotSnap, 'Claw Race bot: takes a snap');
+    ok(R2.hdSets.join(' / ') === 'A 1:100|THREE 4s:400|A 5:50 / STRAIGHT 1–6:1500 / ', `Hot Dice: the scoring sets are named (${R2.hdSets.join(' / ')})`);
     ok(R2.kmDist.join() === '6,6', 'Kelp Maze: both crabs 6 steps from home');
     ok(R2.kmBlock && R2.kmCross, 'Kelp Maze: a wall blocks a step; walls can\'t cross or overlap');
     ok(R2.kmSeal, 'Kelp Maze: a wall that closes off the last way through is refused');
@@ -153,15 +175,16 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
     ok(R2.kmBotWall, 'Kelp Maze bot: walls a rival who is ahead');
 
     // ── 2. Real games ───────────────────────────────────────────────────────
-    async function game(type, file, bots, label) {
+    async function game(type, file, bots, label, seats = 2) {
         const before = errs.length;
-        await page.evaluate(([type, bots]) => { const c = window.__claw; c.seats.count = 2; c.seats.bots = bots; c.show('grid'); c.play(type); }, [type, bots]);
+        await page.evaluate(([type, bots, seats]) => { const c = window.__claw; c.seats.count = seats; c.seats.bots = bots; c.show('grid'); c.play(type); }, [type, bots, seats]);
         const t0 = Date.now(), faces = new Set();
         let flipWithBot = false, endText = '', back = false, shot = false;
         while ((Date.now() - t0) / 1000 < 420) {
             const st = await page.evaluate(async file => {
                 const fire = el => el && el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
                 for (const id of ['btn-mg-intro-next', 'btn-mg-launch', 'mg-ready-1', 'mg-ready-2']) { const b = document.getElementById(id); if (b && b.offsetParent) fire(b); }
+                document.querySelectorAll('.mg-ready-extra').forEach(b => b.offsetParent && fire(b));
                 const bt = document.querySelector('.bt'), out = { arcade: !document.getElementById('arcade').hidden, bt: !!bt };
                 if (!bt) return out;
                 out.flip = bt.querySelector('.bt-frame').classList.contains('flip');
@@ -184,7 +207,8 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
         const plays = await page.evaluate(async t => (await import('/src/arcade/Stats.js')).plays(t), type);
         ok(back && /(WINS|DRAW)/.test(endText), `${type} ${label}: played to the end in ${secs}s: "${endText.slice(0, 60)}"`);
         ok(plays >= 1, `${type} ${label}: Stats recorded it (plays=${plays})`);
-        if (bots[1]) ok(!flipWithBot, `${type} ${label}: the table never turned away from the human`);
+        if (seats > 2) ok(faces.size === 1 && !faces.has(true), `${type} ${label}: with ${seats} round the phone, the table stays put`);
+        else if (bots[1]) ok(!flipWithBot, `${type} ${label}: the table never turned away from the human`);
         else ok(faces.size === 2, `${type} ${label}: the table faced each player in turn`);
         const newErrs = errs.slice(before);
         ok(!newErrs.length, `${type} ${label}: no page errors`);
@@ -194,6 +218,11 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
         ok(await page.evaluate(async t => (await import('/src/arcade/Catalog.js')).eligible(2).includes(t), type), `${type}: the arcade lists it at 2 seats`);
         await game(type, GAMES[type], [false, true, false, false], 'bot');
         await game(type, GAMES[type], [false, false, false, false], 'twohuman');
+        // Claw Race seats up to four: one person and three bots round the phone.
+        if (type === 'clawrace') {
+            ok(await page.evaluate(async t => (await import('/src/arcade/Catalog.js')).eligible(4).includes(t), type), `${type}: the arcade lists it at 4 seats`);
+            await game(type, GAMES[type], [false, true, true, true], 'fourbots', 4);
+        }
     }
     await browser.close();
     console.log(failed ? `\nBOARD GAMES: ${failed} FAILED` : '\nBOARD GAMES PASS');
