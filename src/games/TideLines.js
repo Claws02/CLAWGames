@@ -14,6 +14,7 @@
 import { sfx, haptic } from '../claw-core/engine/AudioManager.js';
 import { extendWatchdog } from '../claw-core/minigames/MinigameManager.js';
 import { tabletop } from './board/Tabletop.js';
+import * as Pieces from './board/Pieces.js';
 
 // ── Rules ───────────────────────────────────────────────────────────────────
 // Points 0..8, row by row. Every point joins the points round it (8 ways).
@@ -84,19 +85,36 @@ export function botMove(g, skill = 1) {
 
 // ── The game ────────────────────────────────────────────────────────────────
 const CSS = `
-.tl-board{position:relative;width:calc(var(--c)*6.2);height:calc(var(--c)*6.2);background:#bfe6e8;border:calc(var(--c)*.09) solid #3f4652;border-radius:calc(var(--c)*.4);box-shadow:inset 0 0 0 calc(var(--c)*.12) #9fd6da}
+.tl{background:linear-gradient(180deg,#8fd3e8,#5fb6d6)}
+.tl.p2{background:linear-gradient(180deg,#9cc4f0,#6f9fe0)}
+.tl-board{position:relative;width:calc(var(--c)*6.4);height:calc(var(--c)*6.4);border-radius:calc(var(--c)*.9);border:calc(var(--c)*.1) solid #3f4652;overflow:hidden;
+  background:radial-gradient(ellipse at 50% 50%,#7fd6df 0 52%,#5ec1cf 64%,#e9cf98 72%,#f3dfb0 80%,#e4c487 100%);
+  box-shadow:inset 0 0 0 calc(var(--c)*.12) #c9a66b,inset 0 calc(var(--c)*.12) calc(var(--c)*.4) rgba(0,0,0,.25),0 calc(var(--c)*.14) 0 #3f4652}
+.tl-board::before{content:'';position:absolute;inset:-20%;background:repeating-radial-gradient(circle at 30% 40%,rgba(255,255,255,.18) 0 calc(var(--c)*.12),transparent calc(var(--c)*.12) calc(var(--c)*.5));animation:tlshim 9s linear infinite;pointer-events:none}
+@keyframes tlshim{to{transform:translate(8%,6%) rotate(6deg)}}
+.tl-rock{position:absolute;border-radius:45% 55% 50% 50%;background:radial-gradient(circle at 35% 30%,#a7a093,#6f685e);box-shadow:inset 0 calc(var(--c)*-.06) 0 rgba(0,0,0,.25);pointer-events:none}
+.tl-weed{position:absolute;font-size:calc(var(--c)*.5);pointer-events:none;transform-origin:50% 100%;animation:tlsway 3s ease-in-out infinite alternate}
+@keyframes tlsway{from{transform:rotate(-8deg)}to{transform:rotate(8deg)}}
+.tl-bub{position:absolute;bottom:-10%;width:calc(var(--c)*.16);height:calc(var(--c)*.16);border-radius:50%;border:2px solid rgba(255,255,255,.7);pointer-events:none;animation:tlbub 6s linear infinite}
+@keyframes tlbub{to{transform:translateY(calc(var(--c)*-7)) translateX(calc(var(--c)*.3));opacity:0}}
 .tl-board svg{position:absolute;inset:0;width:100%;height:100%}
-.tl-board line{stroke:#3f4652;stroke-width:2.2;stroke-linecap:round;opacity:.55}
-.tl-pt{position:absolute;width:calc(var(--c)*1.25);height:calc(var(--c)*1.25);margin:calc(var(--c)*-.625) 0 0 calc(var(--c)*-.625);border-radius:50%;display:flex;align-items:center;justify-content:center}
-.tl-pt::after{content:'';width:calc(var(--c)*.3);height:calc(var(--c)*.3);border-radius:50%;background:#3f4652;opacity:.5}
-.tl-pt.to::after{width:calc(var(--c)*.55);height:calc(var(--c)*.55);opacity:.35;background:var(--tc);animation:tlpulse 1s ease-in-out infinite}
+.tl-board line.u{stroke:#3d8a96;stroke-width:4.2;stroke-linecap:round;opacity:.55}
+.tl-board line.o{stroke:#f6efd8;stroke-width:2;stroke-linecap:round;stroke-dasharray:3 2.2;opacity:.95}
+.tl-pt{position:absolute;width:calc(var(--c)*1.3);height:calc(var(--c)*1.3);margin:calc(var(--c)*-.65) 0 0 calc(var(--c)*-.65);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.tl-pt::after{content:'';width:calc(var(--c)*.38);height:calc(var(--c)*.38);border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#c9c2b4 55%,#8f887c);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.tl-pt.to::after{width:calc(var(--c)*.6);height:calc(var(--c)*.6);background:radial-gradient(circle,#fff 0 20%,var(--tc) 22% 60%,transparent 62%);opacity:.85;animation:tlpulse 1s ease-in-out infinite;box-shadow:none}
 @keyframes tlpulse{50%{transform:scale(1.25)}}
-.tl-shell{position:absolute;width:calc(var(--c)*1.05);height:calc(var(--c)*1.05);margin:calc(var(--c)*-.525) 0 0 calc(var(--c)*-.525);border-radius:50%;background:var(--sc);border:calc(var(--c)*.08) solid #3f4652;box-shadow:inset 0 calc(var(--c)*-.12) 0 rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;font-size:calc(var(--c)*.55);transition:left .3s,top .3s,transform .2s;pointer-events:none}
-.tl-shell.sel{transform:scale(1.18);box-shadow:0 0 0 calc(var(--c)*.1) #fff,0 0 0 calc(var(--c)*.18) var(--sc)}
-.tl-shell.win{animation:tlwin .6s ease-in-out infinite alternate}
-@keyframes tlwin{to{transform:scale(1.2)}}
-.tl-hand{display:flex;gap:calc(var(--c)*.15);min-height:calc(var(--c)*.6)}
-.tl-hand i{width:calc(var(--c)*.5);height:calc(var(--c)*.5);border-radius:50%;background:var(--sc);border:3px solid #3f4652}
+.tl-shell{position:absolute;width:calc(var(--c)*1.2);height:calc(var(--c)*1.2);margin:calc(var(--c)*-.6) 0 0 calc(var(--c)*-.6);border-radius:50%;background:radial-gradient(circle at 40% 30%,#fff,var(--sc) 70%);border:calc(var(--c)*.09) solid #3f4652;box-shadow:0 calc(var(--c)*.1) 0 rgba(0,0,0,.3),inset 0 0 0 calc(var(--c)*.05) rgba(255,255,255,.5);transition:left .32s cubic-bezier(.3,1.4,.5,1),top .32s cubic-bezier(.3,1.4,.5,1),transform .2s;pointer-events:none}
+.tl-shell .pc-face{position:absolute;inset:6%;width:88%;height:88%;border-radius:50%;object-fit:cover}
+.tl-shell .pc-face.emoji{display:flex;align-items:center;justify-content:center;font-size:calc(var(--c)*.6)}
+.tl-shell::after{content:'🐚';position:absolute;right:-18%;bottom:-14%;font-size:calc(var(--c)*.42);filter:drop-shadow(0 1px 0 #3f4652)}
+.tl-shell.sel{transform:translateY(calc(var(--c)*-.15)) scale(1.15);box-shadow:0 0 0 calc(var(--c)*.1) #fff,0 0 calc(var(--c)*.4) var(--sc),0 calc(var(--c)*.2) 0 rgba(0,0,0,.25)}
+.tl-shell.win{animation:tlwin .5s ease-in-out infinite alternate;box-shadow:0 0 0 calc(var(--c)*.12) #ffd200,0 0 calc(var(--c)*.6) #ffd200}
+@keyframes tlwin{to{transform:translateY(calc(var(--c)*-.2)) scale(1.18)}}
+.tl-hand{display:flex;align-items:center;gap:calc(var(--c)*.15);min-height:calc(var(--c)*.75);font:800 calc(var(--c)*.2) Nunito,system-ui,sans-serif;color:#24414a}
+.tl-hand i{position:relative;width:calc(var(--c)*.7);height:calc(var(--c)*.7);border-radius:50%;background:var(--sc);border:3px solid #3f4652;overflow:hidden}
+.tl-hand i .pc-face{width:100%;height:100%;object-fit:cover}
+.tl-hand i .pc-face.emoji{display:flex;align-items:center;justify-content:center;font-size:calc(var(--c)*.36);font-style:normal}
 `;
 
 // Whose go the screen shows: it changes with the board turning round, not the moment a move is played.
@@ -110,13 +128,20 @@ export function start(isBot, onWin, botSkill = 0.55) {
     _up = G.turn;
     const seen = new Set(), segs = [];
     ADJ.forEach((js, i) => js.forEach(j => { const k = i < j ? `${i}-${j}` : `${j}-${i}`; if (!seen.has(k)) { seen.add(k); segs.push([i, j]); } }));
-    const svg = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">${segs.map(([a, b]) => { const A = XY(a), B = XY(b); return `<line x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}"/>`; }).join('')}</svg>`;
+    const line = cls => segs.map(([a, b]) => { const A = XY(a), B = XY(b); return `<line class="${cls}" x1="${A.x}" y1="${A.y}" x2="${B.x}" y2="${B.y}"/>`; }).join('');
+    const svg = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">${line('u')}${line('o')}</svg>`;
+    // The tide pool's dressing: rocks on the rim, weed that sways, bubbles.
+    const scene = [[2, 3, 1.1, .8], [80, 4, .9, .7], [5, 82, .8, .9], [84, 84, 1.2, .8], [46, -3, .7, .5], [-3, 45, .6, .8]]
+        .map(([x, y, w, h]) => `<i class="tl-rock" style="left:${x}%;top:${y}%;width:calc(var(--c)*${w});height:calc(var(--c)*${h})"></i>`).join('')
+        + [[10, 70], [86, 22], [70, 88]].map(([x, y], k) => `<i class="tl-weed" style="left:${x}%;top:${y}%;animation-delay:-${k}s">🌿</i>`).join('')
+        + [20, 45, 68, 85].map((x, k) => `<i class="tl-bub" style="left:${x}%;animation-delay:-${k * 1.6}s"></i>`).join('');
+    Pieces.prepare(2);
     const pts = Array.from({ length: 9 }, (_, i) => `<div class="tl-pt" data-act="pt" data-i="${i}" style="left:${XY(i).x}%;top:${XY(i).y}%"></div>`).join('');
     T = tabletop({
         isBot, onWin, probe: () => _probeTap(), cls: 'tl', css: CSS, cols: 7.5, rows: 12,
         html: `<div class="bt-head"><div class="bt-turn"></div><div class="bt-hint"></div></div>
             <div class="tl-hand" data-hand="1"></div>
-            <div class="tl-board">${svg}${pts}<div class="tl-shells"></div></div>
+            <div class="tl-board">${scene}${svg}${pts}<div class="tl-shells"></div></div>
             <div class="tl-hand" data-hand="0"></div>`,
         onAct: (act, el) => { if (act === 'pt' && !T.botTurn(G.turn)) _tap(+el.dataset.i); },
     });
@@ -167,8 +192,12 @@ function _render() {
     const to = !bot && !placing(G) && _sel >= 0 ? ADJ[_sel].filter(j => G.cells[j] < 0) : !bot && placing(G) ? G.cells.map((v, i) => (v < 0 ? i : -1)).filter(i => i >= 0) : [];
     T.qa('.tl-pt').forEach(el => { const i = +el.dataset.i; el.classList.toggle('to', to.includes(i)); el.style.setProperty('--tc', tc); });
     T.q('.tl-shells').innerHTML = G.cells.map((v, i) => (v < 0 ? '' :
-        `<div class="tl-shell${i === _sel ? ' sel' : ''}${_won && _won.includes(i) ? ' win' : ''}" style="--sc:${T.hex(v)};left:${XY(i).x}%;top:${XY(i).y}%">🐚</div>`)).join('');
-    T.qa('.tl-hand').forEach(h => { const q = +h.dataset.hand; h.style.setProperty('--sc', T.hex(q)); h.innerHTML = '<i></i>'.repeat(SHELLS - G.placed[q]); });
+        `<div class="tl-shell${i === _sel ? ' sel' : ''}${_won && _won.includes(i) ? ' win' : ''}" style="--sc:${T.hex(v)};left:${XY(i).x}%;top:${XY(i).y}%">${Pieces.pieceHTML(v)}</div>`)).join('');
+    T.qa('.tl-hand').forEach(h => {
+        const q = +h.dataset.hand, left = SHELLS - G.placed[q];
+        h.style.setProperty('--sc', T.hex(q));
+        h.innerHTML = left ? `${T.name(q)} · ${`<i>${Pieces.pieceHTML(q)}</i>`.repeat(left)}` : '';
+    });
 }
 
 /** Probes. */

@@ -55,7 +55,7 @@ MG_ORIENTATIONS.mancalatable = tableHold('🫘', 'Your pits are the <b>near row<
 MG_ORIENTATIONS.tidetable = tableHold('🐚', 'You take it in <b>turns</b>, and it <b>turns round to face you</b>. Place your three shells, then slide one along a line each go. <b>Three in a row</b> wins.');
 MG_ORIENTATIONS.gridtable = tableHold('#️⃣', 'You take it in <b>turns</b>, and it <b>turns round to face you</b>. Play in the <b>lit</b> board: the square you pick sends the other player to that board.');
 MG_ORIENTATIONS.hotdicetable = tableHold('🔥', 'You take it in <b>turns</b>, and it <b>turns round to face you</b>. ROLL, tap the dice that score, then ROLL the rest or BANK. Nothing scoring loses the turn.');
-MG_ORIENTATIONS.racetable = tableHold('🦀', 'Your <b>nest</b> and start rock are at <b>your end</b>, and it <b>turns round to face you</b>. ROLL, then tap a crab to move it round. Land on a rival to send it home.');
+MG_ORIENTATIONS.racetable = tableHold('🦀', 'Your <b>nest</b> is beside your start rock at <b>your side</b> (with two of you it <b>turns round to face you</b>). ROLL, then tap a racer to hop it round the reef. Land on a rival to splash it home; grab 🎁 shells for powers.');
 MG_ORIENTATIONS.mazetable = tableHold('🌿', 'Your crab starts at <b>your end</b>; race it to the far side. It <b>turns round to face you</b>: each go, step one square or plant a kelp wall.');
 MG_ORIENTATIONS.liartable = tableHold('🤥', 'Your dice hide under your cup: on your go, <b>hold the cup to peek</b> while the other player looks away. Bid how many of a face are on the table, or call <b>LIAR!</b>');
 
@@ -177,12 +177,13 @@ const GAMES = {
     },
     clawrace: {
         load: () => import('./ClawRace.js'),
-        info: { icon: '🦀', title: 'CLAW RACE', desc: 'Roll and race your three crabs round the rock pool. Any roll brings one out of the nest; a 6 goes again. Land on a rival to send it back to its nest, except on a safe rock. All three home first wins.' },
+        info: { icon: '🦀', title: 'CLAW RACE', desc: 'Race your racers round the reef, 2 to 4 players. Any roll brings one out; a 6 rolls again; land on a rival to splash it home (not on a rock). Currents push you on, whirlpools pull you back, kelp tunnels jump ahead, and 🎁 shells give powers: extra roll, turbo, swap, shield. All yours home first wins.' },
         orientation: 'racetable',
-        watchdogMs: 240000,
+        watchdogMs: 300000,
         net: 'local',
         shape: 'table',
-        profile: { genre: 'race', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
+        // 3–4 seats sit round the phone (it doesn't turn); bots fill the rest.
+        profile: { genre: 'race', control: 'tap', wire: 'exact', seats: [2, 4], live: true },
     },
     kelpmaze: {
         load: () => import('./KelpMaze.js'),
