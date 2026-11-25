@@ -1264,3 +1264,22 @@ body.tv .tv-screen .st-place:empty { display: none; }
 .pad-dot { position: absolute; left: -40px; top: -40px; width: 80px; height: 80px; border-radius: 50%; background: var(--c); opacity: 0;
     box-shadow: 0 0 24px var(--c); pointer-events: none; transition: opacity .12s; }
 .pad.down .pad-dot { opacity: .85; }
+
+/* ---------- mixes: what kind of games a party (or the TV) deals (Mix.js) ---------- */
+.mix-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+.mix-preset {
+    display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center; text-align: left;
+    border: 3px solid var(--ink); border-radius: 16px; background: #fff; padding: 6px 10px; box-shadow: 0 3px 0 var(--ink);
+}
+.mix-preset .mi { grid-row: span 2; font-size: 26px; }
+.mix-preset .ml { font-size: 18px; line-height: 1; }
+.mix-preset .ms { font-size: 11px; font-weight: 800; opacity: .75; line-height: 1.2; }
+.mix-preset.sel { background: var(--yellow); box-shadow: 0 0 0 3px var(--ink), 0 3px 0 var(--ink); }
+.mix-preset:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.mix-custom { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: 8px; }
+.mix-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.mix-chip { border: 3px solid var(--ink); border-radius: 999px; background: #fff; padding: 4px 10px; font-weight: 900; font-size: 13px; opacity: .55; }
+.mix-chip small { font-weight: 700; opacity: .8; }
+.mix-chip.on { opacity: 1; background: var(--yellow); }
+.len-chips { margin-top: -8px; }
+.go-btn.off { opacity: .45; }

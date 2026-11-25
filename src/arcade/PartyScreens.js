@@ -6,6 +6,7 @@ import * as Party from './Party.js';
 import * as Catalog from './Catalog.js';
 import * as Rotation from './Rotation.js';
 import * as Vetoes from './Vetoes.js';
+import * as Mix from './Mix.js';
 import { sfx, haptic } from '../claw-core/engine/AudioManager.js';
 import { seats, humans, seatChar } from './Seats.js';
 import { faceHTML } from './Characters.js';
@@ -35,10 +36,26 @@ export function paintSetup() {
         b.addEventListener('click', () => { Party.party.picker = id; Party.savePrefs(); paintSetup(); });
         pk.appendChild(b);
     });
-    const pool = Catalog.eligible(seats.count).length, left = Rotation.fresh(seats.count).length;
-    $('party-hint').textContent = pool < Party.party.length
-        ? `Only ${pool} games seat ${seats.count}, so some will repeat.`
-        : `🔄 ${left} of ${pool} games still to come round at ${seats.count} players · 🚫 ${Vetoes.PER_SESSION} vetoes for the table · ⚡ final game counts double`;
+    // What kind of games: a panel of its own above the pickers (built here, so a cached page has it).
+    let mixHost = $('party-mix');
+    if (!mixHost) {
+        const panel = document.createElement('div');
+        panel.className = 'panel mix-panel';
+        panel.innerHTML = '<div class="panel-h bfont">What kind of games?</div><div id="party-mix"></div>';
+        pk.closest('.panel').before(panel);
+        mixHost = $('party-mix');
+    }
+    const base = Catalog.eligible(seats.count), games = Party.mixGames();
+    Mix.paint(mixHost, Party.mix, base, paintSetup);
+    const mins = Mix.estimate(games, Party.party.length);
+    const start = $('btn-party-start');
+    start.disabled = !games.length;
+    start.classList.toggle('off', !games.length);
+    $('party-hint').textContent = !games.length
+        ? `No game fits this mix at ${seats.count} players: switch something on, or pick another mix.`
+        : `🎮 ${games.length} game${games.length === 1 ? '' : 's'} in this mix · ⏱ about ${mins} min for ${Party.party.length}`
+          + (games.length < Party.party.length ? ' (some will repeat)' : '')
+          + ` · 🚫 ${Vetoes.PER_SESSION} vetoes · ⚡ final game counts double`;
 }
 
 // ---- draft --------------------------------------------------------------------

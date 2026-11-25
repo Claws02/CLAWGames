@@ -13,6 +13,7 @@ npm run setup         # = git submodule update --init
 npm run serve         # http://127.0.0.1:8140
 npm run smoke         # plays 5 games end to end in headless Chromium
 node qa/party.js      # a 3-game party with each picker (wheel, shuffle, draft, host picks)
+node qa/mix.js        # party mixes: lengths, presets, the pool follows the mix, balanced mixing, time estimate, Quick Play length chips, the TV's mix
 node qa/party-points.mjs   # party scoring rules, no browser
 node qa/together.js   # two phones in one room over the loopback transport
 node qa/hostwatch.js  # a phone host with HOST PLAYS TOO off: runs the room, never plays

@@ -23,6 +23,7 @@ import * as Confirm from './Confirm.js';
 import * as Together from './Together.js';
 import * as Characters from './Characters.js';
 import * as TvLive from './TvLive.js';
+import * as Mix from './Mix.js';
 
 const $ = id => document.getElementById(id);
 const MEDALS = ['🥇', '🥈', '🥉', '4️⃣'];
@@ -196,18 +197,33 @@ function _paint() {
             if (s && await Confirm.ask(`Remove ${s.name} from the room?`, 'REMOVE')) Room.remove(i);
         });
     });
-    $('btn-tv-spin').disabled = seats.length < 2;
+    // What kind of games: a panel above SPIN (built here, so a cached page has it).
+    let mixHost = $('tv-mix');
+    if (!mixHost) {
+        const panel = document.createElement('div');
+        panel.className = 'panel mix-panel';
+        panel.innerHTML = '<div class="panel-h bfont">What kind of games?</div><div id="tv-mix"></div>';
+        $('btn-tv-spin').before(panel);
+        mixHost = $('tv-mix');
+    }
+    Mix.paint(mixHost, _mix, _base(), _paint);
+    const dealt = _mix.filter(_base()).length;
+    $('btn-tv-spin').disabled = seats.length < 2 || !dealt;
     $('btn-tv-end').hidden = !Room.totals().some(Boolean);
-    $('tv-hint').textContent = seats.length < 2 ? 'Waiting for at least 2 players…' : `${seats.length} players in. Spin when you're ready!`;
+    $('tv-hint').textContent = !dealt ? 'No game fits this mix: switch something on, or pick another mix.'
+        : seats.length < 2 ? 'Waiting for at least 2 players…' : `${seats.length} players in · ${dealt} games in the mix. Spin when you're ready!`;
 }
 
 // ---- the wheel -------------------------------------------------------------------
 // A shared phone in the room keeps the memorable games off the wheel (Together.fairPool).
+// The TV's mix (Mix.js): which kind of games its wheel deals, kept on this device.
+const _mix = Mix.create('tv');
+// Every game the room could be dealt now: phone games, plus the games the TV runs itself when the room fits them (§13).
+const _base = () => [...(Together.fairPool ? Together.fairPool(GAMES) : GAMES.slice()), ...(TvLive.pool ? TvLive.pool() : [])];
 function _pool() {
-    // Phone games, plus the games the TV runs itself when the room fits them (§13).
-    const games = [...(Together.fairPool ? Together.fairPool(GAMES) : GAMES.slice()), ...(TvLive.pool ? TvLive.pool() : [])];
+    const games = _mix.filter(_base());
     const left = games.filter(t => !_played.includes(t));
-    return left.length ? left : games;
+    return Mix.balance(left.length ? left : games, _played[_played.length - 1]);
 }
 /** The games the wheel would deal from now (probes). */
 export const pool = () => _pool();

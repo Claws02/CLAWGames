@@ -60,8 +60,15 @@ const GAMES = 3;
                         const b = document.getElementById(id);
                         if (vis(b)) b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
                     }
+                    // A table game (board/Tabletop.js) says what a sensible player would tap; anything else gets random taps.
+                    const probe = window.__clawProbe && window.__clawProbe();
+                    const end = document.querySelector('.bt-end');
                     const layer = document.getElementById('minigame-layer');
-                    if (getComputedStyle(layer).display !== 'none') {
+                    if (end) end.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                    else if (probe !== undefined && document.querySelector('.bt')) {
+                        const el = probe && document.querySelector('.bt ' + probe);
+                        if (el) el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+                    } else if (getComputedStyle(layer).display !== 'none') {
                         const r = layer.getBoundingClientRect();
                         const x = r.left + Math.random() * r.width, y = r.top + r.height * (0.6 + Math.random() * 0.38);
                         const el = document.elementFromPoint(x, y);
@@ -87,7 +94,7 @@ const GAMES = 3;
             `screens=${[...screens].join('>')} | ${podium}`);
         newErrs.forEach(e => console.log('     ' + e.slice(0, 200)));
         if (!ok) fail.push(picker);
-        if (done) await page.screenshot({ path: `/tmp/claude-0/-home-user/feef9cb7-b3ea-5463-a3fa-376dc616dfcb/scratchpad/shots/podium-${picker}.png` }).catch(() => {});
+        if (done) await page.screenshot({ path: `qa/shot-podium-${picker}.png` }).catch(() => {});
         await page.evaluate(() => document.getElementById('btn-podium-home').click());
     }
     await browser.close();
