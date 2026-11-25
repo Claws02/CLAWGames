@@ -121,6 +121,9 @@ async function record(browser, id, kind) {
         // (a game whose bots wait for a person gets one who taps at random in their zone, like qa/smoke.js)
         await p.evaluate(([type, human]) => { const c = window.__claw; c.seats.count = 2; c.seats.bots = [!human, true, true, true]; c.show('grid'); c.play(type); }, [id, !!o.human]);
         const tapper = o.human ? setInterval(() => p.evaluate(() => {
+            // A table game says what a sensible player would tap (board/Tabletop.js); anything else gets random taps.
+            const bt = document.querySelector('.bt');
+            if (bt && window.__clawProbe) { const sel = window.__clawProbe(); if (sel) bt.querySelector(sel)?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })); return; }
             const layer = document.getElementById('minigame-layer'); if (!layer) return;
             const r = layer.getBoundingClientRect(), x = r.left + Math.random() * r.width, y = r.top + r.height * (0.55 + Math.random() * 0.4), el = document.elementFromPoint(x, y);
             if (el) for (const t of ['pointerdown', 'pointerup', 'click']) el.dispatchEvent(new PointerEvent(t, { bubbles: true, clientX: x, clientY: y, pointerId: 1 }));

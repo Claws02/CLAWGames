@@ -211,7 +211,7 @@ function _render() {
     html += Array.from({ length: blank }, () => `<div class="cb-row empty"><span class="n"></span><span class="pegs">${'<span class="cb-peg hole"></span>'.repeat(PEGS)}</span><span class="cb-marks">${'<i></i>'.repeat(PEGS)}</span></div>`).join('');
     T.q('.cb-rows').innerHTML = html;
     const ok = T.q('.bt-btn[data-act="ok"]');
-    ok.textContent = set ? '🔒 LOCK CODE' : 'GUESS';
+    ok.textContent = set ? '🔒 LOCK IT' : 'GUESS';
     ok.classList.toggle('off', bot || _cur.length < PEGS || solved);
     T.q('.bt-btn[data-act="undo"]').classList.toggle('off', bot || !_cur.length);
     T.q('.cb-palette').style.opacity = bot || solved ? '.4' : '1';
