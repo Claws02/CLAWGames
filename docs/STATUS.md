@@ -24,7 +24,7 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 | CLAWGames #55 | **Quick board games** on a shared base (`src/games/board/`): Shut the Box, Pig, Dots and Boxes, Mancala, Liar's Dice |
 | CLAWGames #76 | Five more quick board games: Tide Lines, Big Grid, Hot Dice, Claw Race, Kelp Maze |
 | CLAWGames #77 | Claw Race rebuilt for 2–4 players (winding reef, reef squares, power-ups, characters); Kelp Maze coral reef; Tide Lines tide pool; Hot Dice picture scoring |
-| CLAWGames (this PR) | **Party mixes**: Everything / Quick Fire / Board Game Night / Brain Teasers / Action Packed / Custom (genres × quick-medium-long), a party-time estimate, balanced mixing; length chips in Quick Play; a mix for the TV's wheel (`Mix.js`, `DESIGN.md` §9) |
+| CLAWGames #78 | **Party mixes**: Everything / Quick Fire / Board Game Night / Brain Teasers / Action Packed / Custom (genres × quick-medium-long), a party-time estimate, balanced mixing; length chips in Quick Play; a mix for the TV's wheel (`Mix.js`, `DESIGN.md` §9) |
 | CLAWGames #54 | **Reef Drop**: levels as recipes (`docs/REEF_LEVELS.md`), 8 new pieces and 24 new reefs (78 in all) |
 | claw-core #42, CLAWGames #54 | **Shell Game race**: first right answer takes the round, wrong picks locked out, first to 3, on one screen and across phones (Room `PICK`/`CALL`, protocol 3) |
 
