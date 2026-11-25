@@ -57,6 +57,7 @@ MG_ORIENTATIONS.gridtable = tableHold('#️⃣', 'You take it in <b>turns</b>, a
 MG_ORIENTATIONS.hotdicetable = tableHold('🔥', 'You take it in <b>turns</b>, and it <b>turns round to face you</b>. ROLL, tap the dice that score, then ROLL the rest or BANK. Nothing scoring loses the turn.');
 MG_ORIENTATIONS.racetable = tableHold('🦀', 'Your <b>nest</b> is beside your start rock at <b>your side</b> (with two of you it <b>turns round to face you</b>). ROLL, then tap a racer to hop it round the reef. Land on a rival to splash it home; grab 🎁 shells for powers.');
 MG_ORIENTATIONS.mazetable = tableHold('🌿', 'Your crab starts at <b>your end</b>; race it to the far side. It <b>turns round to face you</b>: each go, step one square or plant a kelp wall.');
+MG_ORIENTATIONS.codetable = tableHold('🔐', 'First you each set a <b>secret code</b> while the other <b>looks away</b>. Then take turns guessing theirs; it <b>turns round to face you</b>. Hold 👁 to peek at your own code.');
 MG_ORIENTATIONS.liartable = tableHold('🤥', 'Your dice hide under your cup: on your go, <b>hold the cup to peek</b> while the other player looks away. Bid how many of a face are on the table, or call <b>LIAR!</b>');
 
 // Online only: played alone on every phone for a score (claw-core's
@@ -190,6 +191,15 @@ const GAMES = {
         info: { icon: '🌿', title: 'KELP MAZE', desc: 'Race your crab to the far side. Each go, step one square or plant a kelp wall to slow the other crab down (six each). A wall can never close off a crab\'s last way through.' },
         orientation: 'mazetable',
         watchdogMs: 180000,
+        net: 'local',
+        shape: 'table',
+        profile: { genre: 'brain', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
+    },
+    codebreaker: {
+        load: () => import('./CodeBreaker.js'),
+        info: { icon: '🔐', title: 'CODE BREAKER', desc: 'Each of you sets a secret code of 4 coloured pegs. Take turns guessing the other\'s: ● means a right colour in the right spot, ○ a right colour in the wrong spot. Crack it in fewer guesses to win.' },
+        orientation: 'codetable',
+        watchdogMs: 300000,
         net: 'local',
         shape: 'table',
         profile: { genre: 'brain', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
