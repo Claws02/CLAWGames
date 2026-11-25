@@ -17,7 +17,7 @@
 // ============================================================
 import { state } from '../AppHost.js';
 import { sfx, haptic } from '../claw-core/engine/AudioManager.js';
-import { registerMinigameCleanup } from '../claw-core/minigames/MinigameManager.js';
+import { registerMinigameCleanup, isBotSlot } from '../claw-core/minigames/MinigameManager.js';
 import * as Pieces from './board/Pieces.js';
 
 // ── Rules ───────────────────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ export function rollKind(rnd = Math.random) {
 export const value = (kinds, p) => kinds.reduce((s, k) => { const w = worth(k, p); return s + (w === 'stun' ? -2.5 : w); }, 0);
 
 // ── Module state ─────────────────────────────────────────────────────────────
-let _done = false, _over = false, _onWin = null, _isBot = false, _botSkill = 0.55;
+let _done = false, _over = false, _onWin = null, _bots = [false, false], _botSkill = 0.55;
 let _overlay = null, _canvas = null, _ctx = null, _af = null, _last = 0;
 let _w = 0, _h = 0, _cx = 0, _cy = 0, _R = 100, _dpr = 1;
 let _balls = [], _g = [], _clock = GAME_TIME, _spawnT = 0, _floats = [], _faces = [];
@@ -47,7 +47,9 @@ const _after = (fn, ms) => { const id = setTimeout(() => { if (!_done) fn(); }, 
 
 export function start(isBot, onWin, botSkill = 0.55) {
     if (!state.mgActive) return;
-    _done = false; _over = false; _onWin = onWin; _isBot = isBot; _botSkill = botSkill;
+    _done = false; _over = false; _onWin = onWin; _botSkill = botSkill;
+    // Either seat can be a bot (a party of bots, the card clip); player 2's is the usual one.
+    _bots = [!!isBotSlot?.(0), !!isBot || !!isBotSlot?.(1)];
     _balls = []; _floats = []; _clock = GAME_TIME; _spawnT = 0; _last = 0;
     _g = [0, 1].map(p => ({ p, score: 0, t: -1, ate: false, stun: 0, want: -1, open: 0 }));
     registerMinigameCleanup(_destroy);   // R3
@@ -95,7 +97,7 @@ function _press(e) {
     e.preventDefault();
     const r = _overlay.getBoundingClientRect();
     const p = e.clientY - r.top >= r.height / 2 ? 0 : 1;
-    if (p === 1 && _isBot) return;
+    if (_bots[p]) return;
     chomp(p);
 }
 
@@ -182,13 +184,14 @@ function _snap(p) {
 function _float(p, text, color) { const h = _head(p, 1); _floats.push({ p, text, color, x: h.x, y: h.y, t: 0 }); }
 
 // ── The bot ─────────────────────────────────────────────────────────────────
-function _bot(dt) {
-    const g = _g[1];
-    if (!_isBot || g.stun > 0 || g.t >= 0) return;
-    const h = jaws(1), hr = _headR() * 1.05, lead = EXTEND;
+function _bot(dt) { [0, 1].forEach(p => { if (_bots[p]) _botSeat(p, dt); }); }
+function _botSeat(p, dt) {
+    const g = _g[p];
+    if (g.stun > 0 || g.t >= 0) return;
+    const h = jaws(p), hr = _headR() * 1.05, lead = EXTEND;
     // What it would catch: where each ball will be when the jaws close.
     const inReach = _balls.filter(b => Math.hypot(b.x + b.vx * lead - h.x, b.y + b.vy * lead - h.y) < hr).map(b => b.kind);
-    const v = value(inReach, 1);
+    const v = value(inReach, p);
     const sloppy = Math.random() < (1 - _botSkill) * 0.012;   // now and then, a chomp at nothing much
     if ((v >= 1 || sloppy) && g.want < 0) g.want = 0.08 + (1 - _botSkill) * 0.35 + Math.random() * 0.08;
     if (g.want >= 0) {
@@ -196,7 +199,7 @@ function _bot(dt) {
         if (g.want < 0) {
             // Still worth it after the reaction time? A sharp bot checks again; a sloppy one just goes.
             const again = _balls.filter(b => Math.hypot(b.x - h.x, b.y - h.y) < hr * 1.1).map(b => b.kind);
-            if (value(again, 1) >= 1 || Math.random() > _botSkill) chomp(1);
+            if (value(again, p) >= 1 || Math.random() > _botSkill) chomp(p);
             g.want = -1;
         }
     }
