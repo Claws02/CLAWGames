@@ -16,6 +16,7 @@
 import { sfx, haptic } from '../claw-core/engine/AudioManager.js';
 import { extendWatchdog } from '../claw-core/minigames/MinigameManager.js';
 import { tabletop } from './board/Tabletop.js';
+import * as Pieces from './board/Pieces.js';
 
 // ── Rules ───────────────────────────────────────────────────────────────────
 // Squares (r, c), 0..N-1, row 0 at the top. Player 0 starts bottom middle and
@@ -88,7 +89,7 @@ export function allWalls(g) {
 export function play(g, m) {
     const p = g.turn;
     if (m.step) { g.pawn[p] = [...m.step]; if (m.step[0] === GOAL[p]) return 'win'; }
-    else { g.walls.push({ ...m.wall }); g.left[p]--; }
+    else { g.walls.push({ ...m.wall, by: p }); g.left[p]--; }
     g.turn = 1 - p;
     return null;
 }
@@ -122,22 +123,52 @@ export function botMove(g, skill = 1) {
 // ── The game ────────────────────────────────────────────────────────────────
 const S = 100 / N;   // percent per square
 const CSS = `
-.km-board{position:relative;width:calc(var(--c)*6.6);height:calc(var(--c)*6.6);background:#2c6e6a;border:calc(var(--c)*.09) solid #3f4652;border-radius:calc(var(--c)*.3);box-sizing:border-box}
-.km-sq{position:absolute;border-radius:calc(var(--c)*.12);background:#d9efe6;box-shadow:inset 0 calc(var(--c)*-.05) 0 rgba(0,0,0,.12)}
-.km-sq.goal0{background:color-mix(in srgb,var(--p0) 30%,#d9efe6)} .km-sq.goal1{background:color-mix(in srgb,var(--p1) 30%,#d9efe6)}
-.km-sq.to::after{content:'';position:absolute;inset:30%;border-radius:50%;background:var(--tc);opacity:.45;animation:kmp 1s ease-in-out infinite}
+.km{background:linear-gradient(180deg,#56c2d6 0%,#2a8fb0 55%,#1d6a8e 100%)}
+.km.p2{background:linear-gradient(180deg,#6aa9e8 0%,#3f7fc9 55%,#2c5d9e 100%)}
+.km .bt-hint,.km .km-stock{color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.35)}
+.km-sea{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.km-sea::before{content:'';position:absolute;inset:-10% -30%;background:repeating-linear-gradient(105deg,rgba(255,255,255,.09) 0 4%,transparent 4% 11%);animation:kmrays 14s linear infinite}
+@keyframes kmrays{to{transform:translateX(12%)}}
+.km-fish{position:absolute;left:-15%;font-size:calc(var(--c)*.5);animation:kmswim linear infinite;opacity:.85}
+@keyframes kmswim{to{transform:translateX(calc(100vw + 40%))}}
+.km-board{position:relative;width:calc(var(--c)*6.6);height:calc(var(--c)*6.6);border:calc(var(--c)*.1) solid #3f4652;border-radius:calc(var(--c)*.35);box-sizing:border-box;
+  background:radial-gradient(circle at 30% 20%,#2f97a3,#1b5f6f);box-shadow:0 calc(var(--c)*.14) 0 #3f4652,inset 0 0 calc(var(--c)*.5) rgba(0,0,0,.35)}
+.km-sq{position:absolute;border-radius:calc(var(--c)*.14);
+  background:radial-gradient(circle at 25% 30%,rgba(255,255,255,.55) 0 4%,transparent 5%),radial-gradient(circle at 70% 72%,rgba(160,120,70,.35) 0 5%,transparent 6%),radial-gradient(circle at 60% 25%,rgba(160,120,70,.25) 0 3%,transparent 4%),linear-gradient(160deg,#f7e8c2,#e8d29c);
+  box-shadow:inset 0 calc(var(--c)*-.06) 0 rgba(120,85,40,.3)}
+.km-sq.goal0,.km-sq.goal1{background:radial-gradient(circle at 30% 70%,rgba(255,255,255,.5) 0 10%,transparent 11%),radial-gradient(circle at 70% 30%,rgba(255,255,255,.35) 0 8%,transparent 9%),linear-gradient(160deg,color-mix(in srgb,var(--gc) 55%,#ffd6c9),color-mix(in srgb,var(--gc) 75%,#7a2e3a))}
+.km-sq.goal0{--gc:var(--p0)} .km-sq.goal1{--gc:var(--p1)}
+.km-sq.to::after{content:'';position:absolute;inset:26%;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,var(--tc) 45%,transparent 70%);opacity:.9;animation:kmp 1s ease-in-out infinite}
 @keyframes kmp{50%{transform:scale(1.3)}}
-.km-pt{position:absolute;width:${S * 0.55}%;height:${S * 0.55}%;transform:translate(-50%,-50%);border-radius:50%;z-index:3;display:none}
+.km-pt{position:absolute;width:${S * 0.6}%;height:${S * 0.6}%;transform:translate(-50%,-50%);border-radius:50%;z-index:5;display:none}
 .km.walling .km-pt{display:block}
-.km-pt::after{content:'';position:absolute;inset:32%;border-radius:50%;background:#fff;opacity:.55}
-.km-wall{position:absolute;border-radius:999px;background:linear-gradient(90deg,#2f9e44,#69db7c,#2f9e44);border:2px solid #1b4d2a;z-index:2;box-sizing:border-box}
-.km-wall.v{background:linear-gradient(180deg,#2f9e44,#69db7c,#2f9e44)}
-.km-wall.ghost{opacity:.7;background:#ffd200;border-color:#3f4652;animation:kmp 1s ease-in-out infinite}
-.km-wall.bad{background:#e03131}
-.km-crab{position:absolute;width:${S * 0.8}%;height:${S * 0.8}%;transform:translate(-50%,-50%);border-radius:50%;background:var(--cc);border:calc(var(--c)*.07) solid #3f4652;display:flex;align-items:center;justify-content:center;font-size:calc(var(--c)*.48);transition:left .25s,top .25s;z-index:4;pointer-events:none}
-.km-stock{display:flex;gap:calc(var(--c)*.4);font:800 calc(var(--c)*.2) Nunito,system-ui,sans-serif;color:#3f4652}
-.km-stock span{background:#fff;border:3px solid var(--pc);border-radius:999px;padding:2px 12px}
-.bt-btn.on{background:#2f9e44;box-shadow:0 0 0 4px #ffd200}
+.km-pt::after{content:'';position:absolute;inset:30%;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,#ffd6e8 50%,#ff8fb8);box-shadow:0 0 calc(var(--c)*.2) #fff;animation:kmp 1.4s ease-in-out infinite}
+.km-wall{position:absolute;z-index:3;box-sizing:border-box;border-radius:calc(var(--c)*.2);border:calc(var(--c)*.05) solid #5a1e30;
+  background:radial-gradient(circle at 12% 40%,rgba(255,255,255,.6) 0 9%,transparent 10%),radial-gradient(circle at 34% 62%,rgba(255,255,255,.45) 0 8%,transparent 9%),radial-gradient(circle at 58% 35%,rgba(255,255,255,.55) 0 9%,transparent 10%),radial-gradient(circle at 84% 60%,rgba(255,255,255,.45) 0 8%,transparent 9%),
+    linear-gradient(var(--wd,0deg),color-mix(in srgb,var(--wc) 35%,#d6365e),color-mix(in srgb,var(--wc) 25%,#ff8f8f) 55%,color-mix(in srgb,var(--wc) 20%,#ffc2a8));
+  box-shadow:0 calc(var(--c)*.08) 0 rgba(0,0,0,.4),inset 0 calc(var(--c)*-.05) 0 rgba(0,0,0,.2)}
+.km-wall.v{--wd:90deg}
+.km-wall.grow.h{animation:kmgrowh .55s cubic-bezier(.3,1.5,.5,1)} .km-wall.grow.v{animation:kmgrowv .55s cubic-bezier(.3,1.5,.5,1)}
+@keyframes kmgrowh{from{transform:scaleX(0)}} @keyframes kmgrowv{from{transform:scaleY(0)}}
+.km-frond{position:absolute;font-size:calc(var(--c)*.55);transform-origin:50% 100%;animation:kmsway 2.6s ease-in-out infinite alternate;pointer-events:none;filter:drop-shadow(0 1px 0 rgba(0,0,0,.3))}
+.km-wall.h .km-frond{bottom:30%;transform:translateX(-50%)} .km-wall.v .km-frond{left:50%;transform:translate(-50%,-50%)}
+@keyframes kmsway{from{rotate:-10deg}to{rotate:10deg}}
+.km-wall.ghost{opacity:.75;animation:kmp 1s ease-in-out infinite;--wc:#ffd200}
+.km-wall.bad{--wc:#e03131;filter:grayscale(.2)}
+.km-crab{position:absolute;width:${S * 0.86}%;height:${S * 0.86}%;transform:translate(-50%,-50%);z-index:6;pointer-events:none;transition:left .32s cubic-bezier(.3,1.3,.5,1),top .32s cubic-bezier(.3,1.3,.5,1)}
+.km-crab .ring{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 40% 30%,#fff,var(--cc) 70%);border:calc(var(--c)*.07) solid #3f4652;box-shadow:0 calc(var(--c)*.1) 0 rgba(0,0,0,.35);overflow:hidden}
+.km-crab .pc-face{position:absolute;inset:5%;width:90%;height:90%;border-radius:50%;object-fit:cover}
+.km-crab .pc-face.emoji{display:flex;align-items:center;justify-content:center;font-size:calc(var(--c)*.48)}
+.km-crab.up .ring{box-shadow:0 0 0 calc(var(--c)*.08) #fff,0 0 calc(var(--c)*.35) var(--cc),0 calc(var(--c)*.1) 0 rgba(0,0,0,.35)}
+.km-crab.hop .ring{animation:kmhop .32s ease-out}
+@keyframes kmhop{40%{transform:translateY(-35%) scale(1.08)}}
+.km-stock{display:flex;gap:calc(var(--c)*.3);font:800 calc(var(--c)*.2) Nunito,system-ui,sans-serif}
+.km-stock>span{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.92);color:#3f4652;text-shadow:none;border:3px solid var(--pc);border-radius:999px;padding:2px 10px 2px 3px}
+.km-stock .mini{width:calc(var(--c)*.5);height:calc(var(--c)*.5);border-radius:50%;background:var(--pc);overflow:hidden;display:inline-flex;align-items:center;justify-content:center}
+.km-stock .mini .pc-face{width:100%;height:100%;object-fit:cover}
+.km-stock .mini .pc-face.emoji{font-size:calc(var(--c)*.3)}
+.km-stock .pips{letter-spacing:-2px}
+.bt-btn.on{background:#e8557a;box-shadow:0 0 0 4px #ffd200}
 `;
 
 // Whose go the screen shows: it changes with the board turning round, not the moment a move is played.
@@ -153,11 +184,13 @@ export function start(isBot, onWin, botSkill = 0.55) {
         html += `<div class="km-sq${r === 0 ? ' goal0' : r === N - 1 ? ' goal1' : ''}" data-act="sq" data-r="${r}" data-c="${c}" style="left:${c * S + S * 0.06}%;top:${r * S + S * 0.06}%;width:${S * 0.88}%;height:${S * 0.88}%"></div>`;
     for (let r = 0; r < N - 1; r++) for (let c = 0; c < N - 1; c++)
         html += `<div class="km-pt" data-act="pt" data-r="${r}" data-c="${c}" style="left:${(c + 1) * S}%;top:${(r + 1) * S}%"></div>`;
+    Pieces.prepare(2);
     T = tabletop({
         isBot, onWin, probe: () => _probeTap(), cls: 'km', css: CSS, cols: 7.5, rows: 12.5,
-        html: `<div class="bt-head"><div class="bt-turn"></div><div class="bt-hint"></div></div>
+        html: `<div class="km-sea">${[['🐠', 18, 16, 0], ['🐟', 34, 21, -7], ['🐡', 62, 19, -12], ['🐠', 80, 24, -4]].map(([f, y, d, l]) => `<i class="km-fish" style="top:${y}%;animation-duration:${d}s;animation-delay:${l}s">${f}</i>`).join('')}</div>
+            <div class="bt-head"><div class="bt-turn"></div><div class="bt-hint"></div></div>
             <div class="km-stock">${[0, 1].map(p => `<span data-p="${p}"></span>`).join('')}</div>
-            <div class="km-board">${html}<div class="km-walls"></div><div class="km-crabs"></div></div>
+            <div class="km-board">${html}<div class="km-walls"></div><div class="km-ghost"></div><div class="km-crabs">${[0, 1].map(q => `<div class="km-crab" data-p="${q}"><div class="ring">${Pieces.pieceHTML(q)}</div></div>`).join('')}</div></div>
             <div class="bt-row"><button class="bt-btn alt" data-act="wallmode">🌿 WALL</button><button class="bt-btn go" data-act="place">PLACE</button></div>`,
         onAct: (act, el) => {
             if (T.botTurn(G.turn) || _busy) return;
@@ -218,23 +251,41 @@ function _end(w) {
         html: `<p style="opacity:1;font-size:14px;margin-bottom:6px">${T.name(1 - w)} WAS ${d[1 - w]} STEP${d[1 - w] === 1 ? '' : 'S'} AWAY</p>` });
 }
 
+const wallEl = (w, cls = '') => `<div class="km-wall ${w.o}${cls}" style="${wallBox(w)};--wc:${w.by === undefined ? '#ffd200' : T.hex(w.by)}">`
+    + (cls.includes('ghost') ? '' : [0.25, 0.75].map((f, k) => `<i class="km-frond" style="${w.o === 'h' ? `left:${f * 100}%` : `top:${f * 100}%`};animation-delay:-${k * 1.3}s">🌿</i>`).join('')) + `</div>`;
+
 const wallBox = w => (w.o === 'h'
-    ? `left:${w.c * S + S * 0.08}%;top:${(w.r + 1) * S - S * 0.09}%;width:${S * 1.84}%;height:${S * 0.18}%`
-    : `left:${(w.c + 1) * S - S * 0.09}%;top:${w.r * S + S * 0.08}%;width:${S * 0.18}%;height:${S * 1.84}%`);
+    ? `left:${w.c * S + S * 0.05}%;top:${(w.r + 1) * S - S * 0.16}%;width:${S * 1.9}%;height:${S * 0.32}%`
+    : `left:${(w.c + 1) * S - S * 0.16}%;top:${w.r * S + S * 0.05}%;width:${S * 0.32}%;height:${S * 1.9}%`);
 
 function _render() {
     if (!T || T.done) return;
     const p = _up, bot = T.botTurn(p) || _busy;
-    const hint = _note || (_busy ? '' : T.botTurn(p) ? 'THINKING…' : _walling ? (_ghost ? 'TAP IT AGAIN TO TURN IT · PLACE TO PLANT' : 'TAP A GAP POINT FOR YOUR WALL') : 'STEP (TAP A GLOWING SQUARE) OR PLANT A 🌿 WALL');
+    const hint = _note || (_busy ? '' : T.botTurn(p) ? 'THINKING…' : _walling ? (_ghost ? 'TAP IT AGAIN TO TURN IT · PLACE TO GROW IT' : 'TAP A PEARL BETWEEN SQUARES FOR YOUR WALL') : 'STEP TO A GLOWING SQUARE, OR GROW A 🌿 WALL');
     T.head(p, `${T.name(p)}'S GO`, hint);
     T.el.classList.toggle('walling', _walling && !bot);
     T.el.style.setProperty('--tc', T.hex(p));
     const to = bot || _walling || _busy ? [] : steps(G);
     T.qa('.km-sq').forEach(el => el.classList.toggle('to', to.some(([r, c]) => r === +el.dataset.r && c === +el.dataset.c)));
-    T.q('.km-walls').innerHTML = G.walls.map(w => `<div class="km-wall ${w.o}" style="${wallBox(w)}"></div>`).join('')
-        + (_ghost ? `<div class="km-wall ${_ghost.o} ghost${canWall(G, _ghost) || bot ? '' : ' bad'}" style="${wallBox(_ghost)}"></div>` : '');
-    T.q('.km-crabs').innerHTML = G.pawn.map(([r, c], q) => `<div class="km-crab" style="--cc:${T.hex(q)};left:${(c + 0.5) * S}%;top:${(r + 0.5) * S}%">🦀</div>`).join('');
-    T.qa('.km-stock span').forEach(el => { const q = +el.dataset.p; el.style.setProperty('--pc', T.hex(q)); el.textContent = `${T.name(q)} 🌿 ${G.left[q]}`; });
+    // Placed walls stay put; only a new one is added, and it grows in.
+    const box = T.q('.km-walls');
+    if (box.children.length > G.walls.length) box.innerHTML = '';
+    for (let k = box.children.length; k < G.walls.length; k++) box.insertAdjacentHTML('beforeend', wallEl(G.walls[k], ' grow'));
+    T.q('.km-ghost').innerHTML = _ghost ? wallEl(_ghost, ` ghost${canWall(G, _ghost) || bot ? '' : ' bad'}`) : '';
+    // The crabs slide (and hop) from square to square.
+    T.qa('.km-crab').forEach(el => {
+        const q = +el.dataset.p, [r, c] = G.pawn[q], at = `${r},${c}`;
+        el.style.setProperty('--cc', T.hex(q));
+        if (el.dataset.at && el.dataset.at !== at) { el.classList.remove('hop'); void el.offsetWidth; el.classList.add('hop'); }
+        el.dataset.at = at;
+        el.style.left = `${(c + 0.5) * S}%`; el.style.top = `${(r + 0.5) * S}%`;
+        el.classList.toggle('up', q === p && !_busy);
+    });
+    T.qa('.km-stock > span').forEach(el => {
+        const q = +el.dataset.p;
+        el.style.setProperty('--pc', T.hex(q));
+        el.innerHTML = `<i class="mini">${Pieces.pieceHTML(q)}</i>${T.name(q)} <span class="pips">${'🌿'.repeat(G.left[q]) || '—'}</span>`;
+    });
     const [wb, pb] = T.qa('.bt-btn');
     wb.classList.toggle('on', _walling); wb.classList.toggle('off', bot || !G.left[p]);
     wb.textContent = `🌿 WALL · ${G.left[p]}`;

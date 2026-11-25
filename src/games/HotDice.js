@@ -50,6 +50,26 @@ export function choices(vals) {
     return out;
 }
 export const bust = vals => choices(vals).length === 0;
+const WORD = ['', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX'];
+/**
+ * The scoring sets on the table, named for people: [{ label, score, idx }].
+ * idx: positions in vals. A straight or three pairs is the whole roll; three
+ * or more of a face is one set; every other 1 and 5 is a set of its own.
+ */
+export function combos(vals) {
+    const n = [0, 0, 0, 0, 0, 0, 0];
+    vals.forEach(v => n[v]++);
+    const all = vals.map((_, i) => i);
+    if (vals.length === 6 && n.slice(1).every(c => c === 1)) return [{ label: 'STRAIGHT 1–6', score: 1500, idx: all }];
+    if (vals.length === 6 && n.filter(c => c === 2).length === 3) return [{ label: 'THREE PAIRS', score: 750, idx: all }];
+    const out = [];
+    for (let f = 1; f <= 6; f++) {
+        const at = all.filter(i => vals[i] === f);
+        if (at.length >= 3) out.push({ label: `${WORD[at.length]} ${f}s`, score: (f === 1 ? 1000 : f * 100) * 2 ** (at.length - 3), idx: at });
+        else if (f === 1 || f === 5) at.forEach(i => out.push({ label: `A ${f}`, score: f === 1 ? 100 : 50, idx: [i] }));
+    }
+    return out;
+}
 /** The bot's bank target with `left` dice to roll next (6 after hot dice). */
 export function bankAt(left, me, them, wobble = 0) {
     let t = [0, 250, 300, 400, 550, 1000, 2000][left] || 300;
@@ -89,7 +109,9 @@ const CSS = `
 .hd-lane.up .nm{text-decoration:underline 3px var(--pc)}
 .hd-tray{display:grid;grid-template-columns:repeat(3,auto);gap:calc(var(--c)*.3);padding:calc(var(--c)*.3);background:#2f6b4f;border:calc(var(--c)*.09) solid #3f4652;border-radius:calc(var(--c)*.35);box-shadow:inset 0 0 calc(var(--c)*.4) rgba(0,0,0,.35)}
 .hd-tray .bd-die{width:calc(var(--c)*1.45);height:calc(var(--c)*1.45);transition:transform .15s,opacity .2s,box-shadow .15s}
-.hd-tray .bd-die.pick{transform:translateY(calc(var(--c)*-.15));box-shadow:0 0 0 calc(var(--c)*.09) #ffd200,0 calc(var(--c)*.08) 0 #3f4652}
+.hd-tray .bd-die{position:relative}
+.hd-tray .bd-die.pick{transform:translateY(calc(var(--c)*-.15));box-shadow:0 0 0 calc(var(--c)*.11) #2fae67,0 calc(var(--c)*.08) 0 #3f4652}
+.hd-tray .bd-die.pick::after{content:'✓';position:absolute;right:calc(var(--c)*-.2);top:calc(var(--c)*-.2);width:calc(var(--c)*.42);height:calc(var(--c)*.42);border-radius:50%;background:#2fae67;color:#fff;font:900 calc(var(--c)*.28)/calc(var(--c)*.42) Nunito,system-ui,sans-serif;text-align:center;border:2px solid #fff}
 .hd-tray .bd-die.kept{opacity:.35;transform:scale(.86)}
 .hd-pots{display:flex;gap:calc(var(--c)*.25);align-items:stretch}
 .hd-box{background:#fff;border:4px solid #3f4652;border-radius:calc(var(--c)*.3);padding:calc(var(--c)*.06) calc(var(--c)*.3);text-align:center;color:#3f4652;min-width:calc(var(--c)*2.2)}
@@ -98,8 +120,33 @@ const CSS = `
 .hd-box.bad b{color:#c0392b}
 .hd-box.bust{background:#ffd6d6;animation:hdshake .4s}
 @keyframes hdshake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
-.hd-key{font:800 calc(var(--c)*.16) Nunito,system-ui,sans-serif;color:#3f4652;opacity:.8;text-align:center;max-width:calc(var(--c)*6.8)}
+.hd-tray .bd-die.can{box-shadow:0 0 0 calc(var(--c)*.07) #fff6b8,0 0 calc(var(--c)*.35) #ffd200,0 calc(var(--c)*.08) 0 #3f4652;animation:hdglow 1.1s ease-in-out infinite}
+.hd-tray .bd-die.can.pick{animation:none}
+@keyframes hdglow{50%{box-shadow:0 0 0 calc(var(--c)*.1) #ffd200,0 0 calc(var(--c)*.5) #ffd200,0 calc(var(--c)*.08) 0 #3f4652}}
+.hd-combos{display:flex;flex-wrap:wrap;justify-content:center;gap:calc(var(--c)*.12);min-height:calc(var(--c)*.5);max-width:calc(var(--c)*7)}
+.hd-combo{display:flex;align-items:center;gap:calc(var(--c)*.1);border:3px solid #3f4652;border-radius:999px;background:#fff6b8;padding:2px calc(var(--c)*.2);font:calc(var(--c)*.32) 'Bebas Neue',Impact,sans-serif;letter-spacing:1px;color:#3f4652}
+.hd-combo b{color:#2f9e44}
+.hd-combo.on{background:#2fae67;color:#fff;box-shadow:0 0 0 3px #fff}
+.hd-combo.on b{color:#fff}
+.hd-card{display:grid;grid-template-columns:auto auto;gap:calc(var(--c)*.06) calc(var(--c)*.3);background:rgba(255,255,255,.75);border:3px solid #3f4652;border-radius:calc(var(--c)*.25);padding:calc(var(--c)*.12) calc(var(--c)*.22)}
+.hd-row{display:flex;align-items:center;gap:calc(var(--c)*.1);font:800 calc(var(--c)*.17) Nunito,system-ui,sans-serif;color:#3f4652;white-space:nowrap}
+.hd-row b{font:calc(var(--c)*.3) 'Bebas Neue',Impact,sans-serif;letter-spacing:1px}
+.hd-mini{display:flex;gap:2px}
+.hd-mini .bd-die{width:calc(var(--c)*.4);height:calc(var(--c)*.4);border-width:2px;border-radius:calc(var(--c)*.07);padding:calc(var(--c)*.04);box-shadow:none}
+.hd-row.wide{grid-column:1/3;justify-content:center}
 `;
+
+// The scoring card, in pictures: tiny dice, then what they're worth.
+const mini = vs => `<span class="hd-mini">${vs.map(v => `<span class="bd-die">${Dice.dieHtml(v)}</span>`).join('')}</span>`;
+const CARD = `<div class="hd-card">
+    <div class="hd-row">${mini([1])}<b>100</b></div>
+    <div class="hd-row">${mini([5])}<b>50</b></div>
+    <div class="hd-row">${mini([4, 4, 4])}<b>400</b> <span>(face × 100)</span></div>
+    <div class="hd-row">${mini([1, 1, 1])}<b>1000</b></div>
+    <div class="hd-row">${mini([2, 2, 3, 3, 6, 6])}<b>750</b> <span>pairs</span></div>
+    <div class="hd-row">${mini([4, 4, 4, 4])}<b>×2</b> <span>each extra</span></div>
+    <div class="hd-row wide">STRAIGHT: all six in one roll ${mini([1, 2, 3, 4, 5, 6])}<b>1500</b></div>
+</div>`;
 
 let T = null, _bank = [0, 0], _turn = 0, _pot = 0, _dice = [], _phase = 'roll', _note = '', _skill = 0.55, _wobble = 0;
 // _dice: [{ v, kept (set aside earlier this go), pick (chosen from this roll) }]
@@ -114,8 +161,9 @@ export function start(isBot, onWin, botSkill = 0.55) {
             <div class="hd-tray">${Array.from({ length: DICE }, (_, i) => `<div class="bd-die blank" data-act="die" data-i="${i}"></div>`).join('')}</div>
             <div class="hd-pots"><div class="hd-box" data-box="pot"><small>THIS TURN</small><b>0</b></div><div class="hd-box" data-box="sel"><small>PICKED</small><b>0</b></div></div>
             <div class="bt-row"><button class="bt-btn" data-act="roll">ROLL</button><button class="bt-btn go" data-act="bank">BANK</button></div>
-            <div class="hd-key">1 = 100 · 5 = 50 · THREE OF A KIND = FACE × 100 (1s = 1000) · STRAIGHT 1500 · THREE PAIRS 750</div>`,
-        onAct: (act, el) => { if (T.botTurn(_turn)) return; if (act === 'die') _pick(+el.dataset.i); else if (act === 'roll') _roll(); else if (act === 'bank') _bankIt(); },
+            <div class="hd-combos"></div>
+            ${CARD}`,
+        onAct: (act, el) => { if (T.botTurn(_turn)) return; if (act === 'die') _pick(+el.dataset.i); else if (act === 'combo') _pickCombo(+el.dataset.k); else if (act === 'roll') _roll(); else if (act === 'bank') _bankIt(); },
     });
     T.qa('.hd-lane').forEach((l, p) => { l.style.setProperty('--pc', T.hex(p)); l.querySelector('.nm').textContent = T.name(p); });
     T.face(_turn, true);
@@ -137,6 +185,21 @@ function _newGo() {
 function _pick(i) {
     if (_phase !== 'pick' || T.done || _dice[i].kept) return;
     _dice[i].pick = !_dice[i].pick;
+    haptic([6]); sfx('tick');
+    _render();
+}
+
+// The sets on the table now, with positions in _dice.
+function _combos() {
+    const free = _free();
+    return combos(free.map(i => _dice[i].v)).map(c => ({ ...c, idx: c.idx.map(k => free[k]) }));
+}
+// Tap a set's label: pick all its dice (or drop them if they're all picked).
+function _pickCombo(k) {
+    const c = _combos()[k];
+    if (_phase !== 'pick' || !c) return;
+    const on = c.idx.every(i => _dice[i].pick);
+    c.idx.forEach(i => { _dice[i].pick = !on; });
     haptic([6]); sfx('tick');
     _render();
 }
@@ -217,7 +280,7 @@ function _render(busted = false) {
     if (!T || T.done) return;
     const p = _turn, bot = T.botTurn(p), sel = _selScore(), anyPick = _picked().length > 0;
     const hint = _note || (bot ? 'THINKING…' : _phase === 'roll' ? 'ROLL ALL SIX'
-        : _phase === 'pick' ? (anyPick ? (sel ? `KEEP ${sel} · ROLL ${_free().length - _picked().length || 6} MORE, OR BANK ${_pot + sel}` : 'THOSE DON\'T ALL SCORE') : 'TAP THE DICE THAT SCORE') : '');
+        : _phase === 'pick' ? (anyPick ? (sel ? `KEEP ${sel} · ROLL ${_free().length - _picked().length || 6} MORE, OR BANK ${_pot + sel}` : 'THOSE DON\'T ALL SCORE') : 'TAP THE GLOWING DICE (OR A SET BELOW)') : '');
     T.head(p, `${T.name(p)}'S GO`, hint);
     T.qa('.hd-lane').forEach((l, q) => {
         const w = Math.min(100, _bank[q] / GOAL * 100), pot = q === p ? Math.min(100 - w, (_pot + sel) / GOAL * 100) : 0;
@@ -226,11 +289,16 @@ function _render(busted = false) {
         l.querySelector('b').textContent = _bank[q];
         l.classList.toggle('up', q === p);
     });
+    const sets = _phase === 'pick' ? _combos() : [];
+    const can = new Set(sets.flatMap(c => c.idx));
     T.qa('.hd-tray .bd-die').forEach(el => {
-        const d = _dice[+el.dataset.i];
+        const i = +el.dataset.i, d = _dice[i];
         if (_phase !== 'rolling' || d.kept) Dice.paint(el, d.v);
         el.classList.toggle('kept', d.kept); el.classList.toggle('pick', d.pick);
+        el.classList.toggle('can', can.has(i));
     });
+    T.q('.hd-combos').innerHTML = sets.map((c, k) =>
+        `<button class="hd-combo${c.idx.every(i => _dice[i].pick) ? ' on' : ''}" data-act="combo" data-k="${k}" aria-label="${c.label}, ${c.score}">${c.idx.length === 6 ? c.label : mini(c.idx.map(i => _dice[i].v))}<b>${c.score}</b></button>`).join('');
     const pot = T.q('[data-box="pot"]'), sb = T.q('[data-box="sel"]');
     pot.querySelector('b').textContent = _pot; pot.classList.toggle('bust', busted);
     sb.querySelector('b').textContent = sel; sb.classList.toggle('bad', anyPick && !sel);
