@@ -4,8 +4,10 @@
 // Nine points on a grid, joined by lines (across, down and diagonally).
 // Each player has three shells. First place them, one each in turn, on any
 // empty point. Then, on your go, slide one of your shells along a line to the
-// empty point next to it. Three of yours in a straight row wins, placing or
-// sliding. A player who can't move loses; 40 slides without a winner is a draw.
+// empty point next to it, but never straight back to the point that shell
+// just came from on your last go. Three of yours in a straight row wins,
+// placing or sliding. A player who can't move loses; 40 slides without a
+// winner is a draw.
 //
 // On the shared board-game base (board/Tabletop.js). Bot: looks ahead
 // (minimax with memo, deeper with skill); lower skill sometimes plays any
@@ -29,7 +31,10 @@ export const ADJ = Array.from({ length: 9 }, (_, i) => {
     }
     return out;
 });
-export const newGame = () => ({ cells: new Array(9).fill(-1), placed: [0, 0], turn: 0, slides: 0 });
+// back[p]: player p's last slide { from, to }; sliding that shell straight back is not allowed.
+export const newGame = () => ({ cells: new Array(9).fill(-1), placed: [0, 0], turn: 0, slides: 0, back: [null, null] });
+/** Is m the player to go's last slide, reversed? */
+export const goesBack = (g, m) => { const b = g.back?.[g.turn]; return !!b && m.from === b.to && m.to === b.from; };
 export const placing = (g, p = g.turn) => g.placed[p] < SHELLS;
 /** Three in a row for p? */
 export const wins = (cells, p) => LINES3.some(l => l.every(i => cells[i] === p));
@@ -37,25 +42,25 @@ export const wins = (cells, p) => LINES3.some(l => l.every(i => cells[i] === p))
 export function moves(g) {
     const p = g.turn, out = [];
     if (placing(g)) { g.cells.forEach((v, i) => { if (v < 0) out.push({ from: -1, to: i }); }); return out; }
-    g.cells.forEach((v, i) => { if (v === p) ADJ[i].forEach(j => { if (g.cells[j] < 0) out.push({ from: i, to: j }); }); });
+    g.cells.forEach((v, i) => { if (v === p) ADJ[i].forEach(j => { if (g.cells[j] < 0 && !goesBack(g, { from: i, to: j })) out.push({ from: i, to: j }); }); });
     return out;
 }
 /** Play a move in place; returns the result: 'win' | 'draw' | 'stuck' (the next player can't move: the mover wins) | null. */
 export function play(g, m) {
     const p = g.turn;
     if (m.from < 0) { g.cells[m.to] = p; g.placed[p]++; }
-    else { g.cells[m.from] = -1; g.cells[m.to] = p; g.slides++; }
+    else { g.cells[m.from] = -1; g.cells[m.to] = p; g.slides++; g.back[p] = { from: m.from, to: m.to }; }
     if (wins(g.cells, p)) return 'win';
     g.turn = 1 - p;
     if (!moves(g).length) return 'stuck';
     if (g.slides >= MAX_SLIDES) return 'draw';
     return null;
 }
-const copy = g => ({ cells: [...g.cells], placed: [...g.placed], turn: g.turn, slides: g.slides });
+const copy = g => ({ cells: [...g.cells], placed: [...g.placed], turn: g.turn, slides: g.slides, back: [...(g.back || [null, null])] });
 
 // Minimax from the mover's side: +100 - depth for a win, 0 for a draw or the horizon.
 function search(g, depth, memo) {
-    const key = g.cells.join('') + g.placed.join('') + g.turn + depth;
+    const key = g.cells.join('') + g.placed.join('') + g.turn + depth + (g.back || []).map(b => (b ? b.from + '' + b.to : '-')).join('');
     if (memo.has(key)) return memo.get(key);
     let best = -Infinity;
     for (const m of moves(g)) {
@@ -102,6 +107,7 @@ const CSS = `
 .tl-board line.o{stroke:#f6efd8;stroke-width:2;stroke-linecap:round;stroke-dasharray:3 2.2;opacity:.95}
 .tl-pt{position:absolute;width:calc(var(--c)*1.3);height:calc(var(--c)*1.3);margin:calc(var(--c)*-.65) 0 0 calc(var(--c)*-.65);border-radius:50%;display:flex;align-items:center;justify-content:center}
 .tl-pt::after{content:'';width:calc(var(--c)*.38);height:calc(var(--c)*.38);border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#c9c2b4 55%,#8f887c);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.tl-pt.no::before{content:'✕';position:absolute;font:900 calc(var(--c)*.5) Nunito,system-ui,sans-serif;color:#d6336c;text-shadow:0 0 3px #fff,0 0 6px #fff;z-index:1}
 .tl-pt.to::after{width:calc(var(--c)*.6);height:calc(var(--c)*.6);background:radial-gradient(circle,#fff 0 20%,var(--tc) 22% 60%,transparent 62%);opacity:.85;animation:tlpulse 1s ease-in-out infinite;box-shadow:none}
 @keyframes tlpulse{50%{transform:scale(1.25)}}
 .tl-shell{position:absolute;width:calc(var(--c)*1.2);height:calc(var(--c)*1.2);margin:calc(var(--c)*-.6) 0 0 calc(var(--c)*-.6);border-radius:50%;background:radial-gradient(circle at 40% 30%,#fff,var(--sc) 70%);border:calc(var(--c)*.09) solid #3f4652;box-shadow:0 calc(var(--c)*.1) 0 rgba(0,0,0,.3),inset 0 0 0 calc(var(--c)*.05) rgba(255,255,255,.5);transition:left .32s cubic-bezier(.3,1.4,.5,1),top .32s cubic-bezier(.3,1.4,.5,1),transform .2s;pointer-events:none}
@@ -155,7 +161,10 @@ function _tap(i) {
     const p = G.turn;
     if (placing(G)) { if (G.cells[i] < 0) _do({ from: -1, to: i }); return; }
     if (G.cells[i] === p) { _sel = _sel === i ? -1 : i; haptic([8]); return _render(); }
-    if (_sel >= 0 && G.cells[i] < 0 && ADJ[_sel].includes(i)) _do({ from: _sel, to: i });
+    if (_sel >= 0 && G.cells[i] < 0 && ADJ[_sel].includes(i)) {
+        if (goesBack(G, { from: _sel, to: i })) { _note = 'NOT STRAIGHT BACK: TRY ANOTHER WAY'; haptic([20, 20]); return _render(); }
+        _do({ from: _sel, to: i });
+    }
 }
 
 function _do(m) {
@@ -186,10 +195,13 @@ function _end(w, why) {
 function _render() {
     if (!T || T.done) return;
     const p = _up, bot = T.botTurn(p) || _busy;
-    const hint = _note || (_busy ? '' : bot ? 'THINKING…' : placing(G) ? `PLACE A SHELL · ${SHELLS - G.placed[p]} LEFT` : _sel >= 0 ? 'NOW TAP WHERE IT SLIDES' : 'TAP ONE OF YOURS, THEN SLIDE IT');
+    const hint = _note || (_busy ? '' : bot ? 'THINKING…' : placing(G) ? `PLACE A SHELL · ${SHELLS - G.placed[p]} LEFT` : _sel >= 0 ? 'NOW TAP WHERE IT SLIDES (NOT STRAIGHT BACK)' : 'TAP ONE OF YOURS, THEN SLIDE IT');
     T.head(p, `${T.name(p)}'S GO`, hint);
     const tc = T.hex(p);
-    const to = !bot && !placing(G) && _sel >= 0 ? ADJ[_sel].filter(j => G.cells[j] < 0) : !bot && placing(G) ? G.cells.map((v, i) => (v < 0 ? i : -1)).filter(i => i >= 0) : [];
+    const to = !bot && !placing(G) && _sel >= 0 ? ADJ[_sel].filter(j => G.cells[j] < 0 && !goesBack(G, { from: _sel, to: j })) : !bot && placing(G) ? G.cells.map((v, i) => (v < 0 ? i : -1)).filter(i => i >= 0) : [];
+    // The one point the chosen shell may not slide back to.
+    const b = G.back?.[G.turn], no = !bot && _sel >= 0 && b && b.to === _sel ? b.from : -1;
+    T.qa('.tl-pt').forEach(el => el.classList.toggle('no', +el.dataset.i === no));
     T.qa('.tl-pt').forEach(el => { const i = +el.dataset.i; el.classList.toggle('to', to.includes(i)); el.style.setProperty('--tc', tc); });
     T.q('.tl-shells').innerHTML = G.cells.map((v, i) => (v < 0 ? '' :
         `<div class="tl-shell${i === _sel ? ' sel' : ''}${_won && _won.includes(i) ? ' win' : ''}" style="--sc:${T.hex(v)};left:${XY(i).x}%;top:${XY(i).y}%">${Pieces.pieceHTML(v)}</div>`)).join('');
