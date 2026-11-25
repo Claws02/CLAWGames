@@ -1,0 +1,68 @@
+# Sparkwright — design
+
+## Pitch
+
+You're a field engineer in a facility where every room has something broken. You carry a tray of
+parts and fit them into sockets to build your way through: a spring to launch you, a gearbox so a lift
+can carry you, a resistor so a door motor runs without blowing its fuse. Choose wrong and the world
+shows you why: you fall short, the lift stalls, the fuse pops and your parts land back in the tray.
+
+## Pillars
+
+1. **The concept is the mechanic.** Every engineering idea has to change how you move or survive. No quizzes, no gates that only check an answer. If a concept can't change movement, it doesn't ship.
+2. **Honest devices, stylised hero.** Device maths is real SI (`core/Devices.js`), so `h = k·x²/2mg` gives the actual launch height in metres (1 tile = 1 m). The hero's jump and gravity are tuned for feel, not realism, and the game says so.
+3. **Every level is proven.** Claude writes levels; `tools/check.mjs` proves them (6 layers) before they ship. Caleb plays for fun and taste, not to audit.
+4. **Wrong answers teach.** Every device level has at least one part that fails *visibly*, with the maths on screen explaining why.
+
+## Core loop
+
+Read the brief (it states the requirement, never the answer) → reach the socket → TOOL → pick a part →
+the readout shows the maths (`I = V/R = 12/20 = 0.6 A ✓`) → run the route → exit. Time against par.
+Death sends you back to the start with your parts still fitted, so a wrong guess costs seconds, never progress.
+
+## Devices (M0)
+
+| Device | Socket | Model | Wrong answers |
+|---|---|---|---|
+| Spring pad | spring (k) | ½kx² = mgh → launch height | too soft: falls short · too stiff: ceiling spikes |
+| Geared lift | gearbox (n, η) | τ_out = τ·n·η ≥ m·g·r; v = ω/n·r | too little reduction: stalls · too much: works but slow (par) |
+| Series circuit | resistor(s), battery | I = V / (R_load + ΣR); window iMin–iMax | open · too low (load won't run) · too high (fuse blows) |
+| Door / light bridge | driven by a circuit | powered → open / solid | — |
+
+Adding a device means: pure function in `Devices.js` → behaviour in `World.js` (`step` order:
+act → circuits → lifts → player → hazards → goal) → hash it if it has state → lint layer 1/2 fields and
+`DEVICE_CONCEPT` → draw it in `Render.js` → a tray `specNote` in `Game.js` → a test in `tests/`.
+
+## Campaign
+
+| World | Levels (M0 = ✅) | Concepts |
+|---|---|---|
+| 1 Mechanical | ✅ First Shift · ✅ Spring Loaded · ✅ Heavy Lifting · *M1:* lever & counterweight, pulley advantage, belt/speed ratio, carrying a crate (mass changes spring height and lift torque) | move, ladder, spring, torque, moments, mechanical advantage |
+| 2 Electrical | ✅ Ohm Sweet Ohm · ✅ Series Run · ✅ Shift Change · *M2:* parallel loads (current splits, fuse sees the sum), switches & logic gates (AND/OR doors), power rating (a resistor that overheats), relays | ohm, fuse, series, voltage, parallel, logic, power P = I²R |
+| 3 Drones *(M3)* | build-a-drone levels: the hero deploys a drone they spec from parts to carry crates, scout, or ferry the hero across gaps | thrust-to-weight, battery energy, prop size vs efficiency, payload, wind |
+
+### World 3 sketch: drones
+
+The drone is a device with several sockets (frame, motors, props, battery, payload). It flies a fixed
+path or follows the hero. What it does depends on honest models:
+
+- **Lift:** total static thrust (motor+prop part) ÷ all-up weight. Below 1: it can't take off. Between 1 and ~2: it lifts but can't climb fast or fight wind. **[rule of thumb: ≥ 2:1 for controllable flight]**
+- **Endurance:** usable Wh ÷ average power gives seconds aloft, so the flight window is a timed platform the hero must use.
+- **Props:** bigger props mean more thrust per watt but a slower response (wind gusts push the drone further).
+- **Payload:** the hero (or a crate) adds mass. The same build that hovers empty may sink when loaded.
+
+All numbers stay generic and plausible ("Motor A: 1.1 kgf static thrust @ 180 W"). No real product specs.
+
+## Milestones
+
+- **M0 (this package):** engine, solver, 6-layer checker, 6 levels, preview, arcade sprint entry, docs.
+- **M1:** mechanical world complete (8–10 levels), carryable crates (mass as a variable), level select screen inside the arcade, saves via `src/arcade/Store.js`.
+- **M2:** electrical world complete; parallel circuits + logic. Circuit solver generalises from series to a small nodal solve.
+- **M3:** drone world.
+- **Polish:** audio (claw-core `sfx` names), haptics, art pass, a "workbench" screen that replays your run with the maths overlaid.
+
+## Known limits (M0)
+
+- The solver is sound but not complete: it finds routes made of walks, standing/run-up jumps, climbs and waits. A level whose only route needs a frame-perfect trick fails the checker. That's intended: the design bar is a route ordinary play can find.
+- Softlock detection uses the same macros, so a missed escape route shows up as a (conservative) false softlock. Make escapes obvious.
+- The bot in the arcade replays the solver route and is handicapped by skill on its reported time, not by playing worse.

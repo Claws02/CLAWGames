@@ -215,6 +215,17 @@ const GAMES = {
         shape: 'table',
         profile: { genre: 'nerve', control: 'thumb', wire: 'snapshot', seats: [2, 2], live: false },
     },
+    sparkwright: {
+        load: () => import('./sparkwright/Sparkwright.js'),
+        info: { icon: '🔧', title: 'SPARKWRIGHT SPRINT', desc: 'A field-engineer platformer. Everyone gets the same level from the Sparkwright campaign and runs it in turn: ◀ ▶ to move, JUMP, and TOOL in a socket to fit a part — a spring, a gearbox, a resistor, a battery. Pick the wrong part and the maths says why (the fuse blows, the lift stalls). Fastest to the exit wins.' },
+        orientation: 'upright',
+        // A turn each, up to 75 s apiece; each turn pushes the watchdog on.
+        watchdogMs: 120000,
+        net: 'parallel',
+        shape: 'relay',
+        profile: { genre: 'race', control: 'thumb', wire: 'none', seats: [2, 4], live: false },
+        soloMs: 100000,
+    },
 };
 
 for (const [type, g] of Object.entries(GAMES)) {
@@ -245,4 +256,5 @@ for (const type of [
     'stopclock',     // the same five target times
     'shellgame',     // the same shuffles
     'balloonpump',   // the same hidden pop limits
+    'sparkwright',   // the same level: P2 has watched P1 pick the right part
 ]) if (MG_INFO[type]) MG_INFO[type].memorable = true;
