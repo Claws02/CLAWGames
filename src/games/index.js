@@ -204,6 +204,15 @@ const GAMES = {
         shape: 'table',
         profile: { genre: 'brain', control: 'tap', wire: 'exact', seats: [2, 2], live: false },
     },
+    chompchamps: {
+        load: () => import('./ChompChamps.js'),
+        info: { icon: '😋', title: 'CHOMP CHAMPS', desc: 'Balls pour into the arena. Tap your half to make your character lunge and CHOMP whatever\'s in reach: your colour +1, the other colour −1, 🌟 gold +3, and a 💣 bomb stuns you for 2 seconds. Most points after 45 seconds wins.' },
+        orientation: 'faceoff',
+        watchdogMs: 90000,
+        net: 'local',
+        shape: 'arena',
+        profile: { genre: 'scramble', control: 'tap', wire: 'events', seats: [2, 2], live: false },
+    },
     pinball: {
         load: () => import('./Pinball.js'),
         info: { icon: '🕹️', title: 'CLAW PINBALL', desc: 'A claw-machine pinball table each, on your own half. Hold the left or right side to flip; flick up to nudge (three in a row TILTs). 120 seconds, highest score wins, and a drained ball is back in a second (your multiplier resets). Spell C-L-A-W in the top lanes to raise your multiplier. Clear the orange targets to light LOCK and send the other player an attack. With LOCK lit, the ramp feeds the claw: two prizes locked starts MULTIBALL, with jackpots on the ramp. The scoop starts missions; finish three for CLAW CRAZE.' },
