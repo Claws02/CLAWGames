@@ -38,7 +38,7 @@ const GAMES = 3;
         await page.click(`[data-picker="${picker}"]`);
         await page.click('#btn-party-start');
 
-        let done = false, screens = new Set(), stuck = '';
+        let done = false, screens = new Set(), stuck = '', lastType = null, gameAt = 0;
         while ((Date.now() - t0) / 1000 < 600) {
             const st = await page.evaluate(() => {
                 const cur = [...document.querySelectorAll('.screen')].find(s => !s.hidden);
@@ -80,6 +80,7 @@ const GAMES = 3;
                 return { screen, party: JSON.parse(JSON.stringify(window.__claw.party)) };
             });
             screens.add(st.screen);
+            if (st.screen === 'GAME') { const ty = await page.evaluate(() => window.__claw.state.mgType); if (ty !== lastType) { lastType = ty; gameAt = Date.now(); } else if (Date.now() - gameAt > 240000 && !stuck) stuck = ty; }
             if (st.screen === 'podium') { done = st.party; break; }
             await page.waitForTimeout(200);
         }
@@ -91,7 +92,7 @@ const GAMES = 3;
         const podium = done ? await page.textContent('#podium-h') : '';
         console.log(`${ok ? 'OK  ' : 'FAIL'} ${picker.padEnd(8)} ${SEATS}P ${Math.round((Date.now() - t0) / 1000)}s ` +
             `rounds=${p.round} points=${JSON.stringify(p.points)} played=${(p.played || []).join(',')} ` +
-            `screens=${[...screens].join('>')} | ${podium}`);
+            `screens=${[...screens].join('>')}${stuck ? ` · stuck in ${stuck}` : ''} | ${podium}`);
         newErrs.forEach(e => console.log('     ' + e.slice(0, 200)));
         if (!ok) fail.push(picker);
         if (done) await page.screenshot({ path: `qa/shot-podium-${picker}.png` }).catch(() => {});
