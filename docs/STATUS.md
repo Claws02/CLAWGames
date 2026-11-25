@@ -23,7 +23,7 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 | CLAWGames #57 | **Tiny Planet**: a 3D solo game with a workshop of upgrades kept between runs. **Reef Drop**: 8 more pieces and 36 more reefs (114 in all) |
 | CLAWGames #55 | **Quick board games** on a shared base (`src/games/board/`): Shut the Box, Pig, Dots and Boxes, Mancala, Liar's Dice |
 | CLAWGames #76 | Five more quick board games: Tide Lines, Big Grid, Hot Dice, Claw Race, Kelp Maze |
-| CLAWGames (this PR) | **Code Breaker** and **Chomp Champs** (tap to chomp your colour); Claw Race on a 48-square reef with safe islands, instant surprises and swaps you pick; Tide Lines' no-straight-back rule |
+| CLAWGames #79 | **Code Breaker** and **Chomp Champs** (tap to chomp your colour); Claw Race on a 48-square reef with safe islands, instant surprises and swaps you pick; Tide Lines' no-straight-back rule |
 | CLAWGames #54 | **Reef Drop**: levels as recipes (`docs/REEF_LEVELS.md`), 8 new pieces and 24 new reefs (78 in all) |
 | claw-core #42, CLAWGames #54 | **Shell Game race**: first right answer takes the round, wrong picks locked out, first to 3, on one screen and across phones (Room `PICK`/`CALL`, protocol 3) |
 
