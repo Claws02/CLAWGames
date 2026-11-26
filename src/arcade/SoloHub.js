@@ -27,6 +27,7 @@ import * as Orbit from './Orbit.js';
 import * as ReefDrop from './ReefDrop.js';
 import * as Mirror from './Mirror.js';
 import * as Sparkwright from '../games/sparkwright/HubGame.js';
+import * as Parkour from '../games/parkour/HubGame.js';
 import * as Toast from './Toast.js';
 import * as Trophies from './Trophies.js';
 import * as GameCards from './GameCards.js';
@@ -34,7 +35,7 @@ import * as Catalog from './Catalog.js';
 import * as Arcade from './Solo.js';
 
 const $ = id => document.getElementById(id);
-export const GAMES = [Planet, Sparkwright, Rebound, Orbit, ReefDrop, Mirror, IceFloe, Paths, TreasureDig, Lighthouse, Coral, Kite, PearlDiver];
+export const GAMES = [Planet, Sparkwright, Parkour, Rebound, Orbit, ReefDrop, Mirror, IceFloe, Paths, TreasureDig, Lighthouse, Coral, Kite, PearlDiver];
 const SCREENS = [...GAMES, PrizeShelf];   // everything that mounts on the shared screen
 // Every game with a daily puzzle (Solo.todaysDailies picks three a day).
 const DAILY = {

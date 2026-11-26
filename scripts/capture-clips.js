@@ -35,6 +35,10 @@ const SOLO = {
         // the spring shift on its solver tape: fit the spring, launch, reach the exit
         window.__swrAutoplay = true; window.__swrCampaign.play('m02'); await wait(4000);
     } },
+    parkour: { open: 'parkour', sel: '.ppk', play: async () => {
+        // Bounce House on the checker's ★★★ route: the sponges, the bounce shaft, the big drop
+        window.__ppkAutoplay = true; window.__ppkCampaign.play('c1'); await wait(1500);
+    } },
     shelf: { open: 'shelf', sel: '#ps-cv', prep: async () => {
         const M = await import('/src/arcade/PrizeShelf.js'), c = M._debug().pile.find(x => x.tier === 'gold'); M._setRnd(() => 0.97); window.__gold = c;
     }, play: async () => {
