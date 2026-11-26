@@ -32,13 +32,17 @@ node qa/trophies.js                                 # saves untouched
 3. **Smoke can't press START.** `QA_ONLY=sparkwright node qa/smoke.js` passes but takes about 100 s: the human seat waits at the START card and hits the 75 s DNF backstop. Either teach smoke to press any visible `#minigame-layer button` with START, or ignore it (the dedicated probe covers the game).
 4. `window.__swrAutoplay = true` (QA only) makes the human seat play the solver tape too. It's set by `qa/sparkwright.js` in an init script and nowhere else.
 
-## Next tasks for the code session (in order)
+## Done since the first merge
 
-1. **Campaign screen in the arcade.** The full campaign only lives in `preview.html` today. Add `src/arcade/Sparkwright.js` modelled on `src/arcade/Golf.js`: level cards with best time and par star, unlocks, then `createGame(root, { level, onWin, onExit, onNext })`. Persist with `Store.load/save('sparkwright', …)` and a schema version, not raw localStorage. Add a tile or button where Golf has one.
-2. **Solo label.** `src/arcade/Solo.js` `UNIT` map: add `sparkwright: 'pts'`, or a custom `fmt` that shows the time (score = round((60 − s) × 10)).
-3. **Audio/haptics.** `Game.js` emits events (`jump`, `land`, `spring`, `install`, `fuse`, `stall`, `death`, `win`). Map them to existing claw-core `sfx` names. Only `mg_win` / `land_bad` are used so far.
-4. **Ship size.** `scripts/build-web.js` ships all of `src/`, including `sparkwright/{tools,tests,docs,preview.html}` (small). Exclude them if you care.
-5. **Trophies (optional).** "All levels under par", "first fuse blown". `qa/trophies.js` covers save migrations, so keep it green.
+- **Campaign in the app (Home Base).** SOLO → Sparkwright opens the full campaign full-screen: a walkable hub with a door per shift, BACK TO BASE after every clear (at the same door, next door unlocked), ✕ in a shift returns to base, ✕ at base returns to the solo hub. Field Manual door. Saves via `Store` (`sparkwright`, schema v1).
+- Arcade sprint renamed `sparkwright` → `sparksprint` so the campaign card can own `sparkwright` (clips renamed to match).
+- Engine events mapped to claw-core sfx (`HubGame.js`).
+
+## Next tasks
+
+1. **Solo label** for the sprint: `src/arcade/Solo.js` `UNIT`: `sparksprint: 'pts'`, or a time `fmt`.
+2. **Trophies (optional)**: "all shifts under par", "first fuse blown". Keep `qa/trophies.js` green.
+3. **World 1/2 expansion** (DESIGN.md M1/M2): more shifts, each with a door in `levels/base.js`.
 
 ## Not verified here
 

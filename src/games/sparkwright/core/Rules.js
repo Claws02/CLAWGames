@@ -60,14 +60,14 @@ export const SOCKET_ACCEPTS = { spring: 'spring', gear: 'gear', resistor: 'resis
 // Teaching order. A level may only REQUIRE concepts taught at a lower
 // `order`. Lint enforces it (layer 6).
 export const CONCEPTS = [
-    { id: 'move',      title: 'Run & jump' },
-    { id: 'ladder',    title: 'Ladders' },
-    { id: 'spring',    title: 'Spring energy  (h = k·x² / 2mg)' },
-    { id: 'torque',    title: 'Gear ratio: torque vs speed' },
-    { id: 'ohm',       title: "Ohm's law  (I = V / R)" },
-    { id: 'fuse',      title: 'Fuses & current limits' },
-    { id: 'series',    title: 'Series resistance' },
-    { id: 'voltage',   title: 'Choosing a supply voltage' },
+    { id: 'move',    title: 'Run & jump',           formula: '',                  note: 'Your jump clears about 2.5 m. Anything higher needs a machine.' },
+    { id: 'ladder',  title: 'Ladders',              formula: '',                  note: 'Hold ▲ or ▼ on a ladder to climb; JUMP lets go.' },
+    { id: 'spring',  title: 'Spring energy',        formula: 'h = k·x² / (2·m·g)', note: 'A compressed spring stores ½·k·x². All of it becomes height m·g·h. Double the stiffness k and you fly twice as high; double the squash x and you fly four times as high.' },
+    { id: 'torque',  title: 'Gear ratio',           formula: 'τ_out = τ·n·η   v = ω·r / n', note: 'A gearbox multiplies torque by its ratio n and divides speed by the same n. Pick the smallest ratio that still lifts the load: it is the fastest one that works.' },
+    { id: 'ohm',     title: "Ohm's law",            formula: 'I = V / R',          note: 'Current is voltage pushed through resistance. More resistance means less current. Every load has a current it needs to run.' },
+    { id: 'fuse',    title: 'Fuses',                formula: 'I > I_max → open',   note: 'A fuse is a deliberate weak link. Too much current and it blows, so the wiring and the load survive.' },
+    { id: 'series',  title: 'Series resistance',    formula: 'R = R₁ + R₂ + …',    note: 'Resistors in one line add up. The same current flows through all of them.' },
+    { id: 'voltage', title: 'Choosing a supply',    formula: 'I = V / (R_load + R)', note: 'The supply and the resistor work together: a bigger battery needs more resistance to land the same current.' },
 ];
 
 export const FUSE_RESET_FRAMES = 90;      // blown fuse ejects the part, resets after 1.5 s
