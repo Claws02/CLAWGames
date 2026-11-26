@@ -4,6 +4,7 @@ Start with `docs/STATUS.md` (what exists, what's next). Online work (Play Togeth
 New Old Ink's Lair chambers: rules and ideas in `docs/PUZZLE_RULES.md`, step by step in `docs/LAIR_GUIDE.md`, layout lessons from Portal in `docs/PORTAL_LESSONS.md`.
 New Reef Drop levels are recipes, not code: follow `docs/REEF_LEVELS.md` (`npm run reef:levels`, then `npm run reef:check`).
 Sparkwright (`src/games/sparkwright/`, engineer platformer + level checker) has its own `CLAUDE.md`: read that before touching it.
+Playroom Parkour (`src/games/parkour/`, physics platformer + course checker) has its own `CLAUDE.md`: read that before touching it.
 
 ## Shipping: every change must be playable from GitHub Pages
 
