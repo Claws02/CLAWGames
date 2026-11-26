@@ -394,7 +394,7 @@ export function lairHint() { if (_mode !== 'trick' || !_trial) return; _hintN = 
 function _lairHud() {
     const s = _trial.state(), lv = _trial.base || _trial.level, i = LL.CHAMBERS.indexOf(lv), k = _trial.charging(), n = LL.count(s);
     const hint = _hintT > 0 ? _hintMsg : '';
-    const tp = LL.tidePhase(s.lv0 || lv, s.t), bs = s.boss, inkHp = bs && bs.state !== 'sleep' ? bs.hp : -1, inkSt = bs ? bs.state : '';
+    const tc = LL.tideClock(s), tp = tc == null ? null : LL.tidePhase(s.lv0 || lv, tc), bs = s.boss, inkHp = bs && bs.state !== 'sleep' ? bs.hp : -1, inkSt = bs ? bs.state : '';
     const sig = [lv.id, n.held, n.loose, n.working, n.gull, s.falls, hint, _hintN, inkHp, inkSt, s.gold.length, tp ? tp.name + Math.ceil(tp.left) : '', inkSt === 'down' ? 1 : 0, k >= 0 ? Math.round(k * 20) : -1, s.crab.air].join('~');
     if (sig === _lastHud) return;
     _lastHud = sig;

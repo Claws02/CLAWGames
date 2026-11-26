@@ -91,3 +91,13 @@ export const fight = (s, ev = [], note = {}, secs = 300) => {
   }
   note.fightT = s.t - note.fightT0; return note;
 };
+/** A throw at `p` (an aim within `span` degrees of it, any charge) that the simulation says ends in event `want`, or null. The state is copied, never touched. */
+export const throwFor = (s, p, want, steps = 260, span = 24, da = 3) => {
+  for (let a = -span; a <= span; a += da) for (let ch = 0; ch <= 1.001; ch += 0.05) {
+    const q = K.create(s.lv0); Object.assign(q, JSON.parse(JSON.stringify({ ...s, lv: undefined, lv0: undefined }))); q.lv = s.lv; q.lv0 = s.lv0;
+    face(q, p); const f = q.crab.face, side = P.cross(q.crab.p, f), r = a * Math.PI / 180; q.crab.face = P.tangent(q.crab.p, P.mix(f, side, Math.cos(r), Math.sin(r)));
+    if (!K.throwNut(q, ch)) continue;
+    for (let k = 0; k < steps; k++) if (K.step(q, DT).some(e => e.type === want)) return { a, ch };
+  }
+  return null;
+};

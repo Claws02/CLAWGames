@@ -453,6 +453,6 @@ const slideRun = () => {
 { const SG = await import('../src/arcade/Signs.js'), firsts = CHAMBERS.filter((c, i) => i === 0 || CHAMBERS[i - 1].world !== c.world);
   ok(CHAMBERS.every(c => !c.npcs && (c.signs || []).every(s => SG.SIGN_KINDS.includes(s.kind)) && (c.signs || []).length <= 1),
     `no talking locals (archived in src/arcade/archive/LairLocals.js); signs only where a picture beats words, at most one a chamber`); }
-ok(CHAMBERS.map(c => c.id).join() === 'beach,stream,yard,stair,sink,pool,tide,deep,slide' && CHAMBERS[7].boss && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, The Gull\'s Roost, then the Drowned Stair with Old Ink; World 2: Sinkhole Reef, Moon Pool, Low Tide, then Ink\'s Deep with Old Ink; all open while testing');
+ok(CHAMBERS.map(c => c.id).slice(0, 9).join() === 'beach,stream,yard,stair,sink,pool,tide,deep,slide' && CHAMBERS[7].boss && CHAMBERS[3].boss && CHAMBERS[4].world === 2 && K.ALL_OPEN, 'World 1 is: Coconut Beach, Bubble Stream, The Gull\'s Roost, then the Drowned Stair with Old Ink; World 2: Sinkhole Reef, Moon Pool, Low Tide, then Ink\'s Deep with Old Ink; all open while testing');
 console.log(fails ? `\nWORLD 1 FAIL (${fails})` : '\nWORLD 1 PASS');
 process.exit(fails ? 1 : 0);
