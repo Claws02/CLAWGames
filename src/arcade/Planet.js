@@ -104,7 +104,6 @@ export function mount(el) {
         <div class="tp-stick" id="tp-stick" hidden><i></i></div>
         <div class="tp-zones" id="tp-zones" hidden><span>☝️ LEFT THUMB<br>TO WALK</span><span>👀 RIGHT THUMB<br>TO LOOK AROUND</span></div>
         <div class="tp-tip" id="tp-tip" hidden></div>
-        <div class="tp-sign" id="tp-sign" hidden></div>
         <div class="tp-hint" id="tp-hint"></div>
         <div class="tp-acts" id="tp-acts">
             <div class="tp-bar" id="tp-bar">
@@ -265,7 +264,7 @@ export function pause() {
 export function resume() { if (!_paused) return; _paused = false; $('tp-over').hidden = true; _last = performance.now(); }
 function _leave() { _autosave(); document.querySelector('#scr-sologame [data-back]')?.click(); }
 
-function _hud_show(on) { $('tp-sign').hidden = true; _signT = 0; $('tp-trial').hidden = true; $('tp-top').classList.remove('trial'); $('tp-goal').classList.remove('wide'); $('btn-tp-act').style.removeProperty('--k'); $('btn-tp-act').hidden = false; ['tp-top', 'tp-bar', 'tp-acts', 'tp-goal'].forEach(id => { $(id).hidden = !on; }); if (!on) { $('tp-hint').textContent = ''; $('tp-tip').hidden = true; } }
+function _hud_show(on) { $('tp-trial').hidden = true; $('tp-top').classList.remove('trial'); $('tp-goal').classList.remove('wide'); $('btn-tp-act').style.removeProperty('--k'); $('btn-tp-act').hidden = false; ['tp-top', 'tp-bar', 'tp-acts', 'tp-goal'].forEach(id => { $(id).hidden = !on; }); if (!on) { $('tp-hint').textContent = ''; $('tp-tip').hidden = true; } }
 
 function _menu() {
     // The autopilot's island, behind the card.
@@ -369,36 +368,6 @@ function _lairCard() {
             <div class="tp-sub" style="opacity:.7">More of World 3 soon…</div></div>
         <button class="go-btn bfont tp-alt" data-do="city" id="btn-tp-city">‹ BACK TO THE CITY</button>`, true);
 }
-/** What a chamber has in it, as icons for its arrival card (like the sign at the door of a test chamber). */
-export function lairPieces(lv) {
-    const r = lv.rings || [], out = [['🥥', 'COCONUTS']];
-    const add = (on, icon, name) => { if (on) out.push([icon, name]); };
-    add(r.some(w => w.kind === 'crack'), '🧱', 'CRACKED WALL'); add(r.some(w => w.vine), '🌿', 'VINES'); add(r.some(w => w.top), '🏰', 'WALL TOPS');
-    add((lv.blocks || []).length, '📦', 'SAND BLOCK'); add(r.some(w => w.kind === 'step'), '🪜', 'TALL STEP'); add(r.some(w => w.kind === 'cliff'), '⛰️', 'CLIFF');
-    add((lv.currents || []).some(c => c.deep), '💧', 'DEEP WATER'); add((lv.currents || []).some(c => !c.deep), '🌊', 'CURRENT'); add((lv.logs || []).length, '🪵', 'LOGS');
-    add((lv.rocks || []).length, '🪨', 'STEPPING ROCKS'); add((lv.eddies || []).length, '🌀', 'EDDY'); add((lv.urchins || []).length, '✴️', 'URCHINS');
-    const z = lv.lake;
-    if (z) { add(1, '🧊', 'OBSIDIAN: YOU SLIDE (NO JUMPING)'); add(1, '⛰️', 'STEPS DOWN INTO THE CRATER'); add((z.blocks || []).length, '⬛', 'BLOCKS TO PUSH'); add((z.ramps || []).length, '↗️', 'RAMP (THE ONE WAY BACK UP)');
-        add((z.cracks || []).length, '💔', 'CRACKED GLASS (ONE STOP ONLY)'); add((z.plates || []).length, '⏺️', 'PLATE + GATE'); add(z.lava, '🌋', 'LAVA'); }
-    else { add((lv.ledges || []).some(l => l.h1 == null && l.r1 - l.r0 > 1.6), '⛰️', 'TERRACES'); add((lv.ledges || []).some(l => l.h1 != null), '↗️', 'RAMP'); add((lv.posts || []).length, '🗿', 'STONE POSTS'); }
-    add((lv.pads || []).length, '🟣', 'JELLY PADS');
-    add((lv.plates || []).some(x => x.heavy), '🏋️', 'HEAVY PLATE (ONLY THE GULL)'); add((lv.ledges || []).some(l => l.gate), '🌉', 'DRAWBRIDGE'); add(lv.gull && lv.gull.loot, '🥥🐦', 'THE GULL HAS A STOLEN COCONUT');
-    add((lv.hangs || []).length, '🌴', 'HANGING COCONUT'); add((lv.targets || []).some(x => x.log != null), '🎯', 'MOVING BULLSEYE'); add((lv.bars || []).some(b => b.kind === 'bumper'), '↩️', 'BANK SHOT');
-    add(lv.chasm, '🕳️', 'A BOTTOMLESS CHASM'); add((lv.crumbles || []).length, '🧱', 'CRUMBLING TILES'); add((lv.jets || []).length, '♨️', 'STEAM JETS');
-    add(lv.tide, '🌊', 'THE TIDE'); add((lv.rafts || []).length, '🛟', 'RAFTS');
-    add(lv.moon, '🌙', 'A MOON (LOW GRAVITY)'); add((lv.launch || []).length, '🚀', 'LAUNCH PAD');
-    add((lv.holes || []).some(h => !h.nutOnly), '🕳️', 'SINKHOLES'); add((lv.holes || []).some(h => h.nutOnly), '#️⃣', 'BLOWHOLES (COCONUTS ONLY)');
-    add((lv.vents || []).length, '🫧', 'VENTS'); add(lv.gull, '🐦', 'GULL'); add((lv.plates || []).length, '⏺️', 'PLATE'); add((lv.targets || []).some(x => !x.secs), '🎯', 'BULLSEYE');
-    add((lv.targets || []).some(x => x.secs), '⏱️', 'TIMED GATE'); add(lv.boss, '🐙', 'OLD INK'); add((lv.gold || []).length, '✨🐚', `GOLDEN SHELLS ×${(lv.gold || []).length}`);
-    return out;
-}
-let _signT = 0, _signShown = false;
-function _showSign(lv, i) {
-    const el = $('tp-sign');
-    el.innerHTML = `<div class="tp-sign-n bfont">${i + 1}<small>/${LL.CHAMBERS.length}</small></div><div class="tp-sign-w">WORLD ${lv.world || 1}</div><div class="tp-sign-t bfont">${lv.name}</div>
-        <div class="tp-sign-ic">${lairPieces(lv).map(([ic, nm]) => `<span><b>${ic}</b>${nm}</span>`).join('')}</div><div class="tp-sign-g">🎯 THE TIDE PEARL</div>`;
-    el.hidden = true; el.classList.remove('out'); _signT = 8; _signShown = false;          // (it slides in once the opening look at the pearl is over)
-}
 /** Start chamber i (0-based). */
 export function playTrial(i) {
     const lv = LL.CHAMBERS[i];
@@ -414,7 +383,7 @@ export function playTrial(i) {
     $('tp-trial').hidden = false; $('tp-acts').hidden = false; $('tp-goal').hidden = false; $('tp-top').hidden = false; $('tp-top').classList.add('trial'); $('btn-tp-hint').hidden = false;
     _lastHud = '';
     _say(`🐙 ${lv.name}`, '#fde047');
-    _hintNow(lv.story, 5); _showSign(lv, i);
+    _hintNow(lv.story, 5);
     return _trial;
 }
 export const playLair = playTrial;
@@ -540,7 +509,6 @@ function _frame(dt) {
             if (_keys.l || _keys.r || _keys.u || _keys.d) stick = { x: (_keys.r ? 1 : 0) - (_keys.l ? 1 : 0), y: (_keys.u ? 1 : 0) - (_keys.d ? 1 : 0) };
             _trial.frame(_paused ? 0 : dt, stick);
             _lairHud();
-            if (_signT > 0 && !_paused) { _signT -= dt; if (_signT <= 4.8 && !_signShown) { _signShown = true; $('tp-sign').hidden = false; } if (_signT <= 0.5 && !$('tp-sign').classList.contains('out')) $('tp-sign').classList.add('out'); if (_signT <= 0) $('tp-sign').hidden = true; }
         } else if (_gl) _draw(0);
         return;
     }
