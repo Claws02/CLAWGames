@@ -7,5 +7,9 @@ import m04 from './m04-ohm-sweet-ohm.js';
 import m05 from './m05-series-run.js';
 import m06 from './m06-shift-change.js';
 
+import base from './base.js';
+
+/** The hub (Home Base). Not in LEVELS: it has no exit, only doors. */
+export const HUB = base;
 export const LEVELS = [m01, m02, m03, m04, m05, m06].sort((a, b) => a.order - b.order);
 export const byId = Object.fromEntries(LEVELS.map(l => [l.id, l]));

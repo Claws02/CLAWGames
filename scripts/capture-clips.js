@@ -23,7 +23,7 @@ const PARTY = {
     snapstrike: { y: BOTTOM }, steadyhand: { y: BOTTOM }, sortrush: { y: BOTTOM }, gridrecall: { y: BOTTOM }, rhythmforge: { y: BOTTOM },
     lootcatch: { y: BOTTOM }, clearout: { y: BOTTOM }, orbdeflect: { y: BOTTOM, delay: 6 }, bowling: { y: BOTTOM }, penalty: { y: 0.78 },
     animalstack: { y: 0.62, delay: 9 }, brainrot: { y: 0.3 }, fourinarow: { y: 0.5, delay: 3, human: true }, memorymatch: { y: 0.3, delay: 12 }, shutbox: { y: 0.45, delay: 5, human: true }, pig: { y: 0.45, delay: 16, human: true }, dotsboxes: { y: 0.5, delay: 10, human: true }, mancala: { y: 0.45, delay: 6, human: true }, liarsdice: { y: 0.45, delay: 5, human: true },
-    sparkwright: { y: 0.55, delay: 0.5 },
+    sparksprint: { y: 0.55, delay: 0.5 },
     tidelines: { y: 0.5, delay: 7, human: true }, biggrid: { y: 0.52, delay: 10, human: true }, hotdice: { y: 0.45, delay: 6, human: true }, clawrace: { y: 0.5, delay: 10, human: true }, kelpmaze: { y: 0.5, delay: 12, human: true },
     codebreaker: { y: 0.5, delay: 14, human: true }, chompchamps: { y: 0.5, delay: 6 },
 };
@@ -31,6 +31,10 @@ const PARTY = {
 // ---- solo games: how to get each one moving (runs in the page; `wait` is a sleep) ----
 // Each returns once the interesting bit has started; recording goes on from there.
 const SOLO = {
+    sparkwright: { open: 'sparkwright', sel: '.swr', play: async () => {
+        // the spring shift on its solver tape: fit the spring, launch, reach the exit
+        window.__swrAutoplay = true; window.__swrCampaign.play('m02'); await wait(4000);
+    } },
     shelf: { open: 'shelf', sel: '#ps-cv', prep: async () => {
         const M = await import('/src/arcade/PrizeShelf.js'), c = M._debug().pile.find(x => x.tier === 'gold'); M._setRnd(() => 0.97); window.__gold = c;
     }, play: async () => {

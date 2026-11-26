@@ -61,7 +61,8 @@ export function draw(ctx, w, view, cssW, cssH, top = 0, bottom = 0, dt = 1 / 60)
     view.camX = view.camX == null ? tx : view.camX + (tx - view.camX) * Math.min(1, dt * 8);
     view.camY = view.camY == null ? ty : view.camY + (ty - view.camY) * Math.min(1, dt * 8);
 
-    ctx.fillStyle = C.bg;
+    const isHub = L.level.kind === 'hub';
+    ctx.fillStyle = isHub ? '#12161f' : C.bg;
     ctx.fillRect(0, 0, cssW, cssH);
     ctx.save();
     ctx.translate(0, top);
@@ -78,6 +79,8 @@ export function draw(ctx, w, view, cssW, cssH, top = 0, bottom = 0, dt = 1 / 60)
     drawWires(ctx, w, view, T);
     drawTiles(ctx, L, T, view);
     drawDevices(ctx, w, view, T, dt);
+    drawSigns(ctx, L, T);
+    drawPortals(ctx, w, view, T);
     drawHero(ctx, s.p, T, view);
     drawParticles(ctx, view, T, dt);
     ctx.restore();
@@ -244,6 +247,57 @@ export function drawPartIcon(ctx, kind, part, cx, cy, size, on) {
     else if (kind === 'gear') { ctx.arc(cx, cy, h * 0.6, 0, Math.PI * 2); ctx.stroke(); for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; ctx.fillRect(cx + Math.cos(a) * h * 0.75 - 1.5, cy + Math.sin(a) * h * 0.75 - 1.5, 3, 3); } }
     else if (kind === 'resistor') { ctx.moveTo(cx - h, cy); ctx.lineTo(cx - h * 0.6, cy); for (let i = 0; i < 6; i++) ctx.lineTo(cx - h * 0.6 + (h * 1.2 * (i + 0.5)) / 6, cy + (i % 2 ? h * 0.4 : -h * 0.4)); ctx.lineTo(cx + h * 0.6, cy); ctx.lineTo(cx + h, cy); ctx.stroke(); }
     else if (kind === 'battery') { ctx.strokeRect(cx - h * 0.8, cy - h * 0.45, h * 1.5, h * 0.9); ctx.fillRect(cx + h * 0.7, cy - h * 0.2, h * 0.2, h * 0.4); }
+}
+
+const DOOR = {
+    locked: { frame: '#4a5d70', glow: null, mark: 'lock' },
+    open: { frame: '#5cb8e6', glow: '#5cb8e6', mark: '' },
+    done: { frame: '#3dffa2', glow: null, mark: '✓' },
+    star: { frame: '#ffcf3d', glow: null, mark: '★' },
+    manual: { frame: '#c9a46a', glow: null, mark: '' },
+    soon: { frame: '#4a5d70', glow: null, mark: 'lock' },
+};
+
+function drawPortals(ctx, w, view, T) {
+    const { L, s } = w;
+    for (const pt of L.dev.portal || []) {
+        const st = DOOR[view.portalState ? view.portalState(pt) : 'open'] || DOOR.open;
+        const X = pt.x * T, Y = (pt.y - 1) * T, near = s.p.x < pt.x + 0.8 && s.p.x + P.W > pt.x + 0.2 && Math.abs(s.p.y + P.H - (pt.y + 1)) < 0.6;
+        if (st.glow) { ctx.globalAlpha = 0.18 + 0.12 * Math.sin(view.t * 3); ctx.fillStyle = st.glow; ctx.fillRect(X - T * 0.08, Y - T * 0.08, T * 1.16, T * 2.08); ctx.globalAlpha = 1; }
+        ctx.fillStyle = '#0d1520'; ctx.fillRect(X + T * 0.1, Y + T * 0.1, T * 0.8, T * 1.9);
+        ctx.strokeStyle = st.frame; ctx.lineWidth = near ? 3 : 2; ctx.strokeRect(X + T * 0.1, Y + T * 0.1, T * 0.8, T * 1.9);
+        // door leaf + handle
+        ctx.fillStyle = 'rgba(92,184,230,0.08)'; ctx.fillRect(X + T * 0.18, Y + T * 0.2, T * 0.64, T * 1.75);
+        ctx.fillStyle = st.frame; ctx.fillRect(X + T * 0.68, Y + T * 1.05, T * 0.08, T * 0.08);
+        // plate above the door
+        const label = pt.to === 'manual' ? 'MANUAL' : pt.to === 'soon' ? 'SOON' : pt.to.replace(/^\D+/, '').padStart(2, '0');
+        ctx.fillStyle = st.frame; ctx.font = `700 ${Math.round(T * (label.length > 2 ? 0.22 : 0.34))}px ui-monospace, Menlo, monospace`; ctx.textAlign = 'center';
+        ctx.fillText(label, X + T / 2, Y - T * 0.06);
+        if (st.mark === 'lock') {
+            const cx = X + T / 2, cy = Y + T * 0.95;
+            ctx.strokeStyle = st.frame; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(cx, cy - T * 0.08, T * 0.12, Math.PI, 0); ctx.stroke();
+            ctx.fillStyle = st.frame; ctx.fillRect(cx - T * 0.16, cy - T * 0.08, T * 0.32, T * 0.24);
+        } else if (st.mark) {
+            ctx.fillStyle = st.frame; ctx.font = `700 ${Math.round(T * 0.42)}px ui-monospace, Menlo, monospace`;
+            ctx.fillText(st.mark, X + T / 2, Y + T * 1.05);
+        } else if (pt.to === 'manual') {
+            ctx.strokeStyle = st.frame; ctx.lineWidth = 2;
+            ctx.strokeRect(X + T * 0.3, Y + T * 0.7, T * 0.4, T * 0.5);
+            ctx.beginPath(); ctx.moveTo(X + T * 0.5, Y + T * 0.7); ctx.lineTo(X + T * 0.5, Y + T * 1.2); ctx.stroke();
+        }
+    }
+}
+
+function drawSigns(ctx, L, T) {
+    for (const sg of L.dev.sign || []) {
+        ctx.font = `700 ${Math.round(T * 0.3)}px ui-monospace, Menlo, monospace`;
+        ctx.textAlign = 'center';
+        const w = ctx.measureText(sg.text).width + T * 0.4;
+        ctx.fillStyle = 'rgba(255,207,61,0.08)'; ctx.fillRect(sg.x * T - w / 2, sg.y * T - T * 0.32, w, T * 0.44);
+        ctx.strokeStyle = 'rgba(255,207,61,0.5)'; ctx.lineWidth = 1; ctx.strokeRect(sg.x * T - w / 2, sg.y * T - T * 0.32, w, T * 0.44);
+        ctx.fillStyle = '#ffcf3d'; ctx.fillText(sg.text, sg.x * T, sg.y * T);
+    }
 }
 
 function drawHero(ctx, p, T, view) {

@@ -38,4 +38,4 @@ const v = id.replace(/[^A-Za-z0-9_]/g, '_');
 src = src.replace(/(import [^\n]+\n)(?![\s\S]*import )/, `$1import ${v} from './${file}';\n`);
 src = src.replace(/export const LEVELS = \[([^\]]*)\]/, (m, list) => `export const LEVELS = [${list.trim()}, ${v}]`);
 writeFileSync(idx, src);
-console.log(`created levels/${file} (order ${order}) and registered it. Next: node tools/check.mjs ${id} --verbose`);
+console.log(`created levels/${file} (order ${order}) and registered it.\nNext: give it a door in levels/base.js ({ type: "portal", id: "d-${id}", x, y, to: "${id}" }), then node tools/check.mjs ${id} base --verbose`);

@@ -234,7 +234,7 @@ const GAMES = {
         shape: 'table',
         profile: { genre: 'nerve', control: 'thumb', wire: 'snapshot', seats: [2, 2], live: false },
     },
-    sparkwright: {
+    sparksprint: {
         load: () => import('./sparkwright/Sparkwright.js'),
         info: { icon: '🔧', title: 'SPARKWRIGHT SPRINT', desc: 'A field-engineer platformer. Everyone gets the same level from the Sparkwright campaign and runs it in turn: ◀ ▶ to move, JUMP, and TOOL in a socket to fit a part — a spring, a gearbox, a resistor, a battery. Pick the wrong part and the maths says why (the fuse blows, the lift stalls). Fastest to the exit wins.' },
         orientation: 'upright',
@@ -275,5 +275,5 @@ for (const type of [
     'stopclock',     // the same five target times
     'shellgame',     // the same shuffles
     'balloonpump',   // the same hidden pop limits
-    'sparkwright',   // the same level: P2 has watched P1 pick the right part
+    'sparksprint',   // the same level: P2 has watched P1 pick the right part
 ]) if (MG_INFO[type]) MG_INFO[type].memorable = true;

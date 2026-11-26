@@ -1,0 +1,41 @@
+// Home Base — the hub. Walk to a door and press ▲ (or TOOL) to start a shift;
+// finish it and you're back here at the same door. Not a campaign level:
+// kind 'hub' gets its own lint (every door reachable, nowhere to get stuck).
+export default {
+    id: 'base', kind: 'hub', world: 'hub', order: 0, name: 'Home Base',
+    teaches: [], requires: [],
+    brief: 'Home Base. Walk to a door and press ▲ to start a shift. Mechanical wing down here, Electrical up the ladder.',
+    map: [
+        '########################################',
+        '#......................................#',
+        '#......................................#',
+        '#......................................#',
+        '#......................................#',
+        '#......................................#',
+        '#......................................#',
+        '#..................H####################',
+        '#..................H...................#',
+        '#.=====............H...................#',
+        '#..................H...................#',
+        '#....S.............H...................#',
+        '########################################',
+        '########################################',
+    ],
+    parts: [],
+    devices: [
+        { type: 'portal', id: 'd-manual', x: 3, y: 11, to: 'manual' },
+        { type: 'portal', id: 'd-m01', x: 8, y: 11, to: 'm01' },
+        { type: 'portal', id: 'd-m02', x: 12, y: 11, to: 'm02' },
+        { type: 'portal', id: 'd-m03', x: 16, y: 11, to: 'm03' },
+        { type: 'portal', id: 'd-m04', x: 23, y: 6, to: 'm04' },
+        { type: 'portal', id: 'd-m05', x: 27, y: 6, to: 'm05' },
+        { type: 'portal', id: 'd-m06', x: 31, y: 6, to: 'm06' },
+        { type: 'portal', id: 'd-drone', x: 36, y: 6, to: 'soon' },
+        { type: 'sign', id: 'sg-home', x: 6, y: 5, text: 'HOME BASE' },
+        { type: 'sign', id: 'sg-mech', x: 12, y: 7.6, text: 'MECHANICAL WING' },
+        { type: 'sign', id: 'sg-elec', x: 27, y: 3, text: 'ELECTRICAL WING' },
+        { type: 'sign', id: 'sg-drone', x: 36.5, y: 3, text: 'DRONE BAY' },
+        { type: 'sign', id: 'sg-up', x: 19.5, y: 6.3, text: '▲ CLIMB' },
+    ],
+    solution: {},
+};

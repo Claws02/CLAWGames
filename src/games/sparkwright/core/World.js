@@ -103,6 +103,18 @@ function isLadder(L, x, y) { return tileAt(L, x, y) === TILE.LADDER; }
 const overlaps = (ax, ay, aw, ah, bx, by, bw, bh) => ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
 const playerOver = (p, x, y, w = 1, h = 1) => overlaps(p.x, p.y, P.W, P.H, x, y, w, h);
 
+/** The door (portal) the player is standing at, or null. Hub levels only. */
+export function portalHere(w) {
+    const { L, s } = w;
+    for (const pt of L.dev.portal || []) if (playerOver(s.p, pt.x + 0.2, pt.y, 0.6, 1)) return pt;
+    return null;
+}
+
+/** Put the hero on tile (tx, ty), standing — e.g. back at the door of the level just played. */
+export function spawnAt(w, tx, ty) {
+    Object.assign(w.s.p, { x: tx + (1 - P.W) / 2, y: ty + 1 - P.H, vx: 0, vy: 0, grounded: true, ground: 'tile', climb: false });
+}
+
 /** The socket the player is standing in, or null. */
 export function socketHere(w) {
     const { L, s } = w;

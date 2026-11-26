@@ -25,55 +25,30 @@
 <body>
 <div id="app"></div>
 <script type="module">
-import { LEVELS } from './levels/index.js';
-import { CONCEPTS } from './core/Rules.js';
-import { createGame } from './Game.js';
+// Standalone Sparkwright: the same campaign the app runs (Home Base + shifts).
+// ?all unlocks every door · ?reset wipes this browser's progress.
+import { createCampaign } from './Campaign.js';
 
+const KEY = 'sparkwright.progress.v1';
+const q = new URLSearchParams(location.search);
+if (q.has('reset')) { try { localStorage.removeItem(KEY); } catch (e) {} }
+const store = {
+  load: () => { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } },
+  save: v => { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} },
+};
 const app = document.getElementById('app');
-const KEY = 'sparkwright.v1';
-const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || { best: {} }; } catch (e) { return { best: {} }; } };
-const save = s => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} };
-let progress = load();
-let game = null;
-const WORLD = { mech: 'WORLD 1 · MECHANICAL', elec: 'WORLD 2 · ELECTRICAL', drone: 'WORLD 3 · DRONES' };
-const title = id => CONCEPTS.find(c => c.id === id)?.title || id;
-
-function menu() {
-  game?.destroy(); game = null;
-  const m = document.createElement('div');
-  m.className = 'menu';
-  m.innerHTML = '<h1>SPARKWRIGHT</h1><div class="sub">FIELD ENGINEER · CAMPAIGN PREVIEW · M0</div>';
-  let world = null;
-  LEVELS.forEach((l, i) => {
-    if (l.world !== world) { world = l.world; m.insertAdjacentHTML('beforeend', `<div class="world">${WORLD[world] || world}</div>`); }
-    const unlocked = i === 0 || progress.best[LEVELS[i - 1].id] != null || new URLSearchParams(location.search).has('all');
-    const b = progress.best[l.id];
-    const btn = document.createElement('button');
-    btn.className = 'lv'; btn.disabled = !unlocked;
-    btn.innerHTML = `<span class="n">${String(i + 1).padStart(2, '0')}</span><span><div class="name">${l.name}</div><div class="c">${l.teaches.map(title).join(' · ')}</div></span><span class="best">${b != null ? b.toFixed(2) + ' s' + (b <= l.par.seconds ? '<br>★ par' : '') : unlocked ? 'play ▶' : '🔒'}</span>`;
-    btn.onclick = () => play(i);
-    m.appendChild(btn);
-  });
-  m.insertAdjacentHTML('beforeend', '<div class="foot">Controls: ◀ ▶ move · ▲ ▼ ladders · JUMP · TOOL when standing in a socket.<br>Keyboard: A/D or arrows · W/S · Space · E · R restart.<br>Every level here passed the 6-layer checker (node tools/check.mjs).</div>');
-  app.innerHTML = ''; app.appendChild(m);
-}
-
-function play(i) {
+function start() {
   app.innerHTML = '';
-  const level = LEVELS[i];
-  const hasNext = i + 1 < LEVELS.length;
-  game = createGame(app, {
-    level, title: `${String(i + 1).padStart(2, '0')} · ${level.name.toUpperCase()}`,
-    onExit: menu,
-    onWin: r => { const b = progress.best[level.id]; if (b == null || r.seconds < b) { progress.best[level.id] = r.seconds; save(progress); } },
-    onNext: () => (hasNext ? (game.destroy(), play(i + 1)) : menu()),
-    nextLabel: hasNext ? 'NEXT ▶' : 'MENU',
-    tape: window.__swrTape?.[level.id] || null,
+  window.__swrCampaign = createCampaign(app, {
+    store, unlockAll: q.has('all'),
+    onExit: () => { window.__swrCampaign.destroy(); bye(); },
   });
-  window.__swr = game;
 }
-window.__swrPlay = play;
-menu();
+function bye() {
+  app.innerHTML = '<div class="menu"><h1>SPARKWRIGHT</h1><div class="sub">FIELD ENGINEER</div><button class="lv" id="again"><span class="n">▶</span><span><div class="name">Back to Home Base</div><div class="c">Your progress is saved on this device</div></span></button></div>';
+  document.getElementById('again').onclick = start;
+}
+start();
 </script>
 </body>
 </html>
