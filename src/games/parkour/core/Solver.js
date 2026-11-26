@@ -15,7 +15,7 @@
 //   Tape = [[bits, count], ...]   bits: l=1 r=2 u=4 d=8 j=16
 // ============================================================
 import { compile, step, snapshot, restore, hashState, portalHere, NO_INPUT } from './World.js';
-import { P, TILE, SOLID_TILES, BOUNCE } from './Rules.js';
+import { P, TILE, SOLID_TILES, BOUNCE, TOYS } from './Rules.js';
 const BOUNCE_G = P.G;
 
 const B = { l: 1, r: 2, u: 4, d: 8, j: 16 };
@@ -29,10 +29,17 @@ const MACROS = [];
 for (const n of [8, 20]) for (const d of [-1, 0, 1]) for (const jf of [0, 3, 9, 99]) for (const d2 of d === 0 ? [0, -1, 1] : [d, 0]) {
     MACROS.push({ n, bits: f => dirBits(d) | (f < jf ? B.j : 0), air: dirBits(d2) | (jf === 99 ? B.j : 0) });
 }
-MACROS.push({ n: 40, bits: () => 0, air: 0 });
+MACROS.push({ n: 40, bits: () => 0, air: 0 }, { n: 120, bits: () => 0, air: 0 });    // waiting (for a train, a beat)
+// Inside a bubble only steering and popping matter: a smaller set (drift ◀ / still / ▶, or pop and steer the fall).
+const BUBBLE_MACROS = [];
+for (const n of [8, 20]) for (const d of [-1, 0, 1]) BUBBLE_MACROS.push({ n, bits: () => dirBits(d), air: dirBits(d) });
+for (const d of [-1, 0, 1]) for (const d2 of [-1, 0, 1]) BUBBLE_MACROS.push({ n: 2, bits: f => (f === 0 ? B.j : 0) | dirBits(d), air: dirBits(d2) });
+// Ladders: climb up or down (only courses with ladders get these).
+const LADDER_MACROS = [];
+for (const n of [8, 20]) for (const v of [B.u, B.d]) LADDER_MACROS.push({ n, bits: () => v, air: 0 });
 for (const d of [-1, 0, 1]) MACROS.push({ n: 45, bits: () => dirBits(d) | B.j, air: dirBits(d) | B.j });
 const AIR_MAX = 120;
-const settled = p => p.grounded || p.rope || p.cannon || p.wet || p.climb;
+const settled = p => p.grounded || p.rope || p.cannon || p.wet || p.climb || p.bubble;
 
 // A binary heap of [priority, node index].
 function heap() {
@@ -112,6 +119,25 @@ export function navField(L, target) {
         for (const k of [...cells]) { const x = k % W, y = (k - x) / W; for (const nx of [x - 2, x - 1, x + 1, x + 2]) if (open(nx, y)) cells.add(y * W + nx); }
         launchers.push({ at, cells });
     }
+    for (const b of L.dev.bumper) {
+        // Popped up: off its left side, its top, or its right side.
+        const cells = new Set(), at = [], pw = b.power || 1;
+        for (const sd of [-1, 0, 1]) for (const k of trace(b.x + sd * (b.r + 0.4), b.y - b.r - 0.5, sd * TOYS.BUMP_SIDE * pw, -TOYS.BUMP_V * pw)) cells.add(k);
+        for (let y = Math.floor(b.y - b.r - 1); y <= Math.floor(b.y + b.r + 1); y++) for (let x = Math.floor(b.x - b.r - 1); x <= Math.floor(b.x + b.r + 1); x++) if (open(x, y)) at.push(y * W + x);
+        launchers.push({ at, cells });
+    }
+    for (const b of L.dev.bubble) {
+        // Floats you up, drifting as far sideways as you steer: a cone above it.
+        const cells = new Set(), bx = Math.floor(b.x), by = Math.floor(b.y);
+        let lo = bx, hi = bx;
+        for (let y = by; y >= Math.max(0, by - 40); y--) {
+            let any = false;
+            for (let x = lo; x <= hi; x++) if (open(x, y)) { cells.add(y * W + x); any = true; }
+            if (!any) break;
+            lo = Math.max(0, lo - 1); hi = Math.min(W - 1, hi + 1);
+        }
+        launchers.push({ at: [by * W + bx], cells });
+    }
     let seeds = [[ty * W + tx, 0]];
     for (let pass = 0; pass < 6 && seeds.length; pass++) {
         // Spread distances out from the seeds (a BFS that only ever lowers a cell).
@@ -148,6 +174,8 @@ export function search(w0, reached, target, opts = {}) {
     const seen = new Set([hashState(w, true)]);
     const open = heap();
     const field = opts.field || null, L = w.L;
+    if (L._ladders === undefined) L._ladders = L.grid.some(r => r.includes(TILE.LADDER));
+    const macros = L._ladders ? [...MACROS, ...LADDER_MACROS] : MACROS;
     const h = s => {
         const c = centre(s);
         const e = Math.sqrt((c.x - target.x) ** 2 + (c.y - target.y) ** 2);
@@ -162,25 +190,28 @@ export function search(w0, reached, target, opts = {}) {
         const ni = open.pop();
         const node = nodes[ni];
         if (opts.trace) opts.trace(node.snap, node.frames);
-        for (const mac of MACROS) {
+        for (const mac of (node.snap.p.bubble ? BUBBLE_MACROS : macros)) {
             restore(w, node.snap);
             const deaths = w.s.deaths;
             const tape = [];
             let hit = false;
-            const was = { rope: w.s.p.rope, cannon: w.s.p.cannon };
+            const was = { rope: w.s.p.rope, cannon: w.s.p.cannon, bubble: w.s.p.bubble };
             const push = bits => { step(w, toInput(bits)); const last = tape[tape.length - 1]; if (last && last[0] === bits) last[1]++; else tape.push([bits, 1]); };
             for (let f = 0; f < mac.n; f++) {
                 push(mac.bits(f));
                 if (w.s.deaths !== deaths) break;
                 if (reached(w)) { hit = true; break; }
                 const p = w.s.p;
-                if ((p.rope && p.rope !== was.rope) || (p.cannon && p.cannon !== was.cannon)) break;   // caught something: a new place to decide from
+                if ((p.rope && p.rope !== was.rope) || (p.cannon && p.cannon !== was.cannon) || (p.bubble && p.bubble !== was.bubble)) break;   // caught something: a new place to decide from
             }
             for (let f = 0; !hit && w.s.deaths === deaths && !settled(w.s.p) && f < AIR_MAX; f++) {
                 push(mac.air);
                 if (reached(w)) hit = true;
             }
             if (w.s.deaths !== deaths) continue;
+            // A coin or flag reached mid-air only counts if some way of steering lands you safely:
+            // the next search starts from here, and a jump into the spikes is no place to start.
+            if (hit && !w.s.won && !settled(w.s.p) && !survivable(w)) continue;
             const frames = node.frames + tape.reduce((a, t) => a + t[1], 0);
             if (hit) {
                 nodes.push({ snap: null, parent: ni, tape, frames });
@@ -200,6 +231,19 @@ export function search(w0, reached, target, opts = {}) {
     return { found: false, states: nodes.length, capped, best };
 }
 
+const AIR_TRIES = [0, B.l, B.r, B.j, B.l | B.j, B.r | B.j];
+/** Can you get from this mid-air moment to somewhere settled without dying? */
+function survivable(w) {
+    const snap = snapshot(w.s), probe = { L: w.L, s: null };
+    for (const bits of AIR_TRIES) {
+        restore(probe, snap);
+        const d0 = probe.s.deaths;
+        for (let f = 0; f < AIR_MAX * 2 && probe.s.deaths === d0 && !settled(probe.s.p); f++) step(probe, toInput(bits));
+        if (probe.s.deaths === d0) return true;
+    }
+    return false;
+}
+
 function finish(nodes, gi, w, capped) {
     const chain = [];
     for (let i = gi; i > 0; i = nodes[i].parent) chain.push(nodes[i].tape);
@@ -215,6 +259,7 @@ function finish(nodes, gi, w, capped) {
 /** Target helpers. */
 export const goalTarget = L => ({ at: { x: L.goals[0].x + 0.5, y: L.goals[0].y + 0.5 }, reached: w => w.s.won, name: 'the goal' });
 export const coinTarget = (L, i) => ({ at: { x: L.dev.coin[i].x + 0.5, y: L.dev.coin[i].y + 0.5 }, reached: w => !!(w.s.coins & (1 << i)), name: `coin ${i + 1}` });
+export const flagTarget = (L, i) => ({ at: { x: L.dev.flag[i].x + 0.5, y: L.dev.flag[i].y + 0.5 }, reached: w => w.s.check === i, name: `flag ${L.dev.flag[i].id || i + 1}` });
 export const portalTarget = (L, pt) => ({ at: { x: pt.x + 0.5, y: pt.y + 0.5 }, reached: w => portalHere(w)?.id === pt.id && w.s.p.grounded, name: `door ${pt.to}` });
 
 /**

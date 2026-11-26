@@ -1,7 +1,7 @@
 // Physics checks for Playroom Parkour's engine: each mechanic does what it says.
 //   node src/games/parkour/tests/physics.test.mjs
-import { compile, step, NO_INPUT, hashState, coinCount, moverPos } from '../core/World.js';
-import { P, GRAV, SLIP, SWING, BOUNCE } from '../core/Rules.js';
+import { compile, step, NO_INPUT, hashState, coinCount, moverPos, solidAt } from '../core/World.js';
+import { P, GRAV, SLIP, SWING, BOUNCE, TOYS } from '../core/Rules.js';
 
 let pass = 0, fail = 0;
 const ok = (c, msg) => { console.log(`${c ? 'ok  ' : 'FAIL'} ${msg}`); c ? pass++ : fail++; };
@@ -223,11 +223,105 @@ const FLOOR = [
     ok(w.s.deaths === 1 && Math.abs(w.s.p.x - 6.15) < 0.01, `falling in a pit puts you back at the flag (x ${w.s.p.x.toFixed(2)})`);
 }
 
+// 17. Pinball bumpers knock you away from their middle
+{
+    // Run into a bumper sitting on the floor: thrown back the way you came, and up.
+    const w = compile(lvl(FLOOR, [{ type: 'bumper', id: 'pb', x: 8, y: 9.4, r: 0.6 }]));
+    let hit = null;
+    for (let i = 0; i < 120 && !hit; i++) hit = step(w, I({ r: true })).find(e => e.type === 'bump');
+    ok(!!hit && w.s.p.vx < -8 && w.s.p.vy < 0, `running into a bumper knocks you back and up (vx ${w.s.p.vx.toFixed(1)}, vy ${w.s.p.vy.toFixed(1)})`);
+    // Drop onto one from above: straight back up, about 3 tiles.
+    const map = FLOOR.map((r, y) => (y === 9 ? r.replace('S', '.') : y === 2 ? '#......S.....................#' : r));
+    const w2 = compile(lvl(map, [{ type: 'bumper', id: 'pb', x: 7.5, y: 8.5, r: 0.6 }]));
+    let up = null;
+    for (let i = 0; i < 200 && up === null; i++) if (step(w2, NO_INPUT).some(e => e.type === 'bump')) up = w2.s.p.vy;
+    const top = peak(w2, NO_INPUT, 60);
+    ok(up !== null && up < -TOYS.BUMP_V * 0.9 && 8.5 - top > 2.2, `landing on a bumper bounces you straight up (${up?.toFixed(1)} tiles/s, ${(8.5 - top).toFixed(1)} tiles)`);
+    const w3 = compile(lvl(FLOOR, [{ type: 'bumper', id: 'pb', x: 8, y: 9.4, r: 0.6, power: 1.5 }]));
+    let hit3 = null;
+    for (let i = 0; i < 120 && !hit3; i++) hit3 = step(w3, I({ r: true })).find(e => e.type === 'bump');
+    ok(Math.hypot(w3.s.p.vx, w3.s.p.vy) > TOYS.BUMP_V * 1.4, 'a stronger bumper (power) knocks harder');
+}
+
+// 18. Bubbles float you up; steer, JUMP pops; touching a wall pops; the wand blows a new one
+{
+    const map = FLOOR.map((r, y) => (y === 9 ? '#S...........................#' : r));
+    const w = compile(lvl(map, [{ type: 'bubble', id: 'bb', x: 6, y: 7.6 }]));
+    let inside = false;
+    for (let i = 0; i < 120 && !inside; i++) { step(w, I({ r: true, j: i >= 20 && i < 45 })); inside = !!w.s.p.bubble; }
+    ok(inside, 'jumping into a bubble puts you inside it');
+    const empty = !!w.s.blown.bb;
+    const y0 = w.s.p.y;
+    run(w, NO_INPUT, 60);
+    ok(w.s.p.bubble && y0 - w.s.p.y > TOYS.BUBBLE_RISE * 0.7, `it floats you up (${(y0 - w.s.p.y).toFixed(2)} tiles in a second)`);
+    const x0 = w.s.p.x;
+    run(w, I({ l: true }), 30);
+    ok(w.s.p.x < x0 - 0.8, '◀ ▶ steer it');
+    const evs = run(w, i => I({ j: i === 2 }), 4);
+    ok(!w.s.p.bubble && evs.some(e => e.type === 'pop') && w.s.p.vy < -10, 'JUMP pops it with a jump');
+    ok(empty, 'the wand is empty for a moment…');
+    run(w, NO_INPUT, TOYS.BUBBLE_BACK);
+    ok(!w.s.blown.bb, '…then blows a new bubble');
+    // Floated into the ceiling: pops by itself.
+    const w2 = compile(lvl(map, [{ type: 'bubble', id: 'bb', x: 6, y: 7.6 }]));
+    let popped = null;
+    for (let i = 0; i < 600 && !popped; i++) popped = step(w2, I({ r: i < 30, j: i >= 20 && i < 45 && !w2.s.p.bubble })).find(e => e.type === 'pop');
+    ok(popped?.why === 'wall', `floating into the ceiling pops it (${popped?.why})`);
+    // A fan blows a bubble sideways.
+    const w3 = compile(lvl(map, [{ type: 'bubble', id: 'bb', x: 6, y: 7.6 }, { type: 'fan', x: 1, y: 1, w: 28, h: 8, ax: 30, ay: 0 }]));
+    for (let i = 0; i < 120 && !w3.s.p.bubble; i++) step(w3, I({ r: true, j: i >= 20 && i < 45 }));
+    const bx = w3.s.p.x; run(w3, NO_INPUT, 40);
+    ok(w3.s.p.bubble && w3.s.p.x > bx + 2, `a fan blows a bubble along (${(w3.s.p.x - bx).toFixed(1)} tiles)`);
+}
+
+// 19. Toy trains loop along their track and carry you
+{
+    const tr = { type: 'train', id: 'tt', w: 3, speed: 4, path: [[4, 9], [20, 9], [20, 3], [4, 3]] };
+    const w = compile(lvl(FLOOR.map((r, y) => (y === 9 ? '#S...........................G' : r)).map(r => r.slice(0, 30)), [tr]));
+    const t = w.L.byId.tt;
+    const loopFrames = t.period;
+    const a = moverPos(t, 0), b = moverPos(t, loopFrames), mid = moverPos(t, Math.round(loopFrames * (16 / 44)));
+    ok(Math.abs(a.x - b.x) < 0.1 && Math.abs(a.y - b.y) < 0.1, `a train comes back round to where it started (loop ${loopFrames} frames)`);
+    ok(Math.abs(mid.x - 20) < 0.2 && Math.abs(mid.y - 9) < 0.2, 'it runs the track at a steady speed');
+    // Stand on it as it goes up the side: it lifts you.
+    const map = FLOOR.map((r, y) => (y === 9 ? '#............................#' : y === 8 ? '#.....S......................#' : r));
+    const w2 = compile(lvl(map, [{ type: 'train', id: 'tt', w: 3, speed: 4, path: [[5, 9], [12, 9], [12, 3], [5, 3]] }]));
+    run(w2, NO_INPUT, 30);
+    const rode = w2.s.p.grounded && w2.s.p.ground === 'tt';
+    run(w2, NO_INPUT, 160);
+    ok(rode && w2.s.p.ground === 'tt' && w2.s.p.y < 5, `riding a train carries you along and up its track (y ${w2.s.p.y.toFixed(1)})`);
+}
+
+// 20. Tick-tock blocks come and go with the beat
+{
+    const map = FLOOR.map((r, y) => (y === 10 ? '#####RRRR####BBBB#############' : r));
+    const w = compile(lvl(map));
+    const half = w.L.tick / 2;
+    ok(solidAt(w, 6, 10) && !solidAt(w, 14, 10), 'red blocks are solid on the first half of the beat, blue ones aren\'t');
+    run(w, NO_INPUT, half);
+    ok(!solidAt(w, 6, 10) && solidAt(w, 14, 10), '…and the other way round on the second half');
+    // Standing on red when it goes: you fall.
+    const map2 = FLOOR.map((r, y) => (y === 10 ? '#RRRRRR#######################' : r));
+    const w2 = compile(lvl(map2));
+    run(w2, NO_INPUT, 20);
+    const stood = w2.s.p.grounded;
+    run(w2, NO_INPUT, half);
+    ok(stood && !w2.s.p.grounded && w2.s.p.vy > 0, 'standing on a red block when the beat turns: you drop');
+    // A block that comes on around you lets you out instead of trapping you.
+    const map3 = FLOOR.map((r, y) => (y === 9 ? '#S..BB.......................G' : r)).map(r => r.slice(0, 30));
+    const w3 = compile(lvl(map3));
+    run(w3, I({ r: true }), 30);                  // inside the (off) blue blocks…
+    run(w3, I({ r: true }), half);                // …as they come on: walk out the far side
+    ok(w3.s.p.x > 8, `a tick-tock block that comes on around you lets you walk out (x ${w3.s.p.x.toFixed(1)})`);
+}
+
 // 16. The same inputs give the same frames
 {
     const tape = i => I({ r: i % 50 < 35, j: i % 40 < 12, l: i % 97 > 80 });
-    const devs = [{ type: 'mover', id: 'm', x: 10, y: 6, w: 2, to: [16, 4], period: 200 }, { type: 'seesaw', id: 's', x: 20, y: 8, half: 3 }, { type: 'fan', x: 14, y: 2, w: 3, h: 7, ax: 20, ay: -50 }];
-    const a = compile(lvl(FLOOR, devs)), b = compile(lvl(FLOOR, devs));
+    const devs = [{ type: 'mover', id: 'm', x: 10, y: 6, w: 2, to: [16, 4], period: 200 }, { type: 'seesaw', id: 's', x: 20, y: 8, half: 3 }, { type: 'fan', x: 14, y: 2, w: 3, h: 7, ax: 20, ay: -50 },
+        { type: 'bumper', id: 'pb', x: 24, y: 7, r: 0.6 }, { type: 'bubble', id: 'bb', x: 6, y: 6 }, { type: 'train', id: 'tt', w: 2, speed: 3, path: [[3, 4], [12, 4], [12, 2]] }];
+    const map = FLOOR.map((r, y) => (y === 10 ? '#####RRR####BBB###############' : r));
+    const a = compile(lvl(map, devs)), b = compile(lvl(map, devs));
     run(a, tape, 900); run(b, tape, 900);
     ok(hashState(a) === hashState(b) && a.s.p.x === b.s.p.x && a.s.p.y === b.s.p.y, 'replaying the same inputs lands in exactly the same place');
 }

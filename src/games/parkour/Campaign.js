@@ -1,7 +1,7 @@
 // ============================================================
 // CAMPAIGN — the whole game in one box: the Toy Box ↔ courses, never out.
 //
-//   const c = createCampaign(root, { store, onExit, unlockAll, sfx, hero, heroEmoji })
+//   const c = createCampaign(root, { store, onExit, unlockAll, sfx, hero, heroSheet, heroEmoji })
 //   c.destroy()   c.progress   c.scene → 'hub' | courseId   c.game (live Game)   c.play(id)   c.toHub(id)
 //
 // The Toy Box is a walkable hub (levels/base.js). Walk to a door, ▲: the
@@ -16,10 +16,11 @@ import { TAPES } from './levels/tapes.js';
 
 const num = id => String(COURSES.findIndex(c => c.id === id) + 1);
 
-export function createCampaign(root, { store, onExit, unlockAll = false, sfx = null, hero = null, heroEmoji = '🦀' } = {}) {
+export function createCampaign(root, { store, onExit, unlockAll = false, sfx = null, hero = null, heroSheet = null, heroEmoji = '🦀' } = {}) {
     const progress = createProgress(store, { courses: COURSES, unlockAll });
     let game = null, scene = null, dead = false;
     const doorOf = to => HUB.devices.find(d => d.type === 'portal' && d.to === to);
+    const upstairs = id => (doorOf(id)?.y ?? 99) < 8;          // doors 5–8 are on the Toy Box's top shelf
 
     function stateOf(pt) {
         if (pt.to === 'soon') return 'soon';
@@ -64,7 +65,7 @@ export function createCampaign(root, { store, onExit, unlockAll = false, sfx = n
         scene = 'hub';
         const at = doorOf(fromId || progress.lastDoor) || null;
         swap(() => createGame(root, {
-            level: HUB, title: 'THE TOY BOX', hudText: hudText(), hero, heroEmoji, sfx,
+            level: HUB, title: 'THE TOY BOX', hudText: hudText(), hero, heroSheet, heroEmoji, sfx,
             spawnAt: at ? { x: at.x, y: at.y } : null,
             intro,
             onExit: () => onExit?.(),
@@ -87,7 +88,7 @@ export function createCampaign(root, { store, onExit, unlockAll = false, sfx = n
         progress.setLastDoor(id);
         let rec = null;
         swap(() => createGame(root, {
-            level: course, title: `${num(id)} · ${course.name.toUpperCase()}`, hero, heroEmoji, sfx,
+            level: course, title: `${num(id)} · ${course.name.toUpperCase()}`, hero, heroSheet, heroEmoji, sfx,
             // QA only (qa/parkour.js): the course plays the checker's ★★★ route.
             tape: window.__ppkAutoplay ? TAPES[id]?.all || TAPES[id]?.goal || null : null,
             onExit: () => toHub(id),
@@ -102,19 +103,24 @@ export function createCampaign(root, { store, onExit, unlockAll = false, sfx = n
             },
             onNext: () => {
                 const u = rec?.unlocked;
-                toHub(id, u ? { head: 'NEW DOOR OPEN!', lines: [`${num(u.id)} · ${u.name} is ready.`] }
+                const up = u && upstairs(u.id) && !upstairs(id) ? ' It\'s upstairs: the jack-in-the-box takes you up.' : '';
+                toHub(id, u ? { head: 'NEW DOOR OPEN!', lines: [`${num(u.id)} · ${u.name} is ready.${up}`] }
                     : rec?.allDone && rec.firstClear ? { head: 'ALL COURSES CLEARED!', lines: ['Go back for the ★ you missed.'] } : null);
             },
         }));
     }
 
     const s0 = progress.summary();
-    toHub(null, s0.done ? null : { head: 'WELCOME TO THE TOY BOX!', lines: ['Walk to door 1 and press ▲ to play. Finish a course and you come back here.'] });
+    // Back after new courses arrived upstairs (and you've unlocked them): say where they are.
+    const newUp = s0.done && COURSES.some(c => upstairs(c.id) && progress.isUnlocked(c.id) && !progress.isDone(c.id));
+    toHub(null, !s0.done ? { head: 'WELCOME TO THE TOY BOX!', lines: ['Walk to door 1 and press ▲ to play. Finish a course and you come back here.'] }
+        : newUp ? { head: 'NEW COURSES UPSTAIRS!', lines: ['Jump on the jack-in-the-box to get up to doors 5–8.'] } : null);
 
     return {
         get progress() { return progress; },
         get scene() { return scene; },
         get game() { return game; },
+        get heroSheet() { return heroSheet; },
         play, toHub,
         destroy() { dead = true; if (game) { try { game.destroy(); } catch (e) {} game = null; } },
     };

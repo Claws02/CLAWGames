@@ -7,10 +7,14 @@
 //   3 coins    …and through all 3 coins to the goal (the ★★★ route)
 //   4 flags    from every checkpoint, the goal is still reachable
 //   5 ghost    both routes replay to the same frame twice; the goal route
-//              beats par (so par is always possible)
+//              and the ★★★ route both beat par (so ★★★ is always possible)
 //   6 needs    take away each part the course lists in `needs` (a device id,
 //              a device type, or a tile like 'T'): the goal must go out of reach,
 //              so every mechanic actually matters
+//   Big courses can list `route`: their flag and coin ids in the order a run
+//   meets them. The searches then go waypoint to waypoint (reach: the flags;
+//   coins: everything), which keeps each search small.
+//
 //   hub        every door reachable from the start and from every other door;
 //              every course has a door
 //
@@ -19,7 +23,7 @@
 // ============================================================
 import { compile } from './World.js';
 import { TILE_CHARS, TILE, DEVICES, DT } from './Rules.js';
-import { route, replay, goalTarget, coinTarget, portalTarget } from './Solver.js';
+import { route, replay, goalTarget, coinTarget, flagTarget, portalTarget } from './Solver.js';
 
 const fmt = b => (b ? `(${b.at.x.toFixed(1)}, ${b.at.y.toFixed(1)}), ${b.d.toFixed(1)} tiles away` : '?');
 
@@ -42,6 +46,12 @@ function dataLayer(level, errors, warnings, { hub = false } = {}) {
         for (const f of need) if (d[f] === undefined) errors.push(`device ${d.id || d.type}: missing '${f}'`);
         if (d.id) { if (ids.has(d.id)) errors.push(`device id '${d.id}' used twice`); ids.add(d.id); }
         const inside = (x, y) => x >= 0 && y >= 0 && x <= W && y <= map.length;
+        if (d.type === 'train') {
+            if (!Array.isArray(d.path) || d.path.length < 2) errors.push(`device ${d.id || 'train'}: path needs at least 2 points`);
+            else for (const q of d.path) if (!inside(q[0], q[1])) errors.push(`device ${d.id || 'train'}: path point (${q}) is outside the map`);
+            if (!(d.speed > 0)) errors.push(`device ${d.id || 'train'}: speed must be > 0`);
+            continue;
+        }
         if (!inside(d.x, d.y)) errors.push(`device ${d.id || d.type}: (${d.x},${d.y}) is outside the map`);
         if (d.type === 'mover' && !inside(d.to[0], d.to[1])) errors.push(`device ${d.id}: 'to' is outside the map`);
         if (d.type === 'cannon' && (!Array.isArray(d.aim) || !d.aim.length || d.aim.length > 2)) errors.push(`device ${d.id}: aim must be one or two [vx, vy]`);
@@ -63,14 +73,26 @@ export function lintCourse(level, opts = {}) {
     if (!dataLayer(level, errors, warnings)) return { errors, warnings, tapes: null, info };
     const L = compile(level).L;
     const so = { maxStates: opts.maxStates ?? 150000 };
+    // Waypoints: the course's `route` (flag and coin ids in run order), if it lists one.
+    const way = (level.route || []).map(id => {
+        const fi = L.dev.flag.findIndex(f => f.id === id), ci = L.dev.coin.findIndex(c => c.id === id);
+        if (fi >= 0) return { kind: 'flag', i: fi, t: flagTarget(L, fi) };
+        if (ci >= 0) return { kind: 'coin', i: ci, t: coinTarget(L, ci) };
+        errors.push(`route: '${id}' isn't a flag or coin id`);
+        return null;
+    }).filter(Boolean);
+    if (errors.length) return { errors, warnings, tapes: null, info };
+    const flagWay = way.filter(x => x.kind === 'flag');
+    info.waypoints = way.length;
 
     // 2. reach
-    const g = route(level, [goalTarget(L)], so);
+    const g = route(level, [...flagWay.map(x => x.t), goalTarget(L)], so);
     if (!g.found) { errors.push(`reach: no route to the goal found (${g.states} states${g.capped ? ', capped' : ''}; got closest at ${fmt(g.best)})`); return { errors, warnings, tapes: null, info }; }
     info.goalSeconds = +(g.frames * DT).toFixed(2); info.goalStates = g.states;
 
     // 3. coins, in the order they're listed, then the goal
-    const coinTs = L.dev.coin.map((_, i) => coinTarget(L, i));
+    const coinTs = way.length ? way.map(x => x.t) : L.dev.coin.map((_, i) => coinTarget(L, i));
+    if (way.length && way.filter(x => x.kind === 'coin').length !== L.dev.coin.length) errors.push('route: list every coin once');
     const a = route(level, [...coinTs, goalTarget(L)], so);
     if (!a.found) errors.push(`coins: no route through ${a.failedAt} (${a.states} states${a.capped ? ', capped' : ''}; got closest at ${fmt(a.best)})`);
     else { info.allSeconds = +(a.frames * DT).toFixed(2); info.allStates = a.states; }
@@ -80,8 +102,9 @@ export function lintCourse(level, opts = {}) {
         const w = compile(level);
         w.s.check = i; w.s.checkG = f.g || 1;
         w.s.p = { ...w.s.p, x: f.x + 0.15, y: (f.g || 1) > 0 ? f.y + 0.1 : f.y, vx: 0, vy: 0, g: f.g || 1 };
-        const r = route(level, [goalTarget(L)], { ...so, from: w });
-        if (!r.found) errors.push(`flags: no route to the goal from checkpoint ${i + 1} at (${f.x},${f.y})`);
+        const after = flagWay.filter(x => x.i > i).map(x => x.t);
+        const r = route(level, [...after, goalTarget(L)], { ...so, from: w });
+        if (!r.found) errors.push(`flags: no route to the goal from checkpoint ${i + 1} at (${f.x},${f.y}) (stuck before ${r.failedAt}; got closest at ${fmt(r.best)})`);
     });
 
     // 5. ghost + par
@@ -97,12 +120,16 @@ export function lintCourse(level, opts = {}) {
     if (a.found) check('all-coins', a.tape, true);
     if (info.goalSeconds > level.par.seconds) errors.push(`par: ${level.par.seconds}s, but the checker's route takes ${info.goalSeconds}s: raise par or ease the course`);
     else if (level.par.seconds > info.goalSeconds * 2.5) warnings.push(`par: ${level.par.seconds}s is very easy (the checker runs it in ${info.goalSeconds}s)`);
+    // ★★★ has to be one run: all the coins AND under par. The ★★★ route proves it can be done.
+    if (info.allSeconds > level.par.seconds) errors.push(`par: ${level.par.seconds}s, but the ★★★ route (every coin) takes ${info.allSeconds}s: ★★★ would be impossible`);
 
     // 6. needs: take away each thing the course is built around; the goal must go out of reach.
     for (const need of level.needs || []) {
         const without = withoutPart(level, need);
         if (!without) { errors.push(`needs: '${need}' isn't a device id or tile in this course`); continue; }
-        const r = route(without, [goalTarget(compile(without).L)], { maxStates: opts.needStates ?? 6000 });
+        const LW = compile(without).L;
+        const ways = flagWay.map(x => flagTarget(LW, LW.dev.flag.findIndex(f => f.id === L.dev.flag[x.i].id))).filter(t => t);
+        const r = route(without, [...ways, goalTarget(LW)], { maxStates: opts.needStates ?? 6000 });
         if (r.found) warnings.push(`needs: the course can be finished without '${need}' (in ${(r.frames * DT).toFixed(1)}s)`);
     }
 
@@ -112,7 +139,7 @@ export function lintCourse(level, opts = {}) {
 /** The course with one part taken away: a device by id, or a tile kind (sponges become plain floor, belts plain floor…). */
 function withoutPart(level, need) {
     if ((level.devices || []).some(d => d.id === need)) return { ...level, devices: level.devices.filter(d => d.id !== need) };
-    const plain = { T: '#', '>': '#', '<': '#', I: '#', C: '#', '~': '.' };
+    const plain = { T: '#', '>': '#', '<': '#', I: '#', C: '#', '~': '.', R: '.', B: '.' };
     if (plain[need] && level.map.some(r => r.includes(need))) return { ...level, map: level.map.map(r => r.split(need).join(plain[need])) };
     const byType = (level.devices || []).filter(d => d.type === need);
     if (byType.length) return { ...level, devices: level.devices.filter(d => d.type !== need) };

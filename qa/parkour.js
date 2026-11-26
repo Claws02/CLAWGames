@@ -1,11 +1,13 @@
 // ============================================================
 // PARKOUR — Playroom Parkour (src/games/parkour/), headless, in the real app.
-//   1. SOLO lists it; its card opens the Toy Box (the hub), full screen
+//   1. SOLO lists it; its card opens the Toy Box (the hub, two floors), full screen; the hero is drawn
+//      from a sheet of poses (your own character, rigged), and it really changes pose
 //   2. the real buttons: ▶ walks, JUMP jumps; door 2 is locked at first;
 //      ▲ GO at door 1 starts the course; ✕ in a course goes back to the Toy Box at that door
-//   3. every course, played by the checker's ★★★ route: COURSE CLEAR with ★★★,
+//   3. every course, played by the checker's ★★★ route: the hero cheers, then COURSE CLEAR with ★★★,
 //      BACK TO THE TOY BOX lands at that course's door and opens the next one
-//   4. progress survives a reload (the card shows 4/4 · 12★); ✕ in the Toy Box leaves to SOLO
+//   4. progress survives a reload (the card shows 8/8 · 24★); ✕ in the Toy Box leaves to SOLO;
+//      the jack-in-the-box takes you upstairs to doors 5–8
 //   no page errors throughout. The course checker is separate:
 //   node src/games/parkour/tools/check.mjs (+ tests/physics.test.mjs).
 //
@@ -44,7 +46,9 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
     const sub0 = await openGame();
     ok(sub0 === 'not played yet', `SOLO lists Playroom Parkour ("${sub0}")`);
     const hub = await C(() => ({ full: !!document.querySelector('.ppk-full .ppk canvas'), doors: window.__ppkCampaign.game.world.L.dev.portal.length, hero: !!document.querySelector('.ppk') }));
-    ok(hub.full && hub.doors === 5, `the Toy Box opens full screen with ${hub.doors} doors`);
+    ok(hub.full && hub.doors === 9, `the Toy Box opens full screen with ${hub.doors} doors`);
+    const sheet = await C(() => { const v = window.__ppkCampaign.game; const s = v && document.querySelector('.ppk canvas') && window.__ppkCampaign.heroSheet; return s ? { w: s.canvas.width, h: s.canvas.height, run: s.count('run'), cheer: s.count('cheer') } : null; });
+    ok(!!sheet && sheet.run === 8 && sheet.cheer === 4, `your character is posed from a sprite sheet (${sheet ? `${sheet.w}×${sheet.h}, run ${sheet.run} frames` : 'none'})`);
     await page.screenshot({ path: 'qa/shot-parkour-hub.png' });
 
     // ── 2. Real buttons ──
@@ -62,6 +66,15 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
     await pressBtn('.ppk-btn.jump', 200);
     await page.waitForTimeout(700);
     ok(await C(() => window.__ppkJumped && window.__ppkCampaign.game.world.s.p.grounded), 'JUMP jumps and you land again');
+    // The pose follows what you do: standing still is idle (or a wave), running is the run cycle.
+    const poseOf = () => C(() => window.__ppkCampaign.game.pose?.());
+    const still = await poseOf();
+    await page.evaluate(() => { const b = document.querySelectorAll('.ppk-btn')[1]; b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 9 })); });
+    await page.waitForTimeout(250);
+    const running = await poseOf();
+    await page.evaluate(() => { const b = document.querySelectorAll('.ppk-btn')[1]; b.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 9 })); });
+    await page.waitForTimeout(400);
+    ok(['idle', 'blink', 'wave'].includes(still) && running === 'run', `the hero's pose follows what you do (still: ${still}, running: ${running})`);
 
     const doorAt = async to => { await page.evaluate(to => window.__ppkCampaign.toHub(to), to); await page.waitForTimeout(250); };
     await doorAt('c2');
@@ -85,10 +98,13 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
         const c = courses[i];
         const t0 = Date.now();
         await page.evaluate(id => window.__ppkCampaign.play(id), c.id);
-        const done = await page.waitForFunction(() => window.__ppkCampaign.game?.done, null, { timeout: 60000 }).then(() => true).catch(() => false);
+        const done = await page.waitForFunction(() => window.__ppkCampaign.game?.done, null, { timeout: 90000 }).then(() => true).catch(() => false);
+        await page.waitForTimeout(200);
+        const cheer = await C(() => window.__ppkCampaign.game.pose?.());
+        await page.waitForSelector('.ppk-card.show', { timeout: 3000 }).catch(() => {});
         const card = await C(() => ({ show: !!document.querySelector('.ppk-card.show'), stars: document.querySelector('.ppk-card .stars')?.textContent || '', text: document.querySelector('.ppk-card')?.textContent || '' }));
-        const good = done && card.show && card.stars === '★★★';
-        ok(good, `${c.name}: COURSE CLEAR ${card.stars} in ${Math.round((Date.now() - t0) / 1000)}s`);
+        const good = done && card.show && card.stars === '★★★' && cheer === 'cheer';
+        ok(good, `${c.name}: the hero ${cheer === 'cheer' ? 'cheers' : `doesn't cheer (${cheer})`}, then COURSE CLEAR ${card.stars} in ${Math.round((Date.now() - t0) / 1000)}s`);
         if (i === 0) await page.screenshot({ path: 'qa/shot-parkour-clear.png' });
         await page.click('.ppk-card button.go'); await page.waitForTimeout(350);
         const at = await C(() => ({ scene: window.__ppkCampaign.scene, x: window.__ppkCampaign.game.world.s.p.x }));
@@ -100,14 +116,27 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
         allGood = allGood && good && atDoor && nextOpen;
     }
     const sum = await C(() => window.__ppkCampaign.progress.summary());
-    ok(sum.done === 4 && sum.stars === 12, `every course cleared with every star (${sum.done}/4, ${sum.stars}★)`);
+    ok(sum.done === 8 && sum.stars === 24, `every course cleared with every star (${sum.done}/8, ${sum.stars}★)`);
     await page.evaluate(() => { window.__ppkAutoplay = false; });
 
     // ── 4. Progress survives a reload; ✕ in the Toy Box leaves ──
     await page.evaluate(() => sessionStorage.setItem('ppk-keep', '1'));
     await page.reload(); await page.waitForFunction(() => !!window.__claw);
     const sub1 = await openGame();
-    ok(sub1 === '4/4 courses · 12★', `progress kept after a reload ("${sub1}")`);
+    ok(sub1 === '8/8 courses · 24★', `progress kept after a reload ("${sub1}")`);
+    // Upstairs: the jack-in-the-box throws you up onto the top shelf, where doors 5–8 are.
+    await doorAt('c4');
+    await page.evaluate(() => { window.__ppkUp = false; const g = window.__ppkCampaign.game; const iv = setInterval(() => { const p = g.world.s.p; if (p.grounded && p.y < 6) window.__ppkUp = true; }, 16); setTimeout(() => clearInterval(iv), 6000); });
+    const holdKeys = async (keys, ms) => { for (const k of keys) await page.keyboard.down(k); await page.waitForTimeout(ms); for (const k of keys) await page.keyboard.up(k); };
+    const heroX = () => C(() => window.__ppkCampaign.game.world.s.p.x);
+    await page.keyboard.down('ArrowRight');                       // walk up to the jack-in-the-box…
+    for (let i = 0; i < 80 && (await heroX()) < 40.4; i++) await page.waitForTimeout(25);
+    await page.keyboard.down('Space'); await page.waitForTimeout(300);   // …hop onto it: it throws you up through the shelf
+    await page.keyboard.up('Space'); await page.keyboard.up('ArrowRight');
+    await page.waitForTimeout(250);
+    await holdKeys(['ArrowLeft'], 700);                           // and steer over the shelf
+    await page.waitForTimeout(900);
+    ok(await C(() => window.__ppkUp), 'the jack-in-the-box takes you upstairs to doors 5–8');
     await page.click('.ppk-hud button[title="Leave"]'); await page.waitForTimeout(400);
     ok(await C(() => !document.getElementById('scr-solo').hidden && !document.querySelector('.ppk')), '✕ in the Toy Box goes back to SOLO');
     await page.evaluate(() => sessionStorage.removeItem('ppk-keep'));

@@ -3,7 +3,7 @@
 // controls, HUD, the course-clear card. Campaign.js swaps these in and out.
 //
 //   const g = createGame(root, opts)   g.destroy()  g.restart()  g.pause(on)  g.flash(text)  g.world
-//   opts: level, title, hero (Image|null), heroEmoji, sfx(type), onExit()
+//   opts: level, title, hero (Image|null), heroSheet (HeroSprites sheet|null), heroEmoji, sfx(type), onExit()
 //     course: onWin(result) → card; cardExtra(result) → [lines]; onNext(), nextLabel
 //     hub:    hub = { state(pt), info(pt) → {head, lines, bad?}, portalInfo(pt) → {icon,label,stars}, onEnter(pt) },
 //             spawnAt {x, y}, intro {head, lines}
@@ -52,6 +52,7 @@ function injectCss() {
     st.id = 'ppk-css'; st.textContent = CSS;
     document.head.appendChild(st);
 }
+const CHEER_MS = 1100;   // the hero cheers this long before COURSE CLEAR shows
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
@@ -63,6 +64,7 @@ export function createGame(root, opts) {
     place();
     const view = createView(opts.hero || null);
     view.heroEmoji = opts.heroEmoji;
+    view.sheet = opts.heroSheet || null;
     if (hub) { view.portalState = hub.state; view.portalInfo = hub.portalInfo; }
 
     const box = el('div', 'ppk');
@@ -97,6 +99,7 @@ export function createGame(root, opts) {
     root.appendChild(box);
 
     const held = { l: false, r: false, u: false, d: false, j: false };
+    let cardTimer = null;
     let done = false, paused = false, af = null, last = 0, acc = 0, noteUntil = 0, tapeI = 0, tapeN = 0, door = null, padH = 160;
     const tape = opts.tape || null;
     const cleanups = [];
@@ -157,6 +160,7 @@ export function createGame(root, opts) {
     }
 
     function restart() {
+        clearTimeout(cardTimer);
         w = compile(level);
         place();
         view.camX = null; view.particles = []; tapeI = 0; tapeN = 0;
@@ -198,7 +202,9 @@ export function createGame(root, opts) {
             `<button class="again">↺ AGAIN</button><button class="go">${esc(opts.nextLabel || 'BACK TO THE TOY BOX ▶')}</button></div>`;
         card.querySelector('.again').onclick = () => restart();
         card.querySelector('.go').onclick = () => opts.onNext?.();
-        card.classList.add('show');
+        // A moment to see your character cheer at the toy chest, then the card.
+        const run = w;
+        cardTimer = setTimeout(() => { if (w === run && done) card.classList.add('show'); }, CHEER_MS);
     }
 
     function frame(now) {
@@ -210,7 +216,9 @@ export function createGame(root, opts) {
             acc += dt;
             let n = 0;
             while (acc >= DT && n < 5) {
-                const evs = step(w, nextInput());
+                const inp = nextInput();
+                view.input = inp;
+                const evs = step(w, inp);
                 if (evs.length) onEvents(evs);
                 acc -= DT; n++;
                 if (done) break;
@@ -238,9 +246,12 @@ export function createGame(root, opts) {
         get frames() { return w.s.t; },
         get done() { return done; },
         restart, flash, enterDoor,
+        /** The hero's pose last drawn ('idle', 'run', 'cheer'…): probes read it. */
+        pose: () => view.hv.pose || null,
         pause(v) { paused = !!v; },
         destroy() {
             cancelAnimationFrame(af);
+            clearTimeout(cardTimer);
             cleanups.forEach(f => f());
             box.remove();
         },
