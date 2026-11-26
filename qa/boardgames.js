@@ -46,7 +46,8 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
         out.dbCount = D.LINES(); out.dbBoxesOf = [D.boxesOf(D.H(0, 0)).length, D.boxesOf(D.H(1, 0)).length, D.boxesOf(D.V(0, 0)).length, D.boxesOf(D.V(0, 1)).length];
         out.dbThree = [D.draw(b, s[0], 0), D.draw(b, s[1], 1), D.draw(b, s[2], 0)];
         out.dbTakers = D.takers(b); out.dbClose = D.draw(b, s[3], 1); out.dbOwner = b.boxes[0];
-        out.dbBot = D.botLine((() => { const c = D.newBoard(); D.draw(c, s[0], 0); D.draw(c, s[1], 0); D.draw(c, s[2], 0); return c; })(), 1) === s[3];
+        // Even at full skill the bot skips a free box 1% of the time on purpose, so pin the dice.
+        out.dbBot = (() => { const r = Math.random; Math.random = () => 0.5; try { return D.botLine((() => { const c = D.newBoard(); D.draw(c, s[0], 0); D.draw(c, s[1], 0); D.draw(c, s[2], 0); return c; })(), 1) === s[3]; } finally { Math.random = r; } })();
         out.dbSafe = (() => { const c = D.newBoard(); D.draw(c, s[0], 0); D.draw(c, s[1], 0); return !D.safe(c).includes(s[2]) && !D.safe(c).includes(s[3]); })();
         // Mancala
         const m0 = M.newBoard();
