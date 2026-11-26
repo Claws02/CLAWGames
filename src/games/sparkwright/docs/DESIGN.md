@@ -14,6 +14,13 @@ shows you why: you fall short, the lift stalls, the fuse pops and your parts lan
 3. **Every level is proven.** Claude writes levels; `tools/check.mjs` proves them (6 layers) before they ship. Caleb plays for fun and taste, not to audit.
 4. **Wrong answers teach.** Every device level has at least one part that fails *visibly*, with the maths on screen explaining why.
 
+## Structure
+
+**Home Base** is a walkable hub (`levels/base.js`): the Mechanical wing on the ground floor, the
+Electrical wing up the ladder, a locked Drone Bay, and the Field Manual door. Each shift has a door that
+shows its state (locked, open, cleared ✓, under par ★). Clear a shift and you come back to base at that
+door with the next one open. You never leave the game between shifts.
+
 ## Core loop
 
 Read the brief (it states the requirement, never the answer) → reach the socket → TOOL → pick a part →
@@ -56,7 +63,8 @@ All numbers stay generic and plausible ("Motor A: 1.1 kgf static thrust @ 180 W"
 ## Milestones
 
 - **M0 (this package):** engine, solver, 6-layer checker, 6 levels, preview, arcade sprint entry, docs.
-- **M1:** mechanical world complete (8–10 levels), carryable crates (mass as a variable), level select screen inside the arcade, saves via `src/arcade/Store.js`.
+- **M0.5 (done):** Home Base hub + campaign in the app's SOLO hub, saves via `Store`, Field Manual.
+- **M1:** mechanical world complete (8–10 levels), carryable crates (mass as a variable).
 - **M2:** electrical world complete; parallel circuits + logic. Circuit solver generalises from series to a small nodal solve.
 - **M3:** drone world.
 - **Polish:** audio (claw-core `sfx` names), haptics, art pass, a "workbench" screen that replays your run with the maths overlaid.

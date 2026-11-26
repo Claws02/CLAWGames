@@ -7,6 +7,9 @@ never in claw-core). Plain ES modules, no build, canvas 2D, no THREE.
 
 **Levels are written by Claude and proven by a 6-layer checker before anyone plays them.**
 
+Play it in the app: SOLO → **Sparkwright** (the campaign: Home Base hub + every shift, saves with
+`Store`), or the grid's **SPARKWRIGHT SPRINT** (`sparksprint`, a pass-and-play race on one level).
+
 ## Run / verify
 
 ```
@@ -15,8 +18,8 @@ node src/games/sparkwright/tools/check.mjs m05 --verbose   # one level, list eve
 node src/games/sparkwright/tools/check.mjs --write-tapes   # after a clean run: regenerate levels/tapes.js
 node src/games/sparkwright/tests/devices.test.mjs     # device maths vs hand-worked numbers
 npm run serve  →  /src/games/sparkwright/preview.html?all   # campaign preview (?all unlocks every level)
-node qa/sparkwright.js                                # arcade entry end to end (vs bot + solo), needs :8140
-QA_ONLY=sparkwright node qa/smoke.js                  # ~100 s: smoke can't press START, human seat DNFs
+node qa/sparkwright.js                                # campaign playthrough + arcade sprint end to end, needs :8140
+QA_ONLY=sparksprint node qa/smoke.js                  # ~100 s: smoke can't press START, human seat DNFs
 node src/games/sparkwright/tools/build-preview.mjs out.html   # one-file preview (esbuild via npx)
 node src/games/sparkwright/tools/new-level.mjs m07 "Name" elec  # scaffold a level + register it
 ```
@@ -30,12 +33,16 @@ node src/games/sparkwright/tools/new-level.mjs m07 "Name" elec  # scaffold a lev
 | `core/World.js` | `compile(level)`, `step(world, input)` one fixed frame, `hashState`, `readouts`. Pure, deterministic |
 | `core/Solver.js` | BFS over macros through the real `step()`; `solve()`, `replay()`, tapes |
 | `core/Lint.js` | the 6 layers (data, layout, puzzle, reach/softlock, ghost, progress) |
-| `levels/*.js` | one level per file (JSON-shaped object); `levels/index.js` is the campaign order |
+| `levels/*.js` | one level per file (JSON-shaped object); `levels/index.js` is the campaign order + `HUB` |
+| `levels/base.js` | **Home Base**, the hub (`kind: 'hub'`): doors (`portal`, `to` = level id / `manual` / `soon`) and signs. Every campaign level needs a door here (lint) |
 | `levels/tapes.js` | GENERATED solver tapes; arcade bot + qa replay them. Never hand-edit |
 | `Render.js` | canvas drawing; cosmetic state only (may use Math.random) |
 | `Game.js` | one level in a DOM box: loop, two-thumb controls, part tray, readouts, win card |
-| `Sparkwright.js` | arcade adapter (minigame contract): pass-and-play race, solo score, bot = tape |
-| `preview.html` | standalone campaign with unlocks + best times (localStorage, try/catch) |
+| `Campaign.js` | the whole game in one box: Home Base ↔ shifts, BACK TO BASE at the same door, Field Manual. Never exits between shifts |
+| `Progress.js` | cleared levels, best times, unlocks (save schema v1; store injected) |
+| `HubGame.js` | SoloHub card: full-screen campaign, `Store` saves under `sparkwright`, event → arcade sfx |
+| `Sparkwright.js` | arcade adapter `sparksprint` (minigame contract): pass-and-play race, solo score, bot = tape |
+| `preview.html` | the same campaign standalone (localStorage). `?all` unlocks every door, `?reset` wipes progress |
 | `docs/` | DESIGN (roadmap), LEVEL_FORMAT, DESIGN-BRIEF (for level-designer agents), INTEGRATION |
 
 ## Rules
@@ -46,7 +53,9 @@ node src/games/sparkwright/tools/new-level.mjs m07 "Name" elec  # scaffold a lev
 - Every device concept must have a wrong answer that fails (layer 3). If every part works, the level teaches nothing.
 - Never write real-product specs. Parts are generic ("Gearbox 80:1"); numbers are plausible, maths exact.
 - `_`-prefixed names stay file-private (CLAWGames/HBD parsecheck convention).
-- The arcade glue is `src/games/index.js` (`sparkwright` entry). It pushes the type into `MG_PARALLEL` itself.
+- Arcade glue: `src/games/index.js` (`sparksprint` entry) and `src/arcade/SoloHub.js` (`HubGame` in `GAMES`).
+- Adding a level = level file + register in `levels/index.js` + a door in `levels/base.js` (the hub lint fails until it has one).
+- `window.__swrAutoplay` (QA only) makes shifts play their solver tape; `window.__swrCampaign` exposes the live campaign to probes.
 
 ## Task → doc
 

@@ -4,13 +4,18 @@
 // preview and by the arcade adapter (Sparkwright.js).
 //
 //   const g = createGame(root, { level, onWin, onExit, tape, title })
-//   g.destroy()   g.restart()   g.world (live World)   g.frames
+//   g.destroy()   g.restart()   g.pause(on)   g.world (live World)   g.frames
+//
+// Hub mode (Home Base): opts.hub = { state(portal) → 'locked'|'open'|'done'|'star'|'manual'|'soon',
+//   info(portal) → { head, lines }, onEnter(portal) }. No timer, no win; ▲ or TOOL at a door enters.
+// Also: spawnAt {x, y} (stand at a door), intro { head, lines, at } (a note + sparks),
+// cardExtra(result) → extra lines on the win card, sfx(eventType) for sounds.
 //
 // tape: a solver tape → the game plays itself (arcade bot, qa ghost probe).
 // The sim runs on a fixed DT accumulator; rendering is cosmetic only.
 // ============================================================
 import { DT, CONCEPTS } from './core/Rules.js';
-import { compile, step, socketHere, readouts, NO_INPUT } from './core/World.js';
+import { compile, step, socketHere, portalHere, spawnAt, readouts, NO_INPUT } from './core/World.js';
 import { toInput } from './core/Solver.js';
 import { createView, draw, fx, shortLabel, KIND_COLOR } from './Render.js';
 
@@ -67,8 +72,12 @@ function deviceForSocket(L, sid) {
 export function createGame(root, opts) {
     injectCss();
     const level = opts.level;
+    const hub = opts.hub || null;
+    const place = () => { if (opts.spawnAt) spawnAt(w, opts.spawnAt.x, opts.spawnAt.y); };
     let w = compile(level);
+    place();
     const view = createView();
+    view.portalState = hub ? hub.state : null;
     const box = el('div', 'swr');
     const canvas = el('canvas');
     const ctx = canvas.getContext('2d');
@@ -76,10 +85,12 @@ export function createGame(root, opts) {
 
     // HUD
     const hud = el('div', 'swr-hud');
-    hud.innerHTML = `<b>${esc(opts.title || level.name.toUpperCase())}</b><span class="par">PAR ${level.par?.seconds ?? '—'}s</span><span class="t">0.00</span>`;
+    hud.innerHTML = hub
+        ? `<b>${esc(opts.title || level.name.toUpperCase())}</b><span class="t" style="font-size:13px">${esc(opts.hudText || '')}</span>`
+        : `<b>${esc(opts.title || level.name.toUpperCase())}</b><span class="par">PAR ${level.par?.seconds ?? '—'}s</span><span class="t">0.00</span>`;
     const tEl = hud.querySelector('.t');
     const restartBtn = el('button', null, '↺'); restartBtn.title = 'Restart level';
-    hud.appendChild(restartBtn);
+    if (!hub) hud.appendChild(restartBtn);
     if (opts.onExit) { const x = el('button', null, '✕'); x.title = 'Exit'; x.onclick = () => opts.onExit(); hud.appendChild(x); }
     box.appendChild(hud);
 
@@ -93,7 +104,7 @@ export function createGame(root, opts) {
     const bL = el('button', 'swr-btn', '◀'), bR = el('button', 'swr-btn', '▶');
     left.append(bUp, bDown, bL, bR);
     const right = el('div', 'grp'); right.style.justifyItems = 'end';
-    const bTool = el('button', 'swr-btn small tool', 'TOOL'), bJump = el('button', 'swr-btn jump', 'JUMP');
+    const bTool = el('button', 'swr-btn small tool', hub ? 'ENTER' : 'TOOL'), bJump = el('button', 'swr-btn jump', 'JUMP');
     right.append(bTool, bJump);
     pad.append(left, right);
     box.appendChild(pad);
@@ -107,7 +118,7 @@ export function createGame(root, opts) {
     root.appendChild(box);
 
     const held = { l: false, r: false, u: false, d: false, j: false };
-    let pendingAct = null, trayOpen = false, done = false, af = null, last = 0, acc = 0;
+    let pendingAct = null, trayOpen = false, done = false, af = null, last = 0, acc = 0, paused = false, prevU = false;
     let note = null, noteUntil = 0, briefUntil = 4;
     let tapeI = 0, tapeN = 0;
     const tape = opts.tape || null;
@@ -121,21 +132,32 @@ export function createGame(root, opts) {
         on(btn, 'pointerdown', e => { e.preventDefault(); try { btn.setPointerCapture(e.pointerId); } catch (_) {} ids.add(e.pointerId); set(); });
         for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) on(btn, ev, e => { ids.delete(e.pointerId); set(); });
     };
+    // ▲ at a Home Base door opens it (checked before the hold, so a quick tap counts).
+    if (hub) on(bUp, 'pointerdown', e => { if (portalHere(w)) { e.stopImmediatePropagation(); e.preventDefault(); enterDoor(); } });
     hold(bL, 'l'); hold(bR, 'r'); hold(bUp, 'u'); hold(bDown, 'd'); hold(bJump, 'j');
-    on(bTool, 'pointerdown', e => { e.preventDefault(); openTray(); });
+    on(bTool, 'pointerdown', e => { e.preventDefault(); hub ? enterDoor() : openTray(); });
     on(restartBtn, 'click', () => restart());
 
     const KEYS = { ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', ArrowUp: 'u', KeyW: 'u', ArrowDown: 'd', KeyS: 'd', Space: 'j', KeyK: 'j' };
     on(window, 'keydown', e => {
         if (done && !card.classList.contains('show')) return;
+        if (hub && (e.code === 'ArrowUp' || e.code === 'KeyW') && !e.repeat && portalHere(w)) { e.preventDefault(); enterDoor(); return; }
         if (KEYS[e.code]) { held[KEYS[e.code]] = true; e.preventDefault(); }
-        if (e.code === 'KeyE' || e.code === 'KeyJ') openTray();
-        if (e.code === 'KeyR') restart();
+        if (e.code === 'KeyE' || e.code === 'KeyJ') hub ? enterDoor() : openTray();
+        if (e.code === 'KeyR' && !hub) restart();
         if (e.code === 'Escape' && trayOpen) closeTray();
         if (trayOpen && /^Digit[1-9]$/.test(e.code)) tray.querySelectorAll('button')[+e.code.slice(5) - 1]?.click();
     });
     on(window, 'keyup', e => { if (KEYS[e.code]) held[KEYS[e.code]] = false; });
     on(window, 'resize', () => resize());
+
+    function enterDoor() {
+        if (paused || done) return false;
+        const pt = portalHere(w);
+        if (!pt) { flash('Walk up to a door, then press ▲'); return false; }
+        hub.onEnter(pt);
+        return true;
+    }
 
     function openTray() {
         if (done || tape) return;
@@ -182,6 +204,7 @@ export function createGame(root, opts) {
 
     function restart() {
         w = compile(level);
+        place();
         view.camX = null; view.particles = []; tapeI = 0; tapeN = 0;
         done = false; card.classList.remove('show'); closeTray(); briefUntil = 4;
     }
@@ -195,6 +218,12 @@ export function createGame(root, opts) {
             tapeN++;
             return inp;
         }
+        if (hub) {
+            // ▲ at a door opens it instead of climbing.
+            const upEdge = held.u && !prevU;
+            prevU = held.u;
+            if (upEdge && portalHere(w)) { enterDoor(); return { ...held, u: false, act: null }; }
+        }
         const inp = { ...held, act: pendingAct };
         pendingAct = null;
         return inp;
@@ -203,10 +232,11 @@ export function createGame(root, opts) {
     function onEvents(evs) {
         fx(view, evs, w);
         for (const e of evs) {
+            try { opts.sfx?.(e.type); } catch (_) {}
             if (e.type === 'fuse') { note = { head: 'FUSE BLOWN', bad: true, lines: [`I = ${e.I === Infinity ? '∞' : e.I.toFixed(2)} A — over the fuse rating.`, 'The parts popped back into your tray.'] }; noteUntil = w.s.t * DT + 4; }
             if (e.type === 'stall') { note = { head: 'LIFT STALLED', bad: true, lines: ['Not enough torque to lift the car with you on it.', 'More reduction = more torque (and less speed).'] }; noteUntil = w.s.t * DT + 3; }
             if (e.type === 'death') { note = { head: e.why === 'spikes' ? 'OUCH' : 'FELL', bad: true, lines: ['Back to the start — your parts stay fitted.'] }; noteUntil = w.s.t * DT + 2; }
-            if (e.type === 'win') win();
+            if (e.type === 'win' && !hub) win();
         }
     }
 
@@ -214,26 +244,33 @@ export function createGame(root, opts) {
         done = true;
         const secs = w.s.t * DT;
         const result = { id: level.id, frames: w.s.t, seconds: +secs.toFixed(2), deaths: w.s.deaths, par: level.par?.seconds ?? null, underPar: level.par ? secs <= level.par.seconds : false };
+        opts.onWin?.(result);
         const taught = (level.teaches || []).map(id => CONCEPTS.find(c => c.id === id)?.title).filter(Boolean);
-        card.innerHTML = `<div class="in"><h2>SHIFT COMPLETE</h2><p>${secs.toFixed(2)} s ${result.par ? (result.underPar ? '· under par ✓' : `· par ${result.par} s`) : ''}</p><p>${w.s.deaths ? w.s.deaths + ' restarts' : 'No restarts'}</p>${taught.length ? `<p style="color:#6f8fae;font-size:12px">Learned: ${esc(taught.join(' · '))}</p>` : ''}</div>`;
+        const extra = (opts.cardExtra?.(result) || []).map(l => `<p style="color:#ffcf3d">${esc(l)}</p>`).join('');
+        card.innerHTML = `<div class="in"><h2>SHIFT COMPLETE</h2><p>${secs.toFixed(2)} s ${result.par ? (result.underPar ? '· under par ★' : `· par ${result.par} s`) : ''}</p><p>${w.s.deaths ? w.s.deaths + ' restarts' : 'No restarts'}</p>${extra}${taught.length ? `<p style="color:#6f8fae;font-size:12px">Learned: ${esc(taught.join(' · '))}</p>` : ''}</div>`;
         const inner = card.firstChild;
         if (opts.onNext) { const b = el('button', null, opts.nextLabel || 'NEXT ▶'); b.onclick = () => opts.onNext(result); inner.appendChild(b); }
         if (opts.showRetry !== false && !tape) { const b = el('button', null, 'RETRY'); b.onclick = () => restart(); inner.appendChild(b); }
         if (opts.cardOnWin !== false) card.classList.add('show');
-        opts.onWin?.(result);
     }
 
     function paintReadout() {
         const now = w.s.t * DT;
         let block = null;
-        const so = socketHere(w);
+        if (hub && note && now < noteUntil) block = note;
+        const pt = !block && hub && portalHere(w);
+        if (pt) {
+            block = hub.info(pt);
+            bTool.classList.add('ready');
+        }
+        const so = !block && socketHere(w);
         if (so) {
             const dev = deviceForSocket(w.L, so.id);
             const r = dev && readouts(w).find(x => x.id === dev.id);
             const part = w.s.sockets[so.id] ? w.L.parts[w.s.sockets[so.id]] : null;
             block = { head: `${so.accepts.toUpperCase()} SOCKET · ${part ? part.label : 'empty'} — TOOL to swap`, lines: r?.r ? r.r.lines : [part ? '' : 'Fit a part to see the maths.'] };
             bTool.classList.add('ready');
-        } else bTool.classList.remove('ready');
+        } else if (!pt) bTool.classList.toggle('ready', !!(hub && portalHere(w)));
         if (!block && note && now < noteUntil) block = note;
         if (!block && now < briefUntil) block = { head: level.name.toUpperCase(), lines: [level.brief] };
         if (!block) { read.style.opacity = 0; return; }
@@ -248,7 +285,7 @@ export function createGame(root, opts) {
         af = requestAnimationFrame(frame);
         const dt = last ? Math.min((now - last) / 1000, 0.1) : DT;
         last = now;
-        if (!done && !trayOpen) {
+        if (!done && !trayOpen && !paused) {
             acc += dt;
             while (acc >= DT) {
                 acc -= DT;
@@ -257,13 +294,18 @@ export function createGame(root, opts) {
                 if (done) break;
             }
         }
-        tEl.textContent = (w.s.t * DT).toFixed(2);
+        if (!hub) tEl.textContent = (w.s.t * DT).toFixed(2);
         const W = box.clientWidth, H = box.clientHeight;
         draw(ctx, w, view, W, H, 46, Math.round(Math.min(220, H * 0.26)), dt);
         paintReadout();
     }
 
     resize();
+    if (opts.intro) {
+        note = { head: opts.intro.head, lines: opts.intro.lines };
+        noteUntil = 5; briefUntil = 0;
+        if (opts.intro.at) fx(view, [{ type: 'win' }], { s: { p: { x: opts.intro.at.x + 0.15, y: opts.intro.at.y + 0.1 } }, L: w.L });
+    }
     af = requestAnimationFrame(frame);
     if (tape) { pad.style.opacity = 0.35; pad.style.pointerEvents = 'none'; }
 
@@ -272,6 +314,8 @@ export function createGame(root, opts) {
         get frames() { return w.s.t; },
         get done() { return done; },
         restart,
+        pause(on) { paused = !!on; if (paused) Object.keys(held).forEach(k => (held[k] = false)); last = 0; },
+        flash,
         destroy() {
             cancelAnimationFrame(af); af = null;
             cleanups.forEach(f => { try { f(); } catch (e) {} });

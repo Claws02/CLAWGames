@@ -29,6 +29,7 @@ const isInt = v => Number.isInteger(v);
 const isNum = v => typeof v === 'number' && Number.isFinite(v);
 
 export function lintLevel(level, opts = {}) {
+    if (level.kind === 'hub') return lintHub(level, opts);
     const problems = [];
     const err = (layer, what) => problems.push({ level: 'error', layer, what });
     const warn = (layer, what) => problems.push({ level: 'warn', layer, what });
@@ -227,6 +228,73 @@ export function lintLevel(level, opts = {}) {
     if (level.par?.seconds && stats.seconds && level.par.seconds > stats.seconds * 3) warn(6, `par ${level.par.seconds}s is very generous (solver route ${stats.seconds}s)`);
     if (!level.par?.seconds) warn(6, 'no par time');
     return { id: level.id, problems, stats, tape };
+}
+
+/**
+ * Hub (Home Base) lint: data, layout, every door reachable from the start,
+ * and no reachable spot from which you can't get back to a door. Doors lead to
+ * campaign level ids, 'manual' (the field manual) or 'soon' (a locked bay).
+ */
+export function lintHub(level, opts = {}) {
+    const problems = [];
+    const err = (layer, what) => problems.push({ level: 'error', layer, what });
+    const warn = (layer, what) => problems.push({ level: 'warn', layer, what });
+    const stats = {};
+    const ids = new Set(opts.campaignIds || []);
+    const map = level.map, H = map.length, W = map[0]?.length || 0;
+    map.forEach((row, y) => {
+        if (row.length !== W) err(2, `row ${y} is ${row.length} wide, expected ${W}`);
+        for (const c of row) if (!TILE_CHARS.has(c)) err(2, `row ${y}: unknown tile "${c}"`);
+    });
+    if (problems.length) return { id: level.id, problems, stats };
+    const at = (x, y) => (y >= 0 && y < H && x >= 0 && x < W ? map[y][x] : '#');
+    for (let x = 0; x < W; x++) if (map[0][x] !== '#' || !'#^'.includes(map[H - 1][x])) err(2, `border open at column ${x}`);
+    for (let y = 0; y < H; y++) if (map[y][0] !== '#' || map[y][W - 1] !== '#') err(2, `side border open on row ${y}`);
+    const S = []; map.forEach((r, y) => [...r].forEach((c, x) => c === 'S' && S.push({ x, y })));
+    if (S.length !== 1) err(2, `need exactly one S, found ${S.length}`);
+    if ((level.parts || []).length) warn(1, 'a hub has no parts');
+    const portals = level.devices.filter(d => d.type === 'portal');
+    const seen = new Set();
+    for (const d of level.devices) {
+        if (seen.has(d.id)) err(1, `duplicate id "${d.id}"`);
+        seen.add(d.id);
+        if (d.type === 'sign') { if (typeof d.text !== 'string' || !isNum(d.x) || !isNum(d.y)) err(1, `sign ${d.id}: needs x, y, text`); continue; }
+        if (d.type !== 'portal') { err(1, `${d.type} ${d.id}: a hub only has portals and signs`); continue; }
+        if (!isInt(d.x) || !isInt(d.y)) { err(1, `portal ${d.id}: x, y must be integers`); continue; }
+        if (!(ids.has(d.to) || d.to === 'manual' || d.to === 'soon')) err(1, `portal ${d.id}: "${d.to}" is not a campaign level, "manual" or "soon"`);
+        if (at(d.x, d.y) !== '.' || at(d.x, d.y - 1) !== '.') err(2, `portal ${d.id}: needs two clear tiles (door is 2 tall) at (${d.x},${d.y})`);
+        if (at(d.x, d.y + 1) !== '#') err(2, `portal ${d.id}: no solid floor under the door`);
+    }
+    for (let i = 0; i < portals.length; i++) for (let j = i + 1; j < portals.length; j++) {
+        const a = portals[i], b = portals[j];
+        if (a.y === b.y && Math.abs(a.x - b.x) < 2) err(2, `doors ${a.id} and ${b.id} are touching`);
+    }
+    for (const id of ids) if (!portals.some(p => p.to === id)) err(1, `campaign level ${id} has no door in the hub`);
+    if (problems.some(p => p.level === 'error')) return { id: level.id, problems, stats };
+
+    // Reach: explore every state; a door counts as reached when the hero stands at it.
+    const full = solve(level, { explore: true, maxStates: level.check?.maxStates ?? opts.maxStates ?? 80000 });
+    const { nodes, edges } = full.graph;
+    stats.states = nodes.length;
+    if (full.capped) warn(4, `state cap hit (${nodes.length}) — reach check incomplete`);
+    const atDoor = (p, d) => p.grounded && p.x < d.x + 0.8 && p.x + 0.7 > d.x + 0.2 && p.y < d.y + 1 && p.y + 0.9 > d.y;
+    const goal = new Uint8Array(nodes.length);
+    for (const d of portals) {
+        let hit = false;
+        nodes.forEach((n, i) => { if (atDoor(n.snap.p, d)) { goal[i] = 1; hit = true; } });
+        if (!hit) err(4, `door ${d.id} (→ ${d.to}) can't be reached`);
+    }
+    if (!full.capped) {
+        const rev = nodes.map(() => []);
+        for (const [a, b] of edges) rev[b].push(a);
+        const can = Uint8Array.from(goal), q = [];
+        goal.forEach((g, i) => g && q.push(i));
+        while (q.length) { const n = q.pop(); for (const m of rev[n]) if (!can[m]) { can[m] = 1; q.push(m); } }
+        const stuck = nodes.filter((n, i) => !can[i]).map(n => `(${Math.floor(n.snap.p.x + 0.35)},${Math.floor(n.snap.p.y + 0.9)})`);
+        if (stuck.length) err(4, `softlock: ${stuck.length} state(s) can't get back to any door, e.g. ${[...new Set(stuck)].slice(0, 5).join(' ')}`);
+    }
+    stats.doors = portals.length;
+    return { id: level.id, problems, stats, tape: null };
 }
 
 /** All socket assignments (each socket: empty or a compatible part; parts used once). */
