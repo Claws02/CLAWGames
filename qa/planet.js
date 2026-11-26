@@ -174,7 +174,7 @@ const SHOTS = process.env.QA_SHOTS || '';
     await M(`(() => { const s = M._game(), th = s.builds.find(b => b.kind === 'trick'); s.trickArmed = true; s.crab.p = L.walk(th.p, L.tangent(th.p, [1, 0, 0]), 0.7 / s.R); return 1; })()`);
     await p.waitForSelector('.tp-lvl');
     const card0 = await p.textContent('#tp-over');
-    check((await M('M._debug().mode')) === 'trick' && /OLD INK/.test(card0) && /Tide Pearl/.test(card0) && /3 coconuts/.test(card0) && (await p.$$('.tp-lvl')).length === 9 && /WORLD 2/.test(card0) && (await p.$$('.tp-lvl:disabled')).length === 0 && /WORLD 1/.test(card0) && !(await p.isVisible('#tp-bar')), `7b. walking into the Trick Hut opens Old Ink's Lair: the story, the rules of the claws, one chamber`);
+    check((await M('M._debug().mode')) === 'trick' && /OLD INK/.test(card0) && /Tide Pearl/.test(card0) && /3 coconuts/.test(card0) && (await p.$$('.tp-lvl')).length === 16 && /WORLD 2/.test(card0) && /WORLD 4/.test(card0) && /the storm/.test(card0) && (await p.$$('.tp-lvl:disabled')).length === 0 && /WORLD 1/.test(card0) && !(await p.isVisible('#tp-bar')), `7b. walking into the Trick Hut opens Old Ink's Lair: the story, the rules of the claws, one chamber`);
     await shot('lair-card');
     await p.click('.tp-lvl[data-arg="3"]');
     await p.waitForTimeout(500);

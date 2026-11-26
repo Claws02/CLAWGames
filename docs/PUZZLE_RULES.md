@@ -30,6 +30,20 @@ thing, then a big chamber that puts them together and ends with a boss.
 | 3. Gull Yard | the gull (it dives and steals; stomp or hit it; its back bounces) | `YARD` |
 | 4. The Drowned Stair 🐙 | everything above, the eddy and cove, then Old Ink | `STAIR` |
 
+| World 3 (the volcano) | Teaches | Data |
+|---|---|---|
+| 9. Obsidian Slide | sliding on a grid, blocks, cracked glass | `SLIDE` |
+| 10. Heavy Stone | stones: cool lava into rocks, press iron plates; two trips (stones and coconuts don't mix) | `STONES` |
+| 11. Cannon Ridge | the cannon and its wheel: hit what no throw reaches | `CANNONS` |
+| 12. The Hermit King 👑 | a stone, the cannon, then the boss with rising lava | `KING` |
+
+| World 4 (the storm) | Teaches | Data |
+|---|---|---|
+| 13. Gust Garden | the wind: throw in the calm, or use a gust to curve a throw into a cave | `GUSTS` |
+| 14. Thunderhead | lightning (wait out the strike) and the rod's timed gate | `THUNDERHEAD` |
+| 15. Cloud Ferry | ride drifting clouds; a bullseye that rides one | `FERRY` |
+| 16. The Eye of the Storm 🐙 | lightning, the rod, then Old Ink's last fight (five hits, strikes and gusts) | `STORMEYE` |
+
 A chamber opens when the one before it is cleared (`ALL_OPEN = true` in
 `LairLogic.js` opens them all while testing: turn it off for release).
 
@@ -140,9 +154,30 @@ each piece matters: `solve` with the ramp taken away, or the block made a pillar
 ### Teaching without pop-ups
 | Piece | What it does | In the recipe |
 |---|---|---|
-| **Talking local** | Grandpa Turtle / Pip / Hermie: walk up and a speech bubble gives one short line at a time | `npcs: [{ p, who, look, say: [...] }]` |
+| ~~Talking local~~ | archived (`src/arcade/archive/LairLocals.js`): Grandpa Turtle / Pip / Hermie gave directions in speech bubbles; retired after a play-test | (was `npcs`) |
 | **Picture sign** | a signpost whose board loops a little picture of a ghost crab doing the rule; plays when you're near; a sparkle until visited | `signs: [{ p, kind, look, rock? }]`, kinds in `Signs.js` |
 | **Previews** | show what a move would do before you make it (the lake's four trails, the green throw arc) | built in where a move is on a grid |
+
+### Built for World 3 (the volcano)
+| Piece | Rule | Data |
+|---|---|---|
+| **Lava** | stand in it: back to the flag; a coconut in it is lost (washes up at the palm) | `lavas: [{ p, r }]` (a pool) or `[{ r0, r1, only? }]` (a river) |
+| **Heavy stone** | walk into it with **empty claws** (it takes both); slower to walk with; the throw button lobs it a short way (0.8–2.6); can't carry coconuts with one | `stones: [{ p }]` (each `p` is its quarry) |
+| **Cooled rock** | a stone landing in lava cools into a stepping rock (stand on it, `ROCK_H`); the quarry rolls out a fresh stone `STONE.back` s later, so a wasted one is never a soft-lock | (made in play: `s.cooled`) |
+| **Iron plate** | a heavy plate also feels a resting stone (still never a crab or a coconut) | `plates: [{ heavy: true }]` |
+| **Cannon** | a coconut dropped in its barrel is fired at its current aim (a real flight: it hits bullseyes and lands on plates); a dotted arc shows the aim | `cannons: [{ p, r, aims: [p...], aim0, crank }]` |
+| **Cannon wheel** | walk into it to turn the cannon to its next aim (once per visit) | cannon `crank` |
+| **Lava tide** | a tide of lava that burns; with `boss`, it only rises while the boss is up (its clock starts when he wakes: `tideClock`) | `tide: { ..., lava: true, boss: true }` |
+| **The Hermit King** | Old Ink's fight with a different body: a claw slams instead of an arm | `boss: { kind: 'hermit', hits, speed, arena }` |
+
+### Built for World 4 (the storm)
+| Piece | Rule | Data |
+|---|---|---|
+| **The void** | the chasm, under the clouds: off a floor into it, back to the flag. A ledge or a cloud over it is a floor | `chasm: { r0, r1 }` |
+| **Wind** | calm, then a warning (`WIND_WARN`), then a gust that pushes coconuts in flight (in / out / east / west). Streaks race across the clouds while it blows | `wind: { way, period, on, phase, push }` |
+| **Lightning** | a dark ring for `BOLT_WARN` s, then a strike: anyone under it (in the air too) back to the flag. `boss` bolts only strike while he's up | `bolts: [{ p, r, period, on, phase, boss? }]` |
+| **Lightning rod** | never hurts; struck, it opens its gate for `secs` | bolt `rod: true, gate, secs` |
+| **Clouds that drift** | floating logs, drawn as clouds, over the void; a coconut left on one falls when it drifts away | `logs` in a `storm` chamber |
 
 ### Planned (each is one new rule)
 

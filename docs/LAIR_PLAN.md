@@ -349,3 +349,32 @@ obstacle course** (parkour to get the coconut there); all upgrading the existing
   Coral walls get sea fans, tube corals and anemones along the top.
 Next: the new bullseyes, and plates at the end of obstacle courses.
 
+
+## No more directions or arrival cards; World 3 finished; World 4 (the storm)
+
+**Play-test ask: "archive the turtle directions, get rid of the cards that pop up for each world in the beginning, and make a couple more worlds."**
+- **Talking locals archived**: Grandpa Turtle, Pip and Hermie (their lines, and the screen code for the three characters and their speech
+  bubbles) are in `src/arcade/archive/LairLocals.js`; nothing imports it. Chambers teach by their layout, the few picture signs and 💡.
+- **The arrival card is gone** (the panel that slid in at each chamber's door with its number, name and pieces). The opening swoop still
+  shows the pearl, and the story line still shows for a few seconds at the start.
+- **World 3 finished** (rules and proofs in `qa/lair-world3.mjs`):
+  - **10. Heavy Stone**: a lava river all round (5.4 wide: no jump or coconut bounce clears it). Heavy stones take both claws: lob one in
+    and it cools into a stepping rock. A stone on the iron plate holds the outer fence; a coconut in the bullseye on a post in a lava pool
+    the inner one. Stones and coconuts can't be carried together, so it's two trips; the quarry rolls out a fresh stone for each used one.
+  - **11. Cannon Ridge**: the pearl's island in a sea of lava. A bullseye on a pillar and a plate on a stack that no throw reaches (checked
+    from the whole rim and the causeway). Walk into the wheel to turn the cannon (a dotted arc shows its aim), drop a coconut in the
+    barrel: the bullseye lowers the causeway, the plate opens the fence.
+  - **12. The Hermit King** (boss): a stone over the lava river, the cannon onto the arena's bullseye, then the fight: his claw slams (the
+    same tells and opening as Old Ink), four hits, and while he's up lava rises round the edge of the arena (stand on a basalt stump or
+    get into the middle).
+- **World 4: the storm** (rules and proofs in `qa/lair-world4.mjs`). Story: the Hermit King dropped the pearl, and Old Ink's gulls carried
+  it up into the storm. Islands of cloud over the void.
+  - **13. Gust Garden**: the wind gusts in toward the pearl. A plate on a cloud pillar takes a throw only in the calm (a gust blows it off);
+    a bullseye in a cloud cave whose mouth faces out over the void can only be hit by a gust: from the throw spot, throw out past the edge
+    and the wind blows it back in (no calm throw from anywhere gets in; a bank of cloud on the start island stops straight throws from there).
+  - **14. Thunderhead**: three rows of lightning across the cloud path, each on its own beat (a dark ring warns); the rod, struck every 6 s,
+    opens the storm fence for 4 s; a coconut on the plate inside opens the pearl's.
+  - **15. Cloud Ferry**: two clouds drift round over the void: ride one across; the fence's bullseye rides the other.
+  - **16. The Eye of the Storm** (boss): two rows of lightning, the rod opens the arena, then Old Ink's last fight: five hits, faster slams,
+    lightning round the arena while he's up, and gusts across your throws. Clearing it ends the story: the pearl goes home.
+- Not checked: a real phone, and how any of it feels to a person (the bots aim perfectly). Tune after Caleb plays.

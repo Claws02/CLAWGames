@@ -1,7 +1,7 @@
 # CLAWGames: notes for Claude
 
 Start with `docs/STATUS.md` (what exists, what's next). Online work (Play Together, TV mode, `src/net/Room.js`) follows `docs/ONLINE_AUDIT.md`.
-New Old Ink's Lair chambers: rules and ideas in `docs/PUZZLE_RULES.md`, step by step in `docs/LAIR_GUIDE.md`, layout lessons from Portal in `docs/PORTAL_LESSONS.md`.
+New Old Ink's Lair chambers: rules and ideas in `docs/PUZZLE_RULES.md`, step by step in `docs/LAIR_GUIDE.md`, layout lessons from Portal in `docs/PORTAL_LESSONS.md`. Proofs: `qa/lair.mjs`, `qa/lair-world1.mjs` (worlds 1–2), `qa/lair-world3.mjs`, `qa/lair-world4.mjs`.
 New Reef Drop levels are recipes, not code: follow `docs/REEF_LEVELS.md` (`npm run reef:levels`, then `npm run reef:check`).
 Sparkwright (`src/games/sparkwright/`, engineer platformer + level checker) has its own `CLAUDE.md`: read that before touching it.
 Playroom Parkour (`src/games/parkour/`, physics platformer + course checker) has its own `CLAUDE.md`: read that before touching it.
