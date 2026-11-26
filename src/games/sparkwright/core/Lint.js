@@ -8,10 +8,14 @@
 //   1 data       fields, types, ranges, unique ids, every reference resolves
 //   2 layout     map shape, closed border, start/goal on ground, device
 //                tiles clear and not shared, lift shafts open, sockets apart
-//   3 puzzle     every socket assignment simulated: the intended one works,
-//                installing nothing fails, at least one wrong answer fails
-//   4 reach      the real solver (with part installs) finishes the level;
-//                no reachable state the goal can't be reached from (softlock)
+//   3 puzzle     every way to fill the benches is evaluated with the device maths
+//                and grouped by what it does to the world (launch height, lift
+//                speed, power on/off); one solver run per group. The intended
+//                build works, fitting nothing fails, a wrong build fails, some
+//                build earns all three stars, and the budget actually bites
+//   4 reach      the solver fits the intended parts itself and finishes; no
+//                reachable state (in any build group) that can't reach either
+//                the exit or a bench to change the build (softlock)
 //   5 ghost      the solver's input tape replayed twice on fresh worlds:
 //                both win, same frame count, same final state (determinism)
 //   6 progress   concepts taught before they're required; every device's
@@ -20,9 +24,10 @@
 //   lintLevel(level, opts) → { id, problems, stats, tape }
 //   lintAll(levels, opts)  → { results, cross }     (+ cross-level checks)
 // ============================================================
-import { TILE, TILE_CHARS, PART_KINDS, SOCKET_ACCEPTS, CONCEPTS } from './Rules.js';
-import { solve, replay } from './Solver.js';
-import { compile } from './World.js';
+import { TILE, TILE_CHARS, PART_KINDS, PART_COMMON, SOCKET_ACCEPTS, CONCEPTS } from './Rules.js';
+import { solve, replay, normSolution, lockBenches } from './Solver.js';
+import { compile, slotsOf, evalSpring, evalLift, evalCircuit, step, NO_INPUT } from './World.js';
+import { review } from './Review.js';
 
 const DEVICE_CONCEPT = { spring: 'spring', lift: 'torque', circuit: 'ohm' };
 const isInt = v => Number.isInteger(v);
@@ -49,7 +54,7 @@ export function lintLevel(level, opts = {}) {
         ids.add(p.id); parts[p.id] = p;
         const spec = PART_KINDS[p.kind];
         if (!spec) { err(1, `part ${p.id}: unknown kind "${p.kind}"`); continue; }
-        for (const [k, [lo, hi]] of Object.entries(spec)) {
+        for (const [k, [lo, hi]] of Object.entries({ ...spec, ...PART_COMMON })) {
             if (!isNum(p[k]) || p[k] < lo || p[k] > hi) err(1, `part ${p.id}: ${k}=${p[k]} outside ${lo}–${hi}`);
         }
         if (typeof p.label !== 'string') err(1, `part ${p.id}: needs a label`);
@@ -58,30 +63,36 @@ export function lintLevel(level, opts = {}) {
         if (ids.has(d.id)) err(1, `duplicate id "${d.id}"`);
         ids.add(d.id); devs[d.id] = d;
     }
-    const sockOf = (id, kind, who) => {
-        const s = devs[id];
-        if (!s || s.type !== 'socket') err(1, `${who}: socket "${id}" does not exist`);
-        else if (s.accepts !== kind) err(1, `${who}: socket "${id}" accepts ${s.accepts}, needs ${kind}`);
+    const benchHas = (id, kind, who) => {
+        const so = devs[id];
+        if (!so || so.type !== 'socket') { err(1, `${who}: bench "${id}" does not exist`); return; }
+        if (!slotsOf(so).some(sl => sl.accepts === kind)) err(1, `${who}: bench "${id}" has no ${kind} slot`);
     };
     for (const d of level.devices) {
         const who = `${d.type} ${d.id}`;
         const need = (...fs) => fs.forEach(f => { if (!isNum(d[f])) err(1, `${who}: "${f}" must be a number`); });
         switch (d.type) {
-            case 'socket': need('x', 'y'); if (!SOCKET_ACCEPTS[d.accepts]) err(1, `${who}: accepts "${d.accepts}"?`);
-                if (d.preset != null && (!parts[d.preset] || parts[d.preset].kind !== d.accepts)) err(1, `${who}: preset "${d.preset}" invalid`);
+            case 'socket': {
+                need('x', 'y');
+                const sl = slotsOf(d), sids = new Set();
+                if (!sl.length) err(1, `${who}: no slots`);
+                for (const x of sl) {
+                    if (!SOCKET_ACCEPTS[x.accepts]) err(1, `${who}: slot ${x.id} accepts "${x.accepts}"?`);
+                    if (sids.has(x.id)) err(1, `${who}: duplicate slot "${x.id}"`);
+                    sids.add(x.id);
+                }
                 break;
-            case 'spring': need('x', 'y', 'compress'); sockOf(d.socket, 'spring', who);
+            }
+            case 'spring': need('x', 'y', 'compress'); benchHas(d.socket, 'spring', who);
                 if (d.compress <= 0 || d.compress > 1) err(1, `${who}: compress ${d.compress} m out of range`);
                 break;
-            case 'lift': need('x', 'w', 'yTop', 'yBottom', 'drumR', 'massKg'); sockOf(d.socket, 'gear', who);
-                if (!d.motor || !isNum(d.motor.torque) || !isNum(d.motor.rpm)) err(1, `${who}: motor {torque, rpm} required`);
+            case 'lift': need('x', 'w', 'yTop', 'yBottom', 'drumR', 'massKg'); benchHas(d.socket, 'motor', who); benchHas(d.socket, 'gear', who);
                 if (d.yTop >= d.yBottom) err(1, `${who}: yTop must be above yBottom`);
                 break;
             case 'circuit': need('loadR', 'iMin', 'iMax');
                 if (d.iMin >= d.iMax) err(1, `${who}: iMin must be < iMax`);
-                if (d.volts == null && !d.battery) err(1, `${who}: needs volts or a battery socket`);
-                if (d.battery) sockOf(d.battery, 'battery', who);
-                for (const s of d.sockets || []) sockOf(s, 'resistor', who);
+                benchHas(d.socket, 'fuse', who);
+                if (d.volts == null) benchHas(d.socket, 'battery', who);
                 if (!(d.drives || []).length) err(1, `${who}: drives nothing`);
                 for (const t of d.drives || []) if (!devs[t] || !['door', 'bridge'].includes(devs[t].type)) err(1, `${who}: drives "${t}" — not a door/bridge`);
                 break;
@@ -90,18 +101,29 @@ export function lintLevel(level, opts = {}) {
             default: err(1, `device ${d.id}: unknown type "${d.type}"`);
         }
     }
+    const sol = normSolution(level);
     const usedParts = new Set();
-    for (const [sid, pid] of Object.entries(level.solution)) {
-        const s = devs[sid];
-        if (!s || s.type !== 'socket') { err(1, `solution: "${sid}" is not a socket`); continue; }
-        if (pid == null) continue;
-        if (!parts[pid]) err(1, `solution: part "${pid}" does not exist`);
-        else if (parts[pid].kind !== s.accepts) err(1, `solution: ${pid} (${parts[pid].kind}) can't go in ${sid} (${s.accepts})`);
-        if (usedParts.has(pid)) err(1, `solution: ${pid} used twice`);
-        usedParts.add(pid);
+    for (const [sid, slots] of Object.entries(sol)) {
+        const so = devs[sid];
+        if (!so || so.type !== 'socket') { err(1, `solution: "${sid}" is not a bench`); continue; }
+        for (const [slot, pid] of Object.entries(slots)) {
+            const sl = slotsOf(so).find(x => x.id === slot);
+            if (!sl) { err(1, `solution: bench ${sid} has no slot "${slot}"`); continue; }
+            if (pid == null) continue;
+            if (!parts[pid]) err(1, `solution: part "${pid}" does not exist`);
+            else if (parts[pid].kind !== sl.accepts) err(1, `solution: ${pid} (${parts[pid].kind}) can't go in ${sid}.${slot} (${sl.accepts})`);
+            if (usedParts.has(pid)) err(1, `solution: ${pid} used twice`);
+            usedParts.add(pid);
+        }
     }
     const socketsAll = level.devices.filter(d => d.type === 'socket');
-    for (const s of socketsAll) if (!s.fixed && !(s.id in level.solution)) err(1, `solution: socket ${s.id} has no intended part`);
+    for (const so of socketsAll) if (!so.fixed && !(so.id in sol)) err(1, `solution: bench ${so.id} has no intended build`);
+    const wo = level.workOrder;
+    if (!wo || !Array.isArray(wo.checks) || wo.checks.length !== 2) err(1, 'workOrder.checks must list exactly two checks (★2 and ★3)');
+    else for (const c of wo.checks) {
+        if (!['budget', 'par', 'noRestarts', 'liftTime', 'fuseProtects', 'margin'].includes(c.type)) err(1, `workOrder: unknown check "${c.type}"`);
+        if (c.device && !devs[c.device]) err(1, `workOrder: check ${c.type} names missing device "${c.device}"`);
+    }
     if (problems.some(p => p.level === 'error')) return { id: level.id, problems, stats };
 
     // ── 2. layout ───────────────────────────────────────────────────────────
@@ -157,50 +179,81 @@ export function lintLevel(level, opts = {}) {
     if (problems.some(p => p.level === 'error')) return { id: level.id, problems, stats };
 
     // ── 3. puzzle ───────────────────────────────────────────────────────────
-    const free = socketsAll.filter(s => !s.fixed);
+    const free = socketsAll.filter(so => !so.fixed);
     const teachesDevice = level.devices.some(d => DEVICE_CONCEPT[d.type]);
+    const classes = new Map();   // signature → { builds: [...], solved, rep }
     if (free.length) {
-        const assigns = enumerate(free, level.parts, opts.maxAssign ?? 200);
-        const table = [];
-        for (const a of assigns) {
-            const r = solve(level, { locked: a, maxStates: opts.maxStates ?? 20000 });
-            table.push({ a, solved: r.solved, capped: r.capped });
+        const builds = enumerateBenches(free, level.parts, opts.maxAssign ?? 20000);
+        if (builds.capped) warn(3, `more than ${opts.maxAssign ?? 20000} builds — only the first were checked`);
+        const w0 = compile(level);
+        for (const b of builds.list) {
+            const w = { L: w0.L, s: JSON.parse(JSON.stringify(w0.s)) };
+            lockBenches(w, b);
+            const sig = signature(w);
+            const rows = review(level, w);
+            let c = classes.get(sig);
+            if (!c) classes.set(sig, (c = { builds: [], rep: b, sig }));
+            c.builds.push({ b, rows });
         }
-        const key = a => free.map(s => `${s.id}=${a[s.id] || '∅'}`).join(' ');
-        const sol = table.find(t => free.every(s => (t.a[s.id] || null) === (level.solution[s.id] || null)));
-        if (!sol?.solved) err(3, `intended solution (${key(level.solution)}) does not finish the level`);
-        const empty = table.find(t => free.every(s => !t.a[s.id]));
-        if (teachesDevice && empty?.solved) err(3, 'level can be finished without installing anything — the device is optional');
-        const wrong = table.filter(t => t !== sol && t !== empty);
-        if (teachesDevice && wrong.length && wrong.every(t => t.solved)) err(3, 'every part choice works — there is no wrong answer to learn from');
-        if (teachesDevice && !wrong.length) warn(3, 'only one part fits — there is no choice to make (add a wrong part)');
-        const frac = table.filter(t => t.solved).length / table.length;
-        if (teachesDevice && frac > 0.5) warn(3, `${Math.round(frac * 100)}% of part choices finish the level — puzzle may be too forgiving`);
-        if (table.some(t => t.capped && !t.solved)) warn(3, 'solver hit its state cap on some assignment — result may be incomplete');
-        stats.assignments = table.length;
-        stats.solvable = table.filter(t => t.solved).map(t => key(t.a));
+        for (const c of classes.values()) {
+            const r = solve(level, { locked: c.rep, maxStates: opts.maxStates ?? 20000, explore: true });
+            c.solved = r.solved; c.capped = r.capped; c.graph = r.graph;
+        }
+        const key = b => free.map(so => slotsOf(so).map(sl => b[so.id]?.[sl.id] || '∅').join('+')).join(' | ');
+        const same = (a, b) => free.every(so => slotsOf(so).every(sl => (a[so.id]?.[sl.id] || null) === (b[so.id]?.[sl.id] || null)));
+        const all = [...classes.values()].flatMap(c => c.builds.map(x => ({ ...x, solved: c.solved })));
+        const intended = all.find(x => same(x.b, sol));
+        if (!intended?.solved) err(3, `intended build (${key(sol)}) does not finish the level`);
+        const empty = all.find(x => free.every(so => slotsOf(so).every(sl => !x.b[so.id]?.[sl.id])));
+        if (teachesDevice && empty?.solved) err(3, 'level can be finished with empty benches — the device is optional');
+        // "Wrong answers" are COMPLETE builds (every slot filled): an empty slot failing teaches nothing.
+        const complete = x => free.every(so => slotsOf(so).every(sl => x.b[so.id]?.[sl.id]));
+        const wrong = all.filter(x => x !== intended && x !== empty && complete(x));
+        if (teachesDevice && wrong.length && wrong.every(x => x.solved)) err(3, 'every complete build works — there is no wrong answer to learn from');
+        if (teachesDevice && !wrong.length) warn(3, 'only one build is possible — there is no choice to make');
+        const analyticOk = x => x.rows.every(r => !r.analytic || r.ok);
+        const three = all.filter(x => x.solved && analyticOk(x));
+        if (!three.length) err(3, 'no build earns all three stars — the work order is impossible');
+        if (intended?.solved && !analyticOk(intended)) warn(3, 'the intended build does not earn all three stars');
+        const working = all.filter(x => x.solved);
+        for (const ci of (level.workOrder?.checks || []).map((c, i) => i + 1)) {
+            const r = working.map(x => x.rows[ci]);
+            if (r.length && r.every(z => z.analytic && z.ok)) warn(3, `★${ci + 1} (${r[0].label}) is earned by every working build — it doesn't make anyone think`);
+        }
+        const full = all.filter(complete);
+        const frac = full.length ? full.filter(x => x.solved).length / full.length : 0;
+        if (teachesDevice && frac > 0.7) warn(3, `${Math.round(frac * 100)}% of complete builds finish the level — puzzle may be too forgiving`);
+        if ([...classes.values()].some(c => c.capped && !c.solved)) warn(3, 'solver hit its state cap on some build group — result may be incomplete');
+        stats.assignments = all.length;
+        stats.classes = classes.size;
+        stats.solvable = working.length;
+        stats.threeStar = three.length;
+        stats.works = three.slice(0, 4).map(x => key(x.b));
     }
 
     // ── 4. reach ────────────────────────────────────────────────────────────
     const full = solve(level, { explore: true, maxStates: level.check?.maxStates ?? opts.maxStates ?? 80000 });
     stats.states = full.graph.nodes.length;
-    if (!full.solved) err(4, 'the solver cannot finish the level (with part installs)');
+    if (!full.solved) err(4, 'the solver cannot fit the intended parts and finish the level');
     if (full.capped) warn(4, `state cap hit (${stats.states}) — softlock check incomplete`);
-    if (full.solved && !full.capped) {
-        const { nodes, edges, goals } = full.graph;
+    // Softlock, per build group: from every reachable spot you can reach the exit
+    // (if this build can finish) or a bench (to change the build).
+    const groups = classes.size ? [...classes.values()] : [{ graph: full.graph, sig: 'none' }];
+    const benchTiles = socketsAll.map(so => [so.x, so.y]);
+    const atBench = p => benchTiles.some(([x, y]) => p.x < x + 1 && p.x + 0.7 > x && p.y < y + 1 && p.y + 0.9 > y);
+    const stuckAt = new Set();
+    let stuckN = 0;
+    for (const g of groups) {
+        if (!g.graph) continue;
+        const { nodes, edges, goals } = g.graph;
         const rev = nodes.map(() => []);
         for (const [a, b] of edges) rev[b].push(a);
-        const can = new Uint8Array(nodes.length);
-        const q = [...goals];
-        for (const g of goals) can[g] = 1;
+        const can = new Uint8Array(nodes.length), q = [];
+        nodes.forEach((n, i) => { if (goals.includes(i) || (n.snap.p.grounded && atBench(n.snap.p))) { can[i] = 1; q.push(i); } });
         while (q.length) { const n = q.pop(); for (const m of rev[n]) if (!can[m]) { can[m] = 1; q.push(m); } }
-        const stuck = [];
-        nodes.forEach((n, i) => { if (!can[i]) stuck.push(n.snap.p); });
-        if (stuck.length) {
-            const tiles = [...new Set(stuck.map(p => `(${Math.floor(p.x + 0.35)},${Math.floor(p.y + 0.9)})`))].slice(0, 6);
-            err(4, `softlock: ${stuck.length} reachable state(s) can never reach the goal, e.g. hero at ${tiles.join(' ')}`);
-        }
+        nodes.forEach((n, i) => { if (!can[i]) { stuckN++; stuckAt.add(`(${Math.floor(n.snap.p.x + 0.35)},${Math.floor(n.snap.p.y + 0.9)})`); } });
     }
+    if (stuckN) err(4, `softlock: ${stuckN} reachable state(s) can reach neither the exit nor a bench, e.g. hero at ${[...stuckAt].slice(0, 6).join(' ')}`);
 
     // ── 5. ghost ────────────────────────────────────────────────────────────
     let tape = null;
@@ -297,21 +350,36 @@ export function lintHub(level, opts = {}) {
     return { id: level.id, problems, stats, tape: null };
 }
 
-/** All socket assignments (each socket: empty or a compatible part; parts used once). */
-export function enumerate(sockets, parts, cap) {
-    const out = [];
+/**
+ * Every way to fill the benches: each slot empty or a part of its kind, each
+ * part used once. Returns { list: [{ sid: { slot: partId|null } }], capped }.
+ */
+export function enumerateBenches(sockets, parts, cap) {
+    const slots = sockets.flatMap(so => slotsOf(so).map(sl => ({ sid: so.id, slot: sl.id, accepts: sl.accepts })));
+    const list = [];
+    let capped = false;
     const rec = (i, cur, used) => {
-        if (out.length >= cap) return;
-        if (i === sockets.length) { out.push({ ...cur }); return; }
-        const s = sockets[i];
-        cur[s.id] = null; rec(i + 1, cur, used);
-        for (const p of parts) if (p.kind === s.accepts && !used.has(p.id)) {
-            used.add(p.id); cur[s.id] = p.id; rec(i + 1, cur, used); used.delete(p.id);
+        if (list.length >= cap) { capped = true; return; }
+        if (i === slots.length) { list.push(JSON.parse(JSON.stringify(cur))); return; }
+        const sl = slots[i];
+        (cur[sl.sid] ||= {})[sl.slot] = null; rec(i + 1, cur, used);
+        for (const p of parts) if (p.kind === sl.accepts && !used.has(p.id)) {
+            used.add(p.id); cur[sl.sid][sl.slot] = p.id; rec(i + 1, cur, used); used.delete(p.id);
         }
-        delete cur[s.id];
+        cur[sl.sid][sl.slot] = null;
     };
     rec(0, {}, new Set());
-    return out;
+    return { list, capped };
+}
+
+/** What a build does to the world, coarse enough to group builds that play the same. */
+export function signature(w) {
+    const { L } = w;
+    const out = [];
+    for (const sp of L.dev.spring) { const r = evalSpring(w, sp); out.push(r ? `h${Math.round(r.h * 20)}` : 'h-'); }
+    for (const l of L.dev.lift) { const r = evalLift(w, l); out.push(r.state === 'ok' ? `v${Math.round(r.v * 20)}` : r.state); }
+    for (const c of L.dev.circuit) out.push(evalCircuit(w, c).state === 'on' ? 'on' : 'off');
+    return out.join('|');
 }
 
 export function lintAll(levels, opts = {}) {

@@ -47,28 +47,36 @@ export const TILE = {
 export const TILE_CHARS = new Set(Object.values(TILE));
 
 // Part kinds and the fields each must carry (lint checks types and ranges).
+// Every part also carries mass (kg — the hero carries the tray, so it changes
+// how high a spring throws you) and cost ($ — the work order's budget).
 export const PART_KINDS = {
-    spring:   { k: [1000, 1e6] },                     // N/m
-    gear:     { ratio: [1, 1000], eff: [0.3, 1] },    // n:1 reduction, efficiency
-    resistor: { ohms: [0, 1e6] },                     // Ω (0 = jumper wire)
-    battery:  { volts: [0.5, 100] },                  // V
+    spring:   { k: [1000, 1e6] },                                   // N/m. Springs in one bench act in parallel: k adds
+    motor:    { torque: [0.1, 100], rpm: [100, 50000] },            // N·m at the shaft, no-load-ish speed
+    gear:     { ratio: [1, 1000], eff: [0.3, 1], maxTorque: [1, 1e5] },   // n:1 reduction; output torque rating (N·m) — over it, the teeth strip
+    resistor: { ohms: [0, 1e6], watts: [0.05, 1000] },              // Ω (0 = jumper wire); power rating — over it, it burns
+    fuse:     { amps: [0.05, 100] },                                // blows above this current
+    battery:  { volts: [0.5, 100] },                                // V
 };
+export const PART_COMMON = { mass: [0, 100], cost: [0, 10000] };
 
-// What each socket kind accepts.
-export const SOCKET_ACCEPTS = { spring: 'spring', gear: 'gear', resistor: 'resistor', battery: 'battery' };
+// Bench slot kinds (what a slot accepts) — the same names as part kinds.
+export const SOCKET_ACCEPTS = { spring: 'spring', motor: 'motor', gear: 'gear', resistor: 'resistor', fuse: 'fuse', battery: 'battery' };
 
 // Teaching order. A level may only REQUIRE concepts taught at a lower
 // `order`. Lint enforces it (layer 6).
 export const CONCEPTS = [
-    { id: 'move',    title: 'Run & jump',           formula: '',                  note: 'Your jump clears about 2.5 m. Anything higher needs a machine.' },
-    { id: 'ladder',  title: 'Ladders',              formula: '',                  note: 'Hold ▲ or ▼ on a ladder to climb; JUMP lets go.' },
-    { id: 'spring',  title: 'Spring energy',        formula: 'h = k·x² / (2·m·g)', note: 'A compressed spring stores ½·k·x². All of it becomes height m·g·h. Double the stiffness k and you fly twice as high; double the squash x and you fly four times as high.' },
-    { id: 'torque',  title: 'Gear ratio',           formula: 'τ_out = τ·n·η   v = ω·r / n', note: 'A gearbox multiplies torque by its ratio n and divides speed by the same n. Pick the smallest ratio that still lifts the load: it is the fastest one that works.' },
-    { id: 'ohm',     title: "Ohm's law",            formula: 'I = V / R',          note: 'Current is voltage pushed through resistance. More resistance means less current. Every load has a current it needs to run.' },
-    { id: 'fuse',    title: 'Fuses',                formula: 'I > I_max → open',   note: 'A fuse is a deliberate weak link. Too much current and it blows, so the wiring and the load survive.' },
-    { id: 'series',  title: 'Series resistance',    formula: 'R = R₁ + R₂ + …',    note: 'Resistors in one line add up. The same current flows through all of them.' },
-    { id: 'voltage', title: 'Choosing a supply',    formula: 'I = V / (R_load + R)', note: 'The supply and the resistor work together: a bigger battery needs more resistance to land the same current.' },
+    { id: 'move',     title: 'Run & jump',          formula: '',                          note: 'Your jump clears about 2.5 m. Anything higher needs a machine.' },
+    { id: 'ladder',   title: 'Ladders',             formula: '',                          note: 'Hold ▲ or ▼ on a ladder to climb; JUMP lets go.' },
+    { id: 'spring',   title: 'Spring energy',       formula: 'h = k·x² / (2·m·g)',        note: 'A compressed spring stores ½·k·x². All of it becomes height m·g·h. Stiffer spring, higher throw; heavier load, lower throw — the parts you carry count.' },
+    { id: 'parallel', title: 'Springs in parallel', formula: 'k = k₁ + k₂',               note: 'Two springs pushing side by side add their stiffness. Two cheap springs can do the job of one expensive one.' },
+    { id: 'torque',   title: 'Gear ratio',          formula: 'τ_out = τ·n·η    v = ω·r / n', note: 'A gearbox multiplies torque by its ratio n and divides speed by n. A stronger motor needs less reduction, so it can go faster.' },
+    { id: 'ratings',  title: 'Ratings & margin',    formula: 'load ≤ rating',             note: 'Every part has a limit. A gearbox rated 180 N·m strips its teeth at 196. Engineers pick parts with margin above the worst case.' },
+    { id: 'ohm',      title: "Ohm's law",           formula: 'I = V / R',                 note: 'Current is voltage pushed through resistance. More resistance, less current. Every load has a current it needs to run.' },
+    { id: 'power',    title: 'Power in a resistor', formula: 'P = I²·R',                  note: 'A resistor turns current into heat. Too much power for its rating and it burns: the same 10 Ω comes in a tiny 0.25 W body and a chunky 5 W one.' },
+    { id: 'fuse',     title: 'Fuses',               formula: 'I_run < I_fuse ≤ I_damage', note: 'A fuse is a deliberate weak link. Pick it above the running current and below what would damage the load, and it saves the load instead of the load burning.' },
+    { id: 'series',   title: 'Series resistance',   formula: 'R = R₁ + R₂ + …',           note: 'Resistors in one line add up. The same current flows through all of them, so each must handle its own I²R.' },
+    { id: 'voltage',  title: 'Choosing a supply',   formula: 'I = V / (R_load + R)',      note: 'The supply and the resistor work together: a bigger battery needs more resistance to land the same current.' },
 ];
 
-export const FUSE_RESET_FRAMES = 90;      // blown fuse ejects the part, resets after 1.5 s
+export const FUSE_RESET_FRAMES = 90;      // a failure (fuse, burn, strip) ejects the parts; the device resets after 1.5 s
 export const LIFT_RETURN_V = 2.5;         // unloaded lift drifts down, tiles/s

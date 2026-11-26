@@ -27,7 +27,7 @@ let _wrap = null, _camp = null;
 
 export function bestText() {
     const s = createProgress(store, { levels: LEVELS }).summary();
-    return s.done ? `${s.done}/${s.total} shifts · ${s.stars}★` : '';
+    return s.done ? `${s.done}/${s.total} shifts · ${s.stars}/${s.maxStars}★` : '';
 }
 
 export function mount(el) {

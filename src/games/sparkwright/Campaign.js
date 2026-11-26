@@ -43,7 +43,7 @@ export function createCampaign(root, { store, onExit, unlockAll = false, sfx = n
         if (pt.to === 'manual') return 'manual';
         if (pt.to === 'soon') return 'soon';
         if (!progress.isUnlocked(pt.to)) return 'locked';
-        if (progress.underPar(pt.to)) return 'star';
+        if (progress.stars(pt.to) === 3) return 'star';
         return progress.isDone(pt.to) ? 'done' : 'open';
     }
 
@@ -60,17 +60,17 @@ export function createCampaign(root, { store, onExit, unlockAll = false, sfx = n
             const prev = LEVELS[LEVELS.indexOf(l) - 1];
             return { head: `${head} · LOCKED`, bad: true, lines: [`Finish ${num(prev.id)} ${prev.name} to unlock.`, learns && `Teaches: ${learns}`] };
         }
-        const b = progress.best(l.id);
+        const b = progress.best(l.id), st = progress.stars(l.id);
         return { head, lines: [
-            learns && `Teaches: ${learns}`,
-            b == null ? `Not cleared yet · par ${l.par.seconds} s` : `Best ${b.toFixed(2)} s ${progress.underPar(l.id) ? '★ under par' : `· par ${l.par.seconds} s`}`,
+            l.workOrder ? `Work order: ${l.workOrder.title}` : '',
+            b == null ? 'Not cleared yet' : `Best ${b.toFixed(2)} s · ${'★'.repeat(st)}${'☆'.repeat(3 - st)}`,
             '▲ or ENTER to start the shift.',
         ] };
     }
 
     function hudText() {
         const s = progress.summary();
-        return `${s.done}/${s.total} shifts · ${s.stars}★`;
+        return `${s.done}/${s.total} shifts · ${s.stars}/${s.maxStars}★`;
     }
 
     function swap(make) {
@@ -91,6 +91,7 @@ export function createCampaign(root, { store, onExit, unlockAll = false, sfx = n
             onExit: () => onExit?.(),
             hub: {
                 state: stateOf,
+                stars: pt => (LEVELS.some(l => l.id === pt.to) && progress.isDone(pt.to) ? progress.stars(pt.to) : null),
                 info: infoOf,
                 onEnter(pt) {
                     if (pt.to === 'manual') { openManual(); return; }
@@ -117,7 +118,8 @@ export function createCampaign(root, { store, onExit, unlockAll = false, sfx = n
             onWin: r => { rec = progress.record(level, r); },
             cardExtra: () => {
                 const out = [];
-                if (rec?.newBest && !rec.firstClear) out.push('New best time!');
+                if (rec?.moreStars && !rec.firstClear) out.push('More stars than last time!');
+                else if (rec?.newBest && !rec.firstClear) out.push('New best time!');
                 if (rec?.unlocked) out.push(`Unlocked: ${num(rec.unlocked.id)} ${rec.unlocked.name}`);
                 if (rec?.allDone && rec.firstClear) out.push('Every shift cleared. The Drone Bay is next.');
                 return out;
@@ -126,7 +128,7 @@ export function createCampaign(root, { store, onExit, unlockAll = false, sfx = n
             onNext: () => {
                 const u = rec?.unlocked, d = u && doorOf(u.id);
                 toHub(id, u ? { head: 'NEW SHIFT UNLOCKED', lines: [`${num(u.id)} · ${u.name} — its door is open.`], at: d ? { x: d.x, y: d.y - 1 } : null }
-                    : rec?.allDone && rec.firstClear ? { head: 'ALL SHIFTS CLEARED', lines: ['Chase the ★ par times, or read the Field Manual.'] } : null);
+                    : rec?.allDone && rec.firstClear ? { head: 'ALL SHIFTS CLEARED', lines: ['Go back for ★★★ on every work order, or read the Field Manual.'] } : null);
             },
         }));
     }

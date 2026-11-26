@@ -38,6 +38,8 @@ node qa/trophies.js                                 # saves untouched
 - Arcade sprint renamed `sparkwright` → `sparksprint` so the campaign card can own `sparkwright` (clips renamed to match).
 - Engine events mapped to claw-core sfx (`HubGame.js`).
 
+- **The Workbench (v2 puzzles).** Work orders with budgets and specs, multi-slot benches, mass/cost/ratings, strip/burn failures with incident reports, ★★★ design reviews, maths only after testing. All six shifts reworked; the checker groups every bench build by effect.
+
 ## Next tasks
 
 1. **Solo label** for the sprint: `src/arcade/Solo.js` `UNIT`: `sparksprint: 'pts'`, or a time `fmt`.

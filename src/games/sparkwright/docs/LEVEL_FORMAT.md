@@ -36,33 +36,48 @@ clears a 4-tile gap; make gaps 6+ if only a device should cross them.
 
 ## Parts (`kind` → required fields)
 
-| kind | fields | unit |
+Every part also needs `mass` (kg) and `cost` ($), plus a `label` for the tray.
+The hero **carries every part not fitted** (tray mass), so mass changes spring height and lift load.
+
+| kind | fields | unit / meaning |
 |---|---|---|
-| `spring` | `k` | N/m (1 000 – 1 000 000) |
-| `gear` | `ratio`, `eff` | n:1 reduction, efficiency 0.3–1 |
-| `resistor` | `ohms` | Ω (0 = jumper wire) |
+| `spring` | `k` | N/m. Springs on one bench act in **parallel**: k adds |
+| `motor` | `torque`, `rpm` | N·m at the shaft, speed |
+| `gear` | `ratio`, `eff`, `maxTorque` | n:1 reduction, efficiency, output torque rating (over it → strips) |
+| `resistor` | `ohms`, `watts` | Ω (0 = jumper), power rating (P = I²R over it → burns) |
+| `fuse` | `amps` | blows above this current |
 | `battery` | `volts` | V |
 
-Every part needs a `label` shown in the tray. Ids are unique across parts AND devices.
+Ids are unique across parts AND devices. Never use real product names or specs.
 
 ## Devices
 
 | type | fields | behaviour |
 |---|---|---|
-| `socket` | `x, y, accepts` (spring/gear/resistor/battery), optional `preset` (part id), `fixed` | stand in it + TOOL to fit/swap/remove. Sockets must be ≥ 2 tiles apart |
-| `spring` | `x, y, w?, socket, compress` (m) | solid pad; landing on it with a spring fitted launches `h = k·x²/(2·80·9.81)` tiles. Put it in a floor recess so its top is flush |
-| `lift` | `x, w, yTop, yBottom, socket, motor{torque N·m, rpm}, drumR m, massKg` | `yTop/yBottom` are the platform's **surface** rows. Rises only while you ride it AND `τ·n·η ≥ (massKg+80)·g·r`; speed `(rpm·2π/60)/n·r`. Returns down empty. Shaft tiles (rows yTop−1 … yBottom−1) must be `.`; row yBottom solid |
-| `circuit` | `loadR, iMin, iMax, sockets[] (resistors, series), volts` **or** `battery` (socket id), `drives[]` | `I = V/(loadR+ΣR)`. Empty socket = open. `I > iMax` blows the fuse: parts pop back to the tray, 1.5 s reset. `I ≥ iMin` powers `drives` |
-| `door` | `x, y, h` | solid until powered. Needs solid above and below or it can be jumped |
+| `socket` (a **workbench**) | `x, y, slots: [{ id, accepts, label }]`, optional `preset: { slot: partId }`, `fixed` | stand at it + TOOL opens the bench. Benches must be ≥ 2 tiles apart |
+| `spring` | `x, y, w?, socket, compress` (m) | solid pad; landing with springs fitted launches `h = Σk·x²/(2·(80 + tray)·9.81)` m. Put it in a floor recess |
+| `lift` | `x, w, yTop, yBottom, socket` (motor + gear slots), `drumR` m, `massKg` | rises while ridden if `τ·n·η ≥ (massKg + 80 + tray)·g·r` AND the gear's `maxTorque` ≥ that load (else it **strips**: parts eject). Speed `(rpm·2π/60)/n·r`. Shaft rows yTop−1…yBottom−1 must be `.`; row yBottom solid |
+| `circuit` | `socket` (resistor slot(s) in series + a fuse slot, + a battery slot unless `volts`), `loadR, iMin, iMax`, `drives[]` | `I = V/(loadR+ΣR)`. Fails in this order: no fuse (no power) → I > fuse (blows) → I > iMax (load burns) → any `I²R > watts` (resistor burns) → I < iMin (too weak). Any failure ejects the bench's parts and resets in 1.5 s |
+| `door` | `x, y, h` | solid until powered. Needs solid above and below |
 | `bridge` | `x, y, w` | hard-light floor, solid only while powered |
 
-Doors and bridges never switch solid while the hero overlaps them.
+## Work order (required on campaign levels)
+
+```js
+solution: { s1: { a: 'k30', b: 'k45' } },          // bench → slot → intended part
+workOrder: { title: 'Reach the loading ledge',
+             checks: [{ type: 'budget', max: 10 }, { type: 'noRestarts' }] },   // exactly two: ★2 and ★3
+```
+
+★1 is clearing the shift. Check types: `budget {max}`, `par`, `noRestarts`, `liftTime {device, max}`,
+`fuseProtects {device}` (fuse ≤ the load's iMax), `margin {device, min}` (lift torque margin). See `core/Review.js`.
+The brief states the job and its numbers, never the answer.
 
 ## What the checker enforces (summary — `core/Lint.js` is the truth)
 
-1. **data** — fields, types, ranges, unique ids, socket kinds match, `solution` valid and complete.
-2. **layout** — rows equal width, known chars, closed border, S/G on floor with headroom, device tiles `.` and unshared, lift shafts open, sockets apart, doors capped.
-3. **puzzle** — every assignment of parts to sockets simulated: intended works; empty fails; ≥ 1 wrong answer fails; warn if > 50 % of choices work or only one part fits.
-4. **reach** — solver (with installs) finishes; no reachable state from which the exit is unreachable (softlock).
-5. **ghost** — solver tape replayed twice: wins, identical frames and final state.
-6. **progress** — concepts known; each device's concept taught or required; campaign teaches before it requires; par within 0.6–3 × the solver route.
+1. **data**: fields, types, ranges (incl. mass/cost/ratings), unique ids, bench slots, devices find their slots, `solution` complete, two work-order checks.
+2. **layout**: rows equal width, known chars, closed border, S/G on floor with headroom, device tiles `.` and unshared, lift shafts open, benches apart, doors capped.
+3. **puzzle**: every way to fill the benches is evaluated with the device maths and grouped by effect (launch height, lift speed, power on/off); one solver run per group. The intended build works; empty benches fail; some **complete** wrong build fails; some build earns ★★★; each ★ check is missed by at least one working build (the budget must bite); warn if > 70 % of complete builds work.
+4. **reach**: the solver fits the intended parts and finishes; in every build group, no reachable spot that can reach neither the exit nor a bench (softlock).
+5. **ghost**: solver tape replayed twice: wins, identical frames and final state.
+6. **progress**: concepts known; each device's concept taught or required; campaign teaches before it requires; par within 0.6–3 × the solver route.

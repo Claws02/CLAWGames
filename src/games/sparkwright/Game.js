@@ -15,7 +15,8 @@
 // The sim runs on a fixed DT accumulator; rendering is cosmetic only.
 // ============================================================
 import { DT, CONCEPTS } from './core/Rules.js';
-import { compile, step, socketHere, portalHere, spawnAt, readouts, NO_INPUT } from './core/World.js';
+import { compile, step, socketHere, portalHere, spawnAt, readouts, deviceFor, slotsOf, fitted, trayMass, fittedCost, NO_INPUT } from './core/World.js';
+import { review, stars } from './core/Review.js';
 import { toInput } from './core/Solver.js';
 import { createView, draw, fx, shortLabel, KIND_COLOR } from './Render.js';
 
@@ -44,6 +45,20 @@ const CSS = `
 .swr-tray button{flex:1 1 140px;min-height:52px;background:#132638;border:1px solid #2c4a66;border-left:4px solid var(--k);color:#d8ecff;border-radius:8px;font:inherit;font-size:13px;text-align:left;padding:8px 10px}
 .swr-tray button.cur{outline:2px solid var(--k)}
 .swr-tray .note{font-size:11px;color:#6f8fae;margin-top:8px;white-space:pre-wrap}
+.swr-tray{max-height:72%;overflow:auto}
+.swr-tray .wo{font-size:12px;color:#ffcf3d;margin-bottom:8px;line-height:1.45}
+.swr-tray .slots{display:grid;gap:6px;margin-bottom:10px}
+.swr-tray .slot{display:flex;align-items:center;gap:8px;min-height:46px}
+.swr-tray .slot b{display:block;color:var(--k);font-size:10px;letter-spacing:.08em;margin-bottom:2px}
+.swr-tray .slot .rm{flex:0 0 auto;min-height:36px;padding:4px 10px;border-left-width:1px}
+.swr-tray .slot.sel{outline:2px solid var(--k);border-radius:8px}
+.swr-tray .spec{display:block;color:#9fbad3;font-size:11px;margin-top:2px}
+.swr-tray .foot{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#9fbad3;margin-top:10px;flex-wrap:wrap}
+.swr-tray .foot .over{color:#ff6b5b}
+.swr-card .rv{text-align:left;font-size:12px;margin:8px 0;line-height:1.6}
+.swr-card .rv .y{color:#3dffa2}.swr-card .rv .n{color:#ff6b5b}
+.swr-card .math{text-align:left;font-size:11px;color:#47e6ff;background:#0b1622;border-radius:6px;padding:8px;margin-top:8px;white-space:pre-wrap;max-height:30vh;overflow:auto}
+.swr-card .stars{font-size:26px;letter-spacing:.2em;color:#ffcf3d;margin:4px 0}
 .swr-card{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:#0b1622cc}
 .swr-card.show{display:flex}
 .swr-card .in{background:#0d1d2c;border:1px solid #3dffa2;border-radius:10px;padding:18px 20px;min-width:240px;max-width:340px;text-align:center}
@@ -62,12 +77,17 @@ function injectCss() {
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
 const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 
-/** Which device does this socket feed? */
-function deviceForSocket(L, sid) {
-    for (const d of [...L.dev.spring, ...L.dev.lift]) if (d.socket === sid) return d;
-    for (const c of L.dev.circuit) if (c.battery === sid || (c.sockets || []).includes(sid)) return c;
-    return null;
-}
+const KIND_UNIT = {
+    spring: p => `${(p.k / 1000).toLocaleString('en-US')} kN/m`,
+    motor: p => `${p.torque} N·m · ${p.rpm.toLocaleString('en-US')} rpm`,
+    gear: p => `${p.ratio}:1 · η ${p.eff} · rated ${p.maxTorque} N·m`,
+    resistor: p => `${p.ohms} Ω · rated ${p.watts} W`,
+    fuse: p => `blows above ${p.amps} A`,
+    battery: p => `${p.volts} V`,
+};
+/** One line of spec-sheet numbers for a part: what it is, its mass, its price. */
+export const specLine = p => `${KIND_UNIT[p.kind]?.(p) ?? ''} · ${p.mass} kg · $${p.cost}`;
+const benchKey = (w, sid) => fitted(w, sid).map(p => p?.id || '-').join(',');
 
 export function createGame(root, opts) {
     injectCss();
@@ -78,6 +98,7 @@ export function createGame(root, opts) {
     place();
     const view = createView();
     view.portalState = hub ? hub.state : null;
+    view.portalStars = hub?.stars || null;
     const box = el('div', 'swr');
     const canvas = el('canvas');
     const ctx = canvas.getContext('2d');
@@ -159,38 +180,82 @@ export function createGame(root, opts) {
         return true;
     }
 
+    // ── The Workbench ───────────────────────────────────────────────────────
+    // Spec sheets, not answers: it shows what each part IS (numbers, mass, cost)
+    // and what the job needs, never what a build will do. You find out by testing.
+    let benchSel = null;
     function openTray() {
         if (done || tape) return;
         const so = socketHere(w);
-        if (!so) { flash('Stand in a socket to use the TOOL'); return; }
-        if (so.fixed) { flash('That socket is locked'); return; }
-        const cur = w.s.sockets[so.id];
-        const parts = w.s.inv.map(id => w.L.parts[id]).filter(p => p.kind === so.accepts);
-        const dev = deviceForSocket(w.L, so.id);
-        tray.innerHTML = `<h3>${so.accepts.toUpperCase()} SOCKET${cur ? ' · fitted: ' + esc(w.L.parts[cur].label) : ''}</h3>`;
-        const row = el('div', 'row');
-        parts.forEach((p, i) => {
-            const b = el('button', null, `${i + 1}. ${esc(p.label)}`);
-            b.style.setProperty('--k', KIND_COLOR[p.kind]);
-            b.onclick = () => { pendingAct = { install: p.id }; closeTray(); };
-            row.appendChild(b);
-        });
-        if (cur) { const b = el('button', null, 'Remove part'); b.style.setProperty('--k', '#6f8fae'); b.onclick = () => { pendingAct = { remove: true }; closeTray(); }; row.appendChild(b); }
-        const c = el('button', null, 'Cancel'); c.style.setProperty('--k', '#2c4a66'); c.onclick = closeTray; row.appendChild(c);
-        tray.appendChild(row);
-        if (dev) tray.appendChild(el('div', 'note', esc(specNote(dev))));
-        if (!parts.length && !cur) tray.appendChild(el('div', 'note', 'No parts of this kind left in your tray.'));
+        if (!so) { flash('Stand at a bench to use the TOOL'); return; }
+        if (so.fixed) { flash('That bench is locked'); return; }
+        const slots = slotsOf(so);
+        if (!benchSel || !slots.some(x => x.id === benchSel)) benchSel = (slots.find(x => !w.s.sockets[so.id][x.id]) || slots[0]).id;
+        renderBench(so);
         tray.classList.add('open'); trayOpen = true;
         Object.keys(held).forEach(k => (held[k] = false));
     }
+    function renderBench(so) {
+        const slots = slotsOf(so), bench = w.s.sockets[so.id], dev = deviceFor(w.L, so.id);
+        const wo = level.workOrder, budget = wo?.checks?.find(c => c.type === 'budget')?.max;
+        tray.innerHTML = `<h3>WORKBENCH${dev ? ' · ' + esc(DEV_NAME[dev.type] || dev.type) : ''}</h3>` +
+            (wo ? `<div class="wo">${esc(level.brief)}</div>` : '');
+        const list = el('div', 'slots');
+        for (const sl of slots) {
+            const part = bench[sl.id] ? w.L.parts[bench[sl.id]] : null;
+            const row = el('div', 'slot' + (sl.id === benchSel ? ' sel' : ''));
+            row.style.setProperty('--k', KIND_COLOR[sl.accepts]);
+            const b = el('button', null, `<b>${esc((sl.label || sl.accepts).toUpperCase())}</b>${part ? esc(part.label) + `<span class="spec">${esc(specLine(part))}</span>` : '<span class="spec">empty: tap to choose</span>'}`);
+            b.style.setProperty('--k', KIND_COLOR[sl.accepts]);
+            b.onclick = () => { benchSel = sl.id; renderBench(so); };
+            row.appendChild(b);
+            if (part) { const rm = el('button', 'rm', '✕'); rm.title = 'Remove'; rm.style.setProperty('--k', '#6f8fae'); rm.onclick = () => benchAct({ remove: sl.id }); row.appendChild(rm); }
+            list.appendChild(row);
+        }
+        tray.appendChild(list);
+        const sel = slots.find(x => x.id === benchSel);
+        const options = w.s.inv.map(id => w.L.parts[id]).filter(p => p.kind === sel.accepts).sort((a, b) => a.cost - b.cost || a.label.localeCompare(b.label));
+        const head = el('h3', null, `TRAY · ${esc((sel.label || sel.accepts).toUpperCase())}`);
+        tray.appendChild(head);
+        const row = el('div', 'row');
+        options.forEach((p, i) => {
+            const b = el('button', null, `${i + 1}. ${esc(p.label)}<span class="spec">${esc(specLine(p))}</span>`);
+            b.style.setProperty('--k', KIND_COLOR[p.kind]);
+            b.onclick = () => benchAct({ install: p.id, slot: sel.id });
+            row.appendChild(b);
+        });
+        if (!options.length) row.appendChild(el('div', 'note', 'Nothing of this kind left in your tray.'));
+        tray.appendChild(row);
+        if (dev) tray.appendChild(el('div', 'note', esc(specNote(dev))));
+        const cost = fittedCost(w);
+        const foot = el('div', 'foot', `<span class="${budget != null && cost > budget ? 'over' : ''}">Fitted: $${cost}${budget != null ? ` of $${budget}` : ''}</span><span>Tray you carry: ${trayMass(w).toFixed(1)} kg</span>`);
+        tray.appendChild(foot);
+        const done = el('button', null, 'DONE · go test it');
+        done.style.setProperty('--k', '#3dffa2'); done.style.marginTop = '10px'; done.style.width = '100%';
+        done.onclick = closeTray;
+        tray.appendChild(done);
+    }
+    function benchAct(act) {
+        // Fitting a part takes one real frame of the sim (the hero is standing at the bench).
+        const evs = step(w, { ...NO_INPUT, act });
+        if (evs.length) onEvents(evs);
+        const so = socketHere(w);
+        if (so && trayOpen) renderBench(so); else closeTray();
+    }
     function closeTray() { tray.classList.remove('open'); trayOpen = false; }
 
+    const DEV_NAME = { spring: 'spring launcher', lift: 'lift drive', circuit: 'circuit' };
     function specNote(dev) {
-        if (dev.type === 'spring') return `Pad compresses x = ${dev.compress} m. You weigh 80 kg.\nLaunch height h = k·x² / (2·m·g).`;
-        if (dev.type === 'lift') return `Motor ${dev.motor.torque} N·m @ ${dev.motor.rpm.toLocaleString('en-US')} rpm, drum r = ${dev.drumR} m.\nCar ${dev.massKg} kg + you 80 kg. Needs τ ≥ m·g·r.`;
-        if (dev.type === 'circuit') return `${dev.volts != null ? dev.volts + ' V supply' : 'Supply from the battery socket'} · load ${dev.loadR} Ω.\nRuns at ${dev.iMin}–${dev.iMax} A; the fuse blows above ${dev.iMax} A.\nI = V / R_total.`;
+        if (dev.type === 'spring') return `The pad squashes ${dev.compress} m. Springs on this bench push side by side. It throws you plus everything in your tray (${(80 + trayMass(w)).toFixed(1)} kg right now).`;
+        if (dev.type === 'lift') return `Drum radius ${dev.drumR} m. It hauls the ${dev.massKg} kg car plus you and your tray, ${dev.yBottom - dev.yTop} m up.`;
+        if (dev.type === 'circuit') return `${dev.volts != null ? `${dev.volts} V line` : 'Supply: the battery you fit'} · load ${dev.loadR} Ω · runs on ${dev.iMin}–${dev.iMax} A and is damaged above ${dev.iMax} A. No fuse, no power.`;
         return '';
     }
+
+    // Maths appears only for builds you've actually tried (or after a failure / the clear).
+    const observed = new Set();
+    const observe = dev => { if (dev) observed.add(`${dev.id}:${benchKey(w, dev.socket)}`); };
+    const seen = dev => observed.has(`${dev.id}:${benchKey(w, dev.socket)}`);
 
     function flash(text) { note = { head: 'NOTE', lines: [text] }; noteUntil = w.s.t * DT + 2.5; }
 
@@ -233,8 +298,13 @@ export function createGame(root, opts) {
         fx(view, evs, w);
         for (const e of evs) {
             try { opts.sfx?.(e.type); } catch (_) {}
-            if (e.type === 'fuse') { note = { head: 'FUSE BLOWN', bad: true, lines: [`I = ${e.I === Infinity ? '∞' : e.I.toFixed(2)} A — over the fuse rating.`, 'The parts popped back into your tray.'] }; noteUntil = w.s.t * DT + 4; }
-            if (e.type === 'stall') { note = { head: 'LIFT STALLED', bad: true, lines: ['Not enough torque to lift the car with you on it.', 'More reduction = more torque (and less speed).'] }; noteUntil = w.s.t * DT + 3; }
+            const dev = e.id && w.L.byId[e.id];
+            if (e.type === 'fuse') { note = { head: 'INCIDENT · FUSE BLOWN', bad: true, lines: [...e.lines, 'The bench parts popped back into your tray.'] }; noteUntil = w.s.t * DT + 6; }
+            if (e.type === 'burn') { note = { head: e.state === 'burn-load' ? 'INCIDENT · LOAD BURNED OUT' : 'INCIDENT · RESISTOR BURNED', bad: true, lines: [...e.lines, 'The bench parts popped back into your tray.'] }; noteUntil = w.s.t * DT + 6; }
+            if (e.type === 'strip') { note = { head: 'INCIDENT · GEARBOX STRIPPED', bad: true, lines: [...e.lines, 'The drive parts popped back into your tray.'] }; noteUntil = w.s.t * DT + 6; }
+            if (e.type === 'stall') { note = { head: 'LIFT STALLED', bad: true, lines: e.lines }; noteUntil = w.s.t * DT + 4; observe(dev); }
+            if (e.type === 'lift_go' || e.type === 'spring') observe(dev);
+            if (e.type === 'install' || e.type === 'remove') { const d = deviceFor(w.L, e.id); if (d?.type === 'circuit') observe(d); }
             if (e.type === 'death') { note = { head: e.why === 'spikes' ? 'OUCH' : 'FELL', bad: true, lines: ['Back to the start — your parts stay fitted.'] }; noteUntil = w.s.t * DT + 2; }
             if (e.type === 'win' && !hub) win();
         }
@@ -244,10 +314,15 @@ export function createGame(root, opts) {
         done = true;
         const secs = w.s.t * DT;
         const result = { id: level.id, frames: w.s.t, seconds: +secs.toFixed(2), deaths: w.s.deaths, par: level.par?.seconds ?? null, underPar: level.par ? secs <= level.par.seconds : false };
+        const rows = review(level, w, result);
+        result.stars = stars(rows);
+        result.review = rows.map(r => ({ label: r.label, ok: !!r.ok, detail: r.detail }));
         opts.onWin?.(result);
         const taught = (level.teaches || []).map(id => CONCEPTS.find(c => c.id === id)?.title).filter(Boolean);
         const extra = (opts.cardExtra?.(result) || []).map(l => `<p style="color:#ffcf3d">${esc(l)}</p>`).join('');
-        card.innerHTML = `<div class="in"><h2>SHIFT COMPLETE</h2><p>${secs.toFixed(2)} s ${result.par ? (result.underPar ? '· under par ★' : `· par ${result.par} s`) : ''}</p><p>${w.s.deaths ? w.s.deaths + ' restarts' : 'No restarts'}</p>${extra}${taught.length ? `<p style="color:#6f8fae;font-size:12px">Learned: ${esc(taught.join(' · '))}</p>` : ''}</div>`;
+        const rv = rows.map(r => `<div class="${r.ok ? 'y' : 'n'}">${r.ok ? '★' : '☆'} ${esc(r.label)}${r.detail ? ` <span style="color:#6f8fae">· ${esc(r.detail)}</span>` : ''}</div>`).join('');
+        const maths = readouts(w).filter(x => x.r && x.r.lines).map(x => `${(DEV_NAME[x.kind === 'lift' ? 'lift' : x.kind] || x.kind).toUpperCase()}\n${x.r.lines.join('\n')}`).join('\n\n');
+        card.innerHTML = `<div class="in"><h2>SHIFT COMPLETE</h2><div class="stars">${'★'.repeat(result.stars)}${'☆'.repeat(3 - result.stars)}</div><div style="font-size:11px;color:#6f8fae;letter-spacing:.1em">DESIGN REVIEW</div><div class="rv">${rv}</div>${extra}${maths ? `<div class="math">HOW IT WORKED\n${esc(maths)}</div>` : ''}${taught.length ? `<p style="color:#6f8fae;font-size:12px">Learned: ${esc(taught.join(' · '))} → Field Manual</p>` : ''}</div>`;
         const inner = card.firstChild;
         if (opts.onNext) { const b = el('button', null, opts.nextLabel || 'NEXT ▶'); b.onclick = () => opts.onNext(result); inner.appendChild(b); }
         if (opts.showRetry !== false && !tape) { const b = el('button', null, 'RETRY'); b.onclick = () => restart(); inner.appendChild(b); }
@@ -263,19 +338,23 @@ export function createGame(root, opts) {
             block = hub.info(pt);
             bTool.classList.add('ready');
         }
+        if (!block && note && now < noteUntil && note.bad) block = note;   // an incident report beats the bench summary
         const so = !block && socketHere(w);
         if (so) {
-            const dev = deviceForSocket(w.L, so.id);
+            const dev = deviceFor(w.L, so.id);
             const r = dev && readouts(w).find(x => x.id === dev.id);
-            const part = w.s.sockets[so.id] ? w.L.parts[w.s.sockets[so.id]] : null;
-            block = { head: `${so.accepts.toUpperCase()} SOCKET · ${part ? part.label : 'empty'} — TOOL to swap`, lines: r?.r ? r.r.lines : [part ? '' : 'Fit a part to see the maths.'] };
+            const parts = fitted(w, so.id).filter(Boolean);
+            const lines = [parts.length ? parts.map(p => p.label).join(' + ') : 'Nothing fitted yet.'];
+            if (dev && r?.r && seen(dev)) lines.push(...r.r.lines);
+            else if (parts.length) lines.push('Untested build: go try it.');
+            block = { head: `WORKBENCH · TOOL to open`, lines };
             bTool.classList.add('ready');
         } else if (!pt) bTool.classList.toggle('ready', !!(hub && portalHere(w)));
         if (!block && note && now < noteUntil) block = note;
         if (!block && now < briefUntil) block = { head: level.name.toUpperCase(), lines: [level.brief] };
         if (!block) { read.style.opacity = 0; return; }
         read.style.opacity = 1;
-        const cls = l => (/✓/.test(l) ? 'ok' : /✗|BLOW/.test(l) ? 'bad' : '');
+        const cls = l => (/✓/.test(l) ? 'ok' : /✗|BLOW|burn/.test(l) ? 'bad' : '');
         const html = `<div class="h">${esc(block.head)}</div>` + block.lines.filter(Boolean).map(l => `<div class="${cls(l)}">${esc(l)}</div>`).join('');
         if (read._html !== html) { read.innerHTML = html; read._html = html; read.style.borderLeftColor = block.bad ? '#ff6b5b' : '#5cb8e6'; }
     }

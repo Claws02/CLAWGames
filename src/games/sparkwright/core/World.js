@@ -15,7 +15,7 @@
 // Coordinates: tiles, x right, y DOWN (row 0 is the top of the map).
 // ============================================================
 import { DT, P, SI, TILE, FUSE_RESET_FRAMES, LIFT_RETURN_V } from './Rules.js';
-import { springLaunch, liftDrive, seriesCircuit } from './Devices.js';
+import { springLaunch, liftDrive, circuit } from './Devices.js';
 
 const EPS = 1e-6;
 export const NO_INPUT = Object.freeze({ l: false, r: false, u: false, d: false, j: false, act: null });
@@ -45,30 +45,39 @@ export function compile(level) {
     for (const b of dev.bridge) for (let i = 0; i < (b.w || 1); i++) owned.set(key(b.x + i, b.y), b);
     const socketAt = new Map();
     for (const s of dev.socket) socketAt.set(key(s.x, s.y), s);
+    // Every socket is a bench of slots. Old single-part sockets ({accepts}) are one slot, 'main'.
+    const slots = {};
+    for (const so of dev.socket) slots[so.id] = slotsOf(so);
 
     // Which circuits drive each door/bridge.
     const drivenBy = {};
     for (const c of dev.circuit) for (const id of c.drives || []) (drivenBy[id] ||= []).push(c.id);
 
-    const L = { level, W, H, grid, start, goals, dev, byId, parts, owned, socketAt, drivenBy, key };
+    const L = { level, W, H, grid, start, goals, dev, byId, parts, owned, socketAt, drivenBy, key, slots };
     const s = initialState(L);
     return { L, s };
 }
 
+/** A socket's slots: [{ id, accepts, label? }]. */
+export function slotsOf(so) { return so.slots || [{ id: 'main', accepts: so.accepts }]; }
+
 function initialState(L) {
     const sockets = {};
-    for (const so of L.dev.socket) sockets[so.id] = so.preset ?? null;
-    const used = new Set(Object.values(sockets).filter(Boolean));
+    for (const so of L.dev.socket) {
+        sockets[so.id] = {};
+        for (const sl of L.slots[so.id]) sockets[so.id][sl.id] = so.preset?.[sl.id] ?? (sl.id === 'main' && typeof so.preset === 'string' ? so.preset : null);
+    }
+    const used = new Set();
+    for (const sid in sockets) for (const sl in sockets[sid]) if (sockets[sid][sl]) used.add(sockets[sid][sl]);
     const inv = Object.keys(L.parts).filter(id => !used.has(id)).sort();
     const lifts = {};
     for (const l of L.dev.lift) lifts[l.id] = l.yBottom;
     const open = {};
     for (const d of [...L.dev.door, ...L.dev.bridge]) open[d.id] = false;
-    const s = {
+    return {
         t: 0, p: spawnPlayer(L), sockets, inv, lifts, fuse: {}, open, powered: {},
         won: false, deaths: 0, locked: false,
     };
-    return s;
 }
 
 function spawnPlayer(L) {
@@ -122,20 +131,66 @@ export function socketHere(w) {
     return null;
 }
 
+// ── Bench helpers ───────────────────────────────────────────────────────────
+/** Parts fitted in a socket, as part objects, in slot order. */
+export function fitted(w, sid) {
+    const { L, s } = w;
+    return L.slots[sid].map(sl => (s.sockets[sid][sl.id] ? L.parts[s.sockets[sid][sl.id]] : null));
+}
+const ofKind = (w, sid, kind) => fitted(w, sid).filter(p => p && p.kind === kind);
+/** Mass of the parts still in the tray: the hero carries them. */
+export function trayMass(w) { return w.s.inv.reduce((a, id) => a + (w.L.parts[id].mass || 0), 0); }
+export const heroMass = w => SI.HERO_KG + trayMass(w);
+/** Cost of everything fitted, $. */
+export function fittedCost(w) {
+    let c = 0;
+    for (const sid in w.s.sockets) for (const sl in w.s.sockets[sid]) { const id = w.s.sockets[sid][sl]; if (id) c += w.L.parts[id].cost || 0; }
+    return c;
+}
+function eject(w, sid) {
+    const { s } = w;
+    for (const sl in s.sockets[sid]) if (s.sockets[sid][sl]) { s.inv.push(s.sockets[sid][sl]); s.sockets[sid][sl] = null; }
+    s.inv.sort();
+}
+
 // ── Devices, once per frame ─────────────────────────────────────────────────
+export function evalCircuit(w, c) {
+    const { L } = w;
+    const parts = fitted(w, c.socket);
+    const slots = L.slots[c.socket];
+    const battery = parts.find(p => p && p.kind === 'battery');
+    const V = c.volts ?? battery?.volts ?? null;
+    const resistors = slots.map((sl, i) => (sl.accepts === 'resistor' ? parts[i] : undefined)).filter(x => x !== undefined);
+    const fuse = parts.find(p => p && p.kind === 'fuse') || null;
+    return circuit(V, { R: c.loadR, iMin: c.iMin, iMax: c.iMax }, resistors, fuse);
+}
+
+export function evalLift(w, l) {
+    const motor = ofKind(w, l.socket, 'motor')[0] || null, gear = ofKind(w, l.socket, 'gear')[0] || null;
+    return liftDrive(motor, gear, l.drumR, l.massKg + heroMass(w));
+}
+
+export function evalSpring(w, sp) {
+    const springs = ofKind(w, sp.socket, 'spring');
+    if (!springs.length) return null;
+    return springLaunch(springs, sp.compress, heroMass(w));
+}
+
+const FAIL_STATES = new Set(['fuse', 'burn-load', 'burn-r']);
+
 function updateCircuits(w, ev) {
     const { L, s } = w;
     for (const c of L.dev.circuit) {
         if (s.fuse[c.id] > 0) { s.fuse[c.id]--; s.powered[c.id] = false; continue; }
         const r = evalCircuit(w, c);
-        if (r.state === 'blown') {
-            // The fuse blows: every part in this loop pops out back to the tray,
-            // and the fuse resets after FUSE_RESET_FRAMES. Visible, never a softlock.
-            for (const id of circuitSockets(c)) if (s.sockets[id]) { s.inv.push(s.sockets[id]); s.sockets[id] = null; }
-            s.inv.sort();
+        if (FAIL_STATES.has(r.state)) {
+            // Something gave way (fuse, the load, a resistor): every part on this
+            // bench pops back into the tray and the circuit resets after
+            // FUSE_RESET_FRAMES. Visible, explained, never a softlock.
+            eject(w, c.socket);
             s.fuse[c.id] = FUSE_RESET_FRAMES;
             s.powered[c.id] = false;
-            ev.push({ type: 'fuse', id: c.id, I: r.I });
+            ev.push({ type: r.state === 'fuse' ? 'fuse' : 'burn', id: c.id, state: r.state, I: r.I, lines: r.lines });
         } else {
             const was = !!s.powered[c.id];
             s.powered[c.id] = r.state === 'on';
@@ -157,29 +212,6 @@ function devOverlapsPlayer(d, p) {
     return playerOver(p, d.x, d.y, d.w || 1, 1);
 }
 
-export function circuitSockets(c) { return [...(c.battery ? [c.battery] : []), ...(c.sockets || [])]; }
-
-export function evalCircuit(w, c) {
-    const { L, s } = w;
-    const V = c.volts ?? (c.battery ? L.parts[s.sockets[c.battery]]?.volts : undefined);
-    const rs = (c.sockets || []).map(id => (s.sockets[id] ? L.parts[s.sockets[id]].ohms : null));
-    return seriesCircuit(V ?? null, c.loadR, rs, c.iMin, c.iMax);
-}
-
-export function evalLift(w, l) {
-    const { L, s } = w;
-    const gear = s.sockets[l.socket] ? L.parts[s.sockets[l.socket]] : null;
-    if (!gear) return null;
-    return liftDrive(gear, l.motor, l.drumR, l.massKg + SI.HERO_KG);
-}
-
-export function evalSpring(w, sp) {
-    const { L, s } = w;
-    const part = s.sockets[sp.socket] ? L.parts[s.sockets[sp.socket]] : null;
-    if (!part) return null;
-    return springLaunch(part.k, sp.compress, SI.HERO_KG);
-}
-
 function updateLifts(w, ev) {
     const { L, s } = w;
     const p = s.p;
@@ -189,8 +221,14 @@ function updateLifts(w, ev) {
         let ny = y;
         if (riding) {
             const d = evalLift(w, l);
-            if (d && d.ok) ny = Math.max(l.yTop, y - (d.v / SI.TILE_M) * DT);
-            else if (d && !d.ok && s.t % 30 === 0) ev.push({ type: 'stall', id: l.id });
+            if (d.state === 'ok') {
+                ny = Math.max(l.yTop, y - (d.v / SI.TILE_M) * DT);
+                if (y === l.yBottom) ev.push({ type: 'lift_go', id: l.id, lines: d.lines });
+            } else if (d.state === 'strip') {
+                // The load torque is over the gearbox rating: the teeth strip on the first pull.
+                eject(w, l.socket);
+                ev.push({ type: 'strip', id: l.id, lines: d.lines });
+            } else if (d.state === 'stall' && s.t % 30 === 0) ev.push({ type: 'stall', id: l.id, lines: d.lines });
         } else {
             ny = Math.min(l.yBottom, y + LIFT_RETURN_V * DT);
         }
@@ -208,21 +246,27 @@ function respawn(w, ev, why) {
     ev.push({ type: 'death', why });
 }
 
+/** act = { install: partId, slot? } | { remove: slotId }. No slot → the first slot that fits (an empty one first). */
 function act(w, input, ev) {
     const { L, s } = w;
     const so = socketHere(w);
-    if (!so || !input.act) return;
+    if (!so || !input.act || so.fixed) return;
+    const bench = s.sockets[so.id], slots = L.slots[so.id];
     if (input.act.remove) {
-        if (s.sockets[so.id] && !so.fixed) { s.inv.push(s.sockets[so.id]); s.inv.sort(); s.sockets[so.id] = null; ev.push({ type: 'remove', id: so.id }); }
+        const sl = input.act.remove === true ? slots.find(x => bench[x.id])?.id : input.act.remove;
+        if (sl && bench[sl]) { s.inv.push(bench[sl]); s.inv.sort(); bench[sl] = null; ev.push({ type: 'remove', id: so.id, slot: sl }); }
         return;
     }
     const pid = input.act.install;
     const part = L.parts[pid];
-    if (!part || so.fixed || part.kind !== so.accepts || !s.inv.includes(pid)) return;
-    if (s.sockets[so.id]) s.inv.push(s.sockets[so.id]);
+    if (!part || !s.inv.includes(pid)) return;
+    const fits = slots.filter(x => x.accepts === part.kind);
+    const sl = input.act.slot ? fits.find(x => x.id === input.act.slot) : (fits.find(x => !bench[x.id]) || fits[0]);
+    if (!sl) return;
+    if (bench[sl.id]) s.inv.push(bench[sl.id]);
     s.inv = s.inv.filter(id => id !== pid).sort();
-    s.sockets[so.id] = pid;
-    ev.push({ type: 'install', id: so.id, part: pid });
+    bench[sl.id] = pid;
+    ev.push({ type: 'install', id: so.id, slot: sl.id, part: pid });
 }
 
 function movePlayer(w, input, ev) {
@@ -334,7 +378,7 @@ function movePlayer(w, input, ev) {
         if (r) {
             p.vy = -Math.sqrt(2 * P.G * (r.h / SI.TILE_M));
             p.grounded = false; p.coy = 0; p.jumping = false;
-            ev.push({ type: 'spring', id: sp.id, h: r.h });
+            ev.push({ type: 'spring', id: sp.id, h: r.h, lines: r.lines });
         }
     }
 }
@@ -374,8 +418,10 @@ export function step(w, input = NO_INPUT) {
 
 // ── Snapshot / hash ─────────────────────────────────────────────────────────
 export function snapshot(s) {
+    const sockets = {};
+    for (const id in s.sockets) sockets[id] = { ...s.sockets[id] };
     return {
-        t: s.t, p: { ...s.p }, sockets: { ...s.sockets }, inv: s.inv.slice(), lifts: { ...s.lifts },
+        t: s.t, p: { ...s.p }, sockets, inv: s.inv.slice(), lifts: { ...s.lifts },
         fuse: { ...s.fuse }, open: { ...s.open }, powered: { ...s.powered },
         won: s.won, deaths: s.deaths, locked: s.locked,
     };
@@ -386,19 +432,25 @@ export function restore(w, snap) { w.s = snapshot(snap); }
 export function hashState(w) {
     const { s } = w, p = s.p;
     let k = `${Math.round(p.x * 4)},${Math.round(p.y * 4)},${Math.round(p.vx)},${Math.round(p.vy)},${p.grounded ? 1 : 0}${p.climb ? 1 : 0}`;
-    for (const id in s.sockets) k += '|' + (s.sockets[id] || '-');
+    for (const id in s.sockets) { k += '|'; for (const sl in s.sockets[id]) k += (s.sockets[id][sl] || '-') + ','; }
     for (const id in s.lifts) k += '|' + Math.round(s.lifts[id] * 2);
     for (const id in s.fuse) k += '|f' + (s.fuse[id] > 0 ? 1 : 0);
     for (const id in s.open) k += s.open[id] ? '1' : '0';
     return k;
 }
 
-/** Everything the HUD shows about the devices, as text lines from Devices.js. */
+/** Every device's current maths (Devices.js lines), for the HUD. */
 export function readouts(w) {
     const { L, s } = w;
     const out = [];
     for (const sp of L.dev.spring) out.push({ id: sp.id, kind: 'spring', socket: sp.socket, r: evalSpring(w, sp) });
     for (const l of L.dev.lift) out.push({ id: l.id, kind: 'lift', socket: l.socket, r: evalLift(w, l) });
-    for (const c of L.dev.circuit) out.push({ id: c.id, kind: 'circuit', sockets: circuitSockets(c), r: evalCircuit(w, c), blown: s.fuse[c.id] > 0 });
+    for (const c of L.dev.circuit) out.push({ id: c.id, kind: 'circuit', socket: c.socket, r: evalCircuit(w, c), blown: s.fuse[c.id] > 0 });
     return out;
+}
+
+/** The device a socket feeds. */
+export function deviceFor(L, sid) {
+    for (const d of [...L.dev.spring, ...L.dev.lift, ...L.dev.circuit]) if (d.socket === sid) return d;
+    return null;
 }
