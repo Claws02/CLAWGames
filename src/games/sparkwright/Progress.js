@@ -3,12 +3,12 @@
 //
 //   const pr = createProgress(store, { levels, unlockAll })
 //     store: { load() → object|null, save(object) }   (Store.js in the app, localStorage in the preview)
-//   pr.isUnlocked(id) · pr.isDone(id) · pr.best(id) · pr.underPar(id)
+//   pr.isUnlocked(id) · pr.isDone(id) · pr.best(id) · pr.stars(id) (best review, 0–3) · pr.underPar(id)
 //   pr.record(level, result) → { firstClear, newBest, unlocked: level|null, allDone }
-//   pr.summary() → { done, total, stars }      pr.learned() → Set of concept ids
+//   pr.summary() → { done, total, stars, maxStars }      pr.learned() → Set of concept ids
 //   pr.lastDoor / pr.setLastDoor(id)
 //
-// Save schema v1: { v: 1, done: { [levelId]: { best, runs } }, lastDoor }
+// Save schema v1: { v: 1, done: { [levelId]: { best, runs, stars } }, lastDoor }   (stars added later; missing = 1)
 // ============================================================
 
 export function createProgress(store, { levels, unlockAll = false }) {
@@ -21,6 +21,7 @@ export function createProgress(store, { levels, unlockAll = false }) {
     const api = {
         isDone: id => !!s.done[id],
         best: id => s.done[id]?.best ?? null,
+        stars: id => (s.done[id] ? s.done[id].stars ?? 1 : 0),
         underPar(id) {
             const l = levels[idx(id)], b = api.best(id);
             return !!(l && b != null && l.par && b <= l.par.seconds);
@@ -34,20 +35,21 @@ export function createProgress(store, { levels, unlockAll = false }) {
             const prev = s.done[level.id];
             const firstClear = !prev;
             const newBest = !prev || result.seconds < prev.best;
-            s.done[level.id] = { best: newBest ? result.seconds : prev.best, runs: (prev?.runs || 0) + 1 };
+            const prevStars = prev ? prev.stars ?? 1 : 0, got = result.stars ?? 1;
+            s.done[level.id] = { best: newBest ? result.seconds : prev.best, runs: (prev?.runs || 0) + 1, stars: Math.max(prevStars, got) };
             s.lastDoor = level.id;
             save();
             const next = levels[idx(level.id) + 1] || null;
             return {
-                firstClear, newBest,
+                firstClear, newBest, moreStars: got > prevStars, stars: got,
                 unlocked: firstClear && next && !unlockAll ? next : null,
                 allDone: levels.every(l => s.done[l.id]),
             };
         },
         summary() {
             const done = levels.filter(l => s.done[l.id]).length;
-            const stars = levels.filter(l => api.underPar(l.id)).length;
-            return { done, total: levels.length, stars };
+            const stars = levels.reduce((a, l) => a + api.stars(l.id), 0);
+            return { done, total: levels.length, stars, maxStars: levels.length * 3 };
         },
         learned() {
             const out = new Set();

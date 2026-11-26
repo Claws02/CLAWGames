@@ -9,7 +9,7 @@
 //   fx(view, events, w)                  spawn particles for step() events
 // ============================================================
 import { P, TILE } from './core/Rules.js';
-import { evalCircuit, circuitSockets } from './core/World.js';
+import { evalCircuit, fitted, slotsOf } from './core/World.js';
 
 const C = {
     bg: '#0b1622', grid: 'rgba(80,150,210,0.08)', solid: '#16304a', solidHi: '#5cb8e6', solidHatch: 'rgba(92,184,230,0.10)',
@@ -20,7 +20,7 @@ const C = {
     hat: '#ffcf3d', suit: '#2f7fd8', skin: '#f2c49b', boots: '#1d2a36',
     text: '#d8ecff', dim: '#6f8fae',
 };
-export const KIND_COLOR = { spring: C.spring, gear: C.gear, resistor: C.resistor, battery: C.battery };
+export const KIND_COLOR = { spring: C.spring, gear: C.gear, resistor: C.resistor, battery: C.battery, motor: '#9fd0ff', fuse: '#ff9b8a' };
 
 export function createView() {
     return { camX: null, camY: null, tile: 32, doors: {}, particles: [], squash: {}, flash: {}, t: 0 };
@@ -33,7 +33,8 @@ export function fx(view, events, w) {
         if (e.type === 'land') burst(view, px, py, 6, '#9fc3dd', 2);
         if (e.type === 'spring') { burst(view, px, py, 12, C.spring, 4); view.squash[e.id] = 1; }
         if (e.type === 'death') burst(view, px, py - 0.5, 18, C.spike, 5);
-        if (e.type === 'fuse') { const c = w.L.byId[e.id]; view.flash[e.id] = 1; const so = w.L.byId[circuitSockets(c)[0]]; if (so) burst(view, so.x + 0.5, so.y + 0.5, 24, '#fff27a', 6); }
+        if (e.type === 'fuse' || e.type === 'burn') { const c = w.L.byId[e.id]; view.flash[e.id] = 1; const so = w.L.byId[c.socket]; if (so) burst(view, so.x + 0.5, so.y + 0.5, 24, e.type === 'fuse' ? '#fff27a' : '#ff7b39', 6); }
+        if (e.type === 'strip') { const l = w.L.byId[e.id]; burst(view, l.x + l.w / 2, l.yTop - 1.8, 30, '#d8e2ec', 7); }
         if (e.type === 'install') { const so = w.L.byId[e.id]; burst(view, so.x + 0.5, so.y + 0.5, 10, C.wireOn, 3); }
         if (e.type === 'win') burst(view, px, py - 0.5, 30, C.goal, 5);
     }
@@ -140,7 +141,8 @@ function drawWires(ctx, w, view, T) {
         ctx.strokeStyle = blown ? C.wireBad : on ? C.wireOn : C.wireOff;
         ctx.lineWidth = on ? 2.5 : 1.5;
         ctx.setLineDash(on ? [] : [4, 4]);
-        const pts = circuitSockets(c).map(id => L.byId[id]).filter(Boolean).map(d => [d.x + 0.5, d.y + 0.85]);
+        const bench = L.byId[c.socket];
+        const pts = bench ? [[bench.x + 0.5, bench.y + 0.85]] : [];
         for (const id of c.drives) { const d = L.byId[id]; pts.push([d.x + (d.w || 1) / 2, d.type === 'door' ? d.y + d.h - 0.15 : d.y + 0.5]); }
         ctx.beginPath();
         pts.forEach(([x, y], i) => (i ? ctx.lineTo(x * T, y * T) : ctx.moveTo(x * T, y * T)));
@@ -165,7 +167,7 @@ function drawDevices(ctx, w, view, T, dt) {
     for (const sp of L.dev.spring) {
         const sq = view.squash[sp.id] || 0;
         view.squash[sp.id] = Math.max(0, sq - dt * 4);
-        const X = sp.x * T, Y = sp.y * T, filled = !!s.sockets[sp.socket];
+        const X = sp.x * T, Y = sp.y * T, filled = fitted(w, sp.socket).some(Boolean);
         ctx.fillStyle = '#2a3b4c'; ctx.fillRect(X, Y + T * 0.75, T * (sp.w || 1), T * 0.25);
         ctx.strokeStyle = filled ? C.spring : C.dim; ctx.lineWidth = Math.max(2, T * 0.08);
         const top = Y + T * (0.15 + 0.35 * sq);
@@ -186,11 +188,12 @@ function drawDevices(ctx, w, view, T, dt) {
         ctx.moveTo((l.x + l.w - 0.3) * T, (l.yTop - 1.6) * T); ctx.lineTo((l.x + l.w - 0.3) * T, y * T);
         ctx.stroke();
         // Gearbox at the head of the shaft.
-        const g = s.sockets[l.socket] ? L.parts[s.sockets[l.socket]] : null;
+        const parts = fitted(w, l.socket).filter(Boolean);
+        const g = parts.find(p => p.kind === 'gear'), mo = parts.find(p => p.kind === 'motor');
         ctx.fillStyle = '#22384d'; ctx.fillRect(l.x * T, (l.yTop - 2) * T, l.w * T, T * 0.45);
         ctx.strokeStyle = g ? C.gear : C.dim; ctx.strokeRect(l.x * T + 0.5, (l.yTop - 2) * T + 0.5, l.w * T - 1, T * 0.45);
         ctx.fillStyle = g ? C.gear : C.dim; ctx.font = `700 ${Math.round(T * 0.22)}px ui-monospace, Menlo, monospace`; ctx.textAlign = 'center';
-        ctx.fillText(g ? `${g.ratio}:1` : 'NO GEAR', (l.x + l.w / 2) * T, (l.yTop - 2) * T + T * 0.31);
+        ctx.fillText(mo && g ? `${mo.torque}N·m ${g.ratio}:1` : !mo && !g ? 'NO DRIVE' : !mo ? 'NO MOTOR' : 'NO GEAR', (l.x + l.w / 2) * T, (l.yTop - 2) * T + T * 0.31);
         ctx.fillStyle = C.lift; ctx.fillRect(l.x * T, y * T, l.w * T, T * 0.28);
         ctx.fillStyle = C.doorStripe; ctx.fillRect(l.x * T, y * T, l.w * T, T * 0.06);
     }
@@ -219,14 +222,18 @@ function drawDevices(ctx, w, view, T, dt) {
         }
     }
     for (const so of L.dev.socket) {
-        const X = so.x * T, Y = so.y * T, pid = s.sockets[so.id], part = pid ? L.parts[pid] : null;
-        const col = KIND_COLOR[so.accepts];
-        ctx.fillStyle = '#132638'; ctx.fillRect(X + T * 0.15, Y + T * 0.45, T * 0.7, T * 0.55);
-        ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash(part ? [] : [3, 3]);
-        ctx.strokeRect(X + T * 0.15, Y + T * 0.45, T * 0.7, T * 0.55); ctx.setLineDash([]);
-        drawPartIcon(ctx, so.accepts, part, X + T * 0.5, Y + T * 0.72, T * 0.5, !!part);
-        ctx.fillStyle = col; ctx.font = `700 ${Math.round(T * 0.2)}px ui-monospace, Menlo, monospace`; ctx.textAlign = 'center';
-        ctx.fillText(part ? shortLabel(part) : so.accepts.toUpperCase(), X + T / 2, Y + T * 0.36);
+        // A workbench: one mini bay per slot, lit when filled.
+        const X = so.x * T, Y = so.y * T, slots = slotsOf(so), parts = fitted(w, so.id);
+        const n = slots.length, bw = T * 0.94, bx = X + (T - bw) / 2, by = Y + T * 0.42, bh = T * 0.58;
+        ctx.fillStyle = '#132638'; ctx.fillRect(bx, by, bw, bh);
+        ctx.strokeStyle = parts.some(Boolean) ? C.socket : C.dim; ctx.lineWidth = 2; ctx.setLineDash(parts.every(Boolean) ? [] : [3, 3]);
+        ctx.strokeRect(bx, by, bw, bh); ctx.setLineDash([]);
+        slots.forEach((sl, i) => {
+            const cx = bx + bw * (i + 0.5) / n;
+            drawPartIcon(ctx, sl.accepts, parts[i], cx, by + bh * 0.5, Math.min(bw / n * 0.8, T * 0.42), !!parts[i]);
+        });
+        ctx.fillStyle = C.socket; ctx.font = `700 ${Math.round(T * 0.18)}px ui-monospace, Menlo, monospace`; ctx.textAlign = 'center';
+        ctx.fillText('BENCH', X + T / 2, Y + T * 0.34);
     }
 }
 
@@ -235,6 +242,8 @@ export function shortLabel(p) {
     if (p.kind === 'gear') return `${p.ratio}:1`;
     if (p.kind === 'resistor') return `${p.ohms} Ω`;
     if (p.kind === 'battery') return `${p.volts} V`;
+    if (p.kind === 'motor') return `${p.torque} N·m`;
+    if (p.kind === 'fuse') return `${p.amps} A`;
     return p.id;
 }
 
@@ -246,6 +255,8 @@ export function drawPartIcon(ctx, kind, part, cx, cy, size, on) {
     if (kind === 'spring') { for (let i = 0; i <= 6; i++) { const x = cx - h + (size * i) / 6, y = cy + (i % 2 ? -h * 0.5 : h * 0.5); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); } ctx.stroke(); }
     else if (kind === 'gear') { ctx.arc(cx, cy, h * 0.6, 0, Math.PI * 2); ctx.stroke(); for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; ctx.fillRect(cx + Math.cos(a) * h * 0.75 - 1.5, cy + Math.sin(a) * h * 0.75 - 1.5, 3, 3); } }
     else if (kind === 'resistor') { ctx.moveTo(cx - h, cy); ctx.lineTo(cx - h * 0.6, cy); for (let i = 0; i < 6; i++) ctx.lineTo(cx - h * 0.6 + (h * 1.2 * (i + 0.5)) / 6, cy + (i % 2 ? h * 0.4 : -h * 0.4)); ctx.lineTo(cx + h * 0.6, cy); ctx.lineTo(cx + h, cy); ctx.stroke(); }
+    else if (kind === 'motor') { ctx.arc(cx, cy, h * 0.55, 0, Math.PI * 2); ctx.stroke(); ctx.fillRect(cx - 1.5, cy - h * 0.9, 3, h * 0.4); ctx.font = `700 ${Math.max(7, Math.round(size * 0.45))}px ui-monospace, Menlo, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('M', cx, cy + 1); ctx.textBaseline = 'alphabetic'; }
+    else if (kind === 'fuse') { ctx.strokeRect(cx - h * 0.8, cy - h * 0.25, h * 1.6, h * 0.5); ctx.moveTo(cx - h, cy); ctx.lineTo(cx + h, cy); ctx.stroke(); }
     else if (kind === 'battery') { ctx.strokeRect(cx - h * 0.8, cy - h * 0.45, h * 1.5, h * 0.9); ctx.fillRect(cx + h * 0.7, cy - h * 0.2, h * 0.2, h * 0.4); }
 }
 
@@ -273,6 +284,11 @@ function drawPortals(ctx, w, view, T) {
         const label = pt.to === 'manual' ? 'MANUAL' : pt.to === 'soon' ? 'SOON' : pt.to.replace(/^\D+/, '').padStart(2, '0');
         ctx.fillStyle = st.frame; ctx.font = `700 ${Math.round(T * (label.length > 2 ? 0.22 : 0.34))}px ui-monospace, Menlo, monospace`; ctx.textAlign = 'center';
         ctx.fillText(label, X + T / 2, Y - T * 0.06);
+        const nStars = view.portalStars ? view.portalStars(pt) : null;
+        if (nStars != null) {
+            ctx.font = `700 ${Math.round(T * 0.2)}px ui-monospace, Menlo, monospace`; ctx.fillStyle = '#ffcf3d';
+            ctx.fillText('★'.repeat(nStars) + '☆'.repeat(3 - nStars), X + T / 2, Y + T * 0.42);
+        }
         if (st.mark === 'lock') {
             const cx = X + T / 2, cy = Y + T * 0.95;
             ctx.strokeStyle = st.frame; ctx.lineWidth = 2;

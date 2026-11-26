@@ -17,13 +17,13 @@ const LAYER = ['', 'data', 'layout', 'puzzle', 'reach', 'ghost', 'progress'];
 for (const r of results) {
     const s = r.stats;
     const head = `${r.id.padEnd(5)} ${(pick.find(l => l.id === r.id)?.name || '').padEnd(22)}`;
-    const meta = s.doors ? `hub · ${s.doors} doors · ${s.states} states` : s.frames ? `route ${s.seconds}s · ${s.states} states${s.assignments ? ` · ${s.solvable.length}/${s.assignments} part choices work` : ''}` : '';
+    const meta = s.doors ? `hub · ${s.doors} doors · ${s.states} states` : s.frames ? `route ${s.seconds}s · ${s.states} states${s.assignments ? ` · ${s.solvable}/${s.assignments} builds work, ${s.threeStar} earn ★★★ (${s.classes} groups)` : ''}` : '';
     console.log(`${r.problems.length ? '✗' : '✓'} ${head} ${meta}`);
     for (const p of r.problems) {
         console.log(`    ${p.level === 'error' ? '✗' : '·'} [${LAYER[p.layer]}] ${p.what}`);
         p.level === 'error' ? e++ : w++;
     }
-    if (args.includes('--verbose') && s.solvable) console.log('      works:', s.solvable.join('  |  '));
+    if (args.includes('--verbose') && s.works) console.log('      ★★★ builds:', s.works.join('   ·   '));
 }
 for (const p of cross) { console.log(`  ✗ [${LAYER[p.layer]}] ${p.what}`); p.level === 'error' ? e++ : w++; }
 console.log(`\n${results.length} levels · ${e} errors · ${w} warnings · ${((Date.now() - t0) / 1000).toFixed(1)}s`);

@@ -14,12 +14,13 @@ them. Your level ships only if it passes with **0 errors, 0 warnings**.
 existing level closest to yours.
 
 ## The bar
+0. **A work order, not a quiz.** Give the job in numbers (load, height, current window, budget) and a bench with 2–3 slots. Several builds should work; only a well-sized one earns ★★★. Use mass, ratings and budget so the strongest part is not the best answer.
 1. **One idea, taught by failure.** The level introduces or combines concepts, and at least one plausible wrong part fails *visibly* (falls short, stalls, fuse blows, spikes). The brief states the requirement, never the answer.
 2. **The device is necessary.** Installing nothing must fail (the checker enforces it). Gaps a device must cross are 6+ tiles; ledges it must reach are 3+ tiles.
 3. **Readable in one screen.** The socket, the device it feeds, and the obstacle should be close enough that the wires make the cause and effect obvious.
 4. **Fair.** No softlocks, no blind drops, no hazard you can't see before you commit. Death returns you to S with parts fitted.
 5. **Short.** 3–10 s solver route. Par ≈ 1.5 × route.
-6. **Honest numbers.** Generic parts with plausible values. Work out every device result by hand in the file's header comment (see existing levels), then let the checker confirm it.
+6. **Honest numbers.** Generic parts with plausible values, each with mass, cost and its rating. Work out the intended build and the main wrong builds by hand in the file's header comment (see existing levels), then let the checker confirm it (`--verbose` lists the ★★★ builds).
 
 ## Must pass before you report
 ```

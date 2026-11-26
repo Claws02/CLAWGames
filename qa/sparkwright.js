@@ -121,8 +121,25 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
     await page.screenshot({ path: 'qa/shot-sparkwright-base-done.png' });
     await doorAt('manual'); await pressUp();
     const man = await C(() => { const m = document.querySelector('.swr-manual'); return m ? m.querySelectorAll('.c:not(.no)').length : -1; });
-    ok(man === 8, `campaign: the Field Manual lists every learned formula (${man})`);
+    const nConcepts = await page.evaluate(async () => (await import('/src/games/sparkwright/core/Rules.js')).CONCEPTS.length);
+    ok(man === nConcepts, `campaign: the Field Manual lists every learned formula (${man}/${nConcepts})`);
     await page.locator('.swr-manual button').click();
+    // The Workbench, by hand: a 0.25 W resistor on 12 V burns, the parts come back, the report explains it.
+    await page.evaluate(() => { window.__swrAutoplay = false; window.__swrCampaign.play('m04'); });
+    await page.waitForTimeout(300);
+    await page.keyboard.down('ArrowRight');
+    await page.waitForFunction(() => window.__swrCampaign.game.world.s.p.x > 3.9, null, { timeout: 5000 });
+    await page.keyboard.up('ArrowRight'); await page.waitForTimeout(250);
+    await page.keyboard.press('KeyE'); await page.waitForTimeout(200);
+    await page.locator('.swr-tray .row button', { hasText: '0.25 W' }).click(); await page.waitForTimeout(120);
+    await page.locator('.swr-tray .slot button', { hasText: 'FUSE' }).click(); await page.waitForTimeout(120);
+    await page.locator('.swr-tray .row button', { hasText: 'Fuse 1 A' }).click(); await page.waitForTimeout(120);
+    await page.locator('.swr-tray button', { hasText: 'DONE' }).click(); await page.waitForTimeout(400);
+    const inc = await page.evaluate(() => ({ text: document.querySelector('.swr-read').innerText, tray: window.__swrCampaign.game.world.s.inv.includes('r10s') }));
+    ok(/RESISTOR BURNED/.test(inc.text) && /3\.6 W/.test(inc.text) && inc.tray, 'campaign: a wrong build fails visibly — the burned resistor\'s I²R report shows and the parts return');
+    await page.screenshot({ path: 'qa/shot-sparkwright-incident.png' });
+    await page.evaluate(() => { window.__swrAutoplay = true; window.__swrCampaign.toHub('m04'); });
+    await page.waitForTimeout(300);
     await page.reload({ waitUntil: 'domcontentloaded' }); await page.waitForFunction(() => !!window.__claw);
     await openCampaign();
     const kept = await C(() => window.__swrCampaign.progress.summary());

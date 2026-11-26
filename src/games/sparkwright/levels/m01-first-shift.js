@@ -19,5 +19,6 @@ export default {
     parts: [],
     devices: [],
     solution: {},
+    workOrder: { title: 'Clock in', checks: [{ type: 'par' }, { type: 'noRestarts' }] },
     par: { seconds: 6 },
 };

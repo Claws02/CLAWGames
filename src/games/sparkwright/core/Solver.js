@@ -10,7 +10,9 @@
 // macros can find (that's the design bar, same as golf's bot).
 //
 //   solve(level, opts) → { solved, tape, frames, states, capped, graph? }
-//     opts.locked  {socketId: partId|null} — fix sockets, no installing (puzzle layer)
+//     opts.locked  {socketId: {slotId: partId|null}} — fix benches, no installing (puzzle layer)
+//     (unlocked, the solver only installs the level's intended parts: it proves the
+//      intended build can be fitted AND then driven; the puzzle layer covers the rest)
 //     opts.explore true → keep exploring after the goal and return the graph
 //                  (softlock layer needs every reachable state)
 //     opts.maxStates (default 40000)
@@ -18,7 +20,7 @@
 //   Tape = [[bits, count, act?], ...]  bits: l=1 r=2 u=4 d=8 j=16
 //   replay(level, tape) → { won, frames, hash, deaths }
 // ============================================================
-import { compile, step, snapshot, restore, hashState, socketHere, NO_INPUT } from './World.js';
+import { compile, step, snapshot, restore, hashState, socketHere, slotsOf, NO_INPUT } from './World.js';
 import { TILE } from './Rules.js';
 
 const B = { l: 1, r: 2, u: 4, d: 8, j: 16 };
@@ -70,11 +72,13 @@ function macrosFor(w, allowParts) {
     }
     if (allowParts) {
         const so = socketHere(w);
-        if (so && !so.fixed) {
-            for (const pid of w.s.inv) {
-                if (w.L.parts[pid].kind === so.accepts) m.push({ name: `install:${pid}`, input: f => [0, f === 0 ? { install: pid } : null], done: f => f >= 1 });
+        const want = allowParts[so?.id];
+        if (so && !so.fixed && want) {
+            for (const [slot, pid] of Object.entries(want)) {
+                if (pid && w.s.sockets[so.id][slot] !== pid && w.s.inv.includes(pid)) {
+                    m.push({ name: `install:${slot}:${pid}`, input: f => [0, f === 0 ? { install: pid, slot } : null], done: f => f >= 1 });
+                }
             }
-            if (w.s.sockets[so.id]) m.push({ name: 'remove', input: f => [0, f === 0 ? { remove: true } : null], done: f => f >= 1 });
         }
     }
     return m;
@@ -98,17 +102,8 @@ function runMacro(w, mac) {
 export function solve(level, opts = {}) {
     const maxStates = opts.maxStates ?? 40000;
     const w = compile(level);
-    const allowParts = !opts.locked;
-    if (opts.locked) {
-        const s = w.s;
-        for (const id in opts.locked) {
-            if (!(id in s.sockets)) continue;
-            if (s.sockets[id]) s.inv.push(s.sockets[id]);
-            s.sockets[id] = opts.locked[id];
-        }
-        const used = new Set(Object.values(s.sockets).filter(Boolean));
-        s.inv = Object.keys(w.L.parts).filter(id => !used.has(id)).sort();
-    }
+    const allowParts = opts.locked ? null : normSolution(level);
+    if (opts.locked) lockBenches(w, opts.locked);
     // Settle the opening frame so the start state is canonical.
     step(w, NO_INPUT);
     const start = snapshot(w.s);
@@ -159,6 +154,25 @@ function finish(level, nodes, gi, capped, index) {
     }
     const frames = tape.reduce((a, s) => a + s[1], 0);
     return { solved: true, tape, frames, states: nodes.length, capped };
+}
+
+/** level.solution as { socketId: { slotId: partId } } (a bare partId means the 'main' slot). */
+export function normSolution(level) {
+    const out = {};
+    for (const [sid, v] of Object.entries(level.solution || {})) out[sid] = typeof v === 'string' || v == null ? { main: v } : { ...v };
+    return out;
+}
+
+/** Fit the given parts to the benches; everything else goes to the tray. */
+export function lockBenches(w, locked) {
+    const s = w.s;
+    for (const sid in s.sockets) for (const sl in s.sockets[sid]) {
+        const want = locked[sid]?.[sl];
+        if (want !== undefined) s.sockets[sid][sl] = want;
+    }
+    const used = new Set();
+    for (const sid in s.sockets) for (const sl in s.sockets[sid]) if (s.sockets[sid][sl]) used.add(s.sockets[sid][sl]);
+    s.inv = Object.keys(w.L.parts).filter(id => !used.has(id)).sort();
 }
 
 /** Replay a tape on a fresh world. Used by the ghost layer and the arcade bot. */

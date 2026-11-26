@@ -8,6 +8,7 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 
 | PR | What |
 |---|---|
+| CLAWGames (Nov 26, Workbench) | **Sparkwright v2 puzzles**: every shift is a work order built on a **Workbench** (multi-slot benches, parts with mass/cost/ratings). Parallel springs, motor + gearbox with torque ratings (strips), resistor power ratings (burns), fuse sizing; ★★★ design reviews; maths shown only after testing |
 | CLAWGames (Nov 25, Home Base) | **Sparkwright campaign** in SOLO: a walkable **Home Base** hub with a door per shift; finish a shift and you're back at base with the next door open (never kicked out); Field Manual of earned formulas; saves via `Store`. Arcade sprint is now `sparksprint` |
 | CLAWGames (main, Nov 25) | **Sparkwright**: an engineer platformer (`src/games/sparkwright/`, own `CLAUDE.md`). Fit springs, gearboxes, resistors and batteries into sockets; honest SI maths decides the route. 6 levels proven by a 6-layer checker (`node src/games/sparkwright/tools/check.mjs`). Arcade entry **SPARKWRIGHT SPRINT**; full campaign in SOLO → Sparkwright |
 | CLAWGames #35 | **TV host mode**: a laptop tab cast to the TV hosts a room without a seat; room code + QR join link (`?join=CODE`); the first phone in is the **captain** and drives the wheel. **Pass the phone**: up to 4 players on one phone. **Drinking mode** (tap the 🦀 five times) |

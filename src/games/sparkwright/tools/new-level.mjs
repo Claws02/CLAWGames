@@ -29,6 +29,7 @@ ${map.map(r => `        '${r}',`).join('\n')}
     parts: [],
     devices: [],
     solution: {},
+    workOrder: { title: 'The job, in a few words', checks: [{ type: 'par' }, { type: 'noRestarts' }] },
     par: { seconds: 5 },
 };
 `);
