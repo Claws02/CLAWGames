@@ -68,14 +68,33 @@ export const GRAV = {
     LEAP: 13,                              // JUMP with your head out of the water: a leap out
 };
 
+// New toys (round 2)
+export const TOYS = {
+    BUMP_V: 15,                            // a pinball bumper pops you up this fast (≈ 3 tiles; power scales it)…
+    BUMP_SIDE: 10,                         // …and away from its middle this fast (straight up if you land on top)
+    BUMP_DOWN: 6,                          // hit it from underneath: knocked down instead
+    BUMP_REACH: 0.42,                      // it hits when your middle comes this close to its rim
+    BUMP_COOL: 8,                          // frames before the same bumper can hit you again
+    BUBBLE_RISE: 2.8,                      // a bubble floats you up (against gravity) this fast, tiles/s
+    BUBBLE_STEER: 3,                       // ◀ ▶ drift inside a bubble
+    BUBBLE_EASE: 14,                       // how quickly a bubble picks up its drift (tiles/s²)
+    BUBBLE_GRAB: 0.75,                     // touch a bubble within this of its middle and you're in
+    BUBBLE_LIFE: 300,                      // frames before it pops by itself
+    BUBBLE_BACK: 90,                       // frames before the wand blows a new one
+    BUBBLE_POP: 0.85,                      // JUMP pops it: a jump × this
+    TICK: 120,                             // tick-tock blocks: red is solid for the first half of each beat, blue the second
+};
+
 // Tile alphabet for maps. Anything else is a checker error.
 export const TILE = {
     EMPTY: '.', SOLID: '#', ONEWAY: '=', SPIKES: '^', SPIKES_DOWN: 'v', LADDER: 'H', START: 'S', GOAL: 'G',
     ICE: 'I', BELT_L: '<', BELT_R: '>', SPONGE: 'T', CRUMBLE: 'C', WATER: '~',
+    TICK_RED: 'R', TICK_BLUE: 'B',         // tick-tock blocks (solid on their half of the beat)
 };
 export const TILE_CHARS = new Set(Object.values(TILE));
-/** Tiles you stand on (and bump into). Crumble blocks are solid until they fall. */
+/** Tiles you stand on (and bump into). Crumble blocks are solid until they fall; tick-tock blocks come and go (World.solidAt). */
 export const SOLID_TILES = new Set(['#', 'I', '<', '>', 'T', 'C']);
+export const TICK_TILES = new Set(['R', 'B']);
 
 // Device fields the checker validates (type → required numeric/str fields).
 export const DEVICES = {
@@ -92,4 +111,7 @@ export const DEVICES = {
     flag:    ['x', 'y'],                   // checkpoint
     portal:  ['x', 'y', 'to'],             // hub doors
     sign:    ['x', 'y', 'text'],
+    bumper:  ['x', 'y', 'r'],              // a pinball bumper, centre (x, y), radius r: touch it and it knocks you away; power
+    bubble:  ['x', 'y'],                   // a bubble wand's bubble at (x, y): touch it to float inside; ◀ ▶ steer, JUMP pops; rise (tiles/s)
+    train:   ['path', 'w', 'speed'],       // a toy train: a platform w wide looping along path [[x,y],…] (its top-left) at speed tiles/s
 };
