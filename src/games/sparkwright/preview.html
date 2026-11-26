@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Sparkwright — campaign preview</title>
+<style>
+  html,body{margin:0;height:100%;background:#0b1622;color:#d8ecff;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  #app{position:fixed;inset:0}
+  .menu{position:absolute;inset:0;overflow:auto;padding:calc(24px + env(safe-area-inset-top)) 18px 24px;background:
+    linear-gradient(rgba(80,150,210,.07) 1px,transparent 1px) 0 0/24px 24px,
+    linear-gradient(90deg,rgba(80,150,210,.07) 1px,transparent 1px) 0 0/24px 24px,#0b1622}
+  .menu h1{margin:0;font-size:30px;letter-spacing:.18em;color:#ffcf3d}
+  .menu .sub{color:#6f8fae;font-size:12px;margin:4px 0 20px;letter-spacing:.06em}
+  .world{margin:18px 0 8px;color:#5cb8e6;font-size:11px;letter-spacing:.14em}
+  .lv{display:flex;align-items:center;gap:12px;width:100%;max-width:520px;background:#0d1d2c;border:1px solid #2c4a66;border-radius:8px;color:#d8ecff;font:inherit;text-align:left;padding:12px;margin-bottom:8px}
+  .lv:disabled{opacity:.4}
+  .lv .n{font-size:20px;color:#5cb8e6;width:36px}
+  .lv .name{font-weight:700}
+  .lv .c{color:#6f8fae;font-size:11px;margin-top:2px}
+  .lv .best{margin-left:auto;font-size:12px;color:#3dffa2;text-align:right}
+  .foot{color:#6f8fae;font-size:11px;margin-top:18px;max-width:520px;line-height:1.5}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="module">
+import { LEVELS } from './levels/index.js';
+import { CONCEPTS } from './core/Rules.js';
+import { createGame } from './Game.js';
+
+const app = document.getElementById('app');
+const KEY = 'sparkwright.v1';
+const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || { best: {} }; } catch (e) { return { best: {} }; } };
+const save = s => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} };
+let progress = load();
+let game = null;
+const WORLD = { mech: 'WORLD 1 · MECHANICAL', elec: 'WORLD 2 · ELECTRICAL', drone: 'WORLD 3 · DRONES' };
+const title = id => CONCEPTS.find(c => c.id === id)?.title || id;
+
+function menu() {
+  game?.destroy(); game = null;
+  const m = document.createElement('div');
+  m.className = 'menu';
+  m.innerHTML = '<h1>SPARKWRIGHT</h1><div class="sub">FIELD ENGINEER · CAMPAIGN PREVIEW · M0</div>';
+  let world = null;
+  LEVELS.forEach((l, i) => {
+    if (l.world !== world) { world = l.world; m.insertAdjacentHTML('beforeend', `<div class="world">${WORLD[world] || world}</div>`); }
+    const unlocked = i === 0 || progress.best[LEVELS[i - 1].id] != null || new URLSearchParams(location.search).has('all');
+    const b = progress.best[l.id];
+    const btn = document.createElement('button');
+    btn.className = 'lv'; btn.disabled = !unlocked;
+    btn.innerHTML = `<span class="n">${String(i + 1).padStart(2, '0')}</span><span><div class="name">${l.name}</div><div class="c">${l.teaches.map(title).join(' · ')}</div></span><span class="best">${b != null ? b.toFixed(2) + ' s' + (b <= l.par.seconds ? '<br>★ par' : '') : unlocked ? 'play ▶' : '🔒'}</span>`;
+    btn.onclick = () => play(i);
+    m.appendChild(btn);
+  });
+  m.insertAdjacentHTML('beforeend', '<div class="foot">Controls: ◀ ▶ move · ▲ ▼ ladders · JUMP · TOOL when standing in a socket.<br>Keyboard: A/D or arrows · W/S · Space · E · R restart.<br>Every level here passed the 6-layer checker (node tools/check.mjs).</div>');
+  app.innerHTML = ''; app.appendChild(m);
+}
+
+function play(i) {
+  app.innerHTML = '';
+  const level = LEVELS[i];
+  const hasNext = i + 1 < LEVELS.length;
+  game = createGame(app, {
+    level, title: `${String(i + 1).padStart(2, '0')} · ${level.name.toUpperCase()}`,
+    onExit: menu,
+    onWin: r => { const b = progress.best[level.id]; if (b == null || r.seconds < b) { progress.best[level.id] = r.seconds; save(progress); } },
+    onNext: () => (hasNext ? (game.destroy(), play(i + 1)) : menu()),
+    nextLabel: hasNext ? 'NEXT ▶' : 'MENU',
+    tape: window.__swrTape?.[level.id] || null,
+  });
+  window.__swr = game;
+}
+window.__swrPlay = play;
+menu();
+</script>
+</body>
+</html>

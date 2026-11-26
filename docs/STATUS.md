@@ -8,6 +8,7 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 
 | PR | What |
 |---|---|
+| CLAWGames (main, Nov 25) | **Sparkwright**: an engineer platformer (`src/games/sparkwright/`, own `CLAUDE.md`). Fit springs, gearboxes, resistors and batteries into sockets; honest SI maths decides the route. 6 levels proven by a 6-layer checker (`node src/games/sparkwright/tools/check.mjs`). Arcade entry **SPARKWRIGHT SPRINT**; full campaign at `src/games/sparkwright/preview.html` (an in-app campaign screen is next: `docs/INTEGRATION.md` there) |
 | CLAWGames #35 | **TV host mode**: a laptop tab cast to the TV hosts a room without a seat; room code + QR join link (`?join=CODE`); the first phone in is the **captain** and drives the wheel. **Pass the phone**: up to 4 players on one phone. **Drinking mode** (tap the 🦀 five times) |
 | claw-core #38 | Balloon Pump, Pancake Stack, Shell Game playable across phones; Shell Game faster and a knockout |
 | CLAWGames #36 | The full-screen **DRINK card** after every round in every mode; the host's **🍺 DRINKING MODE** switch in rooms and on the TV; **rooms of up to 12** |
@@ -23,6 +24,8 @@ audit and harden the online version read [`ONLINE_AUDIT.md`](ONLINE_AUDIT.md).
 | CLAWGames #57 | **Tiny Planet**: a 3D solo game with a workshop of upgrades kept between runs. **Reef Drop**: 8 more pieces and 36 more reefs (114 in all) |
 | CLAWGames #55 | **Quick board games** on a shared base (`src/games/board/`): Shut the Box, Pig, Dots and Boxes, Mancala, Liar's Dice |
 | CLAWGames #76 | Five more quick board games: Tide Lines, Big Grid, Hot Dice, Claw Race, Kelp Maze |
+| CLAWGames #77 | Claw Race rebuilt for 2–4 players (winding reef, reef squares, power-ups, characters); Kelp Maze coral reef; Tide Lines tide pool; Hot Dice picture scoring |
+| CLAWGames #78 | **Party mixes**: Everything / Quick Fire / Board Game Night / Brain Teasers / Action Packed / Custom (genres × quick-medium-long), a party-time estimate, balanced mixing; length chips in Quick Play; a mix for the TV's wheel (`Mix.js`, `DESIGN.md` §9) |
 | CLAWGames #79 | **Code Breaker** and **Chomp Champs** (tap to chomp your colour); Claw Race on a 48-square reef with safe islands, instant surprises and swaps you pick; Tide Lines' no-straight-back rule |
 | CLAWGames #54 | **Reef Drop**: levels as recipes (`docs/REEF_LEVELS.md`), 8 new pieces and 24 new reefs (78 in all) |
 | claw-core #42, CLAWGames #54 | **Shell Game race**: first right answer takes the round, wrong picks locked out, first to 3, on one screen and across phones (Room `PICK`/`CALL`, protocol 3) |

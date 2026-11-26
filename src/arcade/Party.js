@@ -10,13 +10,17 @@
 // winner takes first and everyone else shares the remaining places, and a
 // draw shares them all. The FINAL game pays double.
 //
-// Games are dealt from the table's Rotation, so nothing repeats until every
-// game has been played; the table shares two vetoes for the whole party.
+// Games are dealt from the party's MIX (Mix.js: a preset like Quick Fire or
+// Board Game Night, or custom genres × lengths), then from the table's
+// Rotation, so nothing repeats until every game in the mix has been played;
+// after a long game a shorter one comes next when the mix has one (balanced
+// mixing). The table shares two vetoes for the whole party.
 // ============================================================
 import * as Catalog from './Catalog.js';
 import * as Store from './Store.js';
 import * as Rotation from './Rotation.js';
 import * as Vetoes from './Vetoes.js';
+import * as Mix from './Mix.js';
 import { seats, seatName as _seatName } from './Seats.js';
 import { SEAT_STYLE } from '../host/ArcadeState.js';
 
@@ -50,13 +54,30 @@ export const finished = () => party.round >= party.length;
 /** Is the game about to be played the last one, worth double? */
 export const finalNext = () => party.active && party.round === party.length - 1;
 
-// Games that may be dealt now: the rest of the table's rotation, minus any
-// this party has already played (a rotation can roll over mid-party) or
-// vetoed.
+// What kind of games this party deals (saved between parties).
+export const mix = Mix.create('party');
+/** Every game that fits the table and the mix, played or not. */
+export const mixGames = () => mix.filter(Catalog.eligible(seats.count));
+
+// Games that may be dealt now: the mix's games still to come round in the
+// table's rotation (all of them once those run out), minus any this party has
+// already played or vetoed, shorter ones first after a long game.
 export function pool() {
-    const fresh = Rotation.fresh(seats.count);
-    const notYet = fresh.filter(t => !party.played.includes(t) && !party.vetoed.includes(t));
-    return notYet.length ? notYet : fresh;
+    const all = mixGames();
+    if (!all.length) return [];
+    const fresh = Rotation.fresh(seats.count).filter(t => all.includes(t));
+    const deck = fresh.length ? fresh : all;
+    const notYet = deck.filter(t => !party.played.includes(t) && !party.vetoed.includes(t));
+    const left = notYet.length ? notYet : all.filter(t => !party.vetoed.includes(t));
+    return Mix.balance(left.length ? left : all, party.last?.type);
+}
+
+/** Why a game can't be picked right now (host picks greys it with this). */
+export function whyOut(type) {
+    if (!mix.allows(type)) return 'Not in this mix';
+    if (party.vetoed.includes(type)) return 'Vetoed';
+    if (party.played.includes(type)) return 'Played this party';
+    return pool().includes(type) ? '' : 'Comes round later';
 }
 
 /** A vetoed game is out for the rest of the party. */

@@ -308,11 +308,11 @@ function pickNext() {
         case 'shuffle': return playPartyGame(_nextType || Party.shuffleNext());
         case 'wheel':   show('wheel', false); return Wheel.open(t => playPartyGame(t, 'wheel'), Party.pool, partyMeta);
         case 'draft':   show('draft', false); return PartyScreens.startDraft(playPartyGame);
-        case 'pick':    show('grid', false);  $('btn-grid-spin').hidden = true; return Grid.open(playPartyGame, Party.pool);
+        case 'pick':    show('grid', false);  $('btn-grid-spin').hidden = true; return Grid.open(playPartyGame, Party.pool, { poolWhy: Party.whyOut });
     }
 }
 
-$('btn-party-start').addEventListener('click', () => { Party.start(); showStandings(); });
+$('btn-party-start').addEventListener('click', () => { if (!Party.mixGames().length) return; Party.start(); showStandings(); });
 $('btn-st-go').addEventListener('click', pickNext);
 $('btn-podium-again').addEventListener('click', () => { Party.start(); showStandings(); });
 $('btn-podium-home').addEventListener('click', goHome);
