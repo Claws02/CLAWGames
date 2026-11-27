@@ -7,7 +7,7 @@
 //   fx(view, events, w)                   particles and squashes for this frame's events
 // ============================================================
 import { P, TILE, SOLID_TILES, TOYS } from './core/Rules.js';
-import { moverPos, cannonAim, tileAt, tickOn } from './core/World.js';
+import { moverPos, ridePos, cannonAim, tileAt, tickOn } from './core/World.js';
 
 // Each course has its own wallpaper and blocks; the hub is the inside of the toy box.
 const THEMES = {
@@ -23,6 +23,10 @@ const THEMES = {
     sky:     { wall: '#d6eeff', stripe: '#c6e5ff', toy: '#f4fbff', inner: '#9cc8ea', blocks: ['#ffffff', '#9fd8ff', '#ffd84a', '#ff9ad5'] },
     gym:     { wall: '#fff0f5', stripe: '#ffe0ec', toy: '#ffc9dd', inner: '#e59bb7', blocks: ['#ff5a9e', '#ffc928', '#2fd67b', '#5cc8ff'] },
     castle:  { wall: '#e8e4f5', stripe: '#dcd6ee', toy: '#c8c0e2', inner: '#8f87a8', blocks: ['#9aa3b5', '#7d8597', '#ffc928', '#ff5a5f'] },
+    arcade:  { wall: '#231942', stripe: '#2b1f50', toy: '#3a2a66', inner: '#33245c', blocks: ['#ff4d8d', '#ffd84a', '#3dffa2', '#5cc8ff'], night: true },
+    pond:    { wall: '#e8f7e4', stripe: '#d8f0d2', toy: '#bfe3b5', inner: '#8cc59a', blocks: ['#2fd67b', '#5cc8ff', '#ffd84a', '#ffffff'] },
+    magic:   { wall: '#2e1f4f', stripe: '#38265e', toy: '#4a3478', inner: '#43306e', blocks: ['#a970ff', '#ff6fb5', '#ffd84a', '#5cc8ff'], night: true },
+    finale:  { wall: '#fff3d6', stripe: '#ffe8b8', toy: '#f5d79a', inner: '#d9a95c', blocks: ['#ff5a5f', '#ffc928', '#3b9dff', '#2fd67b', '#a970ff'] },
     hub:     { wall: '#f1c78c', stripe: '#e7b874', toy: '#d9a560', inner: '#c98f50', blocks: ['#ff5a5f', '#3b9dff', '#2fd67b', '#ffc928', '#a970ff'] },
 };
 export const themeOf = level => THEMES[level.kind === 'hub' ? 'hub' : level.theme] || THEMES.bounce;
@@ -44,7 +48,7 @@ function puff(view, x, y, n, color, speed = 3, life = 0.6, size = 0.12, g = 0) {
     }
 }
 
-const WORDS = { click: ['CLICK!', '#2fd67b'], plane: ['WHOOSH!', '#3b9dff'], walljump: ['HUP!', '#ff9f43'], bump: ['BONK!', '#ff4d6d'], pop: ['POP!', '#d98cff'], bounce: ['BOING!', '#ff5a9e'], spring: ['BOING!', '#ff5a5f'], cannon_fire: ['WHEEE!', '#3b9dff'], splash: ['SPLOSH!', '#3b9dff'], flip: ['WHOA!', '#a970ff'], win: ['YAY!', '#2fd67b'], death: ['OOF!', '#8f95a3'] };
+const WORDS = { hand: ['THWIP!', '#ff4d8d'], warp: ['POOF!', '#a970ff'], click: ['CLICK!', '#2fd67b'], plane: ['WHOOSH!', '#3b9dff'], walljump: ['HUP!', '#ff9f43'], bump: ['BONK!', '#ff4d6d'], pop: ['POP!', '#d98cff'], bounce: ['BOING!', '#ff5a9e'], spring: ['BOING!', '#ff5a5f'], cannon_fire: ['WHEEE!', '#3b9dff'], splash: ['SPLOSH!', '#3b9dff'], flip: ['WHOA!', '#a970ff'], win: ['YAY!', '#2fd67b'], death: ['OOF!', '#8f95a3'] };
 
 /** React to this frame's events: dust, sparkles, splashes, squashes, somersaults, comic words. */
 export function fx(view, events, w) {
@@ -57,7 +61,8 @@ export function fx(view, events, w) {
         if (said && (e.type !== 'bounce' || e.v >= 16) && view.t - view.hv.wordAt > 0.45) {
             view.hv.wordAt = view.t;
             const at = e.type === 'death' && view.hv.last ? view.hv.last : p;
-            view.words.push({ text: said[0], color: said[1], x: at.x + P.W / 2 + rnd(-0.4, 0.4), y: at.y - 0.6 * at.g, t: 0, tilt: rnd(-0.2, 0.2) });
+            const text = e.type === 'death' && e.why === 'fish' ? 'SNAP!' : said[0];
+            view.words.push({ text, color: said[1], x: at.x + P.W / 2 + rnd(-0.4, 0.4), y: at.y - 0.6 * at.g, t: 0, tilt: rnd(-0.2, 0.2) });
         }
         if (e.type === 'death' && view.hv.last) view.ghosts.push({ ...view.hv.last, face: view.face, t: 0 });
         if (e.type === 'jump') view.landSquash = -0.18;
@@ -70,6 +75,7 @@ export function fx(view, events, w) {
         if (e.type === 'flip') puff(view, cx, p.y + P.H / 2, 12, '#c9a6ff', 3, 0.5, 0.12);
         if (e.type === 'bump') { const b = w.L.byId[e.id]; puff(view, b.x, b.y, 12, '#ffd84a', 5, 0.45, 0.1); }
         if (e.type === 'pop') puff(view, cx, p.y + P.H / 2 - 0.15, 14, '#e6f6ffdd', 4, 0.45, 0.09);
+        if (e.type === 'warp') { const a = w.L.byId[e.from], b = w.L.byId[e.to]; puff(view, a.x + 0.5, a.y + 0.5, 12, '#d9b8ff', 3, 0.5, 0.1); puff(view, b.x + 0.5, b.y + 0.5, 14, '#d9b8ff', 4, 0.5, 0.11); }
         if (e.type === 'pogo') { puff(view, cx, feet, 4, '#ffffffbb', 1.5, 0.3, 0.08); view.landSquash = Math.min(0.3, 0.12 + e.v / 120); }
         if (e.type === 'walljump') puff(view, p.x + (e.side > 0 ? P.W : 0), p.y + P.H / 2, 6, '#ffd2a1', 2, 0.35, 0.09);
         if (e.type === 'unplane') puff(view, cx, feet, 8, '#ffffffcc', 2.5, 0.4, 0.1);
@@ -301,6 +307,17 @@ function drawTiles(ctx, w, view, T, th, x0, x1, y0, y1) {
             ctx.beginPath(); ctx.moveTo(X + T * 0.2, Y); ctx.lineTo(X + T * 0.2, Y + T); ctx.moveTo(X + T * 0.8, Y); ctx.lineTo(X + T * 0.8, Y + T);
             for (const ry of [0.25, 0.75]) { ctx.moveTo(X + T * 0.2, Y + T * ry); ctx.lineTo(X + T * 0.8, Y + T * ry); }
             ctx.stroke();
+        } else if (c === TILE.FISH) {
+            // The snappy-fish pond: dark water with fins circling.
+            const top = tileAt(L, x, y - 1) !== TILE.FISH;
+            ctx.fillStyle = '#2f7fb8'; ctx.fillRect(X, Y + (top ? T * 0.12 : 0), T, T - (top ? T * 0.12 : 0));
+            if (top) { ctx.fillStyle = '#7fd0ff'; ctx.fillRect(X, Y + T * 0.08 + Math.sin(view.t * 3 + x) * T * 0.03, T, T * 0.08); }
+            const fx = (((view.t * 1.3 + x * 0.37 + y * 0.61) % 3) + 3) % 3;
+            if (fx < 1) {
+                ctx.fillStyle = '#ffffffcc';
+                const px = X + fx * T, py = Y + T * (top ? 0.3 : 0.5);
+                ctx.beginPath(); ctx.moveTo(px - T * 0.15, py + T * 0.12); ctx.lineTo(px + T * 0.02, py - T * 0.14); ctx.lineTo(px + T * 0.15, py + T * 0.12); ctx.fill();
+            }
         } else if (c === TILE.VELCRO) {
             // Velcro: a fuzzy orange strip with little hooks.
             ctx.fillStyle = '#ff9f43'; roundRect(ctx, X + 1, Y, T - 2, T, T * 0.1);
@@ -461,8 +478,36 @@ function drawDevices(ctx, w, view, T, th) {
             drawBubble(ctx, X, cy, r, view.t);
         }
     }
+    for (const dk of L.dev.duck) drawDuck(ctx, w, dk, view, T);
+    for (const h of L.dev.hook) {
+        // A hook for the sticky hand: a knob on a plate (pull hooks are green, with an arrow).
+        const X = h.x * T, Y = h.y * T, on = s.p.rope === h.id;
+        ctx.fillStyle = '#5c6372'; roundRect(ctx, X - T * 0.3, Y - T * 0.55, T * 0.6, T * 0.24, T * 0.07);
+        ctx.fillRect(X - T * 0.05, Y - T * 0.35, T * 0.1, T * 0.12);
+        ctx.fillStyle = h.pull ? '#2fd67b' : '#ff9f43'; circle(ctx, X, Y, T * (on ? 0.32 : 0.28));
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(2, T * 0.07);
+        ctx.beginPath(); ctx.arc(X, Y, T * 0.14, 0, Math.PI * 2); ctx.stroke();
+        if (h.pull) { ctx.fillStyle = '#2fd67b'; ctx.beginPath(); ctx.moveTo(X, Y + T * 0.35); ctx.lineTo(X - T * 0.14, Y + T * 0.55); ctx.lineTo(X + T * 0.14, Y + T * 0.55); ctx.fill(); }
+        if (!on) {
+            // A faint ring when you're close enough to catch it.
+            const p = s.p, dx = h.x - (p.x + P.W / 2), dy = h.y - (p.y + P.H / 2);
+            if (dx * dx + dy * dy < TOYS.HAND_RANGE * TOYS.HAND_RANGE && dy * p.g <= 0.5) { ctx.strokeStyle = '#ff9f4366'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(X, Y, T * 0.45, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
+        }
+    }
+    for (const b of L.dev.warp) drawWarp(ctx, b, L, s, view, T);
+    const hk = s.p.rope && L.byId[s.p.rope]?.type === 'hook' ? L.byId[s.p.rope] : null;
+    if (hk) {
+        // The sticky hand's stretchy arm, from your gloves to the hook, with the hand stuck on it.
+        const p = s.p, mx = p.x + P.W / 2, my = p.y + P.H / 2, d = Math.hypot(mx - hk.x, my - hk.y) || 1, k = Math.max(0, d - 0.95) / d;
+        const ax = hk.x + (mx - hk.x) * k, ay = hk.y + (my - hk.y) * k;
+        ctx.strokeStyle = '#ff4d8d'; ctx.lineWidth = Math.max(2, T * 0.09); ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(ax * T, ay * T); ctx.quadraticCurveTo(((ax + hk.x) / 2) * T, ((ay + hk.y) / 2 + 0.25) * T, hk.x * T, hk.y * T); ctx.stroke();
+        ctx.lineCap = 'butt';
+        ctx.fillStyle = '#ff4d8d'; circle(ctx, hk.x * T, hk.y * T, T * 0.22);
+        for (const a of [-0.9, -0.3, 0.3, 0.9]) circle(ctx, hk.x * T + Math.sin(a) * T * 0.24, hk.y * T - Math.cos(a) * T * 0.24, T * 0.08);
+    }
     for (const m of L.dev.mover) {
-        if (m.path) continue;
+        if (m.path || m.type === 'duck') continue;
         const mp = moverPos(m, s.t), X = mp.x * T, Y = mp.y * T;
         const vertical = Math.abs(m.to[1] - m.y) > Math.abs(m.to[0] - m.x);
         if (vertical) {
@@ -596,6 +641,41 @@ function drawDevices(ctx, w, view, T, th) {
         const wave = on ? Math.sin(view.t * 6) * T * 0.06 : 0;
         ctx.beginPath(); ctx.moveTo(X, Y - T * 1.1); ctx.lineTo(X + T * 0.55, Y - T * 0.95 + wave); ctx.lineTo(X, Y - T * 0.75); ctx.fill();
     });
+}
+
+/** A rubber duck boat: a yellow body w tiles long, a head at the front, rocking on the waves. */
+function drawDuck(ctx, w, dk, view, T) {
+    const q = ridePos(w, dk, w.s.t), X = q.x * T, Y = q.y * T, Wd = dk.w * T;
+    const back = moverPos(dk, w.s.t - 2), dir = q.x >= back.x ? 1 : -1;
+    const tilt = Math.sin(view.t * 2.2 + dk.x) * 0.05;
+    ctx.save(); ctx.translate(X + Wd / 2, Y); ctx.rotate(tilt);
+    ctx.fillStyle = dk.sink ? '#ffd15c' : '#ffd84a';
+    ctx.beginPath(); ctx.ellipse(0, T * 0.32, Wd / 2, T * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffe98f'; ctx.fillRect(-Wd / 2 + T * 0.1, -T * 0.02, Wd - T * 0.2, T * 0.08);
+    ctx.fillStyle = '#ffd84a'; circle(ctx, dir * (Wd / 2 - T * 0.15), -T * 0.25, T * 0.36);
+    ctx.fillStyle = '#ff8c42';
+    ctx.beginPath(); ctx.moveTo(dir * (Wd / 2 + T * 0.1), -T * 0.3); ctx.lineTo(dir * (Wd / 2 + T * 0.42), -T * 0.18); ctx.lineTo(dir * (Wd / 2 + T * 0.1), -T * 0.08); ctx.fill();
+    ctx.fillStyle = '#2b2f38'; circle(ctx, dir * (Wd / 2 - T * 0.05), -T * 0.36, T * 0.06);
+    ctx.fillStyle = '#e8b826';
+    ctx.beginPath(); ctx.ellipse(-dir * Wd * 0.15, T * 0.25, Wd * 0.22, T * 0.14, 0, 0, Math.PI * 2); ctx.fill();
+    if (dk.sink) { ctx.fillStyle = '#ff5a5f'; ctx.font = `900 ${Math.round(T * 0.3)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('!', -dir * Wd * 0.15, T * 0.26); }
+    ctx.restore();
+}
+
+/** A warp toy box: a box with a swirl, its twin in the same colour (and upside down on the ceiling). */
+function drawWarp(ctx, b, L, s, view, T) {
+    const pair = [b.id, b.to].sort().join('|');
+    let hsh = 0; for (const ch of pair) hsh = (hsh * 31 + ch.charCodeAt(0)) % 997;
+    const col = ['#a970ff', '#ff6fb5', '#2fd67b', '#3b9dff', '#ff8c42'][hsh % 5];
+    const X = b.x * T, Y = b.y * T;
+    ctx.save(); ctx.translate(X + T / 2, Y + T / 2); if ((b.g || 1) < 0) ctx.scale(1, -1);
+    ctx.fillStyle = col; roundRect(ctx, -T * 0.48, -T * 0.4, T * 0.96, T * 0.88, T * 0.12);
+    ctx.fillStyle = shade(col, 0.75); roundRect(ctx, -T * 0.52, -T * 0.5, T * 1.04, T * 0.2, T * 0.06);
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(1.5, T * 0.06);
+    ctx.beginPath();
+    for (let k = 0; k <= 24; k++) { const a = k * 0.55 + view.t * 4, r = T * 0.03 + k * T * 0.012; ctx.lineTo(Math.cos(a) * r, T * 0.06 + Math.sin(a) * r); }
+    ctx.stroke();
+    ctx.restore();
 }
 
 /** A paper plane, nose to the right (flip with scale), its top at y. */

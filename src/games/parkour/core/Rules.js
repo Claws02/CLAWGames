@@ -108,6 +108,18 @@ export const TOYS = {
     POGO_MAX: 22,                          // (≈ 6.4 tiles)
     POGO_TIP: 0.4,                         // on a pogo stick you bounce on spikes: off their tips, this far into the tile
     GATE_TIME: 240,                        // stand on a button and its gate stays open this long (frames); per-button `time`
+    // Round 4
+    HAND_RANGE: 6.5,                       // sticky hand: JUMP in the air fires it at the nearest hook this close (above you or level)
+    HAND_PULL: 16,                         // a pull hook reels you in this fast (tiles/s)…
+    HAND_NEAR: 1.1,                        // …to this far from it
+    HAND_HOP: 11,                          // JUMP at a pull hook: a hop up off it
+    DUCK_BOB: 0.16,                        // rubber ducks rock on the waves this much (tiles)…
+    DUCK_WAVE: 100,                        // …once every this many frames
+    DUCK_SINK: 0.55,                       // a wobbly duck sinks this fast while you stand on it (tiles/s)…
+    DUCK_FLOAT: 0.8,                       // …and bobs back up this fast when you're off it
+    DUCK_UNDER: 0.85,                      // sunk deeper than this, it's under: you're in the water
+    WARP_POP: 9,                           // a warp box pops you out of its twin this fast…
+    WARP_COOL: 45,                         // …and won't warp you again for this many frames
 };
 
 // Tile alphabet for maps. Anything else is a checker error.
@@ -116,6 +128,7 @@ export const TILE = {
     ICE: 'I', BELT_L: '<', BELT_R: '>', SPONGE: 'T', CRUMBLE: 'C', WATER: '~',
     TICK_RED: 'R', TICK_BLUE: 'B',         // tick-tock blocks (solid on their half of the beat)
     VELCRO: 'W',                           // a velcro wall: solid; slide down it, jump off it
+    FISH: 'F',                             // a pond full of snappy fish: fall in (below its surface's top half) and it's back to the flag
 };
 export const TILE_CHARS = new Set(Object.values(TILE));
 /** Tiles you stand on (and bump into). Crumble blocks are solid until they fall; tick-tock blocks come and go (World.solidAt). */
@@ -145,4 +158,7 @@ export const DEVICES = {
     rack:    ['x', 'y'],                   // a pogo rack (tile x, y): touch it and you put the pogo stick down
     button:  ['x', 'y', 'gate'],           // a floor button (tile x, y): stand on it and gate `gate` opens for `time` frames
     gate:    ['x', 'y', 'w', 'h'],         // a toy-castle gate: solid tiles (x, y, w, h) unless its button holds it open
+    hook:    ['x', 'y'],                   // a hook for the sticky hand (JUMP in the air near it): swing from it; pull: true reels you in
+    duck:    ['x', 'y', 'w', 'to', 'period'],   // a rubber duck boat floating on the water (top-left x, y), drifting to `to` and back; sink: true sinks while you stand on it
+    warp:    ['x', 'y', 'to'],             // a warp toy box (tile x, y): land on it and you pop out of box `to`; g: -1 for a box on the ceiling
 };

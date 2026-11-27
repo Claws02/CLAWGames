@@ -20,7 +20,7 @@ export function createCampaign(root, { store, onExit, unlockAll = false, sfx = n
     const progress = createProgress(store, { courses: COURSES, unlockAll });
     let game = null, scene = null, dead = false;
     const doorOf = to => HUB.devices.find(d => d.type === 'portal' && d.to === to);
-    const floorOf = id => { const y = doorOf(id)?.y ?? 99; return y < 8 ? 3 : y < 16 ? 2 : 1; };   // the Toy Box's floor, middle shelf, top shelf
+    const floorOf = id => { const y = doorOf(id)?.y ?? 99; return y < 8 ? 4 : y < 16 ? 3 : y < 24 ? 2 : 1; };   // the Toy Box's floor and its three shelves
     const upstairs = id => floorOf(id) > 1;
 
     function stateOf(pt) {
@@ -104,7 +104,7 @@ export function createCampaign(root, { store, onExit, unlockAll = false, sfx = n
             },
             onNext: () => {
                 const u = rec?.unlocked;
-                const up = u && floorOf(u.id) > floorOf(id) ? (floorOf(u.id) === 3 ? ' It\'s on the top shelf: two jack-in-the-boxes take you up.' : ' It\'s upstairs: the jack-in-the-box takes you up.') : '';
+                const up = u && floorOf(u.id) > floorOf(id) ? ' It\'s on the next shelf up: the jack-in-the-boxes take you there.' : '';
                 toHub(id, u ? { head: 'NEW DOOR OPEN!', lines: [`${num(u.id)} · ${u.name} is ready.${up}`] }
                     : rec?.allDone && rec.firstClear ? { head: 'ALL COURSES CLEARED!', lines: ['Go back for the ★ you missed.'] } : null);
             },
@@ -115,7 +115,7 @@ export function createCampaign(root, { store, onExit, unlockAll = false, sfx = n
     // Back after new courses arrived upstairs (and you've unlocked them): say where they are.
     const newUp = s0.done && COURSES.some(c => upstairs(c.id) && progress.isUnlocked(c.id) && !progress.isDone(c.id));
     toHub(null, !s0.done ? { head: 'WELCOME TO THE TOY BOX!', lines: ['Walk to door 1 and press ▲ to play. Finish a course and you come back here.'] }
-        : newUp ? { head: 'NEW COURSES UPSTAIRS!', lines: ['The jack-in-the-boxes take you up: by the right wall to doors 5–8, then by the left wall up there to 9–12.'] } : null);
+        : newUp ? { head: 'NEW COURSES UPSTAIRS!', lines: ['The jack-in-the-boxes take you up a shelf at a time: right wall, left wall, right wall.'] } : null);
 
     return {
         get progress() { return progress; },

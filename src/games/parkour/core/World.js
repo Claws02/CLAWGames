@@ -19,9 +19,9 @@ import { DT, P, BOUNCE, SLIP, SWING, GRAV, TOYS, TILE, SOLID_TILES, TICK_TILES }
 
 const EPS = 1e-6;
 export const NO_INPUT = Object.freeze({ l: false, r: false, u: false, d: false, j: false });
-const TYPES = ['spring', 'cannon', 'fan', 'magnet', 'rope', 'mover', 'seesaw', 'lowg', 'flip', 'coin', 'flag', 'portal', 'sign', 'bumper', 'bubble', 'train', 'plane', 'pogo', 'rack', 'button', 'gate'];
+const TYPES = ['spring', 'cannon', 'fan', 'magnet', 'rope', 'mover', 'seesaw', 'lowg', 'flip', 'coin', 'flag', 'portal', 'sign', 'bumper', 'bubble', 'train', 'plane', 'pogo', 'rack', 'button', 'gate', 'hook', 'duck', 'warp'];
 /** Things you ride on top of: toy cars, elevators, trains. */
-const isRide = d => !!d && (d.type === 'mover' || d.type === 'train');
+const isRide = d => !!d && (d.type === 'mover' || d.type === 'train' || d.type === 'duck');
 
 // ── Compile ─────────────────────────────────────────────────────────────────
 export function compile(level) {
@@ -64,6 +64,11 @@ export function compile(level) {
         tr.period = Math.max(2, Math.round(tr._len / (tr.speed * DT)));
         dev.mover.push(tr);
     }
+    // Rubber duck boats ride like movers (and bob, and some sink).
+    for (const dk of dev.duck) dev.mover.push(dk);
+    // Warp toy boxes are solid boxes you land on.
+    const boxes = dev.warp.length ? new Map() : null;
+    for (const b of dev.warp) boxes.set(b.y * W + b.x, b);
     // Where each ride goes (the solver keys its phase only near here).
     for (const m of dev.mover) {
         const xs = m.path ? m.path.map(q => q[0]) : [m.x, m.to[0]], ys = m.path ? m.path.map(q => q[1]) : [m.y, m.to[1]];
@@ -88,7 +93,7 @@ export function compile(level) {
         cycle = (cycle * per) / gcd(cycle, per);
         if (cycle > 100000) cycle = 100000;
     }
-    const L = { level, W, H, grid, start, goals, crumbles, ticks, tick, nearTick, gateCell, dev, byId, owned, cycle, hub: level.kind === 'hub' };
+    const L = { level, W, H, grid, start, goals, crumbles, ticks, tick, nearTick, gateCell, boxes, dev, byId, owned, cycle, hub: level.kind === 'hub' };
     const w = { L, s: null };
     w.s = initialState(L);
     return w;
@@ -99,7 +104,7 @@ function initialState(L) {
     for (const sw of L.dev.seesaw) seesaw[sw.id] = { m: sw.tilt || 0, pm: sw.tilt || 0, w: 0 };
     return {
         t: 0, p: spawnPlayer(L, L.start.x, L.start.y, 1),
-        crumble: {}, seesaw, fired: {}, blown: {}, planes: {}, gates: {},
+        crumble: {}, seesaw, fired: {}, blown: {}, planes: {}, gates: {}, sink: {},
         coins: 0, check: -1, checkG: 1, checkPogo: false,
         won: false, deaths: 0,
     };
@@ -111,7 +116,7 @@ function spawnPlayer(L, tx, ty, g) {
         grounded: true, ground: 'tile', gtile: TILE.SOLID, climb: false,
         coy: 0, buf: 0, prevJ: false, jumping: false,
         rope: null, ropeR: 0, cannon: null, cf: 0, regrab: 0, wet: false, lowg: false, bubble: null, bt: 0,
-        wall: 0, wallSide: 0, wallT: 0, kick: 0, plane: null, fanV: 0, pogo: false, bounced: false,
+        wall: 0, wallSide: 0, wallT: 0, kick: 0, plane: null, fanV: 0, pogo: false, bounced: false, warpCool: 0,
         peak: g > 0 ? ty + 1 : -ty,      // the highest point since you left the ground (along gravity)
     };
 }
@@ -133,6 +138,14 @@ export function moverPos(m, t) {
     const ph = (((t + (m.phase || 0)) % per) + per) % per;
     const u = smooth(ph < per / 2 ? ph / (per / 2) : 2 - ph / (per / 2));
     return { x: m.x + (m.to[0] - m.x) * u, y: m.y + (m.to[1] - m.y) * u };
+}
+/** A wave: −1 … 1 and back over `per` frames (smooth, no trig). */
+const wave = (t, per) => { const u = ((t % per) + per) % per / per, tri = u < 0.5 ? u * 2 : 2 - u * 2; return smooth(tri) * 2 - 1; };
+/** Where a ride's top-left is now: a mover's path, plus a duck's bobbing and how far it has sunk. */
+export function ridePos(w, m, t) {
+    const q = moverPos(m, t);
+    if (m.type === 'duck') q.y += wave(t + (m.phase || 0) + m.x * 7, TOYS.DUCK_WAVE) * TOYS.DUCK_BOB + (w.s.sink[m.id] || 0);
+    return q;
 }
 /** A cannon's aim at frame t, as a unit vector (sweeping cannons swing between two aims). */
 export function cannonAim(c, t) {
@@ -169,7 +182,7 @@ export function solidAt(w, x, y) {
     // A tick-tock block that comes on around you lets you out first (w.ghost: the ones you were inside at the start of the frame).
     if (t === TILE.TICK_RED || t === TILE.TICK_BLUE) return tickOn(w.L, t, w.s.t) && !w.ghost?.has(y * w.L.W + x);
     if (SOLID_TILES.has(t)) return true;
-    return w.L.owned.has(y * w.L.W + x);
+    return w.L.owned.has(y * w.L.W + x) || !!w.L.boxes?.has(y * w.L.W + x);
 }
 const isWaterTile = (L, x, y) => tileAt(L, x, y) === TILE.WATER;
 const isLadder = (L, x, y) => tileAt(L, x, y) === TILE.LADDER;
@@ -208,6 +221,29 @@ function updateBubbles(w) {
     for (const k in s.blown) if (--s.blown[k] <= 0) delete s.blown[k];
     for (const k in s.planes) if (s.p.plane !== k && --s.planes[k] <= 0) delete s.planes[k];
     for (const k in s.gates) if (--s.gates[k] <= 0) delete s.gates[k];
+    // Wobbly ducks sink while you stand on them and bob back up when you're off.
+    for (const dk of w.L.dev.duck) {
+        if (!dk.sink) continue;
+        const on = s.p.grounded && s.p.ground === dk.id;
+        const d = (s.sink[dk.id] || 0) + (on ? TOYS.DUCK_SINK : -TOYS.DUCK_FLOAT) * DT;
+        if (d > 0) s.sink[dk.id] = Math.min(1.3, d); else delete s.sink[dk.id];
+    }
+}
+
+/** The hook the sticky hand would catch: the nearest one in range, above you or level, with nothing in between. */
+function aimHook(w, p) {
+    const cx = p.x + P.W / 2, cy = p.y + P.H / 2;
+    let best = null, bd = TOYS.HAND_RANGE;
+    for (const h of w.L.dev.hook) {
+        const dx = h.x - cx, dy = h.y - cy;
+        if (dy * p.g > 0.5) continue;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d > bd || d < 0.5) continue;
+        let clear = true;
+        for (let k = 1; k < 16 && clear; k++) { const u = k / 16; if (solidAt(w, Math.floor(cx + dx * u), Math.floor(cy + dy * u))) clear = false; }
+        if (clear) { best = h; bd = d; }
+    }
+    return best;
 }
 
 /** Which side (−1 left, +1 right, 0 none) a velcro wall touches the hero on. */
@@ -332,6 +368,7 @@ function inCannon(w, input, jEdge, ev) {
 function onRope(w, input, jEdge, ev) {
     const { L, s } = w;
     const p = s.p, R = L.byId[p.rope];
+    if (R.pull) p.ropeR = Math.max(TOYS.HAND_NEAR, p.ropeR - TOYS.HAND_PULL * DT);   // a pull hook reels you in
     const dir = (input.r ? 1 : 0) - (input.l ? 1 : 0);
     const prev = { x: p.x, y: p.y };
     p.vy += P.G * p.g * DT;
@@ -351,7 +388,7 @@ function onRope(w, input, jEdge, ev) {
     for (let ty = y0; ty <= y1 && !hit; ty++) for (let tx = x0; tx <= x1; tx++) if (solidAt(w, tx, ty)) { hit = true; break; }
     if (hit) { p.x = prev.x; p.y = prev.y; p.vx = 0; p.vy = 0; p.rope = null; p.regrab = SWING.REGRAB; ev.push({ type: 'letgo', id: R.id }); return; }
     if (jEdge) {
-        p.rope = null; p.vy -= p.g * SWING.LET_GO_UP; p.regrab = SWING.REGRAB; p.jumping = false; p.buf = 0;
+        p.rope = null; p.vy -= p.g * (R.pull ? TOYS.HAND_HOP : SWING.LET_GO_UP); p.regrab = SWING.REGRAB; p.jumping = false; p.buf = 0;
         ev.push({ type: 'letgo', id: R.id });
     }
 }
@@ -444,12 +481,24 @@ function movePlayer(w, input, ev, carry) {
     else if (p.buf > 0) p.buf--;
     if (p.regrab > 0) p.regrab--;
     if (p.kick > 0) p.kick--;
+    if (p.warpCool > 0) p.warpCool--;
     p.bounced = false;
 
     if (p.cannon) return inCannon(w, input, jEdge, ev);
     if (p.rope) return onRope(w, input, jEdge, ev);
     if (p.bubble) return inBubble(w, input, jEdge, ev);
     if (p.plane) return onPlane(w, input, jEdge, ev);
+    // The sticky hand: JUMP in the air (not a jump off the ground or a wall) fires it at a hook in range.
+    if (jEdge && L.dev.hook.length && !p.grounded && p.coy <= 0 && p.wallT <= 0 && !p.climb && !p.wet && p.regrab <= 0) {
+        const h = aimHook(w, p);
+        if (h) {
+            const dx = p.x + P.W / 2 - h.x, dy = p.y + P.H / 2 - h.y;
+            p.rope = h.id; p.ropeR = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+            p.buf = 0; p.jumping = false;
+            ev.push({ type: 'hand', id: h.id });
+            return;
+        }
+    }
 
     const g = p.g;
     // Riding a toy car: it carries you.
@@ -546,7 +595,7 @@ function movePlayer(w, input, ev, carry) {
     const x0 = Math.floor(p.x + EPS), x1 = Math.floor(p.x + P.W - EPS);
     const cxT = Math.floor(p.x + P.W / 2);
     const pickTile = ty => {   // the tile you're standing on: the one under your middle if it's solid
-        const kind = tx => (L.owned.has(ty * L.W + tx) ? 'spring' : tileAt(L, tx, ty));
+        const kind = tx => (L.owned.has(ty * L.W + tx) ? 'spring' : L.boxes?.has(ty * L.W + tx) ? 'warp' : tileAt(L, tx, ty));
         if (solidAt(w, cxT, ty)) return kind(cxT);
         for (let tx = x0; tx <= x1; tx++) if (solidAt(w, tx, ty)) return kind(tx);
         return TILE.SOLID;
@@ -567,9 +616,10 @@ function movePlayer(w, input, ev, carry) {
         }
         if (g > 0) {
             for (const m of L.dev.mover) {
-                const mp = moverPos(m, s.t);
+                if (m.type === 'duck' && (s.sink[m.id] || 0) > TOYS.DUCK_UNDER) continue;   // gone under
+                const mp = ridePos(w, m, s.t);
                 const riding = wasGrounded && wasGround === m.id;
-                const prevTop = moverPos(m, s.t - 1).y;      // where its top was a frame ago
+                const prevTop = ridePos(w, m, s.t - 1).y;    // where its top was a frame ago
                 if (p.x < mp.x + m.w && p.x + P.W > mp.x && (riding || prevBottom <= prevTop + EPS) && bottom >= mp.y) {
                     if (!land || mp.y <= land.y) land = { y: mp.y, ground: m.id };
                 }
@@ -616,6 +666,26 @@ function movePlayer(w, input, ev, carry) {
     if (!p.grounded) { p.peak = Math.min(p.peak, along); return; }
     p.peak = along;
     // ── What you landed on ──
+    // A warp toy box: land on it and you pop out of its twin (upside down if that one's on the ceiling).
+    if (L.boxes && !wasGrounded && p.warpCool <= 0) {
+        const ty = g > 0 ? Math.floor(p.y + P.H + EPS) : Math.floor(p.y - EPS);
+        for (let tx = x0; tx <= x1; tx++) {
+            const box = L.boxes.get(ty * L.W + tx);
+            if (!box || (box.g || 1) !== g) continue;
+            const to = L.byId[box.to];
+            if (!to) continue;                               // (its twin's been taken away: the checker's `needs`)
+            const tg = to.g || 1;
+            if (tg !== g) ev.push({ type: 'flip', dir: tg < 0 ? 'up' : 'down' });
+            p.g = tg;
+            p.x = to.x + (1 - P.W) / 2;
+            p.y = tg > 0 ? to.y - P.H - 0.02 : to.y + 1.02;
+            p.vy = -tg * TOYS.WARP_POP;
+            p.grounded = false; p.coy = 0; p.jumping = false; p.buf = 0; p.warpCool = TOYS.WARP_COOL;
+            p.peak = tg > 0 ? p.y + P.H : -p.y;
+            ev.push({ type: 'warp', from: box.id, to: to.id });
+            return;
+        }
+    }
     if (p.gtile === TILE.SPONGE) {
         // A sponge gives back most of the speed of the fall (from its height, so the fall-speed cap doesn't blunt it).
         const vin = Math.sqrt(2 * P.G * fell);
@@ -772,6 +842,7 @@ function hazards(w, ev) {
         const t = tileAt(L, tx, ty);
         if (t === TILE.SPIKES && playerOver(p, tx + 0.1, ty + 0.5, 0.8, 0.5)) return respawn(w, ev, 'spikes');
         if (t === TILE.SPIKES_DOWN && playerOver(p, tx + 0.1, ty, 0.8, 0.5)) return respawn(w, ev, 'spikes');
+        if (t === TILE.FISH && playerOver(p, tx, ty + 0.5, 1, 0.5)) return respawn(w, ev, 'fish');
     }
 }
 
@@ -793,7 +864,7 @@ export function step(w, input = NO_INPUT) {
     let carry = null;
     const p = s.p;
     if (p.grounded && isRide(L.byId[p.ground])) {
-        const m = L.byId[p.ground], a = moverPos(m, s.t - 1), b = moverPos(m, s.t);
+        const m = L.byId[p.ground], a = ridePos(w, m, s.t - 1), b = ridePos(w, m, s.t);
         carry = { dx: b.x - a.x, dy: b.y - a.y };
     }
     movePlayer(w, input, ev, carry);
@@ -811,7 +882,7 @@ export function snapshot(s) {
     for (const k in s.crumble) crumble[k] = { st: s.crumble[k].st, f: s.crumble[k].f };
     const seesaw = {};
     for (const k in s.seesaw) seesaw[k] = { ...s.seesaw[k] };
-    return { ...s, p: { ...s.p }, crumble, seesaw, fired: { ...s.fired }, blown: { ...s.blown }, planes: { ...s.planes }, gates: { ...s.gates } };
+    return { ...s, p: { ...s.p }, crumble, seesaw, fired: { ...s.fired }, blown: { ...s.blown }, planes: { ...s.planes }, gates: { ...s.gates }, sink: { ...s.sink } };
 }
 export function restore(w, snap) { w.s = snapshot(snap); }
 
@@ -824,7 +895,7 @@ function timedKey(L, s, p) {
         // Standing near a car's track (waiting for it, riding it) or right beside the car itself.
         const b = m._box, at = moverPos(m, s.t);
         const beside = p.x > at.x - 3 && p.x < at.x + m.w + 3 && p.y > at.y - 4 && p.y < at.y + 3;
-        const nearTrack = p.grounded && p.x > b.x0 - 4 && p.x < b.x1 + 4 && (!m.path || (p.y > b.y0 - 6 && p.y < b.y1 + 4));
+        const nearTrack = p.grounded && p.x > b.x0 - 10 && p.x < b.x1 + 10 && (!m.path || (p.y > b.y0 - 6 && p.y < b.y1 + 4));
         // Riding it or right beside it: its phase to 6 frames. Just waiting somewhere near its track: coarser
         // (a sixteenth of its loop), or every spot on a long ledge × every moment is a separate state.
         if (p.ground === m.id || beside) k += `,${m.id}${ph(m, m.period)}`;
@@ -845,7 +916,9 @@ export function hashState(w, withCoins = false) {
     // In a bubble you drift slowly and your height follows from how long you've been in: a coarser key.
     let k = p.bubble ? `${Math.round(p.x * 3)},${Math.round(p.y * 3)},${Math.round(p.vx)},b` :
         `${Math.round(p.x * 6)},${Math.round(p.y * 6)},${Math.round(p.vx)},${Math.round(p.vy / 2)},${p.grounded ? 1 : 0}${p.g},${p.climb ? 1 : 0}`;
-    if (p.rope) k += `,r${p.rope}`;
+    if (p.rope) k += `,r${p.rope}${L.byId[p.rope].type === 'hook' ? ':' + Math.round(p.ropeR * 2) : ''}`;
+    if (p.warpCool > 0) k += ',W';
+    for (const id in s.sink) { const d = L.byId[id], at = moverPos(d, s.t); if (Math.abs(at.x - p.x) < 8 && Math.abs(at.y - p.y) < 6) k += `,s${id}:${Math.round(s.sink[id] * 5)}`; }
     if (p.cannon) k += `,c${p.cannon}:${Math.min(p.cf, 13)}`;
     if (p.bubble) k += `,b${p.bubble}:${Math.floor(p.bt / 40)}`;
     if (p.plane) k += `,p${p.plane}:${Math.round(p.fanV / 2)}`;

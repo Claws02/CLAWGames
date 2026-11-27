@@ -1,6 +1,6 @@
 // Physics checks for Playroom Parkour's engine: each mechanic does what it says.
 //   node src/games/parkour/tests/physics.test.mjs
-import { compile, step, NO_INPUT, hashState, coinCount, moverPos, solidAt } from '../core/World.js';
+import { compile, step, NO_INPUT, hashState, coinCount, moverPos, solidAt, ridePos } from '../core/World.js';
 import { P, GRAV, SLIP, SWING, BOUNCE, TOYS } from '../core/Rules.js';
 
 let pass = 0, fail = 0;
@@ -430,6 +430,76 @@ const FLOOR = [
     for (let i = 0; i < 60 && !w2.s.gates.g1; i++) step(w2, I({ l: true }));
     run(w2, I({ r: true }), 200);
     ok(w2.s.p.x < 14, `too slow: the gate shuts in front of you (x ${w2.s.p.x.toFixed(1)})`);
+}
+
+// 25. The sticky hand: a second JUMP in the air fires it at a hook in range; swing; a pull hook reels you up
+{
+    const big = [...FLOOR.slice(0, 1), ...Array.from({ length: 6 }, () => FLOOR[1]), ...FLOOR.slice(1)];
+    const w = compile(lvl(big, [{ type: 'hook', id: 'hk', x: 5, y: 11 }]));
+    let fired = null;
+    for (let i = 0; i < 60 && !fired; i++) fired = step(w, I({ r: true, j: i < 8 || i >= 14 })).find(e => e.type === 'hand');
+    ok(!!fired && w.s.p.rope === 'hk', 'JUMP again in the air: the sticky hand catches the hook');
+    let swung = false;
+    for (let i = 0; i < 40; i++) { step(w, I({ r: true, j: true })); if (w.s.p.x > 5.5) swung = true; }
+    ok(swung && w.s.p.rope === 'hk', 'you swing on it like a yo-yo');
+    run(w, I({ j: false }), 1);
+    const ev = run(w, I({ j: true }), 1);
+    ok(!w.s.p.rope && ev.some(e => e.type === 'letgo'), 'JUMP lets go');
+    // Out of range: nothing to catch.
+    const w2 = compile(lvl(big, [{ type: 'hook', id: 'hk', x: 25, y: 3 }]));
+    let none = true;
+    for (let i = 0; i < 40; i++) if (step(w2, I({ j: i < 8 || i >= 14 })).some(e => e.type === 'hand')) none = false;
+    ok(none, 'a hook out of range: the second JUMP does nothing');
+    // A pull hook reels you in, then JUMP hops you up off it.
+    const w3 = compile(lvl(big, [{ type: 'hook', id: 'ph', x: 5, y: 10, pull: true }]));
+    for (let i = 0; i < 30 && !w3.s.p.rope; i++) step(w3, I({ j: i < 8 || i >= 14 }));
+    run(w3, NO_INPUT, 30);
+    const d = Math.hypot(w3.s.p.x + P.W / 2 - 5, w3.s.p.y + P.H / 2 - 10);
+    ok(w3.s.p.rope === 'ph' && d < TOYS.HAND_NEAR + 0.05, `a pull hook reels you right up to it (${d.toFixed(2)} tiles away)`);
+    const y0 = w3.s.p.y; run(w3, i => I({ j: i === 0 }), 1); const top = peak(w3, NO_INPUT, 40);
+    ok(!w3.s.p.rope && y0 + P.H - top > 1.2, `JUMP hops you up off it (${(y0 + P.H - top).toFixed(2)} tiles)`);
+}
+
+// 26. Rubber duck boats: ride them over the water, they rock on the waves, wobbly ones sink if you stay
+{
+    const map = FLOOR.map((r, y) => (y >= 7 && y <= 9 ? '#####' + '~'.repeat(20) + '#####' : y === 4 ? '#....S.......................#' : r));
+    const dk = { type: 'duck', id: 'dk', x: 5, y: 6.8, w: 2, to: [20, 6.8], period: 480 };
+    const w = compile(lvl(map, [dk]));
+    run(w, NO_INPUT, 30);
+    ok(w.s.p.grounded && w.s.p.ground === 'dk', 'you can stand on a rubber duck');
+    const ys = []; run(w, i => { ys.push(ridePos(w, w.L.byId.dk, w.s.t).y); return NO_INPUT; }, 120);
+    ok(Math.max(...ys) - Math.min(...ys) > TOYS.DUCK_BOB, `it rocks on the waves (${(Math.max(...ys) - Math.min(...ys)).toFixed(2)} tiles)`);
+    run(w, NO_INPUT, 100);
+    ok(w.s.p.ground === 'dk' && w.s.p.x > 8 && !w.s.p.wet, `it carries you across the water, dry (x ${w.s.p.x.toFixed(1)})`);
+    const w2 = compile(lvl(map, [{ ...dk, sink: true }]));
+    let dunked = false;
+    let deepest = 0;
+    for (let i = 0; i < 300 && !dunked; i++) { step(w2, NO_INPUT); dunked = w2.s.p.wet; deepest = Math.max(deepest, w2.s.sink.dk || 0); }
+    ok(dunked && deepest > 0.5, `stay on a wobbly duck and it sinks under you (${deepest.toFixed(2)} tiles down)`);
+    const w3 = compile(lvl(map, [{ ...dk, sink: true }]));
+    run(w3, NO_INPUT, 60);
+    const sunk = w3.s.sink.dk;
+    run(w3, i => I({ j: i < 10 }), 30);
+    run(w3, NO_INPUT, 60);
+    ok(sunk > 0 && !(w3.s.sink.dk >= sunk), `…hop off and it bobs back up (${sunk.toFixed(2)} → ${(w3.s.sink.dk || 0).toFixed(2)})`);
+}
+
+// 27. Warp toy boxes: land on one, pop out of its twin (even upside down, on the ceiling)
+{
+    const map = FLOOR.map((r, y) => (y === 9 ? '#S.......................#...G' : r)).map(r => r.slice(0, 30));
+    const w = compile(lvl(map, [{ type: 'warp', id: 'wa', x: 4, y: 9, to: 'wb' }, { type: 'warp', id: 'wb', x: 27, y: 9, to: 'wa' }]));
+    ok(solidAt(w, 4, 9), 'a warp box is a box you can stand on');
+    let warped = null;
+    for (let i = 0; i < 60 && !warped; i++) warped = step(w, I({ r: i < 12, j: i < 10 })).find(e => e.type === 'warp');
+    ok(!!warped && Math.abs(w.s.p.x + P.W / 2 - 27.5) < 0.1 && w.s.p.vy < -5, `land on it and you pop out of its twin (x ${(w.s.p.x + P.W / 2).toFixed(1)})`);
+    let again = false;
+    for (let i = 0; i < 40; i++) if (step(w, NO_INPUT).some(e => e.type === 'warp')) again = true;
+    ok(!again, "landing back on the twin straight away doesn't send you back");
+    const w2 = compile(lvl(map, [{ type: 'warp', id: 'wa', x: 4, y: 9, to: 'wc' }, { type: 'warp', id: 'wc', x: 15, y: 1, to: 'wa', g: -1 }]));
+    let flipped = false;
+    for (let i = 0; i < 60 && !flipped; i++) flipped = step(w2, I({ r: i < 12, j: i < 10 })).some(e => e.type === 'warp');
+    run(w2, NO_INPUT, 40);
+    ok(flipped && w2.s.p.g === -1 && w2.s.p.grounded, 'a twin on the ceiling: you come out upside down, standing on the ceiling');
 }
 
 // 16. The same inputs give the same frames
