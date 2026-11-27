@@ -315,6 +315,123 @@ const FLOOR = [
     ok(w3.s.p.x > 8, `a tick-tock block that comes on around you lets you walk out (x ${w3.s.p.x.toFixed(1)})`);
 }
 
+// 21. Velcro walls: slide down slowly, jump off, climb a shaft by kicking from wall to wall
+{
+    const shaft = (row1, row9, wall = 'W') => [
+        '##############################',
+        row1,
+        ...Array.from({ length: 7 }, () => '#..........W....W............#'),
+        row9,
+        '##############################',
+    ].map(r => r.split('W').join(wall));
+    // Fall beside a velcro wall: you stick and slide slowly.
+    const w = compile(lvl(shaft('#..........WS...W............#', '#..........W....W...........G#')));
+    let maxSlide = 0, slid = 0;
+    for (let i = 0; i < 90; i++) { step(w, I({ l: true })); if (w.s.p.wall) { slid++; maxSlide = Math.max(maxSlide, w.s.p.vy); } }
+    ok(slid > 20 && maxSlide <= TOYS.WALL_SLIDE + 1e-9, `touching velcro in the air you slide down it slowly (${slid} frames, ≤ ${maxSlide.toFixed(2)} tiles/s)`);
+    // Jump off it: up and away.
+    const w2 = compile(lvl(shaft('#..........WS...W............#', '#..........W....W...........G#')));
+    for (let i = 0; i < 40; i++) step(w2, I({ l: true }));
+    const evs = run(w2, i => I({ j: i < 10 }), 2);
+    ok(evs.some(e => e.type === 'walljump') && w2.s.p.vx > 5 && w2.s.p.vy < -10, `JUMP on a velcro wall kicks you up and away (vx ${w2.s.p.vx.toFixed(1)}, vy ${w2.s.p.vy.toFixed(1)})`);
+    // A plain wall doesn't do any of that.
+    const w3 = compile(lvl(shaft('#..........WS...W............#', '#..........W....W...........G#', '#')));
+    let stuck = 0;
+    for (let i = 0; i < 40; i++) { step(w3, I({ l: true })); if (w3.s.p.wall) stuck++; }
+    ok(stuck === 0 && w3.s.p.vy > TOYS.WALL_SLIDE, 'a plain wall is just a wall (no sliding)');
+    // Climb the shaft: kick from wall to wall, higher each time.
+    const w4 = compile(lvl(shaft('#..........W....W............#', '#..........W.S..W...........G#')));
+    let best = w4.s.p.y, side = 1, kicks = 0, last = -99, prevJ = false;
+    for (let i = 0; i < 400; i++) {
+        const p = w4.s.p;
+        // Hold JUMP through each jump (a tap is a short hop); press it again when you touch the next wall.
+        const j = i < 15 || i - last < 14 || (p.wall !== 0 && !prevJ);
+        prevJ = j;
+        const evs2 = step(w4, I({ r: side > 0, l: side < 0, j }));
+        const kick = evs2.find(e => e.type === 'walljump'); if (kick) { side = -kick.side; kicks++; last = i; }
+        best = Math.min(best, w4.s.p.y);
+    }
+    ok(best < 3.5, `wall-jumping from wall to wall climbs the shaft (${kicks} kicks, up to y ${best.toFixed(1)})`);
+}
+
+// 22. Paper planes: ride, glide down, pull up (and slow down), stall, let go, hop off when you touch something
+{
+    const map = [...FLOOR.slice(0, 1), ...Array.from({ length: 6 }, () => FLOOR[1]), ...FLOOR.slice(1)].map((r, y) => (y === 15 ? '#............................#' : y === 9 ? '##########...................#' : y === 8 ? '#.......S....................#' : r));
+    const pl = { type: 'plane', id: 'pp', x: 11, y: 9, dir: 1 };
+    const w = compile(lvl(map, [pl]));
+    let boarded = false;
+    for (let i = 0; i < 80 && !boarded; i++) boarded = step(w, I({ r: true })).some(e => e.type === 'plane');
+    ok(boarded && w.s.p.plane === 'pp' && Math.abs(w.s.p.vx - TOYS.PLANE_CRUISE) < 0.01, 'walking into a paper plane: you ride it off at its speed');
+    const y0 = w.s.p.y; run(w, NO_INPUT, 40);
+    ok(w.s.p.plane && w.s.p.y > y0 && w.s.p.vy <= TOYS.PLANE_SINK + 1e-9 && w.s.p.vx > TOYS.PLANE_CRUISE, `left alone it glides down gently and speeds up (sink ${w.s.p.vy.toFixed(2)}, speed ${w.s.p.vx.toFixed(2)})`);
+    const y1 = w.s.p.y, v1 = w.s.p.vx; run(w, I({ j: true }), 24);
+    ok(w.s.p.y < y1 && w.s.p.vx < v1 - 1, `hold JUMP: it pulls up and slows down (${(y1 - w.s.p.y).toFixed(2)} tiles up, speed ${v1.toFixed(1)} → ${w.s.p.vx.toFixed(1)})`);
+    let stalled = false;
+    for (let i = 0; i < 200 && w.s.p.plane; i++) { step(w, I({ j: true })); if (w.s.p.vx < TOYS.PLANE_MIN && w.s.p.vy > 0) stalled = true; }
+    ok(stalled, 'keep pulling up and it runs out of speed and stalls');
+    const w2 = compile(lvl(map, [pl]));
+    for (let i = 0; i < 80 && !w2.s.p.plane; i++) step(w2, I({ r: true }));
+    run(w2, NO_INPUT, 10);
+    const ev2 = run(w2, I({ l: true }), 1);
+    ok(!w2.s.p.plane && ev2.some(e => e.type === 'unplane' && e.why === 'off'), '◀ (away from where it flies) lets go');
+    // ▶ (the way it flies) dives; an updraft lifts it.
+    const wd = compile(lvl(map, [pl])), wg = compile(lvl(map, [pl]));
+    for (const ww of [wd, wg]) for (let i = 0; i < 80 && !ww.s.p.plane; i++) step(ww, I({ r: true }));
+    run(wd, I({ r: true }), 30); run(wg, NO_INPUT, 30);
+    ok(wd.s.p.y > wg.s.p.y + 0.5, `holding ▶ dives (${(wd.s.p.y - wg.s.p.y).toFixed(2)} tiles lower than gliding)`);
+    const wf = compile(lvl(map, [pl, { type: 'fan', x: 12, y: 2, w: 10, h: 12, ax: 0, ay: -60 }]));
+    for (let i = 0; i < 80 && !wf.s.p.plane; i++) step(wf, I({ r: true }));
+    const fy = wf.s.p.y; run(wf, NO_INPUT, 45);
+    ok(wf.s.p.plane && wf.s.p.y < fy - 1, `an updraft lifts a paper plane (${(fy - wf.s.p.y).toFixed(2)} tiles up)`);
+    const w3 = compile(lvl(map, [pl]));
+    for (let i = 0; i < 80 && !w3.s.p.plane; i++) step(w3, I({ r: true }));
+    let ended = null;
+    for (let i = 0; i < 600 && !ended; i++) ended = step(w3, NO_INPUT).find(e => e.type === 'unplane');
+    ok(ended && (ended.why === 'land' || ended.why === 'crash') && !!w3.s.planes.pp, `gliding into the floor ends the flight (${ended?.why}); the plane goes back to its stand`);
+    run(w3, NO_INPUT, TOYS.PLANE_BACK + 2);
+    ok(!w3.s.planes.pp, '…and is there again a moment later');
+}
+
+// 23. Pogo sticks: bounce everywhere, higher with JUMP held, safe on spikes, put down at a rack or in water
+{
+    const map = FLOOR.map((r, y) => (y === 10 ? '#########^^^^^^^^#############' : r));
+    const w = compile(lvl(map, [{ type: 'pogo', id: 'pg', x: 3, y: 9 }, { type: 'rack', id: 'rk', x: 22, y: 9 }]));
+    let got = false;
+    for (let i = 0; i < 40 && !got; i++) got = step(w, I({ r: true })).some(e => e.type === 'pogo_on');
+    ok(got && w.s.p.pogo, 'touching the pogo stand gives you the pogo stick');
+    const bounces = [];
+    for (let i = 0; i < 240; i++) { const e = step(w, I({ j: true })).find(x => x.type === 'pogo'); if (e) bounces.push(e.v); }
+    ok(bounces.length >= 3 && bounces[bounces.length - 1] > bounces[0] + 4, `every landing bounces, higher and higher with JUMP held (${bounces.map(v => v.toFixed(0)).join(' → ')})`);
+    const w2 = compile(lvl(map, [{ type: 'pogo', id: 'pg', x: 3, y: 9 }, { type: 'rack', id: 'rk', x: 22, y: 9 }]));
+    let tips = 0;
+    for (let i = 0; i < 700 && w2.s.p.x < 21.5; i++) { const ev = step(w2, I({ r: true })); if (ev.some(e => e.type === 'pogo') && w2.s.p.gtile === '^') tips++; }
+    ok(w2.s.deaths === 0 && tips > 0, `on a pogo stick you bounce across the spikes (${tips} bounces on spike tips, no ouch)`);
+    for (let i = 0; i < 200 && w2.s.p.pogo; i++) step(w2, I({ r: true }));
+    ok(!w2.s.p.pogo, 'the rack takes the pogo stick back');
+    const w3 = compile(lvl(map, []));
+    run(w3, I({ r: true }), 200);
+    ok(w3.s.deaths > 0, 'without one, spikes are still spikes');
+}
+
+// 24. Buttons and gates: the gate is a wall until you stand on its button; it closes again after a while
+{
+    const map = FLOOR.map((r, y) => (y === 9 ? '#..S.........................G' : r)).map(r => r.slice(0, 30));
+    const devs = time => [{ type: 'button', id: 'bt', x: 1, y: 9, gate: 'g1', time }, { type: 'gate', id: 'g1', x: 14, y: 6, w: 1, h: 4 }];
+    const w = compile(lvl(map, devs(180)));
+    ok(solidAt(w, 14, 8), 'a closed gate is a wall');
+    let clicked = false;
+    for (let i = 0; i < 60 && !clicked; i++) clicked = step(w, I({ l: true })).some(e => e.type === 'click');
+    ok(clicked && !solidAt(w, 14, 8), 'standing on its button opens it');
+    run(w, I({ r: true }), 150);
+    ok(w.s.p.x > 15, `run through while it's open (x ${w.s.p.x.toFixed(1)})`);
+    run(w, NO_INPUT, 200);
+    ok(solidAt(w, 14, 8), 'it closes again after its time');
+    const w2 = compile(lvl(map, devs(60)));
+    for (let i = 0; i < 60 && !w2.s.gates.g1; i++) step(w2, I({ l: true }));
+    run(w2, I({ r: true }), 200);
+    ok(w2.s.p.x < 14, `too slow: the gate shuts in front of you (x ${w2.s.p.x.toFixed(1)})`);
+}
+
 // 16. The same inputs give the same frames
 {
     const tape = i => I({ r: i % 50 < 35, j: i % 40 < 12, l: i % 97 > 80 });

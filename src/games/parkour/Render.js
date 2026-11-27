@@ -19,6 +19,10 @@ const THEMES = {
     bath:    { wall: '#e3f8fd', stripe: '#d0f1f9', toy: '#b8e3ee', inner: '#93cfdc', blocks: ['#5cc8ff', '#ff9ad5', '#7ee0c8', '#ffffff'] },
     train:   { wall: '#fff1dc', stripe: '#f6e2c2', toy: '#ead0a6', inner: '#c99c62', blocks: ['#2fd67b', '#ff5a5f', '#ffc928', '#3b9dff'] },
     clock:   { wall: '#1f2a44', stripe: '#26334f', toy: '#33415f', inner: '#3a4766', blocks: ['#ffc928', '#ff8c42', '#5cc8ff', '#a970ff'], night: true },
+    shelf:   { wall: '#f6ead7', stripe: '#efdcc0', toy: '#e2c9a3', inner: '#b98a5a', blocks: ['#a0522d', '#cd853f', '#2fd67b', '#3b9dff'] },
+    sky:     { wall: '#d6eeff', stripe: '#c6e5ff', toy: '#f4fbff', inner: '#9cc8ea', blocks: ['#ffffff', '#9fd8ff', '#ffd84a', '#ff9ad5'] },
+    gym:     { wall: '#fff0f5', stripe: '#ffe0ec', toy: '#ffc9dd', inner: '#e59bb7', blocks: ['#ff5a9e', '#ffc928', '#2fd67b', '#5cc8ff'] },
+    castle:  { wall: '#e8e4f5', stripe: '#dcd6ee', toy: '#c8c0e2', inner: '#8f87a8', blocks: ['#9aa3b5', '#7d8597', '#ffc928', '#ff5a5f'] },
     hub:     { wall: '#f1c78c', stripe: '#e7b874', toy: '#d9a560', inner: '#c98f50', blocks: ['#ff5a5f', '#3b9dff', '#2fd67b', '#ffc928', '#a970ff'] },
 };
 export const themeOf = level => THEMES[level.kind === 'hub' ? 'hub' : level.theme] || THEMES.bounce;
@@ -40,7 +44,7 @@ function puff(view, x, y, n, color, speed = 3, life = 0.6, size = 0.12, g = 0) {
     }
 }
 
-const WORDS = { bump: ['BONK!', '#ff4d6d'], pop: ['POP!', '#d98cff'], bounce: ['BOING!', '#ff5a9e'], spring: ['BOING!', '#ff5a5f'], cannon_fire: ['WHEEE!', '#3b9dff'], splash: ['SPLOSH!', '#3b9dff'], flip: ['WHOA!', '#a970ff'], win: ['YAY!', '#2fd67b'], death: ['OOF!', '#8f95a3'] };
+const WORDS = { click: ['CLICK!', '#2fd67b'], plane: ['WHOOSH!', '#3b9dff'], walljump: ['HUP!', '#ff9f43'], bump: ['BONK!', '#ff4d6d'], pop: ['POP!', '#d98cff'], bounce: ['BOING!', '#ff5a9e'], spring: ['BOING!', '#ff5a5f'], cannon_fire: ['WHEEE!', '#3b9dff'], splash: ['SPLOSH!', '#3b9dff'], flip: ['WHOA!', '#a970ff'], win: ['YAY!', '#2fd67b'], death: ['OOF!', '#8f95a3'] };
 
 /** React to this frame's events: dust, sparkles, splashes, squashes, somersaults, comic words. */
 export function fx(view, events, w) {
@@ -66,6 +70,9 @@ export function fx(view, events, w) {
         if (e.type === 'flip') puff(view, cx, p.y + P.H / 2, 12, '#c9a6ff', 3, 0.5, 0.12);
         if (e.type === 'bump') { const b = w.L.byId[e.id]; puff(view, b.x, b.y, 12, '#ffd84a', 5, 0.45, 0.1); }
         if (e.type === 'pop') puff(view, cx, p.y + P.H / 2 - 0.15, 14, '#e6f6ffdd', 4, 0.45, 0.09);
+        if (e.type === 'pogo') { puff(view, cx, feet, 4, '#ffffffbb', 1.5, 0.3, 0.08); view.landSquash = Math.min(0.3, 0.12 + e.v / 120); }
+        if (e.type === 'walljump') puff(view, p.x + (e.side > 0 ? P.W : 0), p.y + P.H / 2, 6, '#ffd2a1', 2, 0.35, 0.09);
+        if (e.type === 'unplane') puff(view, cx, feet, 8, '#ffffffcc', 2.5, 0.4, 0.1);
         if (e.type === 'death') puff(view, cx, p.y + P.H / 2, 10, '#ff6b5b', 3, 0.5, 0.12);
         if (e.type === 'win') for (let i = 0; i < 40; i++) view.particles.push({ x: cx + rnd(-1, 1), y: p.y, vx: rnd(-4, 4), vy: rnd(-9, -3), life: 1.6, max: 1.6, color: ['#ffd84a', '#ff5a5f', '#3b9dff', '#2fd67b'][i % 4], size: 0.14, g: 9 });
     }
@@ -294,6 +301,13 @@ function drawTiles(ctx, w, view, T, th, x0, x1, y0, y1) {
             ctx.beginPath(); ctx.moveTo(X + T * 0.2, Y); ctx.lineTo(X + T * 0.2, Y + T); ctx.moveTo(X + T * 0.8, Y); ctx.lineTo(X + T * 0.8, Y + T);
             for (const ry of [0.25, 0.75]) { ctx.moveTo(X + T * 0.2, Y + T * ry); ctx.lineTo(X + T * 0.8, Y + T * ry); }
             ctx.stroke();
+        } else if (c === TILE.VELCRO) {
+            // Velcro: a fuzzy orange strip with little hooks.
+            ctx.fillStyle = '#ff9f43'; roundRect(ctx, X + 1, Y, T - 2, T, T * 0.1);
+            ctx.fillStyle = '#e8822a';
+            for (const [a, b] of [[0.25, 0.2], [0.65, 0.35], [0.35, 0.6], [0.75, 0.75], [0.2, 0.88], [0.55, 0.05]]) circle(ctx, X + T * a, Y + T * b, T * 0.07);
+            ctx.strokeStyle = '#fff1d6'; ctx.lineWidth = Math.max(1, T * 0.04);
+            for (const [a, b] of [[0.45, 0.25], [0.2, 0.45], [0.6, 0.6], [0.4, 0.85]]) { ctx.beginPath(); ctx.arc(X + T * a, Y + T * b, T * 0.07, Math.PI, 0); ctx.stroke(); }
         } else if (c === TILE.TICK_RED || c === TILE.TICK_BLUE) {
             drawTick(ctx, L, s, c, X, Y, T);
         } else if (c === TILE.GOAL) {
@@ -367,6 +381,62 @@ function drawWater(ctx, w, view, T, x0, x1, y0, y1) {
 function drawDevices(ctx, w, view, T, th) {
     const { L, s } = w;
     for (const tr of L.dev.train) drawTrain(ctx, tr, s, view, T, th);
+    for (const g of L.dev.gate) {
+        // A toy-castle gate: bars down when it's shut; up (and blinking before it shuts) when it's open.
+        const left = s.gates[g.id] || 0, open = left > 0;
+        const X = g.x * T, Y = g.y * T, Wd = g.w * T, Hd = g.h * T;
+        const lift = open ? (left < 60 && Math.floor(left / 6) % 2 === 0 ? 0.55 : 0.85) : 0;
+        ctx.fillStyle = '#6b4b2a'; ctx.fillRect(X - T * 0.08, Y - T * 0.15, Wd + T * 0.16, T * 0.2);
+        ctx.save(); ctx.beginPath(); ctx.rect(X, Y, Wd, Hd); ctx.clip();
+        ctx.translate(0, -Hd * lift);
+        ctx.fillStyle = open ? '#9aa3b588' : '#7d8597';
+        for (let bx = 0.2; bx < g.w; bx += 0.33) roundRect(ctx, X + bx * T - T * 0.06, Y, T * 0.12, Hd - T * 0.1, T * 0.05);
+        ctx.fillStyle = open ? '#9aa3b588' : '#5c6372';
+        for (let by = 0.6; by < g.h; by += 1.1) ctx.fillRect(X, Y + by * T, Wd, T * 0.1);
+        for (let bx = 0.2; bx < g.w; bx += 0.33) { ctx.beginPath(); ctx.moveTo(X + bx * T - T * 0.08, Y + Hd - T * 0.1); ctx.lineTo(X + bx * T, Y + Hd + T * 0.08); ctx.lineTo(X + bx * T + T * 0.08, Y + Hd - T * 0.1); ctx.fill(); }
+        ctx.restore();
+    }
+    for (const b of L.dev.button) {
+        // A big floor button: red and up; green and pressed while its gate is open, with a ring for the time left.
+        const left = s.gates[b.gate] || 0, on = left > 0;
+        const X = (b.x + 0.5) * T, Y = (b.y + 1) * T;
+        ctx.fillStyle = '#5c6372'; roundRect(ctx, X - T * 0.45, Y - T * 0.16, T * 0.9, T * 0.16, T * 0.05);
+        ctx.fillStyle = on ? '#2fd67b' : '#ff4d6d';
+        roundRect(ctx, X - T * 0.32, Y - T * (on ? 0.24 : 0.38), T * 0.64, T * (on ? 0.1 : 0.24), T * 0.1);
+        if (on) {
+            ctx.strokeStyle = '#2fd67b'; ctx.lineWidth = Math.max(2, T * 0.07);
+            ctx.beginPath(); ctx.arc(X, Y - T * 0.9, T * 0.22, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (left / (b.time || TOYS.GATE_TIME))); ctx.stroke();
+        }
+    }
+    for (const pg of L.dev.pogo) {
+        // A pogo stick waiting in its stand.
+        const X = (pg.x + 0.5) * T, Y = (pg.y + 1) * T, bob = Math.sin(view.t * 3 + pg.x) * T * 0.04;
+        ctx.fillStyle = '#b97a3f'; roundRect(ctx, X - T * 0.35, Y - T * 0.12, T * 0.7, T * 0.12, T * 0.04);
+        ctx.strokeStyle = '#5c6372'; ctx.lineWidth = Math.max(2, T * 0.08);
+        ctx.beginPath(); ctx.moveTo(X, Y - T * 1.25 + bob); ctx.lineTo(X, Y - T * 0.12); ctx.stroke();
+        ctx.strokeStyle = '#ff5a5f'; ctx.lineWidth = Math.max(2, T * 0.06);
+        ctx.beginPath(); ctx.moveTo(X - T * 0.22, Y - T * 1.25 + bob); ctx.lineTo(X + T * 0.22, Y - T * 1.25 + bob); ctx.moveTo(X - T * 0.2, Y - T * 0.6); ctx.lineTo(X + T * 0.2, Y - T * 0.6); ctx.stroke();
+        ctx.strokeStyle = '#ffc928'; ctx.lineWidth = Math.max(1.5, T * 0.05);
+        ctx.beginPath(); for (let k = 0; k <= 6; k++) ctx.lineTo(X + (k % 2 ? 0.1 : -0.1) * T, Y - T * (0.55 - (0.4 * k) / 6)); ctx.stroke();
+    }
+    for (const rk of L.dev.rack) {
+        // The rack: where pogo sticks go back.
+        const X = (rk.x + 0.5) * T, Y = (rk.y + 1) * T;
+        ctx.fillStyle = '#b97a3f'; ctx.fillRect(X - T * 0.06, Y - T * 1.2, T * 0.12, T * 1.2);
+        roundRect(ctx, X - T * 0.45, Y - T * 1.3, T * 0.9, T * 0.18, T * 0.05);
+        ctx.fillStyle = '#ffffffdd'; roundRect(ctx, X - T * 0.42, Y - T * 1.0, T * 0.84, T * 0.32, T * 0.08);
+        ctx.fillStyle = '#3a3f4d'; ctx.font = `900 ${Math.round(T * 0.2)}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('POGO', X, Y - T * 0.84);
+    }
+    for (const pl of L.dev.plane) {
+        // A paper plane on its peg (gone while it's flying, back a moment after).
+        const X = pl.x * T, Y = pl.y * T;
+        ctx.fillStyle = '#b97a3f'; ctx.fillRect(X - T * 0.05, Y + T * 0.15, T * 0.1, T * 0.85);
+        if (s.planes[pl.id]) continue;
+        ctx.save(); ctx.translate(X, Y + Math.sin(view.t * 2.5 + pl.x) * T * 0.05); ctx.scale(pl.dir, 1);
+        drawPlane(ctx, 0, 0, T);
+        ctx.restore();
+    }
     for (const b of L.dev.bumper) {
         // A pinball bumper: red ring, yellow skirt, white cap with a star; it flashes and swells when it hits.
         const age = b.id in s.fired ? s.t - s.fired[b.id] : 99, hit = age < 12 ? 1 - age / 12 : 0;
@@ -528,6 +598,16 @@ function drawDevices(ctx, w, view, T, th) {
     });
 }
 
+/** A paper plane, nose to the right (flip with scale), its top at y. */
+function drawPlane(ctx, x, y, T) {
+    ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#9aa3b5'; ctx.lineWidth = Math.max(1, T * 0.03);
+    ctx.beginPath(); ctx.moveTo(x + T * 1.0, y + T * 0.05); ctx.lineTo(x - T * 0.9, y - T * 0.05); ctx.lineTo(x - T * 0.55, y + T * 0.22); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#e3e8f2';
+    ctx.beginPath(); ctx.moveTo(x + T * 1.0, y + T * 0.05); ctx.lineTo(x - T * 0.55, y + T * 0.22); ctx.lineTo(x - T * 0.75, y + T * 0.38); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#3b9dff'; ctx.lineWidth = Math.max(1, T * 0.04);
+    ctx.beginPath(); ctx.moveTo(x - T * 0.4, y + T * 0.02); ctx.lineTo(x + T * 0.5, y + T * 0.05); ctx.stroke();
+}
+
 function drawBubble(ctx, X, Y, r, t) {
     const g = ctx.createRadialGradient(X - r * 0.3, Y - r * 0.3, r * 0.1, X, Y, r);
     g.addColorStop(0, '#ffffff22'); g.addColorStop(0.75, '#bfe9ff33'); g.addColorStop(1, '#d9b8ffaa');
@@ -633,7 +713,10 @@ function heroPose(p, view, won) {
     if (p.rope) return ['hang', Math.abs(p.vx) > 2.5 ? 1 : 0];
     if (p.climb) return ['climb', Math.floor(p.y * 2.5)];
     if (p.bubble) return ['apex', 0];
+    if (p.plane) return ['pilot', view.input?.j ? 1 : 0];
     if (p.wet && !p.grounded) return ['swim', hv.swimT * 8];
+    if (p.pogo) return ['pogo', -p.vy * p.g > 0 ? 0 : 1];
+    if (p.wall && p.vy * p.g > 0) return ['cling', view.t * 5];
     if (hv.spin > 0) return ['tuck', 0];
     if (p.grounded) {
         if (hv.landT > 0) return ['crouch', 0];
@@ -700,7 +783,29 @@ function drawHero(ctx, w, view, T, dt) {
     ctx.translate(0, (P.H / 2) * T);                       // the feet
     if (p.grounded) { ctx.fillStyle = '#00000022'; ctx.beginPath(); ctx.ellipse(0, 0, T * 0.4, T * 0.09, 0, 0, Math.PI * 2); ctx.fill(); }
     const sq = view.landSquash;
-    const face = name === 'climb' ? 1 : view.face * (Math.cos(hv.rot) < 0 ? -1 : 1);
+    const look = name === 'cling' ? p.wall : name === 'pilot' ? w.L.byId[p.plane].dir : view.face;
+    const face = name === 'climb' ? 1 : look * (Math.cos(hv.rot) < 0 ? -1 : 1);
+    if (p.plane) {
+        // The paper plane under you, nose up as you pull up, down as you dive.
+        ctx.save(); ctx.scale(face, 1); ctx.rotate(Math.atan2(p.vy * p.g, Math.abs(p.vx) + 1) * 0.8);
+        drawPlane(ctx, 0, T * 0.12, T);
+        ctx.restore();
+    }
+    if (p.pogo) {
+        // The pogo stick: handles at your middle, a spring and a foot below your feet.
+        const comp = Math.max(0, view.landSquash) * T * 0.6;
+        ctx.strokeStyle = '#5c6372'; ctx.lineWidth = Math.max(2, T * 0.08);
+        ctx.beginPath(); ctx.moveTo(0, -T * 0.55); ctx.lineTo(0, T * 0.62 - comp); ctx.stroke();
+        ctx.strokeStyle = '#ff5a5f'; ctx.lineWidth = Math.max(2, T * 0.06);
+        ctx.beginPath(); ctx.moveTo(-T * 0.22, -T * 0.55); ctx.lineTo(T * 0.22, -T * 0.55); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-T * 0.2, T * 0.02); ctx.lineTo(T * 0.2, T * 0.02); ctx.stroke();
+        ctx.strokeStyle = '#ffc928'; ctx.lineWidth = Math.max(1.5, T * 0.05);
+        ctx.beginPath();
+        for (let k = 0; k <= 6; k++) ctx.lineTo((k % 2 ? 0.1 : -0.1) * T, T * (0.1 + (0.4 * k) / 6) - comp * (k / 6));
+        ctx.stroke();
+        ctx.fillStyle = '#2b2f38'; roundRect(ctx, -T * 0.1, T * 0.58 - comp, T * 0.2, T * 0.1, T * 0.04);
+        ctx.translate(0, -T * 0.08);
+    }
     ctx.scale(face * (1 + sq * 0.5), 1 - sq);
     drawFigure(ctx, view, T, name, i);
     ctx.restore();

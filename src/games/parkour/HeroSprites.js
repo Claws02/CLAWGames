@@ -7,6 +7,7 @@
 // make them).
 //
 //   const sheet = createHeroSheet(type, color)   → sheet | null (no WebGL: callers use the portrait)
+//   poses: idle blink run crouch rise apex fall launch tuck skid hang climb swim cheer wave hurt cling pilot pogo
 //   sheet.canvas            the atlas (a 2D canvas)
 //   sheet.at(name, i)       → { sx, sy } of frame i of pose `name` (wraps)
 //   sheet.count(name)       frames in a pose
@@ -96,6 +97,24 @@ function poses(r) {
             set(T.hand[1], out + (i ? 0.32 : 0.12) * H, H * 1.05, 0.15, 0);
         } })),
         hurt: [{ anim: 'hit', t: 0.2 }],
+        cling: [0, 1].map(i => T => {
+            // Stuck to a velcro wall (facing it): gloves up on the wall, leaning in.
+            T.squash = 1.03; T.leanX = 0.22; T.eyeOpen = 1.1; T.tilt = i ? 0.05 : -0.05;
+            set(T.hand[0], -W * 0.45, H * (i ? 1.0 : 0.88), F + H * 0.2);
+            set(T.hand[1], W * 0.45, H * (i ? 0.88 : 1.0), F + H * 0.2);
+        }),
+        pilot: [0, 1].map(i => T => {
+            // Kneeling on a paper plane, gloves gripping its nose; pulling up leans back.
+            T.squash = 0.82; T.leanX = i ? -0.18 : 0.34; T.eyeOpen = 1.25;
+            set(T.hand[0], -W * 0.5, H * (i ? 0.55 : 0.32), F + H * 0.25);
+            set(T.hand[1], W * 0.5, H * (i ? 0.55 : 0.32), F + H * 0.25);
+        }),
+        pogo: [0, 1].map(i => T => {
+            // Upright on a pogo stick, gloves on its handles; tucked a little on the way down.
+            T.squash = i ? 0.94 : 1.07; T.leanX = 0.06; T.eyeOpen = i ? 1.0 : 1.25;
+            set(T.hand[0], -W * 0.42, H * 0.5, F + H * 0.12);
+            set(T.hand[1], W * 0.42, H * 0.5, F + H * 0.12);
+        }),
     };
 }
 

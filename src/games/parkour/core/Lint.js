@@ -15,15 +15,16 @@
 //   meets them. The searches then go waypoint to waypoint (reach: the flags;
 //   coins: everything), which keeps each search small.
 //
-//   hub        every door reachable from the start and from every other door;
+//   hub        every door reachable from the start, and the start from every door
+//              (so every door from every other door);
 //              every course has a door
 //
 //   lintCourse(level) → { errors[], warnings[], tapes: { goal, all }, info }
 //   lintHub(hub, courses) → { errors[], warnings[] }
 // ============================================================
-import { compile } from './World.js';
+import { compile, step } from './World.js';
 import { TILE_CHARS, TILE, DEVICES, DT } from './Rules.js';
-import { route, replay, goalTarget, coinTarget, flagTarget, portalTarget } from './Solver.js';
+import { route, replay, goalTarget, coinTarget, flagTarget, portalTarget, toInput } from './Solver.js';
 
 const fmt = b => (b ? `(${b.at.x.toFixed(1)}, ${b.at.y.toFixed(1)}), ${b.d.toFixed(1)} tiles away` : '?');
 
@@ -58,6 +59,9 @@ function dataLayer(level, errors, warnings, { hub = false } = {}) {
         if (d.type === 'cannon' && d.aim.length > 1 && !d.period) errors.push(`device ${d.id}: a sweeping cannon needs a period`);
         if (d.type === 'flip' && d.dir !== 'up' && d.dir !== 'down') errors.push(`device ${d.id || 'flip'}: dir must be 'up' or 'down'`);
         if (d.type === 'portal' && !hub) errors.push(`device ${d.id}: doors belong in the hub`);
+        if (d.type === 'plane' && d.dir !== 1 && d.dir !== -1) errors.push(`device ${d.id || 'plane'}: dir must be 1 or -1`);
+        if (d.type === 'button' && !(level.devices || []).some(g => g.type === 'gate' && g.id === d.gate)) errors.push(`device ${d.id || 'button'}: no gate with id '${d.gate}'`);
+        if (d.type === 'gate' && !d.id) errors.push('device gate: needs an id (its button names it)');
     }
     if (!hub) {
         const coins = (level.devices || []).filter(d => d.type === 'coin').length;
@@ -89,6 +93,17 @@ export function lintCourse(level, opts = {}) {
     const g = route(level, [...flagWay.map(x => x.t), goalTarget(L)], so);
     if (!g.found) { errors.push(`reach: no route to the goal found (${g.states} states${g.capped ? ', capped' : ''}; got closest at ${fmt(g.best)})`); return { errors, warnings, tapes: null, info }; }
     info.goalSeconds = +(g.frames * DT).toFixed(2); info.goalStates = g.states;
+    // What you carry at each flag on that route (a pogo stick): a fall puts you back there with it.
+    const flagPogo = {};
+    {
+        const w = compile(level);
+        let last = -1;
+        outer: for (const [bits, n] of g.tape) for (let k = 0; k < n; k++) {
+            step(w, toInput(bits));
+            if (w.s.check !== last) { last = w.s.check; if (last >= 0 && !(last in flagPogo)) flagPogo[last] = w.s.checkPogo; }
+            if (w.s.won) break outer;
+        }
+    }
 
     // 3. coins, in the order they're listed, then the goal
     const coinTs = way.length ? way.map(x => x.t) : L.dev.coin.map((_, i) => coinTarget(L, i));
@@ -101,7 +116,8 @@ export function lintCourse(level, opts = {}) {
     L.dev.flag.forEach((f, i) => {
         const w = compile(level);
         w.s.check = i; w.s.checkG = f.g || 1;
-        w.s.p = { ...w.s.p, x: f.x + 0.15, y: (f.g || 1) > 0 ? f.y + 0.1 : f.y, vx: 0, vy: 0, g: f.g || 1 };
+        w.s.p = { ...w.s.p, x: f.x + 0.15, y: (f.g || 1) > 0 ? f.y + 0.1 : f.y, vx: 0, vy: 0, g: f.g || 1, pogo: !!flagPogo[i] };
+        w.s.checkPogo = !!flagPogo[i];
         const after = flagWay.filter(x => x.i > i).map(x => x.t);
         const r = route(level, [...after, goalTarget(L)], { ...so, from: w });
         if (!r.found) errors.push(`flags: no route to the goal from checkpoint ${i + 1} at (${f.x},${f.y}) (stuck before ${r.failedAt}; got closest at ${fmt(r.best)})`);
@@ -139,7 +155,7 @@ export function lintCourse(level, opts = {}) {
 /** The course with one part taken away: a device by id, or a tile kind (sponges become plain floor, belts plain floor…). */
 function withoutPart(level, need) {
     if ((level.devices || []).some(d => d.id === need)) return { ...level, devices: level.devices.filter(d => d.id !== need) };
-    const plain = { T: '#', '>': '#', '<': '#', I: '#', C: '#', '~': '.', R: '.', B: '.' };
+    const plain = { T: '#', '>': '#', '<': '#', I: '#', C: '#', '~': '.', R: '.', B: '.', W: '#' };
     if (plain[need] && level.map.some(r => r.includes(need))) return { ...level, map: level.map.map(r => r.split(need).join(plain[need])) };
     const byType = (level.devices || []).filter(d => d.type === need);
     if (byType.length) return { ...level, devices: level.devices.filter(d => d.type !== need) };
@@ -160,14 +176,13 @@ export function lintHub(hub, courses, opts = {}) {
         if (!r.found) errors.push(`hub: door ${d.id} can't be reached from the start`);
     }
     // Coming back out of a course puts you at its door: every other door must be reachable from there.
+    // From every door you can get back to the start, and from the start to every door: so door to door.
+    const home = { at: { x: L.start.x + 0.5, y: L.start.y + 0.5 }, name: 'the start', reached: w => w.s.p.grounded && Math.abs(w.s.p.x + 0.35 - (L.start.x + 0.5)) < 1.2 && Math.abs(w.s.p.y + 0.45 - (L.start.y + 0.5)) < 1 };
     for (const from of doors) {
-        for (const to of doors) {
-            if (from === to) continue;
-            const w = compile(hub);
-            w.s.p = { ...w.s.p, x: from.x + 0.15, y: from.y + 0.1 };
-            const r = route(hub, [portalTarget(L, to)], { ...so, from: w });
-            if (!r.found) errors.push(`hub: from door ${from.id} you can't get to door ${to.id}`);
-        }
+        const w = compile(hub);
+        w.s.p = { ...w.s.p, x: from.x + 0.15, y: from.y + 0.1 };
+        const r = route(hub, [home], { ...so, from: w });
+        if (!r.found) errors.push(`hub: from door ${from.id} you can't get back to the start (so not to the other doors)`);
     }
     return { errors, warnings };
 }

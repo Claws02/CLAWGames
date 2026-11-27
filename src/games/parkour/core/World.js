@@ -19,7 +19,7 @@ import { DT, P, BOUNCE, SLIP, SWING, GRAV, TOYS, TILE, SOLID_TILES, TICK_TILES }
 
 const EPS = 1e-6;
 export const NO_INPUT = Object.freeze({ l: false, r: false, u: false, d: false, j: false });
-const TYPES = ['spring', 'cannon', 'fan', 'magnet', 'rope', 'mover', 'seesaw', 'lowg', 'flip', 'coin', 'flag', 'portal', 'sign', 'bumper', 'bubble', 'train'];
+const TYPES = ['spring', 'cannon', 'fan', 'magnet', 'rope', 'mover', 'seesaw', 'lowg', 'flip', 'coin', 'flag', 'portal', 'sign', 'bumper', 'bubble', 'train', 'plane', 'pogo', 'rack', 'button', 'gate'];
 /** Things you ride on top of: toy cars, elevators, trains. */
 const isRide = d => !!d && (d.type === 'mover' || d.type === 'train');
 
@@ -69,6 +69,9 @@ export function compile(level) {
         const xs = m.path ? m.path.map(q => q[0]) : [m.x, m.to[0]], ys = m.path ? m.path.map(q => q[1]) : [m.y, m.to[1]];
         m._box = { x0: Math.min(...xs), x1: Math.max(...xs) + m.w, y0: Math.min(...ys), y1: Math.max(...ys) };
     }
+    // Toy-castle gates: which cells each one fills.
+    const gateCell = dev.gate.length ? new Map() : null;
+    for (const g of dev.gate) for (let y = g.y; y < g.y + g.h; y++) for (let x = g.x; x < g.x + g.w; x++) gateCell.set(y * W + x, g);
     // Tick-tock blocks: the beat, and the cells near enough to one that its phase matters.
     const tick = Math.max(2, Math.round(level.tick?.period || TOYS.TICK));
     const nearTick = ticks.length ? new Uint8Array(W * H) : null;
@@ -85,7 +88,7 @@ export function compile(level) {
         cycle = (cycle * per) / gcd(cycle, per);
         if (cycle > 100000) cycle = 100000;
     }
-    const L = { level, W, H, grid, start, goals, crumbles, ticks, tick, nearTick, dev, byId, owned, cycle, hub: level.kind === 'hub' };
+    const L = { level, W, H, grid, start, goals, crumbles, ticks, tick, nearTick, gateCell, dev, byId, owned, cycle, hub: level.kind === 'hub' };
     const w = { L, s: null };
     w.s = initialState(L);
     return w;
@@ -96,8 +99,8 @@ function initialState(L) {
     for (const sw of L.dev.seesaw) seesaw[sw.id] = { m: sw.tilt || 0, pm: sw.tilt || 0, w: 0 };
     return {
         t: 0, p: spawnPlayer(L, L.start.x, L.start.y, 1),
-        crumble: {}, seesaw, fired: {}, blown: {},
-        coins: 0, check: -1, checkG: 1,
+        crumble: {}, seesaw, fired: {}, blown: {}, planes: {}, gates: {},
+        coins: 0, check: -1, checkG: 1, checkPogo: false,
         won: false, deaths: 0,
     };
 }
@@ -108,6 +111,7 @@ function spawnPlayer(L, tx, ty, g) {
         grounded: true, ground: 'tile', gtile: TILE.SOLID, climb: false,
         coy: 0, buf: 0, prevJ: false, jumping: false,
         rope: null, ropeR: 0, cannon: null, cf: 0, regrab: 0, wet: false, lowg: false, bubble: null, bt: 0,
+        wall: 0, wallSide: 0, wallT: 0, kick: 0, plane: null, fanV: 0, pogo: false, bounced: false,
         peak: g > 0 ? ty + 1 : -ty,      // the highest point since you left the ground (along gravity)
     };
 }
@@ -156,6 +160,11 @@ export const tickOn = (L, tile, t) => ((t % L.tick) < L.tick / 2) === (tile === 
 /** Is tile (x, y) solid right now (map, fallen ABC blocks, jack-in-the-boxes, tick-tock blocks on their beat)? */
 export function solidAt(w, x, y) {
     const t = tileAt(w.L, x, y);
+    if (w.L.gateCell && x >= 0 && x < w.L.W && y >= 0 && y < w.L.H) {
+        // A closed gate is a wall (and, like a tick-tock block, lets you out if it shuts around you).
+        const k = y * w.L.W + x, g = w.L.gateCell.get(k);
+        if (g && !(w.s.gates[g.id] > 0)) return !w.ghost?.has(k);
+    }
     if (t === TILE.CRUMBLE) return (w.s.crumble[y * w.L.W + x]?.st || 0) < 2;
     // A tick-tock block that comes on around you lets you out first (w.ghost: the ones you were inside at the start of the frame).
     if (t === TILE.TICK_RED || t === TILE.TICK_BLUE) return tickOn(w.L, t, w.s.t) && !w.ghost?.has(y * w.L.W + x);
@@ -197,6 +206,21 @@ function updateCrumbles(w) {
 function updateBubbles(w) {
     const { s } = w;
     for (const k in s.blown) if (--s.blown[k] <= 0) delete s.blown[k];
+    for (const k in s.planes) if (s.p.plane !== k && --s.planes[k] <= 0) delete s.planes[k];
+    for (const k in s.gates) if (--s.gates[k] <= 0) delete s.gates[k];
+}
+
+/** Which side (−1 left, +1 right, 0 none) a velcro wall touches the hero on. */
+function velcroSide(w, p, prefer) {
+    const { L } = w;
+    let left = false, right = false;
+    const xl = Math.floor(p.x - 0.05), xr = Math.floor(p.x + P.W + 0.05);
+    for (let ty = Math.floor(p.y + 0.1); ty <= Math.floor(p.y + P.H - 0.1); ty++) {
+        if (tileAt(L, xl, ty) === TILE.VELCRO) left = true;
+        if (tileAt(L, xr, ty) === TILE.VELCRO) right = true;
+    }
+    if (left && right) return prefer || -1;
+    return left ? -1 : right ? 1 : 0;
 }
 
 /** The tick-tock blocks the hero overlaps right now: they stay open for them until they're out. */
@@ -204,7 +228,7 @@ function ghostTicks(w) {
     const { L, s } = w;
     const p = s.p, g = new Set();
     for (let ty = Math.floor(p.y + EPS); ty <= Math.floor(p.y + P.H - EPS); ty++) for (let tx = Math.floor(p.x + EPS); tx <= Math.floor(p.x + P.W - EPS); tx++) {
-        if (TICK_TILES.has(tileAt(L, tx, ty))) g.add(ty * L.W + tx);
+        if (TICK_TILES.has(tileAt(L, tx, ty)) || L.gateCell?.has(ty * L.W + tx)) g.add(ty * L.W + tx);
     }
     w.ghost = g;
 }
@@ -235,6 +259,7 @@ function respawn(w, ev, why) {
     const { L, s } = w;
     const f = s.check >= 0 ? L.dev.flag[s.check] : null;
     s.p = f ? spawnPlayer(L, f.x, f.y, s.checkG) : spawnPlayer(L, L.start.x, L.start.y, 1);
+    if (f) s.p.pogo = s.checkPogo;                    // back at the flag with the pogo stick if you had it there
     s.deaths++;
     ev.push({ type: 'death', why });
 }
@@ -354,6 +379,42 @@ function inBubble(w, input, jEdge, ev) {
     if (boxHitsSolid(w, p)) { p.x = ox; p.y = oy; p.vx = 0; pop(0, 'wall'); }       // touch anything: pop
 }
 
+/**
+ * Riding a paper plane: it flies on by itself. Hold JUMP to pull up (it slows
+ * down as it climbs), let go and it glides down (speeding up again). Too slow
+ * and it stalls. ◀/▶ the way it flies dives; the other way lets go. Fans
+ * blow it about. Touching anything ends the flight (you hop off onto it).
+ */
+function onPlane(w, input, jEdge, ev) {
+    const { L, s } = w;
+    const p = s.p, pl = L.byId[p.plane], g = p.g;
+    const drop = why => {
+        p.plane = null; s.planes[pl.id] = TOYS.PLANE_BACK; p.regrab = 12;
+        p.grounded = false; p.coy = 0; p.jumping = false; p.buf = 0;
+        p.peak = g > 0 ? p.y + P.H : -p.y;
+        ev.push({ type: 'unplane', id: pl.id, why });
+    };
+    if (pl.dir > 0 ? input.l : input.r) { p.vy = Math.min(p.vy, 0) - g * 3; return drop('off'); }
+    let sp = Math.abs(p.vx);
+    const dive = pl.dir > 0 ? input.r : input.l;
+    if (input.j) p.vy = Math.max(-TOYS.PLANE_CLIMB, (p.vy * g - TOYS.PLANE_LIFT * DT)) * g;
+    else p.vy = approach(p.vy * g, dive ? TOYS.PLANE_DIVE : TOYS.PLANE_SINK, TOYS.PLANE_SETTLE * (dive ? 2 : 1) * DT) * g;
+    // Fans carry the plane: an updraft lifts it (without costing it speed), a tailwind speeds it along.
+    const cx = p.x + P.W / 2, cy = p.y + P.H / 2;
+    let carryV = 0;
+    for (const f of L.dev.fan) if (inRect(cx, cy, f)) { carryV += f.lift ?? f.ay * TOYS.PLANE_FAN; sp += f.ax * pl.dir * TOYS.PLANE_FAN * DT; }
+    p.fanV = approach(p.fanV || 0, carryV, 20 * DT);
+    sp += (TOYS.PLANE_TRADE * p.vy * g - TOYS.PLANE_LOSS) * DT;
+    if (sp < TOYS.PLANE_MIN) p.vy += g * P.G * 0.6 * DT;           // stalled: it drops
+    sp = Math.max(0, Math.min(TOYS.PLANE_MAX, sp));
+    p.vx = pl.dir * sp;
+    const ox = p.x, oy = p.y;
+    p.x += p.vx * DT;
+    if (boxHitsSolid(w, p)) { p.x = ox; p.vx = 0; return drop('crash'); }
+    p.y += (p.vy + p.fanV) * DT;
+    if (boxHitsSolid(w, p)) { p.y = oy; p.vy = 0; p.fanV = 0; return drop('land'); }
+}
+
 function ladderMove(w, input, jEdge, dir) {
     const { L, s } = w;
     const p = s.p;
@@ -382,10 +443,13 @@ function movePlayer(w, input, ev, carry) {
     if (jEdge) p.buf = P.BUFFER;
     else if (p.buf > 0) p.buf--;
     if (p.regrab > 0) p.regrab--;
+    if (p.kick > 0) p.kick--;
+    p.bounced = false;
 
     if (p.cannon) return inCannon(w, input, jEdge, ev);
     if (p.rope) return onRope(w, input, jEdge, ev);
     if (p.bubble) return inBubble(w, input, jEdge, ev);
+    if (p.plane) return onPlane(w, input, jEdge, ev);
 
     const g = p.g;
     // Riding a toy car: it carries you.
@@ -393,6 +457,7 @@ function movePlayer(w, input, ev, carry) {
 
     const env = envAt(w);
     if (env.water !== p.wet) { p.wet = env.water; ev.push({ type: env.water ? 'splash' : 'unsplash' }); }
+    if (env.water && p.pogo) { p.pogo = false; ev.push({ type: 'pogo_off', why: 'water' }); }
     p.lowg = env.lowg;
     ladderMove(w, input, jEdge, dir);
 
@@ -410,10 +475,10 @@ function movePlayer(w, input, ev, carry) {
         } else if (dir !== 0 && Math.sign(p.vx) === dir && Math.abs(p.vx) > run) {
             p.vx -= dir * Math.min(Math.abs(p.vx) - run, P.AIR_DRAG * DT);      // a launch keeps its speed
         } else if (dir !== 0) {
-            p.vx = approach(p.vx, dir * run, P.ACC_AIR * DT);
+            p.vx = approach(p.vx, dir * run, P.ACC_AIR * (p.kick > 0 ? 0.25 : 1) * DT);   // just off a velcro wall: gentle steering
         } else if (Math.abs(p.vx) > run) {
             p.vx = approach(p.vx, 0, P.AIR_DRAG * DT);
-        } else {
+        } else if (p.kick <= 0) {
             p.vx = approach(p.vx, 0, P.ACC_AIR * 0.25 * DT);
         }
 
@@ -423,6 +488,12 @@ function movePlayer(w, input, ev, carry) {
         if (env.water) { G *= GRAV.WATER; maxFall = GRAV.WATER_FALL; }
         p.vy += G * g * DT;
         if (g > 0) p.vy = Math.min(maxFall, p.vy); else p.vy = Math.max(-maxFall, p.vy);
+
+        // Velcro walls: touching one in the air you slide down it slowly; JUMP kicks you off it.
+        const side = !p.grounded && !env.water ? velcroSide(w, p, dir) : 0;
+        p.wall = side;
+        if (side) { p.wallSide = side; p.wallT = TOYS.WALL_COYOTE; } else if (p.wallT > 0) p.wallT--;
+        if (side && p.vy * g > TOYS.WALL_SLIDE) p.vy = g * TOYS.WALL_SLIDE;
 
         if (env.water) {
             if (jEdge) {
@@ -444,6 +515,10 @@ function movePlayer(w, input, ev, carry) {
             }
             p.grounded = false; p.coy = 0; p.buf = 0; p.jumping = true;
             ev.push({ type: 'jump' });
+        } else if (p.buf > 0 && !p.grounded && p.wallT > 0) {
+            p.vy = -g * TOYS.WALL_JUMP_V; p.vx = -p.wallSide * TOYS.WALL_KICK;
+            p.kick = TOYS.WALL_STEER; p.jumping = true; p.buf = 0; p.wallT = 0; p.wall = 0;
+            ev.push({ type: 'walljump', side: p.wallSide });
         }
         if (p.jumping && !input.j && p.vy * -g > P.JUMP_CUT) p.vy = -g * P.JUMP_CUT;
         if (p.vy * g >= 0) p.jumping = false;
@@ -486,6 +561,9 @@ function movePlayer(w, input, ev, carry) {
             if (solidAt(w, tx, ty) || (oneway && prevBottom <= ty + EPS)) {
                 if (!land || ty < land.y) land = { y: ty, ground: 'tile' };
             }
+            // On a pogo stick, spikes are something to bounce on (off their tips).
+            const tip = ty + TOYS.POGO_TIP;
+            if (p.pogo && g > 0 && t === TILE.SPIKES && prevBottom <= tip + EPS && bottom >= tip && (!land || tip < land.y)) land = { y: tip, ground: 'tile', tip: true };
         }
         if (g > 0) {
             for (const m of L.dev.mover) {
@@ -511,7 +589,7 @@ function movePlayer(w, input, ev, carry) {
             p.y = land.y - P.H; impact = p.vy; p.vy = 0;
             if (g > 0) {
                 p.grounded = true; p.ground = land.ground; p.climb = false;
-                p.gtile = land.ground === 'tile' ? pickTile(land.y) : TILE.SOLID;
+                p.gtile = land.tip ? TILE.SPIKES : land.ground === 'tile' ? pickTile(land.y) : TILE.SOLID;
             } else p.jumping = false;
         } else if (g > 0 && wasGrounded && L.byId[wasGround]?.type === 'seesaw') {
             // Walking off a tilting ruler downhill: stay on it if it's right under you.
@@ -559,6 +637,14 @@ function movePlayer(w, input, ev, carry) {
             return;
         }
     }
+    // A pogo stick bounces you off whatever you land on: from the height you fell, more with JUMP held.
+    if (p.pogo) {
+        const vin = Math.sqrt(2 * P.G * fell);
+        const v = Math.max(TOYS.POGO_MIN, Math.min(TOYS.POGO_MAX, vin * TOYS.POGO_KEEP + (input.j ? TOYS.POGO_HELD : 0)));
+        p.vy = -g * v; p.grounded = false; p.coy = 0; p.jumping = false; p.buf = 0; p.bounced = true;
+        ev.push({ type: 'pogo', v });
+        return;
+    }
     // ABC blocks start to wobble under you.
     if (L.crumbles.length) {
         const ty = g > 0 ? Math.floor(p.y + P.H + EPS) : Math.floor(p.y - EPS);
@@ -573,8 +659,18 @@ function movePlayer(w, input, ev, carry) {
 function grabs(w, ev) {
     const { L, s } = w;
     const p = s.p;
-    if (p.rope || p.cannon || p.bubble || p.regrab > 0) return;
+    if (p.rope || p.cannon || p.bubble || p.plane || p.regrab > 0) return;
     const cx = p.x + P.W / 2, cy = p.y + P.H / 2;
+    for (const pl of L.dev.plane) {
+        // A paper plane on its stand: touch it and you're riding it.
+        if (s.planes[pl.id] || !playerOver(p, pl.x - 1, pl.y - 0.5, 2, 0.8)) continue;
+        p.plane = pl.id; s.planes[pl.id] = TOYS.PLANE_BACK;
+        p.x = pl.x - P.W / 2; p.y = pl.y - P.H;
+        p.vx = pl.dir * TOYS.PLANE_CRUISE; p.vy = 0;
+        p.grounded = false; p.coy = 0; p.jumping = false; p.climb = false; p.buf = 0; p.wall = 0; p.wallT = 0;
+        ev.push({ type: 'plane', id: pl.id });
+        return;
+    }
     for (const b of L.dev.bubble) {
         if (s.blown[b.id]) continue;
         const dx = cx - b.x, dy = cy - b.y;
@@ -655,8 +751,16 @@ function zones(w, ev) {
     });
     L.dev.flag.forEach((f, i) => {
         if (s.check === i) return;
-        if (playerOver(p, f.x + 0.2, f.y, 0.6, 1)) { s.check = i; s.checkG = p.g; ev.push({ type: 'flag', i }); }
+        if (playerOver(p, f.x + 0.2, f.y, 0.6, 1)) { s.check = i; s.checkG = p.g; s.checkPogo = p.pogo; ev.push({ type: 'flag', i }); }
     });
+    for (const pg of L.dev.pogo) if (!p.pogo && !p.plane && playerOver(p, pg.x + 0.15, pg.y, 0.7, 1)) { p.pogo = true; ev.push({ type: 'pogo_on', id: pg.id }); }
+    for (const rk of L.dev.rack) if (p.pogo && playerOver(p, rk.x + 0.15, rk.y, 0.7, 1)) { p.pogo = false; ev.push({ type: 'pogo_off', why: 'rack' }); }
+    for (const b of L.dev.button) {
+        // Standing on a button holds its gate open (and keeps it open a while after you step off).
+        if (!playerOver(p, b.x + 0.1, b.y + 0.6, 0.8, 0.4)) continue;
+        if (!(s.gates[b.gate] > 0)) ev.push({ type: 'click', id: b.id, gate: b.gate });
+        s.gates[b.gate] = b.time || TOYS.GATE_TIME;
+    }
 }
 
 function hazards(w, ev) {
@@ -682,7 +786,7 @@ export function step(w, input = NO_INPUT) {
     const ev = [];
     if (s.won) return ev;
     s.t++;
-    if (L.ticks.length) ghostTicks(w);
+    if (L.ticks.length || L.gateCell) ghostTicks(w);
     updateCrumbles(w);
     updateSeesaws(w);
     updateBubbles(w);
@@ -707,7 +811,7 @@ export function snapshot(s) {
     for (const k in s.crumble) crumble[k] = { st: s.crumble[k].st, f: s.crumble[k].f };
     const seesaw = {};
     for (const k in s.seesaw) seesaw[k] = { ...s.seesaw[k] };
-    return { ...s, p: { ...s.p }, crumble, seesaw, fired: { ...s.fired }, blown: { ...s.blown } };
+    return { ...s, p: { ...s.p }, crumble, seesaw, fired: { ...s.fired }, blown: { ...s.blown }, planes: { ...s.planes }, gates: { ...s.gates } };
 }
 export function restore(w, snap) { w.s = snapshot(snap); }
 
@@ -744,6 +848,15 @@ export function hashState(w, withCoins = false) {
     if (p.rope) k += `,r${p.rope}`;
     if (p.cannon) k += `,c${p.cannon}:${Math.min(p.cf, 13)}`;
     if (p.bubble) k += `,b${p.bubble}:${Math.floor(p.bt / 40)}`;
+    if (p.plane) k += `,p${p.plane}:${Math.round(p.fanV / 2)}`;
+    if (p.pogo) k += ',P';
+    if (p.wall || p.kick > 0) k += `,w${p.wall}${p.kick > 0 ? 'k' : ''}`;
+    for (const id in s.planes) { const d = L.byId[id]; if (id !== p.plane && Math.abs(d.x - p.x) < 8 && Math.abs(d.y - p.y) < 8) k += `,q${id}`; }
+    for (const id in s.gates) {
+        // An open gate matters (and how long it has left) while you're anywhere near it.
+        const gt = L.byId[id];
+        if (gt && Math.abs(gt.x - p.x) < 24 && Math.abs(gt.y - p.y) < 14) k += `,g${id}:${Math.floor(s.gates[id] / 12)}`;
+    }
     for (const b in s.blown) { const d = L.byId[b]; if (Math.abs(d.x - p.x) < 6 && Math.abs(d.y - p.y) < 6) k += `,o${b}`; }
     if (L.cycle > 1) k += timedKey(L, s, p);
     for (const c in s.crumble) {
