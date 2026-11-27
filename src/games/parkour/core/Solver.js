@@ -39,7 +39,8 @@ const LADDER_MACROS = [];
 for (const n of [8, 20]) for (const v of [B.u, B.d]) LADDER_MACROS.push({ n, bits: () => v, air: 0 });
 for (const d of [-1, 0, 1]) MACROS.push({ n: 45, bits: () => dirBits(d) | B.j, air: dirBits(d) | B.j });
 const AIR_MAX = 120;
-const settled = p => p.grounded || p.rope || p.cannon || p.wet || p.climb || p.bubble;
+// Settled = a place to decide from: standing, holding on, inside something, sliding down velcro, flying a plane, or a pogo bounce.
+const settled = p => p.grounded || p.rope || p.cannon || p.wet || p.climb || p.bubble || p.plane || p.bounced || (p.wall && p.vy * p.g > 0);
 
 // A binary heap of [priority, node index].
 function heap() {
@@ -138,6 +139,17 @@ export function navField(L, target) {
         }
         launchers.push({ at: [by * W + bx], cells });
     }
+    for (const pl of L.dev.plane) {
+        // A paper plane glides a long way down (and can climb a little): a wedge in front of it.
+        const cells = new Set();
+        for (let i = 1; i < 60; i++) {
+            const x = Math.floor(pl.x + pl.dir * i);
+            if (x < 0 || x >= W) break;
+            const lo = Math.floor(pl.y - 2 - i * 0.05), hi = Math.floor(pl.y + i * 0.35);
+            for (let y = lo; y <= hi; y++) if (open(x, y)) cells.add(y * W + x);
+        }
+        launchers.push({ at: [Math.floor(pl.y - 0.5) * W + Math.floor(pl.x)], cells });
+    }
     let seeds = [[ty * W + tx, 0]];
     for (let pass = 0; pass < 6 && seeds.length; pass++) {
         // Spread distances out from the seeds (a BFS that only ever lowers a cell).
@@ -195,14 +207,14 @@ export function search(w0, reached, target, opts = {}) {
             const deaths = w.s.deaths;
             const tape = [];
             let hit = false;
-            const was = { rope: w.s.p.rope, cannon: w.s.p.cannon, bubble: w.s.p.bubble };
+            const was = { rope: w.s.p.rope, cannon: w.s.p.cannon, bubble: w.s.p.bubble, plane: w.s.p.plane };
             const push = bits => { step(w, toInput(bits)); const last = tape[tape.length - 1]; if (last && last[0] === bits) last[1]++; else tape.push([bits, 1]); };
             for (let f = 0; f < mac.n; f++) {
                 push(mac.bits(f));
                 if (w.s.deaths !== deaths) break;
                 if (reached(w)) { hit = true; break; }
                 const p = w.s.p;
-                if ((p.rope && p.rope !== was.rope) || (p.cannon && p.cannon !== was.cannon) || (p.bubble && p.bubble !== was.bubble)) break;   // caught something: a new place to decide from
+                if ((p.rope && p.rope !== was.rope) || (p.cannon && p.cannon !== was.cannon) || (p.bubble && p.bubble !== was.bubble) || (p.plane && p.plane !== was.plane)) break;   // caught something: a new place to decide from
             }
             for (let f = 0; !hit && w.s.deaths === deaths && !settled(w.s.p) && f < AIR_MAX; f++) {
                 push(mac.air);

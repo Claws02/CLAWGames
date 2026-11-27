@@ -83,6 +83,31 @@ export const TOYS = {
     BUBBLE_BACK: 90,                       // frames before the wand blows a new one
     BUBBLE_POP: 0.85,                      // JUMP pops it: a jump × this
     TICK: 120,                             // tick-tock blocks: red is solid for the first half of each beat, blue the second
+    // Round 3
+    WALL_SLIDE: 2.2,                       // touching a velcro wall in the air: you slide down it no faster than this
+    WALL_JUMP_V: 13.5,                     // JUMP off a velcro wall: up this fast…
+    WALL_KICK: 7.5,                        // …and away from it this fast
+    WALL_STEER: 10,                        // frames after a wall jump when ◀ ▶ only steer gently (so you don't stick straight back)
+    WALL_COYOTE: 5,                        // frames after leaving a velcro wall when JUMP still kicks off it
+    PLANE_CRUISE: 7,                       // a paper plane sets off at this speed (tiles/s)
+    PLANE_MIN: 3,                          // slower than this it stalls and drops
+    PLANE_MAX: 11,
+    PLANE_SINK: 1.5,                       // let go of JUMP and it glides down this fast
+    PLANE_DIVE: 5,                         // press ◀/▶ the way it flies: it dives this fast (to land where you want)
+    PLANE_FAN: 0.25,                       // fans carry planes (× their push, as a speed): an updraft lifts you high
+                                           // without slowing you (a weak updraft, ay ≈ −30, can't lift you on foot)
+    PLANE_SETTLE: 7,                       // how quickly it eases back into its glide
+    PLANE_LIFT: 15,                        // hold JUMP: it pulls up (tiles/s²)…
+    PLANE_CLIMB: 5,                        // …no faster than this
+    PLANE_TRADE: 2.2,                      // climbing turns speed into height, diving turns height back into speed
+    PLANE_LOSS: 0.4,                       // and a little is lost (tiles/s²): no flying for ever
+    PLANE_BACK: 150,                       // frames before a used plane is back on its stand
+    POGO_MIN: 11,                          // on a pogo stick every landing bounces you: at least this (≈ 1.6 tiles)…
+    POGO_KEEP: 0.9,                        // …giving back this much of the fall…
+    POGO_HELD: 4.5,                        // …plus this with JUMP held as you land
+    POGO_MAX: 22,                          // (≈ 6.4 tiles)
+    POGO_TIP: 0.4,                         // on a pogo stick you bounce on spikes: off their tips, this far into the tile
+    GATE_TIME: 240,                        // stand on a button and its gate stays open this long (frames); per-button `time`
 };
 
 // Tile alphabet for maps. Anything else is a checker error.
@@ -90,17 +115,18 @@ export const TILE = {
     EMPTY: '.', SOLID: '#', ONEWAY: '=', SPIKES: '^', SPIKES_DOWN: 'v', LADDER: 'H', START: 'S', GOAL: 'G',
     ICE: 'I', BELT_L: '<', BELT_R: '>', SPONGE: 'T', CRUMBLE: 'C', WATER: '~',
     TICK_RED: 'R', TICK_BLUE: 'B',         // tick-tock blocks (solid on their half of the beat)
+    VELCRO: 'W',                           // a velcro wall: solid; slide down it, jump off it
 };
 export const TILE_CHARS = new Set(Object.values(TILE));
 /** Tiles you stand on (and bump into). Crumble blocks are solid until they fall; tick-tock blocks come and go (World.solidAt). */
-export const SOLID_TILES = new Set(['#', 'I', '<', '>', 'T', 'C']);
+export const SOLID_TILES = new Set(['#', 'I', '<', '>', 'T', 'C', 'W']);
 export const TICK_TILES = new Set(['R', 'B']);
 
 // Device fields the checker validates (type → required numeric/str fields).
 export const DEVICES = {
     spring:  ['x', 'y'],                   // jack-in-the-box; dx: -1|0|1 throws you sideways (kick tiles/s, default 8), power (×SPRING_V)
     cannon:  ['x', 'y', 'aim'],            // aim: [[vx,vy]] fixed or [[a],[b]] sweeping; period frames; power
-    fan:     ['x', 'y', 'w', 'h', 'ax', 'ay'],   // a push zone (tiles/s²)
+    fan:     ['x', 'y', 'w', 'h', 'ax', 'ay'],   // a push zone (tiles/s²); `lift`: how fast it carries a paper plane up (tiles/s, default ay × PLANE_FAN)
     magnet:  ['x', 'y', 'r', 'pull'],      // pulls you toward (x, y) inside radius r
     rope:    ['x', 'y', 'len'],            // a yo-yo swing anchored at (x, y)
     mover:   ['x', 'y', 'w', 'to', 'period'],   // a toy car shuttling (x,y) ↔ to [x,y]; stand on top
@@ -114,4 +140,9 @@ export const DEVICES = {
     bumper:  ['x', 'y', 'r'],              // a pinball bumper, centre (x, y), radius r: touch it and it knocks you away; power
     bubble:  ['x', 'y'],                   // a bubble wand's bubble at (x, y): touch it to float inside; ◀ ▶ steer, JUMP pops; rise (tiles/s)
     train:   ['path', 'w', 'speed'],       // a toy train: a platform w wide looping along path [[x,y],…] (its top-left) at speed tiles/s
+    plane:   ['x', 'y', 'dir'],            // a paper plane on its stand: centre x, top y, flying dir ±1. Touch it to ride; hold JUMP to pull up; ◀/▶ away from dir lets go
+    pogo:    ['x', 'y'],                   // a pogo stick stand (tile x, y): touch it and you bounce everywhere (even on spikes) until water or a rack
+    rack:    ['x', 'y'],                   // a pogo rack (tile x, y): touch it and you put the pogo stick down
+    button:  ['x', 'y', 'gate'],           // a floor button (tile x, y): stand on it and gate `gate` opens for `time` frames
+    gate:    ['x', 'y', 'w', 'h'],         // a toy-castle gate: solid tiles (x, y, w, h) unless its button holds it open
 };

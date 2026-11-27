@@ -26,7 +26,7 @@ export const meta = {
 const store = { load: () => Store.load(KEY, null), save: v => Store.save(KEY, v) };
 
 // Engine events → the arcade's own sounds (claw-core AudioManager names).
-const SFX = { jump: 'clack', bounce: 'boost', spring: 'boost', cannon_in: 'gate_roll', cannon_fire: 'boom', coin: 'coin_gain', flag: 'bell', death: 'land_bad', win: 'mg_win', door: 'gate_open', locked: 'land_bad', splash: 'splash', leap: 'splash', flip: 'swap', grab: 'kick', wobble: 'clack', bump: 'slam', bubble: 'star_fly', pop: 'clack' };
+const SFX = { jump: 'clack', bounce: 'boost', spring: 'boost', cannon_in: 'gate_roll', cannon_fire: 'boom', coin: 'coin_gain', flag: 'bell', death: 'land_bad', win: 'mg_win', door: 'gate_open', locked: 'land_bad', splash: 'splash', leap: 'splash', flip: 'swap', grab: 'kick', wobble: 'clack', bump: 'slam', bubble: 'star_fly', pop: 'clack', walljump: 'kick', plane: 'whistle', unplane: 'clack', pogo_on: 'swap', pogo_off: 'swap', click: 'gate_open' };
 const sfx = type => { const n = SFX[type]; if (n) { try { Audio.sfx(n); } catch (e) {} } };
 
 let _wrap = null, _camp = null;
