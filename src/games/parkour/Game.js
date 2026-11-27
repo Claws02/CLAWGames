@@ -2,7 +2,7 @@
 // GAME — one course (or the Toy Box hub) in a DOM box: canvas, two-thumb
 // controls, HUD, the course-clear card. Campaign.js swaps these in and out.
 //
-//   const g = createGame(root, opts)   g.destroy()  g.restart()  g.pause(on)  g.flash(text)  g.world
+//   const g = createGame(root, opts)   g.destroy()  g.restart()  g.toLastFlag()  g.pause(on)  g.flash(text)  g.world
 //   opts: level, title, hero (Image|null), heroSheet (HeroSprites sheet|null), heroEmoji, sfx(type), onExit()
 //     course: onWin(result) → card; cardExtra(result) → [lines]; onNext(), nextLabel
 //     hub:    hub = { state(pt), info(pt) → {head, lines, bad?}, portalInfo(pt) → {icon,label,stars}, onEnter(pt) },
@@ -13,6 +13,7 @@
 import { DT } from './core/Rules.js';
 import { compile, step, portalHere, spawnAt, coinCount, NO_INPUT } from './core/World.js';
 import { toInput } from './core/Solver.js';
+import * as World from './core/World.js';      // namespace: a phone with an older World.js cached still loads (↺ restarts then)
 import { createView, draw, fx } from './Render.js';
 
 const CSS = `
@@ -77,7 +78,7 @@ export function createGame(root, opts) {
     hud.innerHTML = `<span class="tt">${esc(opts.title || level.name.toUpperCase())}</span>` +
         (hub ? `<span class="chip sp hub-sum">${esc(opts.hudText || '')}</span>`
             : `<span class="chip coins">🪙 0/${coins}</span><span class="chip sp time">0.0</span><span class="chip par">⏱ ${level.par?.seconds ?? '—'}s</span>`);
-    const restartBtn = el('button', null, '↺'); restartBtn.title = 'Restart';
+    const restartBtn = el('button', null, '↺'); restartBtn.title = 'Back to the last flag';
     if (!hub) hud.appendChild(restartBtn);
     if (opts.onExit) { const x = el('button', null, '✕'); x.title = hub ? 'Leave' : 'Back to the Toy Box'; x.onclick = () => opts.onExit(); hud.appendChild(x); }
     box.appendChild(hud);
@@ -112,7 +113,7 @@ export function createGame(root, opts) {
     };
     hold(bL, 'l'); hold(bR, 'r'); hold(bJump, 'j');
     on(bEnter, 'pointerdown', e => { e.preventDefault(); enterDoor(); });
-    on(restartBtn, 'click', () => restart());
+    on(restartBtn, 'click', () => toLastFlag());
     const KEYS = { ArrowLeft: 'l', KeyA: 'l', ArrowRight: 'r', KeyD: 'r', ArrowDown: 'd', KeyS: 'd', Space: 'j', KeyK: 'j', KeyZ: 'j' };
     on(window, 'keydown', e => {
         if (card.classList.contains('show')) { if (e.code === 'Enter' || e.code === 'Space') card.querySelector('button.go')?.click(); return; }
@@ -165,6 +166,16 @@ export function createGame(root, opts) {
         place();
         view.camX = null; view.particles = []; tapeI = 0; tapeN = 0;
         done = false; card.classList.remove('show');
+    }
+
+    // ↺: back to the last flag (stuck, or just want another go at a jump). Before the
+    // first flag, or after the finish, it starts the course again. R always restarts.
+    function toLastFlag() {
+        if (done || paused) { if (done) restart(); return; }
+        const evs = World.toFlag ? World.toFlag(w) : null;
+        if (!evs) { restart(); flash('From the start!', '↺', 1.2); return; }
+        onEvents(evs);
+        flash('Back to the last flag.', '↺', 1.2);
     }
 
     function nextInput() {
@@ -245,7 +256,7 @@ export function createGame(root, opts) {
         get world() { return w; },
         get frames() { return w.s.t; },
         get done() { return done; },
-        restart, flash, enterDoor,
+        restart, toLastFlag, flash, enterDoor,
         /** The hero's pose last drawn ('idle', 'run', 'cheer'…): probes read it. */
         pose: () => view.hv.pose || null,
         pause(v) { paused = !!v; },

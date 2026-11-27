@@ -86,6 +86,17 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
     ok(await C(() => window.__ppkCampaign.scene) === 'c1', '▲ GO at door 1 starts Bounce House');
     await page.waitForTimeout(700);
     await page.screenshot({ path: 'qa/shot-parkour-course.png' });
+    // ↺: before any flag it starts the course again; after a flag it goes back to that flag (not a fall)
+    const flagBtn = '.ppk-hud button[title="Back to the last flag"]';
+    await page.evaluate(() => { window.__ppkCampaign.game.world.s.p.x += 3; });
+    await page.click(flagBtn); await page.waitForTimeout(200);
+    const r0 = await C(() => { const w = window.__ppkCampaign.game.world; return { x: w.s.p.x, t: w.s.t }; });
+    ok(Math.abs(r0.x - 2.15) < 0.6 && r0.t < 40, `↺ before any flag starts the course again (x ${r0.x.toFixed(2)})`);
+    await page.evaluate(() => { const w = window.__ppkCampaign.game.world; w.s.check = 0; w.s.checkG = 1; w.s.p.x = 40; });
+    await page.waitForTimeout(150);
+    await page.click(flagBtn); await page.waitForTimeout(200);
+    const r1 = await C(() => { const w = window.__ppkCampaign.game.world, f = w.L.dev.flag[0]; return { x: w.s.p.x, fx: f.x + 0.15, deaths: w.s.deaths, scene: window.__ppkCampaign.scene }; });
+    ok(r1.scene === 'c1' && Math.abs(r1.x - r1.fx) < 0.4 && r1.deaths === 0, `↺ after a flag goes back to it, not counted as a fall (x ${r1.x.toFixed(2)})`);
     await page.click('.ppk-hud button[title="Back to the Toy Box"]'); await page.waitForTimeout(300);
     const back = await C(() => ({ scene: window.__ppkCampaign.scene, x: window.__ppkCampaign.game.world.s.p.x }));
     ok(back.scene === 'hub' && Math.abs(back.x - 9.15) < 0.6, `✕ in a course goes back to the Toy Box at its door (x ${back.x.toFixed(2)})`);

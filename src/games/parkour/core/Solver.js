@@ -247,7 +247,10 @@ export function search(w0, reached, target, opts = {}) {
                 push(mac.air);
                 if (reached(w)) hit = true;
             }
-            if (w.s.deaths !== deaths) continue;
+            if (w.s.deaths !== deaths) {
+                if (opts.deathEscapes) return { found: true, died: true, states: nodes.length, capped, w };   // the traps check: back to a flag is a way out
+                continue;
+            }
             // A coin or flag reached mid-air only counts if some way of steering lands you safely:
             // the next search starts from here, and a jump into the spikes is no place to start.
             if (hit && !w.s.won && !settled(w.s.p) && !survivable(w)) continue;

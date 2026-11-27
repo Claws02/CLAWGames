@@ -20,8 +20,8 @@ Play it in the app: SOLO → **Playroom Parkour**.
 node src/games/parkour/tools/check.mjs                 # every course + the hub (several minutes). Must be 0 errors, 0 warnings.
 node src/games/parkour/tools/check.mjs c3 --verbose    # one course
 node src/games/parkour/tools/check.mjs --write-tapes   # after a clean run: regenerate levels/tapes.js
-node src/games/parkour/tests/physics.test.mjs          # each mechanic does what it says (89 checks)
-node qa/parkour.js                                     # the app: buttons, poses, doors, every floor up, all 16 courses on their ★★★ routes, saves (needs :8140)
+node src/games/parkour/tests/physics.test.mjs          # each mechanic does what it says (96 checks)
+node qa/parkour.js                                     # the app: buttons, ↺, poses, doors, every floor up, all 16 courses on their ★★★ routes, saves (needs :8140)
 node scripts/capture-clips.js parkour                  # re-record the card clip after changing how it looks
 ```
 
@@ -30,15 +30,15 @@ node scripts/capture-clips.js parkour                  # re-record the card clip
 | Path | What |
 |---|---|
 | `core/Rules.js` | every tunable: hero feel, bounce/slip/swing/gravity numbers, tile alphabet, device fields |
-| `core/World.js` | `compile(level)`, `step(world, input)` one fixed frame, `snapshot/restore`, `hashState`. Pure, deterministic |
+| `core/World.js` | `compile(level)`, `step(world, input)` one fixed frame, `snapshot/restore`, `hashState`, `toFlag` (the ↺ button). Pure, deterministic |
 | `core/Solver.js` | best-first search over input bursts through the real `step()`; `navField` (walking distance, launchers as shortcuts); `route`, `replay` |
-| `core/Lint.js` | the checker: data, reach, coins, flags, ghost + par, needs, hub |
+| `core/Lint.js` | the checker: data, reach, coins, flags, ghost + par, needs, traps, hub (`lintTraps` runs the traps layer on its own) |
 | `levels/*.js` | one course per file; `levels/index.js` is the order + `HUB` |
 | `levels/base.js` | **the Toy Box** (`kind: 'hub'`): four floors of doors (`portal`, `to` = course id or `soon`), three jack-in-the-boxes up (right wall, left wall, right wall), signs |
 | `levels/tapes.js` | GENERATED checker routes (QA autoplay, the clip). Never hand-edit |
 | `Render.js` | the toy room on a canvas; cosmetic only (may use Math.random / Math.sin). Picks the hero's pose each frame (`heroPose`), comic words, the OOF ghost |
 | `HeroSprites.js` | your character's poses (run ×8, idle, blink, crouch, rise, apex, fall ×2, launch, tuck, skid, hang ×2, climb ×2, swim ×4, cheer ×4, wave ×2, hurt, cling ×2, pilot ×2, pogo ×2), rendered once into an atlas; `null` without WebGL (the portrait, then the emoji, stand in) |
-| `Game.js` | one course or the hub in a DOM box: loop, thumb buttons, HUD, course-clear card |
+| `Game.js` | one course or the hub in a DOM box: loop, thumb buttons, HUD (↺ back to the last flag, or restart before the first; R restarts), course-clear card |
 | `Campaign.js` | the Toy Box ↔ courses; back at the same door; unlock messages |
 | `Progress.js` | best times, coins, stars, unlocks (save schema v1; store injected) |
 | `HubGame.js` | the SOLO card: full screen, hero = seat 1's character (sprite sheet + portrait), `Store` key `parkour`, event → arcade sfx |
@@ -62,6 +62,7 @@ shelves `=` (one-way), ladders `H`, the toy chest `G` (the goal), `sign` (text i
 
 - `core/` stays pure: no DOM, no `Math.random`, no clocks, no `Math.sin` (sqrt is fine). Same input tape → same frames (the ghost layer checks it).
 - A course ships with **0 errors, 0 warnings**, then `--write-tapes`. A changed tunable in `Rules.js` re-proves every course: run the checker.
+- **No pit you can't get out of** (the traps layer): from every floor, the goal, a floor the routes use, or a hazard (back to the flag) must be reachable. A dead-end pit gets spikes (or a spring out). A floor the search couldn't decide is a warning.
 - Every course lists `needs`: device ids, device types or tiles the course is built around. The checker takes each away and the goal must go out of reach, so a mechanic can never be skipped by accident.
 - Par must be at least the checker's route time AND its ★★★ route time (every coin; ★★★ is one run), or it errors; not more than 2.5× the route (a warning). Set it ~1.5× the route, or a little over the ★★★ route if a coin costs a long detour.
 - Adding a course = level file + register in `levels/index.js` + a door in `levels/base.js` (the hub check fails until it has one; doors 1–4 on the floor, 5–8, 9–12 and 13–16 on the shelves; a 17th needs room) + rerun the checker and `--write-tapes`.
@@ -81,7 +82,7 @@ shelves `=` (one-way), ladders `H`, the toy chest `G` (the goal), `sign` (text i
 - Bubbles are slow (2.8 tiles/s): use `rise` to speed up long climbs, and keep ceilings clear (a bubble pops on anything). Through tick-tock shelves, space the shelves `rise × half a beat` apart so the beat stays with you.
 - Trains: give the player a safe spot to wait right where they board, and keep loops short (≈5 s): a long wait blows up the search (and bores the player).
 - Velcro: a 1-wide velcro wall is sticky on both faces. Where only the inside of a chimney should stick, back it with a plain `#` column. Chimneys 3 wide climb ≈2.4 tiles a kick, 4 wide ≈1.4.
-- Planes glide very far (a 4-tile drop ≈ 25 tiles). Pulling up costs speed: from boarding you can climb only ≈1.8 tiles, so climbs need an updraft (`fan`, weak enough, ay ≈ −30, that it can't lift you on foot).
+- Planes glide very far (a 4-tile drop ≈ 25 tiles). Pulling up costs speed: from boarding you can climb only ≈1.8 tiles, so climbs need an updraft (`fan`, weak enough, ay ≈ −30, that it can't lift you on foot). Never ask for a climb right off the stand: a phone thumb isn't frame-perfect (Paper Sky's plane 2 needed one; 0 of 168 kid-style presses made it). Test a takeoff with a grid of press times × hold lengths, and aim for nearly all of them working.
 - Pogo: the biggest bounce is ≈6.4 tiles and takes 4–5 held bounces to build up. Pogo states are settled at each bounce, so a section check needs `--pogo` in the scratch tools, and flags remember the stick.
 - Gates: give each race a few tenths of a second to spare over the checker's route, and check that every coin on a timed stretch can be reached in one jump (a coin that costs a detour may cost the gate).
 - Sticky hand: the hook must be in range from the top of a FULL jump (a tap is a short hop). Spread hooks ≥ 8 apart in a chain or a swing skips one.

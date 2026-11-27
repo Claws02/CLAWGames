@@ -9,6 +9,7 @@
 //   compile(level)          → world { L (static), s (state) }
 //   step(world, input)      → events[]   (one frame, DT seconds)
 //   snapshot(s) / restore(w, snap) / hashState(w)
+//   toFlag(w)               → events[] | null   (the ↺ button: back to the last flag)
 //
 // input = { l, r, u, d, j }  booleans.
 // Coordinates: tiles, x right, y DOWN (row 0 is the top of the map).
@@ -198,6 +199,20 @@ export function portalHere(w) {
 /** Put the hero on tile (tx, ty), standing: back at the door of the course just played. */
 export function spawnAt(w, tx, ty) {
     Object.assign(w.s.p, spawnPlayer(w.L, tx, ty, 1));
+}
+/**
+ * Back to the last flag on purpose (the ↺ button): like a fall, minus the
+ * fall: coins, time and the pogo stick you had at the flag are kept, and it
+ * isn't counted as a death. Before the first flag there's nowhere to go back
+ * to: null (the game restarts the course instead).
+ */
+export function toFlag(w) {
+    const { L, s } = w;
+    if (s.check < 0) return null;
+    const f = L.dev.flag[s.check];
+    s.p = spawnPlayer(L, f.x, f.y, s.checkG);
+    s.p.pogo = s.checkPogo;
+    return [{ type: 'retry' }];
 }
 /** Coins taken so far, as a count. */
 export const coinCount = s => { let n = 0; for (let b = s.coins; b; b >>= 1) n += b & 1; return n; };

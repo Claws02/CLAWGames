@@ -1,6 +1,7 @@
 // Physics checks for Playroom Parkour's engine: each mechanic does what it says.
 //   node src/games/parkour/tests/physics.test.mjs
-import { compile, step, NO_INPUT, hashState, coinCount, moverPos, solidAt, ridePos } from '../core/World.js';
+import { compile, step, NO_INPUT, hashState, coinCount, moverPos, solidAt, ridePos, toFlag } from '../core/World.js';
+import { lintTraps } from '../core/Lint.js';
 import { P, GRAV, SLIP, SWING, BOUNCE, TOYS } from '../core/Rules.js';
 
 let pass = 0, fail = 0;
@@ -500,6 +501,31 @@ const FLOOR = [
     for (let i = 0; i < 60 && !flipped; i++) flipped = step(w2, I({ r: i < 12, j: i < 10 })).some(e => e.type === 'warp');
     run(w2, NO_INPUT, 40);
     ok(flipped && w2.s.p.g === -1 && w2.s.p.grounded, 'a twin on the ceiling: you come out upside down, standing on the ceiling');
+}
+
+// 28. ↺ takes you back to the last flag (not a death; coins kept); before any flag there's nowhere to go
+{
+    const devs = [{ type: 'flag', id: 'f', x: 8, y: 9 }, { type: 'coin', id: 'c', x: 12, y: 9 }];
+    const w = compile(lvl(FLOOR, devs));
+    ok(toFlag(w) === null, 'before the first flag: nowhere to go back to (the game restarts instead)');
+    run(w, I({ r: true }), 120);
+    const x = w.s.p.x;
+    ok(w.s.check === 0 && coinCount(w.s) === 1 && x > 13, `ran past the flag and took the coin (x ${x.toFixed(1)})`);
+    const ev = toFlag(w);
+    ok(ev?.[0]?.type === 'retry' && Math.abs(w.s.p.x + P.W / 2 - 8.5) < 0.01 && w.s.p.grounded, 'back at the flag, standing');
+    ok(w.s.deaths === 0 && coinCount(w.s) === 1 && w.s.check === 0, "coins kept, and it isn't counted as a fall");
+}
+
+// 29. The checker's traps layer: a pit you can't get out of is an error; spikes in it fix it
+{
+    const map = FLOOR.map((r, y) => (y >= 6 && y <= 9 ? '#S..........#....#..........G#' : r));
+    const tape = [[2, 30]];
+    const r = lintTraps(lvl(map), [tape]);
+    ok(r.errors.length === 1 && r.errors[0].includes('x 13–16'), `a 4-tall pit with no way out is caught (${r.errors.length} error)`);
+    const spiked = map.map((row, y) => (y === 9 ? '#S..........#^^^^#..........G#' : row));
+    ok(lintTraps(lvl(spiked), [tape]).errors.length === 0, 'spikes in the pit (back to the flag) make it fine');
+    const low = map.map((row, y) => (y < 8 ? FLOOR[y] : row));
+    ok(lintTraps(lvl(low), [tape]).errors.length === 0, 'a pit you can jump out of is fine');
 }
 
 // 16. The same inputs give the same frames
