@@ -34,6 +34,12 @@ MACROS.push({ n: 40, bits: () => 0, air: 0 }, { n: 120, bits: () => 0, air: 0 })
 const BUBBLE_MACROS = [];
 for (const n of [8, 20]) for (const d of [-1, 0, 1]) BUBBLE_MACROS.push({ n, bits: () => dirBits(d), air: dirBits(d) });
 for (const d of [-1, 0, 1]) for (const d2 of [-1, 0, 1]) BUBBLE_MACROS.push({ n: 2, bits: f => (f === 0 ? B.j : 0) | dirBits(d), air: dirBits(d2) });
+// The sticky hand fires on a second JUMP in the air: jump (or step off), let go of JUMP, press it again
+// a moment later (only courses with hooks get these).
+const HOOK_MACROS = [];
+for (const d of [-1, 0, 1]) for (const [j1, t2] of [[16, 20], [16, 28], [20, 36], [6, 12], [0, 8], [0, 16], [0, 26]]) {
+    HOOK_MACROS.push({ n: t2 + 2, bits: f => dirBits(d) | (f < j1 || f >= t2 ? B.j : 0), air: dirBits(d) });
+}
 // Ladders: climb up or down (only courses with ladders get these).
 const LADDER_MACROS = [];
 for (const n of [8, 20]) for (const v of [B.u, B.d]) LADDER_MACROS.push({ n, bits: () => v, air: 0 });
@@ -82,7 +88,7 @@ const centre = s => ({ x: s.p.x + P.W / 2, y: s.p.y + P.H / 2 });
  */
 export function navField(L, target) {
     const { W, H, grid } = L;
-    const open = (x, y) => x >= 0 && y >= 0 && x < W && y < H && !SOLID_TILES.has(grid[y][x]) && grid[y][x] !== TILE.SPIKES && grid[y][x] !== TILE.SPIKES_DOWN && !L.owned.has(y * W + x);
+    const open = (x, y) => x >= 0 && y >= 0 && x < W && y < H && !SOLID_TILES.has(grid[y][x]) && grid[y][x] !== TILE.SPIKES && grid[y][x] !== TILE.SPIKES_DOWN && grid[y][x] !== TILE.FISH && !L.owned.has(y * W + x);
     const d = new Float32Array(W * H).fill(Infinity);
     const tx = Math.max(0, Math.min(W - 1, Math.floor(target.x))), ty = Math.max(0, Math.min(H - 1, Math.floor(target.y)));
     // Cells each launcher can throw you through (a rough ballistic trace).
@@ -150,6 +156,27 @@ export function navField(L, target) {
         }
         launchers.push({ at: [Math.floor(pl.y - 0.5) * W + Math.floor(pl.x)], cells });
     }
+    for (const h of L.dev.hook) {
+        // The sticky hand: from anywhere in range below it you can swing on it (or be pulled up to it).
+        const cells = new Set(), at = [], R = TOYS.HAND_RANGE;
+        for (let y = Math.floor(h.y - 2); y <= Math.ceil(h.y + R); y++) for (let x = Math.floor(h.x - R - 2); x <= Math.ceil(h.x + R + 2); x++) {
+            if (!open(x, y)) continue;
+            const dd = Math.hypot(x + 0.5 - h.x, y + 0.5 - h.y);
+            if (dd <= R && y + 0.5 >= h.y - 0.5) at.push(y * W + x);
+            if (dd <= R + 2) cells.add(y * W + x);
+        }
+        for (let y = Math.floor(h.y - 3); y <= Math.floor(h.y); y++) for (let x = Math.floor(h.x - 2); x <= Math.floor(h.x + 2); x++) if (open(x, y)) cells.add(y * W + x);
+        launchers.push({ at, cells });
+    }
+    for (const b of L.dev.warp) {
+        // A warp box: standing on it is as good as standing on its twin.
+        const to = L.byId[b.to];
+        if (!to) continue;
+        const tg = to.g || 1, cells = new Set();
+        for (let k = 1; k <= 3; k++) { const y = to.y - tg * k; if (open(to.x, y)) cells.add(y * W + to.x); }
+        const ay = b.y - (b.g || 1);
+        if (open(b.x, ay)) launchers.push({ at: [ay * W + b.x], cells });
+    }
     let seeds = [[ty * W + tx, 0]];
     for (let pass = 0; pass < 6 && seeds.length; pass++) {
         // Spread distances out from the seeds (a BFS that only ever lowers a cell).
@@ -187,7 +214,7 @@ export function search(w0, reached, target, opts = {}) {
     const open = heap();
     const field = opts.field || null, L = w.L;
     if (L._ladders === undefined) L._ladders = L.grid.some(r => r.includes(TILE.LADDER));
-    const macros = L._ladders ? [...MACROS, ...LADDER_MACROS] : MACROS;
+    const macros = [...MACROS, ...(L._ladders ? LADDER_MACROS : []), ...(L.dev.hook.length ? HOOK_MACROS : [])];
     const h = s => {
         const c = centre(s);
         const e = Math.sqrt((c.x - target.x) ** 2 + (c.y - target.y) ** 2);

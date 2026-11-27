@@ -181,7 +181,7 @@ export function createGame(root, opts) {
         fx(view, evs, w);
         for (const e of evs) {
             try { opts.sfx?.(e.type); } catch (_) {}
-            if (e.type === 'death') flash('Back to the last flag.', e.why === 'spikes' ? 'OUCH!' : 'OOPS!', 1.4, true);
+            if (e.type === 'death') flash('Back to the last flag.', e.why === 'spikes' ? 'OUCH!' : e.why === 'fish' ? 'SNAP!' : 'OOPS!', 1.4, true);
             if (e.type === 'cannon_in') flash('Press JUMP to fire!', 'IN THE CANNON', 1.6);
             if (e.type === 'flag' && !hub) flash('You\'ll come back here if you fall.', 'CHECKPOINT', 1.6);
             if (e.type === 'win' && !hub) win();

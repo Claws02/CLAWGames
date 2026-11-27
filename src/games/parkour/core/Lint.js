@@ -62,6 +62,7 @@ function dataLayer(level, errors, warnings, { hub = false } = {}) {
         if (d.type === 'plane' && d.dir !== 1 && d.dir !== -1) errors.push(`device ${d.id || 'plane'}: dir must be 1 or -1`);
         if (d.type === 'button' && !(level.devices || []).some(g => g.type === 'gate' && g.id === d.gate)) errors.push(`device ${d.id || 'button'}: no gate with id '${d.gate}'`);
         if (d.type === 'gate' && !d.id) errors.push('device gate: needs an id (its button names it)');
+        if (d.type === 'warp' && !(level.devices || []).some(o => o.type === 'warp' && o.id === d.to)) errors.push(`device ${d.id || 'warp'}: no warp box with id '${d.to}' to come out of`);
     }
     if (!hub) {
         const coins = (level.devices || []).filter(d => d.type === 'coin').length;

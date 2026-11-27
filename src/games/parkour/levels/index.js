@@ -12,9 +12,13 @@ import c9 from './c9-bookshelf-climb.js';
 import c10 from './c10-paper-sky.js';
 import c11 from './c11-pogo-park.js';
 import c12 from './c12-toy-castle.js';
+import c13 from './c13-sticky-hands.js';
+import c14 from './c14-duck-pond.js';
+import c15 from './c15-magic-boxes.js';
+import c16 from './c16-grand-finale.js';
 import base from './base.js';
 
 /** The hub (the Toy Box). Not in COURSES: it has no goal, only doors. */
 export const HUB = base;
-export const COURSES = [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12].sort((a, b) => a.order - b.order);
+export const COURSES = [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16].sort((a, b) => a.order - b.order);
 export const byId = Object.fromEntries(COURSES.map(c => [c.id, c]));

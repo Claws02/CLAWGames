@@ -1,13 +1,13 @@
 // ============================================================
 // PARKOUR — Playroom Parkour (src/games/parkour/), headless, in the real app.
-//   1. SOLO lists it; its card opens the Toy Box (the hub, three floors), full screen; the hero is drawn
+//   1. SOLO lists it; its card opens the Toy Box (the hub, four floors), full screen; the hero is drawn
 //      from a sheet of poses (your own character, rigged), and it really changes pose
 //   2. the real buttons: ▶ walks, JUMP jumps; door 2 is locked at first;
 //      ▲ GO at door 1 starts the course; ✕ in a course goes back to the Toy Box at that door
 //   3. every course, played by the checker's ★★★ route: the hero cheers, then COURSE CLEAR with ★★★,
 //      BACK TO THE TOY BOX lands at that course's door and opens the next one
-//   4. progress survives a reload (the card shows 12/12 · 36★); ✕ in the Toy Box leaves to SOLO;
-//      the jack-in-the-boxes take you up to doors 5–8, then to 9–12
+//   4. progress survives a reload (the card shows 16/16 · 48★); ✕ in the Toy Box leaves to SOLO;
+//      the jack-in-the-boxes take you up a shelf at a time to doors 5–8, 9–12 and 13–16
 //   no page errors throughout. The course checker is separate:
 //   node src/games/parkour/tools/check.mjs (+ tests/physics.test.mjs).
 //
@@ -46,7 +46,7 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
     const sub0 = await openGame();
     ok(sub0 === 'not played yet', `SOLO lists Playroom Parkour ("${sub0}")`);
     const hub = await C(() => ({ full: !!document.querySelector('.ppk-full .ppk canvas'), doors: window.__ppkCampaign.game.world.L.dev.portal.length, hero: !!document.querySelector('.ppk') }));
-    ok(hub.full && hub.doors === 13, `the Toy Box opens full screen with ${hub.doors} doors`);
+    ok(hub.full && hub.doors === 17, `the Toy Box opens full screen with ${hub.doors} doors`);
     const sheet = await C(() => { const v = window.__ppkCampaign.game; const s = v && document.querySelector('.ppk canvas') && window.__ppkCampaign.heroSheet; return s ? { w: s.canvas.width, h: s.canvas.height, run: s.count('run'), cheer: s.count('cheer') } : null; });
     ok(!!sheet && sheet.run === 8 && sheet.cheer === 4, `your character is posed from a sprite sheet (${sheet ? `${sheet.w}×${sheet.h}, run ${sheet.run} frames` : 'none'})`);
     await page.screenshot({ path: 'qa/shot-parkour-hub.png' });
@@ -116,36 +116,36 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
         allGood = allGood && good && atDoor && nextOpen;
     }
     const sum = await C(() => window.__ppkCampaign.progress.summary());
-    ok(sum.done === 12 && sum.stars === 36, `every course cleared with every star (${sum.done}/12, ${sum.stars}★)`);
+    ok(sum.done === 16 && sum.stars === 48, `every course cleared with every star (${sum.done}/16, ${sum.stars}★)`);
     await page.evaluate(() => { window.__ppkAutoplay = false; });
 
     // ── 4. Progress survives a reload; ✕ in the Toy Box leaves ──
     await page.evaluate(() => sessionStorage.setItem('ppk-keep', '1'));
     await page.reload(); await page.waitForFunction(() => !!window.__claw);
     const sub1 = await openGame();
-    ok(sub1 === '12/12 courses · 36★', `progress kept after a reload ("${sub1}")`);
-    // Upstairs: the jack-in-the-box throws you up onto the top shelf, where doors 5–8 are.
+    ok(sub1 === '16/16 courses · 48★', `progress kept after a reload ("${sub1}")`);
+    // Upstairs: the jack-in-the-boxes throw you up a shelf at a time (right wall, left wall, right wall).
     await doorAt('c4');
-    await page.evaluate(() => { window.__ppkUp = 0; const g = window.__ppkCampaign.game; const iv = setInterval(() => { const p = g.world.s.p; if (p.grounded && p.y < 14 && window.__ppkUp < 1) window.__ppkUp = 1; if (p.grounded && p.y < 6) window.__ppkUp = 2; }, 16); setTimeout(() => clearInterval(iv), 25000); });
+    await page.evaluate(() => { window.__ppkUp = 0; const g = window.__ppkCampaign.game; const iv = setInterval(() => { const p = g.world.s.p; if (!p.grounded) return; const f = p.y < 6 ? 3 : p.y < 14 ? 2 : p.y < 22 ? 1 : 0; if (f > window.__ppkUp) window.__ppkUp = f; }, 16); setTimeout(() => clearInterval(iv), 40000); });
     const holdKeys = async (keys, ms) => { for (const k of keys) await page.keyboard.down(k); await page.waitForTimeout(ms); for (const k of keys) await page.keyboard.up(k); };
     const heroX = () => C(() => window.__ppkCampaign.game.world.s.p.x);
-    await page.keyboard.down('ArrowRight');                       // walk up to the jack-in-the-box…
-    for (let i = 0; i < 80 && (await heroX()) < 40.4; i++) await page.waitForTimeout(25);
-    await page.keyboard.down('Space'); await page.waitForTimeout(300);   // …hop onto it: it throws you up through the shelf
-    await page.keyboard.up('Space'); await page.keyboard.up('ArrowRight');
-    await page.waitForTimeout(250);
-    await holdKeys(['ArrowLeft'], 700);                           // and steer over the shelf
-    await page.waitForTimeout(900);
+    const hop = async (toward, level) => {
+        // Walk to the jack-in-the-box against the wall, hop onto it, steer back over the shelf above.
+        const key = toward > 0 ? 'ArrowRight' : 'ArrowLeft', back = toward > 0 ? 'ArrowLeft' : 'ArrowRight';
+        await page.keyboard.down(key);
+        for (let i = 0; i < 400 && (toward > 0 ? (await heroX()) < 40.4 : (await heroX()) > 2.6); i++) await page.waitForTimeout(25);
+        await page.keyboard.down('Space'); await page.waitForTimeout(300);
+        await page.keyboard.up('Space'); await page.keyboard.up(key);
+        await page.waitForTimeout(250);
+        await holdKeys([back], 700);
+        await page.waitForFunction(l => window.__ppkUp >= l, level, { timeout: 4000 }).catch(() => {});
+    };
+    await hop(1, 1);
     ok(await C(() => window.__ppkUp >= 1), 'the jack-in-the-box by the right wall takes you up to doors 5–8');
-    // Along the middle shelf to the left wall, onto the second jack-in-the-box: up to the top shelf.
-    await page.keyboard.down('ArrowLeft');
-    for (let i = 0; i < 400 && (await heroX()) > 2.6; i++) await page.waitForTimeout(25);
-    await page.keyboard.down('Space'); await page.waitForTimeout(300);
-    await page.keyboard.up('Space'); await page.keyboard.up('ArrowLeft');
-    await page.waitForTimeout(250);
-    await holdKeys(['ArrowRight'], 700);
-    await page.waitForFunction(() => window.__ppkUp >= 2, null, { timeout: 4000 }).catch(() => {});
-    ok(await C(() => window.__ppkUp >= 2), 'the jack-in-the-box by the left wall up there takes you to the top shelf, doors 9–12');
+    await hop(-1, 2);
+    ok(await C(() => window.__ppkUp >= 2), 'the one by the left wall up there takes you to doors 9–12');
+    await hop(1, 3);
+    ok(await C(() => window.__ppkUp >= 3), 'and the one by the right wall up there to the top shelf, doors 13–16');
     await page.click('.ppk-hud button[title="Leave"]'); await page.waitForTimeout(400);
     ok(await C(() => !document.getElementById('scr-solo').hidden && !document.querySelector('.ppk')), '✕ in the Toy Box goes back to SOLO');
     await page.evaluate(() => sessionStorage.removeItem('ppk-keep'));
