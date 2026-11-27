@@ -11,6 +11,9 @@
 //   6 needs    take away each part the course lists in `needs` (a device id,
 //              a device type, or a tile like 'T'): the goal must go out of reach,
 //              so every mechanic actually matters
+//   7 traps    no pit you can't get out of: from every floor (a run of tiles you
+//              can stand on) you can get to the goal, back onto a floor the routes
+//              use, or into something that sends you back to the flag
 //   Big courses can list `route`: their flag and coin ids in the order a run
 //   meets them. The searches then go waypoint to waypoint (reach: the flags;
 //   coins: everything), which keeps each search small.
@@ -20,11 +23,12 @@
 //              every course has a door
 //
 //   lintCourse(level) → { errors[], warnings[], tapes: { goal, all }, info }
+//   lintTraps(level, tapes) → { errors[], warnings[], floors }   (layer 7 on its own)
 //   lintHub(hub, courses) → { errors[], warnings[] }
 // ============================================================
 import { compile, step } from './World.js';
-import { TILE_CHARS, TILE, DEVICES, DT } from './Rules.js';
-import { route, replay, goalTarget, coinTarget, flagTarget, portalTarget, toInput } from './Solver.js';
+import { TILE_CHARS, TILE, DEVICES, DT, SOLID_TILES, P } from './Rules.js';
+import { route, replay, search, navField, goalTarget, coinTarget, flagTarget, portalTarget, toInput } from './Solver.js';
 
 const fmt = b => (b ? `(${b.at.x.toFixed(1)}, ${b.at.y.toFixed(1)}), ${b.d.toFixed(1)} tiles away` : '?');
 
@@ -150,7 +154,66 @@ export function lintCourse(level, opts = {}) {
         if (r.found) warnings.push(`needs: the course can be finished without '${need}' (in ${(r.frames * DT).toFixed(1)}s)`);
     }
 
+    // 7. traps
+    { const t = lintTraps(level, [g.tape, a.found ? a.tape : []], opts); errors.push(...t.errors); warnings.push(...t.warnings); }
+
     return { errors, warnings, tapes: { goal: g.tape, all: a.found ? a.tape : null }, info };
+}
+
+/**
+ * Every floor must have a way out. A floor is a run of cells you can stand in
+ * (open, open above, plain floor or a shelf below: sponges, ABC blocks and
+ * tick-tock blocks don't count, you don't rest on those). Floors the checker's
+ * routes stood on are fine; from every other floor, standing still, a search
+ * must reach the goal, one of the fine floors, or a hazard (back to the flag
+ * is a way out). A search that runs out of places to go is a proven trap: an
+ * error. One that hits its cap couldn't decide: a warning.
+ * Upside-down floors (ceilings in flip zones) aren't checked.
+ */
+export function lintTraps(level, tapes, opts = {}) {
+    const errors = [], warnings = [];
+    const L = compile(level).L, { W, H, grid } = L;
+    const open = (x, y) => x >= 0 && y >= 0 && x < W && y < H && !SOLID_TILES.has(grid[y][x]) && !'^vFRB'.includes(grid[y][x]);
+    const floor = (x, y) => y < H && '#WI<>='.includes(grid[y][x]);
+    const seg = new Int32Array(W * H).fill(-1), segs = [];
+    for (let y = 1; y < H - 1; y++) for (let x = 0; x < W; x++) {
+        if (!(open(x, y) && open(x, y - 1) && floor(x, y + 1))) continue;
+        const k = x > 0 ? seg[y * W + x - 1] : -1;
+        if (k >= 0) { seg[y * W + x] = k; segs[k].x1 = x; } else { seg[y * W + x] = segs.length; segs.push({ i: segs.length, y, x0: x, x1: x }); }
+    }
+    const segAt = p => {
+        if (!p.grounded || p.g < 0) return -1;
+        const fx = Math.floor(p.x + P.W / 2), fy = Math.floor(p.y + P.H - 0.01);
+        return fx >= 0 && fx < W && fy >= 0 && fy < H ? seg[fy * W + fx] : -1;
+    };
+    const fine = new Set();
+    for (const tape of tapes) {
+        const w = compile(level);
+        for (const [bits, n] of tape) for (let k = 0; k < n; k++) { step(w, toInput(bits)); const i = segAt(w.s.p); if (i >= 0) fine.add(i); }
+    }
+    const goal = goalTarget(L).at, field = navField(L, goal), pogo = L.dev.pogo.length > 0;
+    const escapes = (sg, withPogo) => {
+        const w = compile(level), p = w.s.p;
+        p.x = Math.floor((sg.x0 + sg.x1) / 2) + (1 - P.W) / 2; p.y = sg.y + 1 - P.H; p.vx = 0; p.vy = 0; p.grounded = true; p.pogo = withPogo;
+        const out = ww => { const i = segAt(ww.s.p); return ww.s.won || (i >= 0 && i !== sg.i && fine.has(i)); };
+        return search(w, out, goal, { maxStates: opts.trapStates ?? 3000, field, deathEscapes: true });
+    };
+    // A floor proven fine lets the floors that reach it pass too: go round until nothing changes.
+    let todo = segs.filter(sg => !fine.has(sg.i)), last = [];
+    while (todo.length && todo.length !== last.length) {
+        last = todo; todo = [];
+        for (const sg of last) {
+            let r = escapes(sg, false);
+            if (!r.found && pogo) r = escapes(sg, true);
+            if (r.found) fine.add(sg.i); else todo.push({ ...sg, capped: r.capped, states: r.states });
+        }
+    }
+    for (const sg of todo) {
+        const where = `the floor at x ${sg.x0}–${sg.x1}, y ${sg.y + 1}`;
+        if (sg.capped) warnings.push(`traps: couldn't find a way out from ${where} (${sg.states} states, capped)`);
+        else errors.push(`traps: ${where} is a pit with no way out (and nothing to send you back to the flag): add spikes, a spring, or a way up`);
+    }
+    return { errors, warnings, floors: segs.length };
 }
 
 /** The course with one part taken away: a device by id, or a tile kind (sponges become plain floor, belts plain floor…). */

@@ -53,8 +53,8 @@ node qa/trophies.js   # trophy rules, persistence, old saves, the screen, a real
 node qa/yatzy.js      # Yatzy scoring rules, a game vs a bot, a two-player tabletop game
 node qa/shutbox.js    # Shut the Box rules and the bot's odds, a game vs a bot, a two-player tabletop game
 node qa/boardgames.js # Pig, Dots and Boxes, Mancala, Liar's Dice, Tide Lines, Big Grid, Hot Dice, Claw Race, Kelp Maze, Code Breaker: rules, then each vs a bot and two-player, through the real buttons
-node qa/parkour.js    # Playroom Parkour in the app: the Toy Box (four floors), real buttons, the posed hero, locked doors, all 16 courses on their ★★★ routes back to their doors, saves after a reload
-node src/games/parkour/tools/check.mjs   # Playroom Parkour's course checker: reach, coins, checkpoints, replay, par, every mechanic needed, the hub; no browser
+node qa/parkour.js    # Playroom Parkour in the app: the Toy Box (four floors), real buttons, ↺ back to the flag, the posed hero, locked doors, all 16 courses on their ★★★ routes back to their doors, saves after a reload
+node src/games/parkour/tools/check.mjs   # Playroom Parkour's course checker: reach, coins, checkpoints, replay, par, every mechanic needed, no pits you can't get out of, the hub; no browser
 node qa/chomp.js      # Chomp Champs: what each ball is worth, exact scoring for fed balls, the bomb's stun, games vs the bot and two-player
 node qa/pinball.js    # four fingers, nudge/tilt, saver, claw lock, multiball, missions, attacks, a full game vs the bot
 node qa/pinball-lab.mjs [n]   # pinball balance: idle vs each bot tier, n simulated games each
