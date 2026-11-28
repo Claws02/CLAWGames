@@ -2,9 +2,12 @@
 // button and its gate lifts for a few seconds (its button shows a ring for the time left), then
 // shuts again: race through. Mixed with a cannon and a velcro chimney.
 //   A  step on the button, the gate opens; the second gate shuts quickly (coin 1 on the way)
-//   B  race over the spike pits before the gate shuts (coin 2 over the middle pit costs you time)
-//   C  the cannon fires you up to the button on the high ledge (coin 3 at its far end); drop and run for the gate
-//   D  climb the velcro chimney to the last button; drop down and dash through the last gate to the toy chest
+//   B  race over the spike pits before the gate shuts (coin 2 over the middle pit costs you time). The
+//      spikes sit at the bottom of 1-deep pits, so a jump from the very lip is safe (a 0.5 s window each)
+//   C  walk into the cannon (it sits on the floor, like Bounce House's); it fires you up to the button on
+//      the high ledge, wherever you steer (coin 3 at the ledge's left end); drop and run for the gate
+//   D  walk into the velcro chimney under its left wall (like Bookshelf Climb's first) and kick up it to
+//      the last button; drop down and dash through the last gate to the toy chest
 export default {
     id: 'c12', order: 12, name: 'Toy Castle', theme: 'castle', icon: '🏰',
     brief: 'Stand on a button and its gate opens for a few seconds. Race through before it shuts!',
@@ -29,10 +32,10 @@ export default {
         '#........###........###..............................................###........W...W..........###.............#',
         '#...............................................................................W...W..........................#',
         '#...............................................................................W...W..........................#',
-        '#...............................................................................W...#..........................#',
-        '#...............................................................................W...#..........................#',
-        '#.S.........................^^^...^^^...^^^.....................^^^.............W...#....................G.....#',
-        '################################################################################################################',
+        '#...................................................................................W..........................#',
+        '#...................................................................................W..........................#',
+        '#.S.................................................................................W....................G.....#',
+        '############################^^^###^^^###^^^#####################################################################',
         '################################################################################################################',
         '################################################################################################################',
     ],
@@ -41,14 +44,15 @@ export default {
         { type: 'button', id: 'b1', x: 6, y: 22, gate: 'g1', time: 240 },
         { type: 'gate', id: 'g1', x: 10, y: 18, w: 1, h: 5 },
         { type: 'sign', x: 16, y: 17, text: 'QUICK!' },
-        { type: 'button', id: 'b2', x: 14, y: 22, gate: 'g2', time: 100 },
+        { type: 'button', id: 'b2', x: 14, y: 22, gate: 'g2', time: 130 },
         { type: 'gate', id: 'g2', x: 21, y: 18, w: 1, h: 5 },
-        { type: 'button', id: 'b3', x: 25, y: 22, gate: 'g3', time: 270 },
+        { type: 'button', id: 'b3', x: 25, y: 22, gate: 'g3', time: 330 },
         { type: 'gate', id: 'g3', x: 46, y: 16, w: 1, h: 7 },
         { type: 'sign', x: 35, y: 14, text: 'RACE THE GATE!' },
-        { type: 'cannon', id: 'boom', x: 51, y: 21, aim: [[0.32, -1]], power: 2.0 },
+        { type: 'cannon', id: 'boom', x: 51, y: 22, aim: [[0.28, -1]], power: 2.2 },
         { type: 'button', id: 'b4', x: 62, y: 9, gate: 'g4', time: 240 },
         { type: 'gate', id: 'g4', x: 70, y: 18, w: 1, h: 5 },
+        { type: 'sign', x: 76.5, y: 17, text: 'IN UNDER, THEN KICK UP!' },
         { type: 'button', id: 'b5', x: 89, y: 7, gate: 'g5', time: 240 },
         { type: 'gate', id: 'g5', x: 96, y: 18, w: 1, h: 5 },
         { type: 'sign', x: 88, y: 4, text: 'UP, PRESS, DOWN, DASH!' },
