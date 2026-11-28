@@ -2,8 +2,11 @@
 // course; finish it and you're back here at the same door. Four floors:
 // courses 1–4 on the floor, 5–8, 9–12 and 13–16 on the shelves above. The
 // jack-in-the-boxes take you up a shelf at a time (right wall, left wall,
-// right wall); walk off a shelf's open end to come back down. Not a course:
-// kind 'hub' gets its own checks (every door reachable from every door).
+// right wall); walk off a shelf's open end to come back down. The doors
+// follow the way you walk: left to right on the floor and the third shelf,
+// right to left on the second and the top shelf (you arrive at the right).
+// Not a course: kind 'hub' gets its own checks (every door reachable from
+// every door).
 export default {
     id: 'base', kind: 'hub', order: 0, name: 'The Toy Box',
     brief: 'Walk to a door and press ▲ to play a course.',
@@ -49,10 +52,10 @@ export default {
         { type: 'portal', id: 'door-c4', x: 27, y: 29, to: 'c4' },
         { type: 'spring', id: 'upstairs', x: 42, y: 29, power: 1.15 },
         { type: 'sign', x: 40.5, y: 26.6, text: 'UPSTAIRS ↑' },
-        { type: 'portal', id: 'door-c5', x: 9, y: 21, to: 'c5' },
-        { type: 'portal', id: 'door-c6', x: 15, y: 21, to: 'c6' },
-        { type: 'portal', id: 'door-c7', x: 21, y: 21, to: 'c7' },
-        { type: 'portal', id: 'door-c8', x: 27, y: 21, to: 'c8' },
+        { type: 'portal', id: 'door-c5', x: 27, y: 21, to: 'c5' },
+        { type: 'portal', id: 'door-c6', x: 21, y: 21, to: 'c6' },
+        { type: 'portal', id: 'door-c7', x: 15, y: 21, to: 'c7' },
+        { type: 'portal', id: 'door-c8', x: 9, y: 21, to: 'c8' },
         { type: 'spring', id: 'up-2', x: 1, y: 21, power: 1.15 },
         { type: 'sign', x: 3.5, y: 18.6, text: '↑ UP AGAIN' },
         { type: 'portal', id: 'door-c9', x: 9, y: 13, to: 'c9' },
@@ -61,10 +64,10 @@ export default {
         { type: 'portal', id: 'door-c12', x: 27, y: 13, to: 'c12' },
         { type: 'spring', id: 'up-3', x: 42, y: 13, power: 1.15 },
         { type: 'sign', x: 40, y: 10.6, text: 'TOP SHELF ↑' },
-        { type: 'portal', id: 'door-c13', x: 9, y: 5, to: 'c13' },
-        { type: 'portal', id: 'door-c14', x: 15, y: 5, to: 'c14' },
-        { type: 'portal', id: 'door-c15', x: 21, y: 5, to: 'c15' },
-        { type: 'portal', id: 'door-c16', x: 27, y: 5, to: 'c16' },
-        { type: 'portal', id: 'door-soon', x: 34, y: 5, to: 'soon' },
+        { type: 'portal', id: 'door-c13', x: 27, y: 5, to: 'c13' },
+        { type: 'portal', id: 'door-c14', x: 21, y: 5, to: 'c14' },
+        { type: 'portal', id: 'door-c15', x: 15, y: 5, to: 'c15' },
+        { type: 'portal', id: 'door-c16', x: 9, y: 5, to: 'c16' },
+        { type: 'portal', id: 'door-soon', x: 3, y: 5, to: 'soon' },
     ],
 };

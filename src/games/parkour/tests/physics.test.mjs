@@ -461,6 +461,26 @@ const FLOOR = [
     ok(!w3.s.p.rope && y0 + P.H - top > 1.2, `JUMP hops you up off it (${(y0 + P.H - top).toFixed(2)} tiles)`);
 }
 
+// 25b. Green hooks beside a ledge (Sticky Hands): they drag you up the wall face, keep an early JUMP,
+//      and the hop from hanging clears a ledge just above the hook
+{
+    const map = Array.from({ length: 16 }, (_, y) => (y === 0 || y === 15) ? '#'.repeat(30)
+        : '#' + Array.from({ length: 28 }, (_, i) => (i + 1 >= 12 && i + 1 <= 14 && y >= 9) ? '#' : (y === 14 && i + 1 === 10) ? 'S' : '.').join('') + '#');
+    const mk = () => compile(lvl(map, [{ type: 'hook', id: 'ph', x: 11.5, y: 9.3, pull: true }]));
+    const fire = w => { for (let i = 0; i < 40 && !w.s.p.rope; i++) step(w, I({ r: true, j: i < 8 || i >= 14 })); return w.s.p.rope === 'ph'; };
+    const onTop = w => w.s.p.grounded && Math.abs(feet(w) - 9) < 0.05 && w.s.p.x > 11.3;
+    const w = mk(); const caught = fire(w);
+    run(w, I({ r: true }), 40);
+    const d = Math.hypot(w.s.p.x + P.W / 2 - 11.5, w.s.p.y + P.H / 2 - 9.3);
+    ok(caught && w.s.p.rope === 'ph' && d < TOYS.HAND_NEAR + 0.05, `holding ▶ into the wall, a green hook still reels you right up (${d.toFixed(2)} tiles away)`);
+    const w2 = mk(); fire(w2);
+    let top2 = false; for (let i = 0; i < 120 && !top2; i++) { step(w2, I({ r: true, j: i === 2 })); top2 = onTop(w2); }
+    ok(top2, 'JUMP pressed while it is still reeling you in: you hop up onto the ledge when you arrive');
+    const w3 = mk(); fire(w3); run(w3, NO_INPUT, 60);
+    let top3 = false; for (let i = 0; i < 120 && !top3; i++) { step(w3, I({ r: true, j: i < 3 })); top3 = onTop(w3); }
+    ok(top3, 'from a still hang, JUMP + ▶ hops you up onto the ledge');
+}
+
 // 26. Rubber duck boats: ride them over the water, they rock on the waves, wobbly ones sink if you stay
 {
     const map = FLOOR.map((r, y) => (y >= 7 && y <= 9 ? '#####' + '~'.repeat(20) + '#####' : y === 4 ? '#....S.......................#' : r));
