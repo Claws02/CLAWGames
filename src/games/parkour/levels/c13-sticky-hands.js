@@ -2,9 +2,11 @@
 // air: the stretchy hand catches the nearest hook in range (above you or level) and you swing from it;
 // JUMP lets go. Green hooks pull you up to them instead, and JUMP hops you up off them.
 //   A  swing over the spike pit on the first hook (coin 1 on the far upswing)
-//   B  green hooks reel you up the two walls (coin 2 above the second one)
+//   B  green hooks reel you up the two walls (coin 2 above the second one): they drag you up the wall
+//      face (holding ▶ is fine), and JUMP (even pressed early) hops you up onto the ledge once you're there
 //   C  hook to hook to hook over the long spike pit (coin 3 low under the middle hook)
-//   D  swing down off the last hook onto the toy car, ride it to the toy chest
+//   D  swing off the last hook (high: catch it anywhere in a jump) down to the ledge in the spike pit
+//      (flag 4), wait for the toy car to pull up, ride it to the toy chest
 export default {
     id: 'c13', order: 13, name: 'Sticky Hands', theme: 'arcade', icon: '🖐️',
     brief: 'Jump, then JUMP again in the air to fire the sticky hand at a hook. JUMP again lets go.',
@@ -29,15 +31,15 @@ export default {
         '#.........................############..........................###########.....................................G....#',
         '#.........................############..........................###########..............................#############',
         '#.........................############..........................###########..............................#############',
-        '#.........................############..........................###########..............................#############',
-        '#.........................############..........................###########..............................#############',
-        '#.S.....^^^^^^^^^^^^......############^^^^^^^^^^^^^^^^^^^^^^^^^^###########^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^#############',
+        '#.........................############..........................###########...........#####..............#############',
+        '#.........................############..........................###########...........#####..............#############',
+        '#.S.....^^^^^^^^^^^^......############^^^^^^^^^^^^^^^^^^^^^^^^^^###########^^^^^^^^^^^#####^^^^^^^^^^^^^^#############',
         '######################################################################################################################',
         '######################################################################################################################',
         '######################################################################################################################',
     ],
     devices: [
-        { type: 'sign', x: 5, y: 17.5, text: 'JUMP, THEN JUMP AGAIN' },
+        { type: 'sign', x: 5, y: 17.5, text: 'JUMP HIGH, THEN JUMP AGAIN' },
         { type: 'sign', x: 5, y: 18.7, text: 'TO FIRE THE STICKY HAND' },
         { type: 'hook', id: 'h1', x: 13.5, y: 15.5 },
         { type: 'sign', x: 22.5, y: 12.5, text: 'GREEN HOOKS PULL YOU UP' },
@@ -47,17 +49,19 @@ export default {
         { type: 'hook', id: 'h5', x: 50, y: 5 },
         { type: 'hook', id: 'h6', x: 58, y: 5 },
         { type: 'sign', x: 50, y: 2, text: 'HOOK TO HOOK TO HOOK' },
-        { type: 'hook', id: 'h7', x: 79, y: 8 },
-        { type: 'mover', id: 'car', x: 85, y: 20, w: 3, to: [100, 20], period: 240 },
-        { type: 'sign', x: 69, y: 6.5, text: 'SWING DOWN ONTO THE CAR' },
+        { type: 'hook', id: 'h7', x: 79.5, y: 4.5 },
+        { type: 'mover', id: 'car', x: 91, y: 20, w: 3, to: [101, 20], period: 200 },
+        { type: 'sign', x: 69, y: 6.5, text: 'SWING TO THE LEDGE' },
+        { type: 'sign', x: 88.5, y: 16.5, text: 'WAIT FOR THE CAR' },
         { type: 'coin', id: 'cA', x: 17, y: 17.2 },
         { type: 'coin', id: 'cB', x: 31, y: 5.6 },
         { type: 'coin', id: 'cC', x: 49.5, y: 9.6 },
         { type: 'flag', id: 'f1', x: 21, y: 22 },
         { type: 'flag', id: 'f2', x: 34, y: 7 },
         { type: 'flag', id: 'f3', x: 66, y: 9 },
+        { type: 'flag', id: 'f4', x: 87, y: 19 },
     ],
     par: { seconds: 24 },
-    needs: ['h1', 'h2', 'h3', 'h5', 'h7'],
-    route: ['cA', 'f1', 'cB', 'f2', 'cC', 'f3'],
+    needs: ['h1', 'h2', 'h3', 'h4', 'h6', 'h7', 'car'],
+    route: ['cA', 'f1', 'cB', 'f2', 'cC', 'f3', 'f4'],
 };

@@ -47,6 +47,15 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'} ${msg}`); if 
     ok(sub0 === 'not played yet', `SOLO lists Playroom Parkour ("${sub0}")`);
     const hub = await C(() => ({ full: !!document.querySelector('.ppk-full .ppk canvas'), doors: window.__ppkCampaign.game.world.L.dev.portal.length, hero: !!document.querySelector('.ppk') }));
     ok(hub.full && hub.doors === 17, `the Toy Box opens full screen with ${hub.doors} doors`);
+    // The doors follow the way you walk: left to right on the floor and the third shelf, right to left on the
+    // second and the top shelf (the jacks drop you off at the right there).
+    const order = await C(() => {
+        const ps = window.__ppkCampaign.game.world.L.dev.portal.filter(p => p.to !== 'soon');
+        const floor = y => (y < 8 ? 4 : y < 16 ? 3 : y < 24 ? 2 : 1);
+        return [1, 2, 3, 4].map(f => ps.filter(p => floor(p.y) === f).sort((a, b) => a.x - b.x).map(p => +p.to.slice(1)));
+    });
+    const zig = order.every((ids, i) => ids.join() === [...ids].sort((a, b) => (i % 2 ? b - a : a - b)).join());
+    ok(zig, `the doors are numbered the way you walk past them (${order.map(o => o.join('→')).join(' | ')})`);
     const sheet = await C(() => { const v = window.__ppkCampaign.game; const s = v && document.querySelector('.ppk canvas') && window.__ppkCampaign.heroSheet; return s ? { w: s.canvas.width, h: s.canvas.height, run: s.count('run'), cheer: s.count('cheer') } : null; });
     ok(!!sheet && sheet.run === 8 && sheet.cheer === 4, `your character is posed from a sprite sheet (${sheet ? `${sheet.w}×${sheet.h}, run ${sheet.run} frames` : 'none'})`);
     await page.screenshot({ path: 'qa/shot-parkour-hub.png' });

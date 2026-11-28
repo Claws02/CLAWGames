@@ -112,7 +112,8 @@ export const TOYS = {
     HAND_RANGE: 6.5,                       // sticky hand: JUMP in the air fires it at the nearest hook this close (above you or level)
     HAND_PULL: 16,                         // a pull hook reels you in this fast (tiles/s)…
     HAND_NEAR: 1.1,                        // …to this far from it
-    HAND_HOP: 11,                          // JUMP at a pull hook: a hop up off it
+    HAND_HOP: 14,                          // JUMP at a pull hook: a hop up off it (a full jump: from hanging under a hook just below a ledge, you clear it)
+    HAND_KEEP: 90,                         // a JUMP pressed while a pull hook is still reeling you in is kept this long (frames): you hop when you arrive
     DUCK_BOB: 0.16,                        // rubber ducks rock on the waves this much (tiles)…
     DUCK_WAVE: 100,                        // …once every this many frames
     DUCK_SINK: 0.55,                       // a wobbly duck sinks this fast while you stand on it (tiles/s)…

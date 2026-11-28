@@ -397,15 +397,28 @@ function onRope(w, input, jEdge, ev) {
     const vr = p.vx * nx + p.vy * ny;
     p.vx -= vr * nx; p.vy -= vr * ny;
     p.x = cx - P.W / 2; p.y = cy - P.H / 2;
-    // A swing that would put the hero inside a wall stops there and lets go.
-    const x0 = Math.floor(p.x + EPS), x1 = Math.floor(p.x + P.W - EPS), y0 = Math.floor(p.y + EPS), y1 = Math.floor(p.y + P.H - EPS);
-    let hit = false;
-    for (let ty = y0; ty <= y1 && !hit; ty++) for (let tx = x0; tx <= x1; tx++) if (solidAt(w, tx, ty)) { hit = true; break; }
-    if (hit) { p.x = prev.x; p.y = prev.y; p.vx = 0; p.vy = 0; p.rope = null; p.regrab = SWING.REGRAB; ev.push({ type: 'letgo', id: R.id }); return; }
-    if (jEdge) {
+    // A swing that would put the hero inside a wall stops there and lets go. A pull hook drags you
+    // along the wall instead (up the face, or along the ceiling): it never drops you for touching one.
+    if (boxHits(w, p.x, p.y)) {
+        if (R.pull && !boxHits(w, prev.x, p.y)) { p.x = prev.x; p.vx = 0; }
+        else if (R.pull && !boxHits(w, p.x, prev.y)) { p.y = prev.y; p.vy = 0; }
+        else { p.x = prev.x; p.y = prev.y; p.vx = 0; p.vy = 0; p.rope = null; p.regrab = SWING.REGRAB; ev.push({ type: 'letgo', id: R.id }); return; }
+    }
+    // JUMP lets go. On a pull hook it hops you up off it (a full jump), and a press while it's still
+    // reeling you in is kept: you hop the moment you arrive (like a cannon's press while loading).
+    const reeling = R.pull && p.ropeR > TOYS.HAND_NEAR + EPS;
+    if (reeling) { if (jEdge) p.buf = TOYS.HAND_KEEP; return; }
+    if (jEdge || (R.pull && p.buf > 0)) {
         p.rope = null; p.vy -= p.g * (R.pull ? TOYS.HAND_HOP : SWING.LET_GO_UP); p.regrab = SWING.REGRAB; p.jumping = false; p.buf = 0;
         ev.push({ type: 'letgo', id: R.id });
     }
+}
+
+/** Would the hero's box at (x, y) overlap anything solid? */
+function boxHits(w, x, y) {
+    const x0 = Math.floor(x + EPS), x1 = Math.floor(x + P.W - EPS), y0 = Math.floor(y + EPS), y1 = Math.floor(y + P.H - EPS);
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (solidAt(w, tx, ty)) return true;
+    return false;
 }
 
 function inBubble(w, input, jEdge, ev) {
@@ -931,7 +944,7 @@ export function hashState(w, withCoins = false) {
     // In a bubble you drift slowly and your height follows from how long you've been in: a coarser key.
     let k = p.bubble ? `${Math.round(p.x * 3)},${Math.round(p.y * 3)},${Math.round(p.vx)},b` :
         `${Math.round(p.x * 6)},${Math.round(p.y * 6)},${Math.round(p.vx)},${Math.round(p.vy / 2)},${p.grounded ? 1 : 0}${p.g},${p.climb ? 1 : 0}`;
-    if (p.rope) k += `,r${p.rope}${L.byId[p.rope].type === 'hook' ? ':' + Math.round(p.ropeR * 2) : ''}`;
+    if (p.rope) k += `,r${p.rope}${L.byId[p.rope].type === 'hook' ? ':' + Math.round(p.ropeR * 2) + (p.buf > 0 ? 'j' : '') : ''}`;
     if (p.warpCool > 0) k += ',W';
     for (const id in s.sink) { const d = L.byId[id], at = moverPos(d, s.t); if (Math.abs(at.x - p.x) < 8 && Math.abs(at.y - p.y) < 6) k += `,s${id}:${Math.round(s.sink[id] * 5)}`; }
     if (p.cannon) k += `,c${p.cannon}:${Math.min(p.cf, 13)}`;
